@@ -1,0 +1,12 @@
+{
+  "id": "leg_r_kasrkin_illustrious",
+  "displayName": "Gambale Masterwork DX",
+  "location": "RightLeg",
+  "armor_rating": 29,
+  "coverage": 0.90,
+  "max_durability": 380.0,
+  "weight": 3.8,
+  "point_cost": 7,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_kasrkin"
+}

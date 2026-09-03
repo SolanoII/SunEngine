@@ -1,0 +1,42 @@
+{
+  "id": "heavy_stubber",
+  "name": "Heavy Stubber Portatile",
+  "weapon_slot": "primary",
+  "hands_required": 2,
+  "weight_kg": 8.5,
+  "is_beam": false,
+  "base_damage": 32.0,
+  "impact_force": 48.0,
+  "toughness_bypass": 0.10,
+  "armor_penetration": 3,
+  "range_effective": 65.0,
+  "rate_of_fire": 600.0,
+  "magazine_size": 75,
+  "reload_time_sec": 3.8,
+  "heat_capacity": 120.0,
+  "recoil_force": 2.2,
+  "shake_intensity": 0.12,
+  "fov_kick": 1.8,
+  "spread_base": 0.25,
+  "explosion_radius": 0.0,
+  "suppression_value": 15,
+  "spread_auto_multiplier": 1.5,
+  "projectile_speed": 180.0,
+  "projectile_length": 0.8,
+  "projectile_width": 0.08,
+  "hold_offset": [ 0.50, 0.10, -0.60 ],
+  "barrel_offset": [ 0.0, 0.0, -0.55 ],
+  "weapon_scale": [ 0.16, 0.16, 1.10 ],
+  "primary_color": [ 1.0, 0.6, 0.1, 1.0 ],
+  "core_color": [ 1.0, 0.9, 0.5, 1.0 ],
+  "power_modes": {
+    "standard": {
+      "ammo_cost": 1,
+      "heat_generation": 1.5,
+      "damage_mult": 1.0,
+      "ap_bonus": 0
+    }
+  },
+  "projectile_type": "ballistic",
+  "heat_recoil_multiplier": 1.1
+}

@@ -1,0 +1,12 @@
+{
+  "id": "torso_kasrkin",
+  "displayName": "Corazza Carapace Kasrkin",
+  "location": "Torso",
+  "armor_rating": 35,
+  "coverage": 0.98,
+  "max_durability": 550.0,
+  "weight": 14.0,
+  "point_cost": 12,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_kasrkin"
+}

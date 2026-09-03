@@ -1,0 +1,18 @@
+{
+	"id": "imperium_guardsman_recruit",
+	"displayName": "Guardsman Recruit",
+	"base_speed": 3.5,
+	"stamina": 100.0,
+	"stamina_regen": 10.0,
+	"health": 100.0,
+	"toughness": 15,
+	"armor_rating": 3,
+	"strength": 20,
+	"accuracy_skill": 30,
+	"melee_skill": 25,
+	"morale": 50,
+	"suppression_threshold": 40,
+	"vision_range": 120,
+	"fov_degrees": 90,
+	"weight_capacity": 60.0
+}

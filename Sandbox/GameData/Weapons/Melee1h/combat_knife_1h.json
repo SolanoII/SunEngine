@@ -1,0 +1,16 @@
+{
+	"id": "combat_knife_1h",
+	"displayName": "Coltello da Combattimento 1H",
+	"faction": "Imperium",
+	"unit_restriction": "imperium_guardsman_recruit",
+	"is_melee": true,
+	"hand_type": "OneHanded",
+	"slot_type": "Melee",
+	"weight_kg": 1.2,
+	"point_cost": 2,
+	"base_damage": 22.0,
+	"default_melee_type": "Light",
+	"weapon_scale": [ 0.04, 0.08, 0.38 ],
+	"hold_offset": [ 0.0, -0.02, 0.18 ],
+	"primary_color": [ 0.75, 0.75, 0.80, 1.0 ]
+}

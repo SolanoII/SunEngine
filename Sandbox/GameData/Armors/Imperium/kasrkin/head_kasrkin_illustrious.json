@@ -1,0 +1,12 @@
+{
+  "id": "head_kasrkin_illustrious",
+  "displayName": "Elmo Carapace Illustre",
+  "location": "Head",
+  "armor_rating": 36,
+  "coverage": 0.98,
+  "max_durability": 450.0,
+  "weight": 3.8,
+  "point_cost": 12,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_kasrkin"
+}

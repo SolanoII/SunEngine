@@ -1,0 +1,12 @@
+{
+  "id": "arm_r_kasrkin",
+  "displayName": "Bracciale Carapace DX",
+  "location": "RightArm",
+  "armor_rating": 20,
+  "coverage": 0.80,
+  "max_durability": 220.0,
+  "weight": 3.0,
+  "point_cost": 5,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_kasrkin"
+}

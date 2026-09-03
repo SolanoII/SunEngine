@@ -1,0 +1,12 @@
+{
+  "id": "head_kasrkin",
+  "displayName": "Elmo Carapace Kasrkin",
+  "location": "Head",
+  "armor_rating": 28,
+  "coverage": 0.95,
+  "max_durability": 300.0,
+  "weight": 4.0,
+  "point_cost": 8,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_kasrkin"
+}

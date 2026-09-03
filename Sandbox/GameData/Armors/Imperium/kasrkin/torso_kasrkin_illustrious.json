@@ -1,0 +1,12 @@
+{
+  "id": "torso_kasrkin_illustrious",
+  "displayName": "Corazza Carapace Masterwork",
+  "location": "Torso",
+  "armor_rating": 45,
+  "coverage": 1.00,
+  "max_durability": 800.0,
+  "weight": 13.0,
+  "point_cost": 18,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_kasrkin"
+}

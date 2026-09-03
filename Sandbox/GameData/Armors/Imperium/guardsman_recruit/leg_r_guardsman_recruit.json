@@ -1,0 +1,12 @@
+{
+  "id": "leg_r_guardsman_recruit",
+  "displayName": "Schiniera DX Flak",
+  "location": "RightLeg",
+  "armor_rating": 8,
+  "coverage": 0.65,
+  "max_durability": 100.0,
+  "weight": 2.0,
+  "point_cost": 2,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_guardsman_recruit"
+}

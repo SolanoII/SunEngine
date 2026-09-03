@@ -1,0 +1,48 @@
+{
+  "id": "spacemarines_battle_brother",
+  "race": "SpaceMarine",
+  "blocks": [
+    {
+      "name": "Torso",
+      "parentIndex": -1,
+      "offset": [ 0.00, 1.40, 0.00 ],
+      "pivotOffset": [ 0.00, 0.00, 0.00 ],
+      "size": [ 0.78, 0.88, 0.52 ]
+    },
+    {
+      "name": "Head",
+      "parentIndex": 0,
+      "offset": [ 0.00, 0.52, 0.00 ],
+      "pivotOffset": [ 0.00, 0.20, 0.00 ],
+      "size": [ 0.34, 0.34, 0.34 ]
+    },
+    {
+      "name": "Arm_L",
+      "parentIndex": 0,
+      "offset": [ -0.56, 0.25, 0.00 ],
+      "pivotOffset": [ 0.00, -0.42, 0.00 ],
+      "size": [ 0.34, 0.88, 0.34 ]
+    },
+    {
+      "name": "Arm_R",
+      "parentIndex": 0,
+      "offset": [ 0.56, 0.25, 0.00 ],
+      "pivotOffset": [ 0.00, -0.42, 0.00 ],
+      "size": [ 0.34, 0.88, 0.34 ]
+    },
+    {
+      "name": "Leg_L",
+      "parentIndex": 0,
+      "offset": [ -0.26, -0.48, 0.00 ],
+      "pivotOffset": [ 0.00, -0.48, 0.00 ],
+      "size": [ 0.36, 0.92, 0.36 ]
+    },
+    {
+      "name": "Leg_R",
+      "parentIndex": 0,
+      "offset": [ 0.26, -0.48, 0.00 ],
+      "pivotOffset": [ 0.00, -0.48, 0.00 ],
+      "size": [ 0.36, 0.92, 0.36 ]
+    }
+  ]
+}

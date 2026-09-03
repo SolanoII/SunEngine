@@ -1,0 +1,25 @@
+-logging
+Sun::Log::Info("Sun Engine Started");
+Sun::Log::Warning("Texture not found");
+Sun::Log::Error("Renderer failed");
+
+-Installeremo
+
+GLFW
+
+-Timer
+
+Servirà per avere il Delta Time.
+-Input
+
+Creiamo una classe
+Input
+
+che permetterà:
+
+if(Input::IsKeyPressed(KEY_W))
+
+senza sapere che dietro c'è GLFW.
+- Renderer
+
+Solo dopo tutto questo iniziamo OpenGL.

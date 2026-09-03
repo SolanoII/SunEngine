@@ -1,0 +1,12 @@
+{
+  "id": "arm_l_cadian_veteran",
+  "displayName": "Bracciale SX Rinforzato (Veterano)",
+  "location": "LeftArm",
+  "armor_rating": 10,
+  "coverage": 0.65,
+  "max_durability": 110.0,
+  "weight": 1.7,
+  "point_cost": 3,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_guardsman_recruit"
+}

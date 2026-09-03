@@ -1,0 +1,18 @@
+{
+  "id": "imperium_kasrkin",
+  "displayName": "Kasrkin Elite",
+  "base_speed": 4.0,
+  "stamina": 140.0,
+  "stamina_regen": 15.0,
+  "health": 140.0,
+  "toughness": 25,
+  "armor_rating": 7,
+  "strength": 30,
+  "accuracy_skill": 75,
+  "melee_skill": 55,
+  "morale": 85,
+  "suppression_threshold": 75,
+  "vision_range": 140,
+  "fov_degrees": 95,
+  "weight_capacity": 100.0
+}

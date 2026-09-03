@@ -1,0 +1,12 @@
+{
+  "id": "leg_l_cadian_veteran",
+  "displayName": "Schiniera SX Rinforzata (Veterano)",
+  "location": "LeftLeg",
+  "armor_rating": 11,
+  "coverage": 0.70,
+  "max_durability": 130.0,
+  "weight": 2.2,
+  "point_cost": 3,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_guardsman_recruit"
+}

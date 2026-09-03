@@ -1,0 +1,43 @@
+{
+  "id": "lasgun_m-g",
+  "name": "Kantrael MG XII Lasgun",
+  "weapon_slot": "primary",
+  "hands_required": 2,
+  "weight_kg": 3.5,
+  "is_beam": true,
+  "base_damage": 25.0,
+  "impact_force": 18.0,
+  "toughness_bypass": 0.40,
+  "armor_penetration": 2,
+  "range_effective": 50.0,
+  "rate_of_fire": 350.0,
+  "magazine_size": 30,
+  "reload_time_sec": 2.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 1.2,
+  "shake_intensity": 0.05,
+  "fov_kick": 1.0,
+  "spread_base": 0.1,
+  "explosion_radius": 0.0,
+  "suppression_value": 5,
+  "spread_auto_multiplier": 1.2,
+  "projectile_speed": 200.0,
+  "projectile_length": 50.0,
+  "projectile_width": 0.03,
+  "movement_speed_penalty": 0.0,
+  "hold_offset": [ 0.45, 0.10, -0.55 ],
+  "barrel_offset": [ 0.0, 0.0, -0.45 ],
+  "weapon_scale": [ 0.12, 0.12, 0.85 ],
+  "primary_color": [ 0.2, 0.5, 0.8, 1.0 ],
+  "core_color": [ 1.0, 1.0, 1.0, 1.0 ],
+  "power_modes": {
+    "standard": {
+      "ammo_cost": 1,
+      "heat_generation": 4.0,
+      "damage_mult": 1.0,
+      "ap_bonus": 0
+    }
+  },
+  "projectile_type": "laser",
+  "heat_recoil_multiplier": 1.5
+}

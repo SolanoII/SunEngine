@@ -1,0 +1,41 @@
+{
+  "id": "heavy_bolter",
+  "name": "Heavy Bolter",
+  "weight_kg": 18.0,
+  "is_beam": false,
+  "base_damage": 60.0,
+  "impact_force": 160.0,
+  "toughness_bypass": 0.10,
+  "armor_penetration": 4,
+  "range_effective": 70.0,
+  "rate_of_fire": 500.0,
+  "magazine_size": 60,
+  "reload_time_sec": 4.0,
+  "heat_capacity": 150.0,
+  "recoil_force": 3.5,
+  "shake_intensity": 0.20,
+  "fov_kick": 3.0,
+  "spread_base": 0.6,
+  "spread_auto_multiplier": 1.8,
+  "explosion_radius": 1.2,
+  "suppression_value": 35,
+  "projectile_speed": 80.0,
+  "projectile_length": 0.85,
+  "projectile_width": 0.15,
+  "movement_speed_penalty": 0.45,
+  "hold_offset": [ 0.52, -0.05, -0.60 ],
+  "barrel_offset": [ 0.0, 0.0, -0.55 ],
+  "weapon_scale": [ 0.28, 0.28, 1.25 ],
+  "primary_color": [ 0.8, 0.3, 0.1, 1.0 ],
+  "core_color": [ 1.0, 0.9, 0.5, 1.0 ],
+  "power_modes": {
+    "standard": {
+      "ammo_cost": 1,
+      "heat_generation": 6.0,
+      "damage_mult": 1.0,
+      "ap_bonus": 0
+    }
+  },
+  "projectile_type": "explosive",
+  "heat_recoil_multiplier": 2.5
+}

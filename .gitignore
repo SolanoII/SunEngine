@@ -1,0 +1,7 @@
+# Escludi la libreria esterna Jolt e build pesanti
+JoltPhysics/
+.vs/
+bin/
+obj/
+*.exe
+*.obj

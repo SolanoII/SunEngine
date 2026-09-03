@@ -1,0 +1,12 @@
+{
+  "id": "arm_l_guardsman_recruit",
+  "displayName": "Para-Spalla SX Flak",
+  "location": "LeftArm",
+  "armor_rating": 7,
+  "coverage": 0.60,
+  "max_durability": 80.0,
+  "weight": 1.5,
+  "point_cost": 2,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_guardsman_recruit"
+}

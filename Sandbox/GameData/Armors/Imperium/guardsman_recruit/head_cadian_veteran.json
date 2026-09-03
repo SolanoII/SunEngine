@@ -1,0 +1,12 @@
+{
+  "id": "head_cadian_veteran",
+  "displayName": "Casco Flak Rinforzato (Veterano)",
+  "location": "Head",
+  "armor_rating": 16,
+  "coverage": 0.80,
+  "max_durability": 140.0,
+  "weight": 2.7,
+  "point_cost": 4,
+  "faction": "Imperium",
+  "unit_restriction": "imperium_guardsman_recruit"
+}

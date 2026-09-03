@@ -1,0 +1,48 @@
+{
+  "id": "spacemarines_neophyte",
+  "race": "SpaceMarine",
+  "blocks": [
+    {
+      "name": "Torso",
+      "parentIndex": -1,
+      "offset": [ 0.00, 1.25, 0.00 ],
+      "pivotOffset": [ 0.00, 0.00, 0.00 ],
+      "size": [ 0.58, 0.75, 0.38 ]
+    },
+    {
+      "name": "Head",
+      "parentIndex": 0,
+      "offset": [ 0.00, 0.48, 0.00 ],
+      "pivotOffset": [ 0.00, 0.18, 0.00 ],
+      "size": [ 0.30, 0.32, 0.30 ]
+    },
+    {
+      "name": "Arm_L",
+      "parentIndex": 0,
+      "offset": [ -0.42, 0.22, 0.00 ],
+      "pivotOffset": [ 0.00, -0.38, 0.00 ],
+      "size": [ 0.26, 0.78, 0.26 ]
+    },
+    {
+      "name": "Arm_R",
+      "parentIndex": 0,
+      "offset": [ 0.42, 0.22, 0.00 ],
+      "pivotOffset": [ 0.00, -0.38, 0.00 ],
+      "size": [ 0.26, 0.78, 0.26 ]
+    },
+    {
+      "name": "Leg_L",
+      "parentIndex": 0,
+      "offset": [ -0.20, -0.42, 0.00 ],
+      "pivotOffset": [ 0.00, -0.42, 0.00 ],
+      "size": [ 0.28, 0.82, 0.28 ]
+    },
+    {
+      "name": "Leg_R",
+      "parentIndex": 0,
+      "offset": [ 0.20, -0.42, 0.00 ],
+      "pivotOffset": [ 0.00, -0.42, 0.00 ],
+      "size": [ 0.28, 0.82, 0.28 ]
+    }
+  ]
+}

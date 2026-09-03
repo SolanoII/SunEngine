@@ -1,0 +1,48 @@
+{
+  "id": "imperium_kasrkin",
+  "race": "Human",
+  "blocks": [
+    {
+      "name": "Torso",
+      "parentIndex": -1,
+      "offset": [ 0.00, 1.10, 0.00 ],
+      "pivotOffset": [ 0.00, 0.00, 0.00 ],
+      "size": [ 0.48, 0.66, 0.34 ]
+    },
+    {
+      "name": "Head",
+      "parentIndex": 0,
+      "offset": [ 0.00, 0.35, 0.00 ],
+      "pivotOffset": [ 0.00, 0.05, 0.00 ],
+      "size": [ 0.30, 0.30, 0.30 ]
+    },
+    {
+      "name": "Arm_L",
+      "parentIndex": 0,
+      "offset": [ -0.35, 0.20, 0.00 ],
+      "pivotOffset": [ 0.00, -0.32, 0.00 ],
+      "size": [ 0.22, 0.68, 0.22 ]
+    },
+    {
+      "name": "Arm_R",
+      "parentIndex": 0,
+      "offset": [ 0.35, 0.20, 0.00 ],
+      "pivotOffset": [ 0.00, -0.32, 0.00 ],
+      "size": [ 0.22, 0.68, 0.22 ]
+    },
+    {
+      "name": "Leg_L",
+      "parentIndex": 0,
+      "offset": [ -0.16, -0.38, 0.00 ],
+      "pivotOffset": [ 0.00, -0.38, 0.00 ],
+      "size": [ 0.24, 0.72, 0.24 ]
+    },
+    {
+      "name": "Leg_R",
+      "parentIndex": 0,
+      "offset": [ 0.16, -0.38, 0.00 ],
+      "pivotOffset": [ 0.00, -0.38, 0.00 ],
+      "size": [ 0.24, 0.72, 0.24 ]
+    }
+  ]
+}

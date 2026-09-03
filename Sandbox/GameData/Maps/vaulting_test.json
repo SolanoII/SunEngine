@@ -1,0 +1,160 @@
+{
+  "id": "vaulting_test",
+  "name": "Palestra di Addestramento - Test Vaulting",
+  "terrain": {
+    "size": [ 150.0, 1.0, 150.0 ],
+    "color": [ 0.20, 0.21, 0.24, 1.0 ]
+  },
+  "player_spawn_points": [
+    [ 0.0, 0.5, 45.0 ],
+    [ -20.0, 0.5, 45.0 ],
+    [ 20.0, 0.5, 45.0 ]
+  ],
+  "enemy_spawn_points": [
+    [ 0.0, 0.5, -45.0 ],
+    [ -20.0, 0.5, -45.0 ]
+  ],
+  "structures": [
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -20.0, 0.0, 32.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 4.0, 0.4, 0.4 ],
+      "color": [ 0.2, 0.8, 0.3, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -20.0, 0.0, 22.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 4.0, 0.7, 0.4 ],
+      "color": [ 0.2, 0.8, 0.8, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -20.0, 0.0, 12.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 4.0, 0.9, 0.4 ],
+      "color": [ 0.9, 0.9, 0.2, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -20.0, 0.0, 2.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 4.0, 1.1, 0.4 ],
+      "color": [ 0.9, 0.5, 0.1, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -20.0, 0.0, -8.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 4.0, 1.4, 0.4 ],
+      "color": [ 0.9, 0.2, 0.2, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -20.0, 0.0, -18.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 4.0, 2.2, 0.4 ],
+      "color": [ 0.5, 0.1, 0.1, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -7.0, 0.0, 32.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 0.85, 0.3 ],
+      "color": [ 0.55, 0.35, 0.2, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -7.0, 0.0, 22.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 0.85, 0.3 ],
+      "color": [ 0.55, 0.35, 0.2, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -7.0, 0.0, 12.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 0.85, 0.3 ],
+      "color": [ 0.55, 0.35, 0.2, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ -7.0, 0.0, 2.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 0.85, 0.3 ],
+      "color": [ 0.55, 0.35, 0.2, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "rectangle",
+      "position": [ 7.0, 0.0, 32.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 1.0, 0.2 ],
+      "color": [ 0.6, 0.6, 0.7, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "rectangle",
+      "position": [ 7.0, 0.0, 20.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 1.0, 0.8 ],
+      "color": [ 0.4, 0.4, 0.45, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "rectangle",
+      "position": [ 7.0, 0.0, 8.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 5.0, 1.0, 1.8 ],
+      "color": [ 0.35, 0.35, 0.4, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "barricade",
+      "position": [ 20.0, 0.0, 32.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 6.0, 0.8, 1.0 ],
+      "color": [ 0.7, 0.6, 0.4, 1.0 ]
+    },
+    {
+      "type": "building",
+      "shape": "open_roof",
+      "position": [ 20.0, 0.0, 10.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "color": [ 0.3, 0.35, 0.4, 1.0 ],
+      "width": 8.0,
+      "depth": 8.0,
+      "floor_height": 1.1,
+      "wall_thickness": 0.3,
+      "door_width": 2.0,
+      "door_height": 1.1
+    },
+    {
+      "type": "block",
+      "shape": "column",
+      "position": [ -27.0, 0.0, 40.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 1.0, 8.0, 1.0 ],
+      "color": [ 0.8, 0.1, 0.1, 1.0 ]
+    },
+    {
+      "type": "block",
+      "shape": "column",
+      "position": [ 27.0, 0.0, 40.0 ],
+      "rotation": [ 0.0, 0.0, 0.0 ],
+      "scale": [ 1.0, 8.0, 1.0 ],
+      "color": [ 0.8, 0.1, 0.1, 1.0 ]
+    }
+  ]
+}

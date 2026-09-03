@@ -1,0 +1,18 @@
+{
+	"id": "spacemarines_neophyte",
+	"displayName": "Space Marine Neophyte",
+	"base_speed": 4.5,
+	"stamina": 200.0,
+	"stamina_regen": 18.0,
+	"health": 250.0,
+	"toughness": 38,
+	"armor_rating": 2,
+	"strength": 35,
+	"accuracy_skill": 60,
+	"melee_skill": 55,
+	"morale": 80,
+	"suppression_threshold": 90,
+	"vision_range": 140,
+	"fov_degrees": 95,
+	"weight_capacity": 150.0
+}

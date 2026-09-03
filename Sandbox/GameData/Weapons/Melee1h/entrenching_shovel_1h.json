@@ -1,0 +1,16 @@
+{
+  "id": "entrenching_shovel_1h",
+  "displayName": "Pala da Trincea 1H",
+  "faction": "Imperium",
+  "unit_restriction": "imperium_guardsman_recruit",
+  "is_melee": true,
+  "hand_type": "OneHanded",
+  "slot_type": "Melee",
+  "weight_kg": 2.5,
+  "point_cost": 3,
+  "base_damage": 30.0,
+  "default_melee_type": "Normal",
+  "weapon_scale": [ 0.16, 0.04, 0.55 ],
+  "hold_offset": [ 0.0, -0.02, 0.25 ],
+  "primary_color": [ 0.45, 0.38, 0.28, 1.0 ]
+}
