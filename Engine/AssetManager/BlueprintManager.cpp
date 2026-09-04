@@ -88,13 +88,11 @@ namespace SunEngine {
                 bp.faction = j.value("faction", "Neutral");
                 bp.unitRestriction = j.value("unit_restriction", "");
 
-                // Mirino e Sotto-Canna
                 bp.has_scope = j.value("has_scope", false);
                 bp.scope_zoom_fov = j.value("scope_zoom_fov", 25.0f);
                 bp.has_underbarrel = j.value("has_underbarrel", false);
                 bp.underbarrel_type = j.value("underbarrel_type", "shotgun");
 
-                // Parametri Melee Base
                 bp.is_melee = j.value("is_melee", false);
                 bp.default_melee_type = j.value("default_melee_type", "Normal");
                 bp.default_melee_damage = j.value("default_melee_damage", j.value("base_damage", 20.0f));
@@ -112,7 +110,23 @@ namespace SunEngine {
                 bp.range_effective = j.value("range_effective", 0.0f);
                 bp.heat_capacity = j.value("heat_capacity", 100.0f);
 
-                // Slot type
+                bp.pellet_count = j.value("pellet_count", 1);
+                bp.spread_base = j.value("spread_base", 0.0f);
+                bp.spread_auto_multiplier = j.value("spread_auto_multiplier", 1.0f);
+                bp.recoil_force = j.value("recoil_force", 0.0f);
+                bp.shake_intensity = j.value("shake_intensity", 0.0f);
+                bp.fov_kick = j.value("fov_kick", 0.0f);
+                bp.suppression_value = j.value("suppression_value", 0);
+                bp.handling_speed = j.value("handling_speed", 0.0f);
+                bp.projectile_speed = j.value("projectile_speed", 100.0f);
+                bp.projectile_length = j.value("projectile_length", 0.5f);
+                bp.projectile_width = j.value("projectile_width", 0.05f);
+                bp.flamer_cone_angle = j.value("flamer_cone_angle", 30.0f);
+                bp.melta_range = j.value("melta_range", 3.0f);
+                bp.melta_multiplier = j.value("melta_multiplier", 2.0f);
+                bp.damage_falloff_start = j.value("damage_falloff_start", 0.0f);
+                bp.damage_falloff_end = j.value("damage_falloff_end", 0.0f);
+
                 std::string slotStr = j.value("slot_type", j.value("weapon_slot", "primary"));
                 if (slotStr == "secondary" || slotStr == "Secondary") {
                     bp.slot_type = WeaponSlotType::Secondary;
@@ -124,7 +138,6 @@ namespace SunEngine {
                     bp.slot_type = WeaponSlotType::Primary;
                 }
 
-                // Hand type
                 std::string handStr = j.value("hand_type", "");
                 if (handStr == "OneHanded" || j.value("hands_required", 2) == 1) {
                     bp.hand_type = HandType::OneHanded;
@@ -135,14 +148,16 @@ namespace SunEngine {
                     bp.hand_type_str = "TwoHanded";
                 }
 
-                // Projectile type
                 std::string typeStr = j.value("projectile_type", "laser");
                 if (typeStr == "ballistic") bp.projectile_type = ProjectileType::Ballistic;
                 else if (typeStr == "plasma") bp.projectile_type = ProjectileType::Plasma;
                 else if (typeStr == "explosive") bp.projectile_type = ProjectileType::Explosive;
+                else if (typeStr == "flamer") bp.projectile_type = ProjectileType::Flamer;
+                else if (typeStr == "continuous_beam" || typeStr == "melta") bp.projectile_type = ProjectileType::ContinuousBeam;
+                else if (typeStr == "grav") bp.projectile_type = ProjectileType::Grav;
+                else if (typeStr == "psychic") bp.projectile_type = ProjectileType::Psychic;
                 else bp.projectile_type = ProjectileType::Laser;
 
-                // Colors
                 if (j.contains("primary_color") && j["primary_color"].is_array() && j["primary_color"].size() >= 3) {
                     bp.primary_color.r = j["primary_color"][0].get<float>();
                     bp.primary_color.g = j["primary_color"][1].get<float>();
@@ -150,7 +165,6 @@ namespace SunEngine {
                     bp.primary_color.a = (j["primary_color"].size() == 4) ? j["primary_color"][3].get<float>() : 1.0f;
                 }
 
-                // Offsets & Scale
                 if (j.contains("weapon_scale") && j["weapon_scale"].is_array() && j["weapon_scale"].size() == 3) {
                     bp.weapon_scale = glm::vec3(j["weapon_scale"][0].get<float>(), j["weapon_scale"][1].get<float>(), j["weapon_scale"][2].get<float>());
                 }
@@ -158,7 +172,6 @@ namespace SunEngine {
                     bp.hold_offset = glm::vec3(j["hold_offset"][0].get<float>(), j["hold_offset"][1].get<float>(), j["hold_offset"][2].get<float>());
                 }
 
-                // PARSING MOVESET E COMBO TREE
                 if (j.contains("moveset") && j["moveset"].is_object()) {
                     const auto& mj = j["moveset"];
                     bp.hasMoveset = true;
@@ -252,6 +265,7 @@ namespace SunEngine {
                 bp.vision_range = j.value("vision_range", 30.0f);
                 bp.fov_degrees = j.value("fov_degrees", 90.0f);
                 bp.weight_capacity = j.value("weight_capacity", 60.0f);
+                bp.weightCapacity = bp.weight_capacity;
 
                 m_Units[bp.id] = bp;
                 SUN_CORE_INFO("Unita caricata: {0} (ID: {1})", bp.displayName, bp.id);

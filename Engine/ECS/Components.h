@@ -13,11 +13,30 @@
 
 #include "Tags.h"
 #include "../Physics/HitboxBlock.h"
-#include "../AssetManager/BlueprintManager.h" // Qui ci sono gli enum HitboxLocation, HandType, ecc.
+#include "../AssetManager/BlueprintManager.h"
 
 namespace SunEngine {
 
-    // --- ENUMERATORI AMBIENTALI E DI COMBATTIMENTO ---
+    enum class HordeState {
+        Waiting,      // In attesa nell'anello esterno (5.5m)
+        Approaching,  // In avanzamento verso uno dei 4 slot attivi
+        Attacking,    // In ingaggio melee (Attacco Normale)
+        Cooldown      // Arretra temporaneamente dopo un attacco
+    };
+
+    struct HordeAgentComponent {
+        HordeState state = HordeState::Waiting;
+        int assignedSlotIndex = -1;
+        float attackTimer = 0.0f;
+        float attackDelay = 1.5f;
+        float cooldownTimer = 0.0f;
+        float circleAngle = 0.0f;
+
+        entt::entity weaponEntity = entt::null;
+        int attacksToPerform = 1;
+        int currentAttackCount = 0;
+    };
+
     enum class SurfaceType {
         Concrete,
         Dirt,
@@ -25,35 +44,32 @@ namespace SunEngine {
         Wood
     };
 
-    // --- LE 4 POSTURE D'EQUIPAGGIAMENTO ---
     enum class EquipStance {
-        RangedTwoHanded,     // Fucile a 2 Mani
-        DualRangedOneHanded,  // Due Pistole / Armi da fuoco 1H
-        HybridRangedMelee,   // Pistola 1H + Arma Melee 1H
-        MeleePure            // Arma Melee impugnata a 2Mani o Magia/Psionico
+        RangedTwoHanded,
+        DualRangedOneHanded,
+        HybridRangedMelee,
+        MeleePure
     };
 
-    // --- MELEE SYSTEM ENUMS ---
     enum class MeleeAttackType {
         None,
-        Light,    // Batte Normal (Veloce). Perde da Heavy.
-        Normal,   // Batte Heavy (Spezza la carica). Perde da Light.
-        Heavy,    // Batte Light (Ha Hyper Armor). Perde da Normal.
-        Parry,    // Parata Temporizzata (0.25s)
-        Guard     // Guard Continuo (Per armi speciali/scudi)
+        Light,
+        Normal,
+        Heavy,
+        Parry,
+        Guard
     };
 
     enum class MeleePhase {
         None,
-        Windup,     // Carica / Preparazione colpo
-        Active,     // Frame attivi (danno)
-        Recovery,   // Recupero finale
-        Stunned     // Stordito a causa di parata subita
+        Windup,
+        Active,
+        Recovery,
+        Stunned
     };
 
-    // UNICA DEFINIZIONE DI MeleeStateComponent
     struct MeleeStateComponent {
-        std::string currentAttackNode = ""; // es. "light_1"
+        std::string currentAttackNode = "";
         MeleeAttackType currentAttack = MeleeAttackType::None;
         MeleePhase currentPhase = MeleePhase::None;
 
@@ -65,16 +81,13 @@ namespace SunEngine {
 
         float stunTimer = 0.0f;
 
-        // Gestione Pressione Prolungata Tasto F (Hold vs Click)
         float fKeyHoldTimer = 0.0f;
         bool fKeyWasPressed = false;
 
-        // Buffer per la combo e cancel window
-        std::string bufferedInput = ""; // "LMB", "RMB", "Q", ecc.
+        std::string bufferedInput = "";
         float inputBufferTimer = 0.0f;
     };
 
-    // --- STRUTTURA SINGOLO PEZZO D'ARMATURA ---
     struct ArmorPiece {
         std::string id = "none";
         std::string name = "Nessuna Protezione";
@@ -86,7 +99,6 @@ namespace SunEngine {
         int pointCost = 0;
     };
 
-    // --- SET COMPLETO DI CORAZZA A 6 ZONE ---
     struct ArmorSet {
         ArmorPiece head;
         ArmorPiece torso;
@@ -130,7 +142,6 @@ namespace SunEngine {
         }
     };
 
-    // --- COMPONENTI ECS BASE ---
     struct TransformComponent {
         glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
         glm::vec3 Rotation = { 0.0f, 0.0f, 0.0f };
@@ -172,7 +183,6 @@ namespace SunEngine {
     struct UnitBlueprintId { std::string id; };
     struct WeaponBlueprintId { std::string id; };
 
-    // --- CLASSIFICAZIONE TESTUALE VALORE ARMATURA ---
     inline std::pair<std::string, std::string> GetArmorClassification(int rating) {
         if (rating >= 100) return { "Massima", "Corazza al limite delle possibilita' tecnologiche del setting" };
         if (rating >= 95)  return { "Estremamente impenetrabile", "Protezione fuori scala per equipaggiamento normale" };
@@ -197,7 +207,6 @@ namespace SunEngine {
         return { "Nessuna", "Corpo completamente esposto" };
     }
 
-    // --- STATISTICHE UNITA' ---
     struct UnitStatsComponent {
         float baseSpeed = 5.0f;
         float speedModifier = 1.0f;
@@ -221,7 +230,6 @@ namespace SunEngine {
         ArmorSet armorSet;
     };
 
-    // --- STATI ARMA E INVENTARIO ---
     struct WeaponStateComponent {
         std::string currentFireMode = "standard";
         int currentAmmo = 19;
@@ -231,7 +239,7 @@ namespace SunEngine {
         float currentSpread = 0.0f;
         float currentHeat = 0.0f;
         bool isOverheating = false;
-        bool isScopeActive = false; // true = Mirino ottico attivo in ADS
+        bool isScopeActive = false;
     };
 
     struct TrailRequestComponent {
@@ -264,7 +272,7 @@ namespace SunEngine {
         std::string tool2Id = "";
         std::string tool3Id = "";
 
-        int currentSlot = 0; // 0=Primaria, 1=Secondaria, 2=Melee, 3=Granate, 4=T1...
+        int currentSlot = 0;
 
         std::string GetActiveWeaponId() const {
             if (currentSlot == 0) return primaryWeaponId;
@@ -274,7 +282,6 @@ namespace SunEngine {
             return "";
         }
 
-        // DETERMINAZIONE AUTOMATICA DELLA STANCE
         EquipStance GetEquipStance() const {
             const auto* secBP = BlueprintManager::Get().GetWeapon(secondaryWeaponId);
             const auto* melBP = BlueprintManager::Get().GetWeapon(meleeWeaponId);

@@ -65,7 +65,7 @@ if(NOT imgui_POPULATED)
         ${imgui_SOURCE_DIR}/imgui_demo.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    )
+     "Engine/ECS/WeaponSystem.h")
     target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 endif()
@@ -89,7 +89,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics/Build" EXCLUD
 # Engine (Libreria Statica)
 # ==========================
 file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
-add_library(SunEngine STATIC ${ENGINE_SOURCES})
+add_library(SunEngine STATIC ${ENGINE_SOURCES} "Engine/ECS/WeaponSystem.h")
 
 target_include_directories(SunEngine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -118,7 +118,7 @@ target_link_libraries(SunEngine PUBLIC
 # Gioco (Eseguibile)
 # ==========================
 file(GLOB_RECURSE SANDBOX_SOURCES CONFIGURE_DEPENDS "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
-add_executable(ProjectTrazyn ${SANDBOX_SOURCES})
+add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/ECS/WeaponSystem.h")
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
 
 add_custom_command(TARGET ProjectTrazyn POST_BUILD

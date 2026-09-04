@@ -8,6 +8,7 @@
 #include "Engine/ECS/CombatSystem.h"
 #include "Engine/ECS/ParticleSystem.h"
 #include "Engine/ECS/RenderSystem.h"
+#include "Engine/ECS/WeaponSystem.h"
 #include "Engine/Scene/MapLoader.h"
 #include "Engine/Navigation/NavMeshQuery.h"
 #include "Engine/AssetManager/BlueprintManager.h"
@@ -121,6 +122,8 @@ public:
     GameLayer();
     virtual ~GameLayer();
 
+    virtual void OnAttach() override;
+    virtual void OnDetach() override;
     virtual void OnUpdate(float deltaTime) override;
     virtual void OnRender() override;
     virtual void OnImGuiRender() override;
@@ -146,6 +149,7 @@ private:
     void ApplyDisplaySettings(int width, int height, bool fullscreen);
     void ApplyUnitVisuals(const TrainedUnit& unit);
     int CalculateSquadPoints() const;
+    void CheckUnitDeaths();
 
 private:
     SunEngine::Scene m_Scene;
@@ -157,6 +161,7 @@ private:
     SunEngine::MovementSystem m_MovementSystem;
     SunEngine::WeightSystem m_WeightSystem;
     SunEngine::CombatSystem m_CombatSystem;
+    SunEngine::WeaponSystem m_WeaponSystem;
     SunEngine::ParticleSystem m_ParticleSystem;
     SunEngine::RenderSystem m_RenderSystem;
 
@@ -199,12 +204,10 @@ private:
     bool m_IsFullscreen = false;
     int m_SelectedResolutionIdx = 0;
 
-    // --- CANALI VOLUMI AUDIO ---
-    float m_VolumeSFX = 0.8f;   // Ambienza e Suoni del gioco
-    float m_VolumeVoice = 0.8f; // Voci, schiamazzi e versi
-    float m_VolumeMusic = 0.8f; // Tracce musicali di sottofondo
+    float m_VolumeSFX = 0.8f;
+    float m_VolumeVoice = 0.8f;
+    float m_VolumeMusic = 0.8f;
 
-    // VARIABILI EDITOR
     EditorMapData m_EditorMap;
     int m_SelectedStructureIdx = -1;
     glm::vec3 m_EditorCameraTarget{ 0.0f, 2.0f, 0.0f };

@@ -9,9 +9,6 @@
 
 namespace SunEngine {
 
-    // =========================================================================
-    // ENUMERATORI BASE
-    // =========================================================================
     enum class HitboxLocation {
         Head,
         Torso,
@@ -25,7 +22,11 @@ namespace SunEngine {
         Laser,
         Ballistic,
         Plasma,
-        Explosive
+        Explosive,
+        Flamer,
+        ContinuousBeam,
+        Grav,
+        Psychic
     };
 
     enum class WeaponSlotType {
@@ -39,9 +40,6 @@ namespace SunEngine {
         TwoHanded
     };
 
-    // =========================================================================
-    // STRUTTURE MOVESET E COMBO MELEE (DA JSON)
-    // =========================================================================
     struct MeleeTiming {
         float windup = 0.10f;
         float active = 0.15f;
@@ -58,8 +56,8 @@ namespace SunEngine {
         float staminaCost = 10.0f;
         MeleeTiming timings;
         ComboWindow comboWindow;
-        std::unordered_map<std::string, glm::vec3> pose;        // boneName -> rotazione [X, Y, Z]
-        std::unordered_map<std::string, std::string> transitions; // inputKey ("LMB", "RMB") -> prossimo nodo
+        std::unordered_map<std::string, glm::vec3> pose;
+        std::unordered_map<std::string, std::string> transitions;
     };
 
     struct MeleeMoveset {
@@ -74,9 +72,6 @@ namespace SunEngine {
         int heat_generation = 0;
     };
 
-    // =========================================================================
-    // STRUCT UNIFICATA WEAPON BLUEPRINT
-    // =========================================================================
     struct WeaponBlueprint {
         std::string id;
         std::string displayName;
@@ -90,13 +85,11 @@ namespace SunEngine {
         float weight_kg = 0.0f;
         int point_cost = 5;
 
-        // CAMPI MIRINO E SOTTO-CANNA (ADS)
         bool has_scope = false;
         float scope_zoom_fov = 25.0f;
         bool has_underbarrel = false;
         std::string underbarrel_type = "shotgun";
 
-        // CAMPI MELEE & MOVESET
         bool is_melee = false;
         std::string default_melee_type = "Normal";
         float default_melee_damage = 20.0f;
@@ -104,7 +97,6 @@ namespace SunEngine {
         bool hasMoveset = false;
         MeleeMoveset moveset;
 
-        // CAMPI ARMI DA FUOCO E BALISTICA
         int magazine_size = 0;
         float reload_time_sec = 0.0f;
         std::vector<std::string> fire_modes;
@@ -114,6 +106,13 @@ namespace SunEngine {
         float impact_force = 0.0f;
         float toughness_bypass = 0.0f;
         float range_effective = 0.0f;
+
+        int pellet_count = 1;
+        float flamer_cone_angle = 30.0f;
+        float melta_range = 4.5f;
+        float melta_multiplier = 2.5f;
+        float damage_falloff_start = 0.0f;
+        float damage_falloff_end = 0.0f;
 
         float spread_base = 0.0f;
         float spread_auto_multiplier = 1.0f;
@@ -125,27 +124,22 @@ namespace SunEngine {
         float heat_capacity = 100.0f;
         float heat_recoil_multiplier = 1.0f;
 
-        // PROIETTILE E VISUAL
         ProjectileType projectile_type = ProjectileType::Laser;
         bool is_beam = true;
-        glm::vec4 primary_color = glm::vec4(1.0f, 0.2f, 0.0f, 1.0f);
+        glm::vec4 primary_color = glm::vec4(1.0f, 0.40f, 0.05f, 0.95f);
         glm::vec4 core_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         float projectile_speed = 100.0f;
         float projectile_length = 0.5f;
-        float projectile_width = 0.05f;
+        float projectile_width = 0.38f;
         float explosion_radius = 0.0f;
 
         std::unordered_map<std::string, PowerMode> power_modes;
 
-        // TRASFORMAZIONI MESH PROCEDURALE / HITBOX
         glm::vec3 weapon_scale = glm::vec3(0.2f, 0.2f, 0.8f);
         glm::vec3 hold_offset = glm::vec3(0.6f, 0.0f, -0.2f);
         glm::vec3 barrel_offset = glm::vec3(0.0f, 0.0f, -0.4f);
     };
 
-    // =========================================================================
-    // UNIT & ARMOR BLUEPRINTS
-    // =========================================================================
     struct UnitBlueprint {
         std::string id;
         std::string displayName;
@@ -163,7 +157,8 @@ namespace SunEngine {
         int suppression_threshold = 0;
         float vision_range = 0.0f;
         float fov_degrees = 0.0f;
-        float weight_capacity = 0.0f;
+        float weight_capacity = 60.0f;
+        float weightCapacity = 60.0f; // Alias di sicurezza per evitare errori di denominazione
     };
 
     struct ArmorBlueprint {
@@ -179,9 +174,6 @@ namespace SunEngine {
         std::string unitRestriction;
     };
 
-    // =========================================================================
-    // BLUEPRINT MANAGER
-    // =========================================================================
     class BlueprintManager {
     public:
         static BlueprintManager& Get();

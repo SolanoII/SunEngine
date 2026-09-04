@@ -19,6 +19,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -38,14 +39,6 @@
 extern std::string FindValidDir(const std::string& targetDirName);
 
 struct ProcessedCorpseTag {};
-
-struct RaycastHitResult {
-    bool hasHit = false;
-    float distance = 10000.0f;
-    glm::vec3 hitPoint{ 0.0f };
-    entt::entity hitEntity = entt::null;
-    bool isStaticObstacle = false;
-};
 
 static float LerpAngle(float a, float b, float t) {
     float diff = std::fmod(b - a + 180.0f, 360.0f) - 180.0f;
@@ -85,97 +78,6 @@ static float GetGroundHeightAt(SunEngine::Scene& scene, const glm::vec3& positio
         }
     }
     return maxGroundY;
-}
-
-static RaycastHitResult RaycastSceneFull(SunEngine::Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir, float maxDist, entt::entity ignoreEntity) {
-    RaycastHitResult closestHit;
-    closestHit.distance = maxDist;
-
-    auto staticView = scene.GetRegistry().view<SunEngine::ColliderComponent, SunEngine::TransformComponent>(
-        entt::exclude<SunEngine::PlayerTag, SunEngine::HealthComponent, SunEngine::ProjectileComponent>
-    );
-
-    for (auto entity : staticView) {
-        const auto& col = staticView.get<SunEngine::ColliderComponent>(entity);
-        const auto& trans = staticView.get<SunEngine::TransformComponent>(entity);
-
-        glm::vec3 halfExtents = col.halfExtents * trans.Scale;
-        glm::vec3 minBox = trans.Position - halfExtents;
-        glm::vec3 maxBox = trans.Position + halfExtents;
-
-        float tMin = 0.0f, tMax = closestHit.distance;
-        bool hit = true;
-
-        for (int i = 0; i < 3; ++i) {
-            if (std::abs(rayDir[i]) < 0.0001f) {
-                if (rayOrigin[i] < minBox[i] || rayOrigin[i] > maxBox[i]) { hit = false; break; }
-            }
-            else {
-                float invD = 1.0f / rayDir[i];
-                float t0 = (minBox[i] - rayOrigin[i]) * invD;
-                float t1 = (maxBox[i] - rayOrigin[i]) * invD;
-                if (invD < 0.0f) std::swap(t0, t1);
-                tMin = std::max(tMin, t0);
-                tMax = std::min(tMax, t1);
-                if (tMax < tMin) { hit = false; break; }
-            }
-        }
-
-        if (hit && tMin > 0.0f && tMin < closestHit.distance) {
-            closestHit.hasHit = true;
-            closestHit.distance = tMin;
-            closestHit.hitPoint = rayOrigin + rayDir * tMin;
-            closestHit.hitEntity = entity;
-            closestHit.isStaticObstacle = true;
-        }
-    }
-
-    auto unitView = scene.GetRegistry().view<SunEngine::TransformComponent, SunEngine::HealthComponent>(
-        entt::exclude<SunEngine::ProjectileComponent, SunEngine::CorpseComponent>
-    );
-
-    for (auto entity : unitView) {
-        if (entity == ignoreEntity) continue;
-
-        const auto& trans = unitView.get<SunEngine::TransformComponent>(entity);
-        glm::vec3 size(0.8f, 1.8f, 0.8f);
-
-        if (scene.GetRegistry().all_of<SunEngine::ColliderComponent>(entity)) {
-            const auto& col = scene.GetRegistry().get<SunEngine::ColliderComponent>(entity);
-            size = col.halfExtents * 2.0f * trans.Scale;
-        }
-
-        glm::vec3 minBox = trans.Position - (size * 0.5f);
-        glm::vec3 maxBox = trans.Position + (size * 0.5f);
-
-        float tMin = 0.0f, tMax = closestHit.distance;
-        bool hit = true;
-
-        for (int i = 0; i < 3; ++i) {
-            if (std::abs(rayDir[i]) < 0.0001f) {
-                if (rayOrigin[i] < minBox[i] || rayOrigin[i] > maxBox[i]) { hit = false; break; }
-            }
-            else {
-                float invD = 1.0f / rayDir[i];
-                float t0 = (minBox[i] - rayOrigin[i]) * invD;
-                float t1 = (maxBox[i] - rayOrigin[i]) * invD;
-                if (invD < 0.0f) std::swap(t0, t1);
-                tMin = std::max(tMin, t0);
-                tMax = std::min(tMax, t1);
-                if (tMax < tMin) { hit = false; break; }
-            }
-        }
-
-        if (hit && tMin > 0.0f && tMin < closestHit.distance) {
-            closestHit.hasHit = true;
-            closestHit.distance = tMin;
-            closestHit.hitPoint = rayOrigin + rayDir * tMin;
-            closestHit.hitEntity = entity;
-            closestHit.isStaticObstacle = false;
-        }
-    }
-
-    return closestHit;
 }
 
 struct ResOption {
@@ -254,6 +156,14 @@ static void SpawnSubBlock(SunEngine::Scene& scene, SunEngine::PhysicsSystem& phy
     auto& c = scene.GetRegistry().emplace<SunEngine::ColorComponent>(entity);
     c.Color = isSelected ? glm::vec4(1.0f, 0.85f, 0.1f, 1.0f) : color;
     c.BaseColor = c.Color;
+}
+
+void GameLayer::OnAttach() {
+    SUN_CORE_INFO("GameLayer agganciato con successo!");
+}
+
+void GameLayer::OnDetach() {
+    SUN_CORE_INFO("GameLayer sganciato!");
 }
 
 void GameLayer::SyncEditorEntitiesWithScene() {
@@ -796,6 +706,26 @@ static void SpawnOrkBoy(SunEngine::Scene& scene, const glm::vec3& spawnPos) {
     footstep.currentSurface = SunEngine::SurfaceType::Concrete;
     footstep.stepInterval = 0.50f;
 
+    // Equipaggiamento Choppa e Inizializzazione Agente Orda
+    auto& inv = scene.GetRegistry().emplace<SunEngine::InventoryComponent>(enemyEntity);
+    inv.meleeWeaponId = "ork_choppa_1h";
+    inv.currentSlot = 2;
+
+    scene.GetRegistry().emplace<SunEngine::WeaponBlueprintId>(enemyEntity, "ork_choppa_1h");
+    scene.GetRegistry().emplace<SunEngine::MeleeStateComponent>(enemyEntity);
+
+    // Creazione dell'Entità Arma 3D visibile in mano all'Orco
+    auto orkWeaponEntity = scene.CreateEntity();
+    scene.GetRegistry().emplace<SunEngine::TransformComponent>(orkWeaponEntity);
+    scene.GetRegistry().emplace<SunEngine::MeshComponent>(orkWeaponEntity, 0u);
+    auto& wColor = scene.GetRegistry().emplace<SunEngine::ColorComponent>(orkWeaponEntity);
+    wColor.Color = glm::vec4(0.45f, 0.47f, 0.50f, 1.0f);
+    wColor.BaseColor = wColor.Color;
+
+    auto& hordeComp = scene.GetRegistry().emplace<SunEngine::HordeAgentComponent>(enemyEntity);
+    hordeComp.state = SunEngine::HordeState::Waiting;
+    hordeComp.weaponEntity = orkWeaponEntity;
+
     std::string skeletonsDir = FindValidDir("Skeletons");
     auto orkSkeleton = SunEngine::SkeletonLoader::LoadFromFile(skeletonsDir + "orks_boy.json");
     if (orkSkeleton) {
@@ -803,198 +733,6 @@ static void SpawnOrkBoy(SunEngine::Scene& scene, const glm::vec3& spawnPos) {
         skelComp.data = *orkSkeleton;
         skelComp.scale = 1.0f;
         skelComp.blockFlashTimers.assign(skelComp.data.blocks.size(), 0.0f);
-    }
-}
-
-void FireWeapon(entt::registry& registry, entt::entity playerEntity, ma_engine* audioEngine, SunEngine::Scene& scene, entt::entity weaponEntity, float sfxVolume) {
-    auto& weapon = registry.get<SunEngine::WeaponComponent>(playerEntity);
-    auto& emitter = registry.get<SunEngine::ParticleEmitterComponent>(playerEntity);
-    auto& trans = registry.get<SunEngine::TransformComponent>(playerEntity);
-
-    auto* wState = registry.try_get<SunEngine::WeaponStateComponent>(playerEntity);
-    const std::string& weaponId = registry.get<SunEngine::WeaponBlueprintId>(playerEntity).id;
-    const auto* weaponBP = SunEngine::BlueprintManager::Get().GetWeapon(weaponId);
-
-    if (weapon.cooldown > 0.0f) return;
-    if (wState) {
-        if (wState->isReloading || wState->isOverheating) return;
-        if (weaponBP && weaponBP->magazine_size > 0 && wState->currentAmmo <= 0) {
-            wState->isReloading = true;
-            wState->reloadTimer = weaponBP->reload_time_sec;
-            return;
-        }
-    }
-
-    if (sfxVolume > 0.001f && audioEngine != nullptr) {
-        if (std::filesystem::exists(weapon.shootSound)) {
-            ma_engine_set_volume(audioEngine, sfxVolume);
-            ma_engine_play_sound(audioEngine, weapon.shootSound.c_str(), NULL);
-        }
-    }
-
-    emitter.isEmitting = true;
-    weapon.cooldown = weapon.fireRate;
-
-    if (wState && weaponBP) {
-        if (weaponBP->magazine_size > 0) {
-            wState->currentAmmo--;
-            if (wState->currentAmmo <= 0) {
-                wState->isReloading = true;
-                wState->reloadTimer = weaponBP->reload_time_sec;
-            }
-        }
-    }
-
-    auto* inv = registry.try_get<SunEngine::InventoryComponent>(playerEntity);
-    bool isLeftHandShot = (inv && inv->GetEquipStance() == SunEngine::EquipStance::HybridRangedMelee);
-
-    glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
-    rot = glm::rotate(rot, glm::radians(trans.AimPitch), glm::vec3(1.0f, 0.0f, 0.0f));
-    glm::vec3 shootDir = glm::normalize(glm::vec3(rot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
-
-    float handSideOffset = isLeftHandShot ? -0.4f : 0.4f;
-    glm::vec3 muzzlePos = trans.Position + glm::vec3(handSideOffset, 1.25f, 0.0f) + shootDir * 0.5f;
-
-    if (wState && wState->currentFireMode == "shotgun") {
-        int pelletCount = 6;
-        for (int i = 0; i < pelletCount; ++i) {
-            float spreadX = ((rand() % 100) / 100.0f - 0.5f) * 0.12f;
-            float spreadY = ((rand() % 100) / 100.0f - 0.5f) * 0.12f;
-            glm::vec3 pelletDir = glm::normalize(shootDir + glm::vec3(spreadX, spreadY, spreadX));
-
-            auto projEntity = scene.CreateEntity();
-            auto& pTrans = registry.emplace<SunEngine::TransformComponent>(projEntity);
-            pTrans.Position = muzzlePos;
-            pTrans.Rotation = glm::vec3(trans.AimPitch, trans.AimYaw, 0.0f);
-            pTrans.Scale = glm::vec3(0.10f, 0.10f, 0.30f);
-
-            scene.GetRegistry().emplace<SunEngine::MeshComponent>(projEntity, 0u);
-            auto& pColor = registry.emplace<SunEngine::ColorComponent>(projEntity);
-            pColor.Color = glm::vec4(1.0f, 0.4f, 0.1f, 1.0f);
-            pColor.BaseColor = pColor.Color;
-
-            auto& proj = registry.emplace<SunEngine::ProjectileComponent>(projEntity);
-            proj.velocity = pelletDir * 45.0f;
-            proj.damage = 18.0f;
-            proj.lifetime = 1.5f;
-            proj.owner = playerEntity;
-        }
-        return;
-    }
-
-    bool isLaserWeapon = (weaponId.find("las") != std::string::npos || weaponId.find("plasma") != std::string::npos);
-
-    if (isLaserWeapon) {
-        RaycastHitResult hit = RaycastSceneFull(scene, muzzlePos, shootDir, 200.0f, playerEntity);
-        if (hit.hasHit && !hit.isStaticObstacle && hit.hitEntity != entt::null) {
-            if (registry.all_of<SunEngine::HealthComponent>(hit.hitEntity)) {
-                auto& hp = registry.get<SunEngine::HealthComponent>(hit.hitEntity);
-                hp.currentHealth -= 25.0f;
-            }
-        }
-
-        glm::vec3 hitPoint = hit.hasHit ? hit.hitPoint : (muzzlePos + shootDir * 100.0f);
-        auto beamEntity = scene.CreateEntity();
-        auto& bTrans = registry.emplace<SunEngine::TransformComponent>(beamEntity);
-        bTrans.Position = (muzzlePos + hitPoint) * 0.5f;
-        float beamLength = glm::distance(muzzlePos, hitPoint);
-        bTrans.Scale = glm::vec3(0.08f, 0.08f, beamLength);
-        bTrans.Rotation = glm::vec3(trans.AimPitch, trans.AimYaw, 0.0f);
-
-        registry.emplace<SunEngine::MeshComponent>(beamEntity, 0u);
-        auto& bColor = registry.emplace<SunEngine::ColorComponent>(beamEntity);
-        glm::vec4 laserColor = weaponBP ? weaponBP->primary_color : glm::vec4(1.0f, 0.2f, 0.1f, 1.0f);
-        bColor.Color = laserColor;
-        bColor.BaseColor = laserColor;
-
-        auto& proj = registry.emplace<SunEngine::ProjectileComponent>(beamEntity);
-        proj.velocity = glm::vec3(0.0f);
-        proj.damage = 0.0f;
-        proj.lifetime = 0.08f;
-    }
-    else {
-        auto projEntity = scene.CreateEntity();
-        auto& pTrans = registry.emplace<SunEngine::TransformComponent>(projEntity);
-        pTrans.Position = muzzlePos;
-        pTrans.Rotation = glm::vec3(trans.AimPitch, trans.AimYaw, 0.0f);
-        pTrans.Scale = glm::vec3(0.20f, 0.20f, 0.80f);
-
-        scene.GetRegistry().emplace<SunEngine::MeshComponent>(projEntity, 0u);
-        auto& pColor = registry.emplace<SunEngine::ColorComponent>(projEntity);
-        glm::vec4 projColor = weaponBP ? weaponBP->primary_color : glm::vec4(1.0f, 0.75f, 0.1f, 1.0f);
-        pColor.Color = projColor;
-        pColor.BaseColor = projColor;
-
-        auto& proj = registry.emplace<SunEngine::ProjectileComponent>(projEntity);
-        proj.velocity = shootDir * 55.0f;
-        proj.damage = 25.0f;
-        proj.lifetime = 3.5f;
-        proj.owner = playerEntity;
-        proj.isLaser = false;
-    }
-}
-
-static void UpdateProjectiles(SunEngine::Scene& scene, float deltaTime) {
-    auto view = scene.GetRegistry().view<SunEngine::ProjectileComponent, SunEngine::TransformComponent>();
-
-    std::vector<entt::entity> toDestroy;
-
-    for (auto entity : view) {
-        auto& proj = view.get<SunEngine::ProjectileComponent>(entity);
-        auto& trans = view.get<SunEngine::TransformComponent>(entity);
-
-        proj.lifetime -= deltaTime;
-        if (proj.lifetime <= 0.0f) {
-            toDestroy.push_back(entity);
-            continue;
-        }
-
-        if (glm::length(proj.velocity) > 0.001f) {
-            glm::vec3 moveStep = proj.velocity * deltaTime;
-            float stepDist = glm::length(moveStep);
-            if (stepDist > 0.0001f) {
-                glm::vec3 stepDir = moveStep / stepDist;
-                RaycastHitResult hit = RaycastSceneFull(scene, trans.Position, stepDir, stepDist, proj.owner);
-
-                if (hit.hasHit) {
-                    if (!hit.isStaticObstacle && hit.hitEntity != entt::null) {
-                        if (scene.GetRegistry().all_of<SunEngine::HealthComponent>(hit.hitEntity)) {
-                            auto& hp = scene.GetRegistry().get<SunEngine::HealthComponent>(hit.hitEntity);
-                            hp.currentHealth -= proj.damage;
-                        }
-                    }
-                    toDestroy.push_back(entity);
-                }
-                else {
-                    trans.Position += moveStep;
-                }
-            }
-        }
-    }
-
-    for (auto e : toDestroy) {
-        if (scene.GetRegistry().valid(e)) {
-            scene.DestroyEntity(e);
-        }
-    }
-}
-
-void UpdateWeapons(entt::registry& registry, float deltaTime) {
-    auto view = registry.view<SunEngine::WeaponComponent, SunEngine::ParticleEmitterComponent>();
-
-    for (auto entity : view) {
-        auto& weapon = view.get<SunEngine::WeaponComponent>(entity);
-        auto& emitter = view.get<SunEngine::ParticleEmitterComponent>(entity);
-
-        if (weapon.cooldown > 0.0f) weapon.cooldown -= deltaTime;
-
-        if (emitter.isEmitting) {
-            emitter.duration -= deltaTime;
-            if (emitter.duration <= 0.0f) {
-                emitter.isEmitting = false;
-                emitter.duration = 0.05f;
-            }
-        }
     }
 }
 
@@ -1143,6 +881,21 @@ void GameLayer::ApplyDisplaySettings(int width, int height, bool fullscreen) {
     m_Camera.SetViewportSize(static_cast<float>(width), static_cast<float>(height));
 }
 
+void GameLayer::CheckUnitDeaths() {
+    auto view = m_Scene.GetRegistry().view<SunEngine::HealthComponent, SunEngine::TransformComponent>(
+        entt::exclude<SunEngine::CorpseComponent, SunEngine::PlayerTag>
+    );
+
+    for (auto entity : view) {
+        auto& health = view.get<SunEngine::HealthComponent>(entity);
+        if (health.currentHealth <= 0.0f) {
+            SUN_CORE_WARN("Unita' eliminata! Attivazione Ragdoll Jolt Physics...");
+            glm::vec3 deathImpulse(0.0f, 1.5f, -3.5f);
+            m_PhysicsSystem.KillUnit(m_Scene, entity, deathImpulse);
+        }
+    }
+}
+
 GameLayer::GameLayer() : Layer("Game Layer")
 {
     m_PhysicsSystem.Init();
@@ -1179,6 +932,7 @@ GameLayer::GameLayer() : Layer("Game Layer")
     m_Scene.GetRegistry().emplace<SunEngine::UnitBlueprintId>(m_PlayerEntity, "imperium_guardsman_recruit");
     m_Scene.GetRegistry().emplace<SunEngine::UnitStatsComponent>(m_PlayerEntity);
     m_Scene.GetRegistry().emplace<SunEngine::MeleeStateComponent>(m_PlayerEntity);
+    m_Scene.GetRegistry().emplace<SunEngine::CameraRecoilComponent>(m_PlayerEntity);
 
     SwapPlayerUnit(m_Scene, m_PlayerEntity, "imperium_guardsman_recruit");
 
@@ -1219,15 +973,6 @@ GameLayer::GameLayer() : Layer("Game Layer")
     else {
         InitOrkAudio(&m_AudioEngine);
     }
-
-    std::string audioDir = FindValidDir("Audio");
-    if (audioDir.empty()) {
-        audioDir = "GameData/Audio/";
-    }
-
-    auto& weapon = m_Scene.GetRegistry().emplace<SunEngine::WeaponComponent>(m_PlayerEntity);
-    weapon.fireRate = 0.15f;
-    weapon.shootSound = audioDir + "laser.wav";
 
     m_Scene.GetRegistry().emplace<SunEngine::ParticleEmitterComponent>(m_PlayerEntity);
 
@@ -1329,11 +1074,29 @@ void GameLayer::OnUpdate(float deltaTime)
     bool isPlayerAlive = playerHealth && (playerHealth->currentHealth > 0.0f);
     bool isAiming = false;
 
-    // DICHIARAZIONE DELLA STANCE A SCOPE SUPERIORE
+    // =========================================================================
+    // --- DETERMINAZIONE STANCE ED EVALUTAZIONE POSTURA (SCOPE SUPERIORE) ---
+    // =========================================================================
     SunEngine::EquipStance stance = SunEngine::EquipStance::RangedTwoHanded;
+    bool hasPrimary1H = false;
+    bool hasSecondary1H = false;
+
     if (m_Scene.GetRegistry().all_of<SunEngine::InventoryComponent>(m_PlayerEntity)) {
-        stance = m_Scene.GetRegistry().get<SunEngine::InventoryComponent>(m_PlayerEntity).GetEquipStance();
+        const auto& inv = m_Scene.GetRegistry().get<SunEngine::InventoryComponent>(m_PlayerEntity);
+        stance = inv.GetEquipStance();
+
+        const auto* primBP = SunEngine::BlueprintManager::Get().GetWeapon(inv.primaryWeaponId);
+        const auto* secBP = SunEngine::BlueprintManager::Get().GetWeapon(inv.secondaryWeaponId);
+
+        if (primBP && primBP->hand_type == SunEngine::HandType::OneHanded && !primBP->is_melee) hasPrimary1H = true;
+        if (secBP && secBP->hand_type == SunEngine::HandType::OneHanded && !secBP->is_melee) hasSecondary1H = true;
     }
+
+    bool isSinglePistolStance = (stance == SunEngine::EquipStance::DualRangedOneHanded) &&
+        ((hasPrimary1H && !hasSecondary1H) || (!hasPrimary1H && hasSecondary1H));
+
+    bool isDualPistolStance = (stance == SunEngine::EquipStance::DualRangedOneHanded) &&
+        (hasPrimary1H && hasSecondary1H);
 
     if (!m_IsPaused && isPlayerAlive) {
         glm::vec2 mouseDelta = SunEngine::Input::GetMouseDelta();
@@ -1362,7 +1125,7 @@ void GameLayer::OnUpdate(float deltaTime)
             m_Scene.GetRegistry().emplace<ProcessedCorpseTag>(entity);
         }
 
-        // --- GESTIONE COMBINATA: INVENTARIO, CAMBIO ARMA E INPUT POSTURA (STANCE) ---
+        // --- GESTIONE INVENTARIO, SLOT ARMA E POSTURA ---
         if (m_Scene.GetRegistry().all_of<
             SunEngine::InventoryComponent,
             SunEngine::UnitStatsComponent,
@@ -1376,28 +1139,25 @@ void GameLayer::OnUpdate(float deltaTime)
             auto& wState = m_Scene.GetRegistry().get<SunEngine::WeaponStateComponent>(m_PlayerEntity);
             auto& wBlueprintId = m_Scene.GetRegistry().get<SunEngine::WeaponBlueprintId>(m_PlayerEntity);
 
-            // 1. SELEZIONE/CAMBIO SLOT ARMA (TASTI 1 -> 7)
+            // Cambio Slot (1 -> 7)
             int requestedSlot = -1;
-            if (SunEngine::Input::IsKeyPressed(GLFW_KEY_1)) requestedSlot = 0;      // 1: Primaria
-            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_2)) requestedSlot = 1; // 2: Secondaria
-            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_3)) requestedSlot = 2; // 3: Melee
-            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_4)) requestedSlot = 3; // 4: Granate
-            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_5)) requestedSlot = 4; // 5: Tool 1
-            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_6)) requestedSlot = 5; // 6: Tool 2
-            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_7)) requestedSlot = 6; // 7: Tool 3
+            if (SunEngine::Input::IsKeyPressed(GLFW_KEY_1)) requestedSlot = 0;
+            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_2)) requestedSlot = 1;
+            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_3)) requestedSlot = 2;
+            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_4)) requestedSlot = 3;
+            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_5)) requestedSlot = 4;
+            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_6)) requestedSlot = 5;
+            else if (SunEngine::Input::IsKeyPressed(GLFW_KEY_7)) requestedSlot = 6;
 
             if (requestedSlot != -1 && requestedSlot != inv.currentSlot) {
                 inv.currentSlot = requestedSlot;
                 std::string targetWeaponId = inv.GetActiveWeaponId();
 
-                // RESET MELEE STATE MACHINE
                 melee.currentPhase = SunEngine::MeleePhase::None;
                 melee.currentAttackNode = "";
                 melee.stateTimer = 0.0f;
 
-                stance = inv.GetEquipStance();
-
-                if (stance == SunEngine::EquipStance::HybridRangedMelee) {
+                if (inv.GetEquipStance() == SunEngine::EquipStance::HybridRangedMelee) {
                     targetWeaponId = inv.secondaryWeaponId;
                 }
 
@@ -1413,26 +1173,14 @@ void GameLayer::OnUpdate(float deltaTime)
                     const auto* weaponBP = SunEngine::BlueprintManager::Get().GetWeapon(targetWeaponId);
                     if (weaponBP) {
                         wState.currentAmmo = weaponBP->magazine_size;
-
-                        if (m_Scene.GetRegistry().all_of<SunEngine::WeaponComponent>(m_PlayerEntity)) {
-                            auto& weapComp = m_Scene.GetRegistry().get<SunEngine::WeaponComponent>(m_PlayerEntity);
-                            weapComp.fireRate = (weaponBP->rate_of_fire > 0.0f) ? (60.0f / weaponBP->rate_of_fire) : 0.15f;
-                        }
                     }
                 }
             }
 
-            std::string activeId = inv.GetActiveWeaponId();
-            if (activeId.empty() && !inv.primaryWeaponId.empty()) {
-                inv.currentSlot = 0;
-                activeId = inv.primaryWeaponId;
-                wBlueprintId.id = activeId;
-            }
-
-            stance = inv.GetEquipStance();
-
-            // ADS (MIRA CON CLICK DESTRO)
-            if (stance == SunEngine::EquipStance::RangedTwoHanded || stance == SunEngine::EquipStance::HybridRangedMelee) {
+            // ADS
+            if (stance == SunEngine::EquipStance::RangedTwoHanded ||
+                stance == SunEngine::EquipStance::HybridRangedMelee ||
+                isSinglePistolStance) {
                 if (SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT) && melee.currentPhase == SunEngine::MeleePhase::None) {
                     isAiming = true;
                 }
@@ -1463,103 +1211,105 @@ void GameLayer::OnUpdate(float deltaTime)
                 wState.isScopeActive = false;
             }
 
-            // GESTIONE RICARICA E SURRISCALDAMENTO
-            const auto* currentBP = SunEngine::BlueprintManager::Get().GetWeapon(wBlueprintId.id);
-            if (currentBP) {
-                if (SunEngine::Input::IsKeyPressed(GLFW_KEY_R) && !wState.isReloading && wState.currentAmmo < currentBP->magazine_size && stance != SunEngine::EquipStance::MeleePure) {
-                    wState.isReloading = true;
-                    wState.reloadTimer = currentBP->reload_time_sec;
-                }
+            // --- GESTIONE INPUT COMBATTIMENTO MELEE ---
+            std::string meleeWeaponId = inv.meleeWeaponId;
+            if (meleeWeaponId.empty() || meleeWeaponId == "none") {
+                meleeWeaponId = "standard_chainsword_1h";
+            }
+            const auto* meleeBP = SunEngine::BlueprintManager::Get().GetWeapon(meleeWeaponId);
 
-                if (wState.isReloading) {
-                    wState.reloadTimer -= deltaTime;
-                    if (wState.reloadTimer <= 0.0f) {
-                        wState.isReloading = false;
-                        wState.reloadTimer = 0.0f;
-                        wState.currentAmmo = currentBP->magazine_size;
-                    }
-                }
+            auto triggerMeleeNode = [&](const std::string& inputKey, const std::string& defaultNode, SunEngine::MeleeAttackType atkType) {
+                melee.bufferedInput = inputKey;
+                melee.inputBufferTimer = 0.30f;
 
-                if (currentBP->heat_capacity > 0.0f) {
-                    if (wState.currentHeat > 0.0f) {
-                        float heatDecay = currentBP->heat_capacity * 0.40f;
-                        wState.currentHeat -= heatDecay * deltaTime;
-                        if (wState.currentHeat <= 0.0f) {
-                            wState.currentHeat = 0.0f;
-                            wState.isOverheating = false;
+                if (melee.currentPhase == SunEngine::MeleePhase::None) {
+                    std::string nodeToStart = defaultNode;
+                    if (meleeBP && meleeBP->hasMoveset && !meleeBP->moveset.entryNode.empty()) {
+                        if (defaultNode == "heavy_1" || defaultNode == "low_1") {
+                            nodeToStart = defaultNode;
+                        }
+                        else {
+                            nodeToStart = meleeBP->moveset.entryNode;
                         }
                     }
+                    melee.currentAttackNode = nodeToStart;
+                    melee.currentPhase = SunEngine::MeleePhase::Windup;
+                    melee.currentAttack = atkType;
+                    melee.stateTimer = 0.0f;
+                    melee.hasHitInThisAttack = false;
+                }
+            };
+
+            // 1. TASTO C: Attacco Basso (Low Sweep - BLU)
+            bool cIsDown = SunEngine::Input::IsKeyPressed(GLFW_KEY_C);
+            static bool cWasDown = false;
+            if (cIsDown && !cWasDown) {
+                triggerMeleeNode("C", "low_1", SunEngine::MeleeAttackType::Light);
+            }
+            cWasDown = cIsDown;
+
+            // 2. TASTO F: Click = Attacco Normale (GIALLO), Hold >= 0.22s = Attacco Pesante (ROSSO)
+            bool fIsDown = SunEngine::Input::IsKeyPressed(GLFW_KEY_F);
+            static bool fWasDown = false;
+            static float fHoldTimer = 0.0f;
+
+            if (fIsDown) {
+                fHoldTimer += deltaTime;
+                if (fHoldTimer >= 0.22f && !melee.fKeyWasPressed) {
+                    triggerMeleeNode("F_HOLD", "heavy_1", SunEngine::MeleeAttackType::Heavy);
+                    melee.fKeyWasPressed = true;
                 }
             }
+            else if (fWasDown) {
+                if (fHoldTimer < 0.22f && !melee.fKeyWasPressed) {
+                    triggerMeleeNode("F_CLICK", "normal_1", SunEngine::MeleeAttackType::Normal);
+                }
+                fHoldTimer = 0.0f;
+                melee.fKeyWasPressed = false;
+            }
+            fWasDown = fIsDown;
 
-            // TASTI ATTACCO E COMBO (SEPARAZIONE MOUSE E TASTIERA PER STANCE)
+            // 3. MOUSE IN STANCE MELEE PURA
             if (stance == SunEngine::EquipStance::MeleePure) {
-                if (SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
-                    melee.bufferedInput = "LMB";
-                    melee.inputBufferTimer = 0.25f;
+                static bool lmbWasDown = false;
+                bool lmbIsDown = SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
+                if (lmbIsDown && !lmbWasDown) {
+                    triggerMeleeNode("LMB", "normal_1", SunEngine::MeleeAttackType::Normal);
+                }
+                lmbWasDown = lmbIsDown;
 
-                    if (melee.currentPhase == SunEngine::MeleePhase::None) {
-                        const auto* wBP = SunEngine::BlueprintManager::Get().GetWeapon(wBlueprintId.id);
-                        if (wBP && wBP->hasMoveset) {
-                            melee.currentAttackNode = wBP->moveset.entryNode;
-                            melee.currentPhase = SunEngine::MeleePhase::Windup;
-                            melee.stateTimer = 0.0f;
-                        }
-                    }
+                static bool rmbWasDown = false;
+                bool rmbIsDown = SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
+                if (rmbIsDown && !rmbWasDown) {
+                    triggerMeleeNode("RMB", "heavy_1", SunEngine::MeleeAttackType::Heavy);
                 }
-                if (SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
-                    melee.bufferedInput = "RMB";
-                    melee.inputBufferTimer = 0.25f;
-                }
-            }
-            else if (stance == SunEngine::EquipStance::HybridRangedMelee) {
-                // Tasto Sinistro Mouse: Spara la Pistola nella mano sinistra
-                if (SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
-                    FireWeapon(m_Scene.GetRegistry(), m_PlayerEntity, &m_AudioEngine, m_Scene, m_WeaponEntity, m_VolumeSFX);
-                }
-
-                // Tasti C e F: Attacchi Melee e Combo con la Spada nella mano destra
-                if (SunEngine::Input::IsKeyPressed(GLFW_KEY_C) || SunEngine::Input::IsKeyPressed(GLFW_KEY_F)) {
-                    melee.bufferedInput = "LMB";
-                    melee.inputBufferTimer = 0.25f;
-
-                    if (melee.currentPhase == SunEngine::MeleePhase::None && !inv.meleeWeaponId.empty()) {
-                        const auto* meleeBP = SunEngine::BlueprintManager::Get().GetWeapon(inv.meleeWeaponId);
-                        if (meleeBP && meleeBP->hasMoveset) {
-                            melee.currentAttackNode = meleeBP->moveset.entryNode;
-                            melee.currentPhase = SunEngine::MeleePhase::Windup;
-                            melee.stateTimer = 0.0f;
-                        }
-                    }
-                }
-            }
-            else {
-                // Fucili / Doppie Pistole
-                if (SunEngine::Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
-                    FireWeapon(m_Scene.GetRegistry(), m_PlayerEntity, &m_AudioEngine, m_Scene, m_WeaponEntity, m_VolumeSFX);
-                }
+                rmbWasDown = rmbIsDown;
             }
 
-            // Tasto Q: Parata
+            // 4. TASTO Q: Parata Universale
             if (SunEngine::Input::IsKeyPressed(GLFW_KEY_Q) && melee.currentPhase == SunEngine::MeleePhase::None) {
                 float parryCost = 10.0f;
                 if (stats.stamina >= parryCost) {
                     stats.stamina -= parryCost;
                     melee.currentPhase = SunEngine::MeleePhase::Windup;
+                    melee.currentAttack = SunEngine::MeleeAttackType::Parry;
                     melee.stateTimer = 0.0f;
                 }
             }
         }
 
-        UpdateWeapons(m_Scene.GetRegistry(), deltaTime);
+        // System updates
         m_MovementSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, deltaTime, m_VolumeSFX);
-        UpdateProjectiles(m_Scene, deltaTime);
-
+        m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, deltaTime);
         m_PhysicsSystem.Update(m_Scene, deltaTime);
         m_WeightSystem.Update(m_Scene, deltaTime);
         m_CombatSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
 
-        // --- 1. GESTIONE ANIMAZIONI PROCEDURALI SCHELETRO (SUPPORTO MOVESET IBRIDO E DEDICATO) ---
+        CheckUnitDeaths();
+
+        // =========================================================================
+        // --- 1. ANIMAZIONI PROCEDURALI SCHELETRO E TORSIONE BUSTO ---
+        // =========================================================================
         if (m_Scene.GetRegistry().all_of<SunEngine::SkeletonComponent, SunEngine::WeaponBlueprintId>(m_PlayerEntity)) {
             auto& skel = m_Scene.GetRegistry().get<SunEngine::SkeletonComponent>(m_PlayerEntity);
             auto& melee = m_Scene.GetRegistry().get_or_emplace<SunEngine::MeleeStateComponent>(m_PlayerEntity);
@@ -1567,7 +1317,6 @@ void GameLayer::OnUpdate(float deltaTime)
 
             const std::string& currentWeaponId = m_Scene.GetRegistry().get<SunEngine::WeaponBlueprintId>(m_PlayerEntity).id;
 
-            // Supporto arma Melee attiva in Stance Ibrida
             std::string activeMeleeWeaponId = currentWeaponId;
             if (stance == SunEngine::EquipStance::HybridRangedMelee && !inv.meleeWeaponId.empty()) {
                 activeMeleeWeaponId = inv.meleeWeaponId;
@@ -1581,99 +1330,281 @@ void GameLayer::OnUpdate(float deltaTime)
             if (spineTwist < -180.0f) spineTwist += 360.0f;
             spineTwist = std::clamp(spineTwist, -75.0f, 75.0f);
 
+            float torsoPitchOffset = transform.AimPitch * 0.35f;
+            float armPitchOffset = transform.AimPitch * 0.65f;
+
+            bool isParrying = (melee.currentAttack == SunEngine::MeleeAttackType::Parry) && (melee.currentPhase != SunEngine::MeleePhase::None);
+
+            float lerpSpeed = (melee.currentPhase == SunEngine::MeleePhase::Active) ? 32.0f : (isParrying ? 22.0f : (isAiming ? 18.0f : 12.0f));
+
             for (auto& block : skel.data.blocks) {
 
-                // ANIMAZIONE NODO MOVESET ATTIVO
-                if (meleeBP && meleeBP->hasMoveset && !melee.currentAttackNode.empty() && melee.currentPhase != SunEngine::MeleePhase::None) {
-                    // Cerca il nodo nel dizionario in modo sicuro
-                    auto it = meleeBP->moveset.nodes.find(melee.currentAttackNode);
-                    if (it != meleeBP->moveset.nodes.end()) {
-                        const auto& node = it->second;
-                        if (node.pose.find(block.name) != node.pose.end()) {
-                            glm::vec3 targetRot = node.pose.at(block.name);
-                            block.jointRotation = glm::mix(block.jointRotation, targetRot, 15.0f * deltaTime);
-                            continue;
-                        }
+                // A. PARATA PROCEDURALE (TASTO Q)
+                if (isParrying) {
+                    if (stance == SunEngine::EquipStance::RangedTwoHanded) {
+                        if (block.name == "Torso") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(12.0f, spineTwist - 20.0f, 5.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Head") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(-8.0f, 20.0f, -5.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_R") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(65.0f + armPitchOffset, -35.0f, -20.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_L") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(72.0f + armPitchOffset, 40.0f, 30.0f), lerpSpeed * deltaTime);
                     }
-                }
-
-                // TORSO
-                if (block.name == "Torso") {
-                    float adsTorsoAngle = 0.0f;
-                    if (isAiming) {
-                        if (stance == SunEngine::EquipStance::HybridRangedMelee) {
-                            adsTorsoAngle = 40.0f;
-                        }
-                        else if (isTwoHanded) {
-                            adsTorsoAngle = -25.0f;
-                        }
+                    else if (isSinglePistolStance) {
+                        if (block.name == "Torso") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(8.0f, spineTwist - 25.0f, 0.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Head") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(-10.0f, 25.0f, -5.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_R") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(50.0f + armPitchOffset, -45.0f, -15.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_L") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(82.0f + armPitchOffset, 55.0f, 40.0f), lerpSpeed * deltaTime);
                     }
-                    block.jointRotation.z = spineTwist + adsTorsoAngle;
-                    block.jointRotation.x = (isAiming && isTwoHanded) ? 10.0f : 0.0f;
-                }
-
-                // TESTA
-                if (block.name == "Head") {
-                    if (isAiming && stance == SunEngine::EquipStance::HybridRangedMelee) {
-                        block.jointRotation.x = -transform.AimPitch * 0.5f;
-                        block.jointRotation.y = -35.0f;
-                        block.jointRotation.z = 5.0f;
+                    else if (isDualPistolStance) {
+                        if (block.name == "Torso") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(10.0f, spineTwist, 0.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Head") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(-10.0f, 0.0f, 0.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_R") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(72.0f + armPitchOffset, -58.0f, -35.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_L") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(72.0f + armPitchOffset, 58.0f, 35.0f), lerpSpeed * deltaTime);
+                    }
+                    else if (stance == SunEngine::EquipStance::HybridRangedMelee) {
+                        if (block.name == "Torso") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(5.0f, spineTwist - 30.0f, -5.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Head") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(-5.0f, 30.0f, -5.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_R") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(80.0f + armPitchOffset, -20.0f, -50.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_L") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(18.0f + armPitchOffset * 0.3f, 15.0f, 0.0f), lerpSpeed * deltaTime);
                     }
                     else {
-                        block.jointRotation.x = -transform.AimPitch * 0.5f;
-                        block.jointRotation.y = 0.0f;
-                        block.jointRotation.z = 0.0f;
+                        if (block.name == "Torso") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(15.0f, spineTwist - 15.0f, 0.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Head") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(-10.0f, 15.0f, 0.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_R") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(82.0f + armPitchOffset, -30.0f, -25.0f), lerpSpeed * deltaTime);
+                        else if (block.name == "Arm_L") block.jointRotation = glm::mix(block.jointRotation, glm::vec3(88.0f + armPitchOffset, 35.0f, 30.0f), lerpSpeed * deltaTime);
+                    }
+                    continue;
+                }
+
+                // B. ANIMAZIONE E DINAMICA DEL BUSTO PER NODO MOVESET MELEE ATTIVO
+                if (meleeBP && meleeBP->hasMoveset && !melee.currentAttackNode.empty() && melee.currentPhase != SunEngine::MeleePhase::None) {
+                    std::string nodeKey = melee.currentAttackNode;
+
+                    if (nodeKey.find("heavy") != std::string::npos || melee.currentAttack == SunEngine::MeleeAttackType::Heavy) {
+                        if (block.name == "Torso") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(-20.0f, spineTwist + 60.0f, -15.0f)
+                                : glm::vec3(30.0f, spineTwist - 50.0f, 15.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Head") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(10.0f, -40.0f, 0.0f)
+                                : glm::vec3(-10.0f, 25.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_R") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(120.0f + armPitchOffset, -45.0f, 30.0f)
+                                : glm::vec3(-40.0f + armPitchOffset, 60.0f, -40.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_L") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(45.0f, 20.0f, 10.0f)
+                                : glm::vec3(20.0f, -30.0f, -10.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        continue;
+                    }
+                    else if (nodeKey == "normal_1") {
+                        if (block.name == "Torso") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(-5.0f, spineTwist + 50.0f, -5.0f)
+                                : glm::vec3(10.0f, spineTwist - 55.0f, 8.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Head") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(5.0f, -25.0f, 0.0f)
+                                : glm::vec3(-5.0f, 30.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_R") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(45.0f + armPitchOffset, -75.0f, 20.0f)
+                                : glm::vec3(25.0f + armPitchOffset, 75.0f, -25.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_L") {
+                            glm::vec3 targetRot(20.0f, 10.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        continue;
+                    }
+                    else if (nodeKey == "normal_2") {
+                        if (block.name == "Torso") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(-5.0f, spineTwist - 50.0f, 5.0f)
+                                : glm::vec3(10.0f, spineTwist + 50.0f, -8.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Head") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(0.0f, 25.0f, 0.0f)
+                                : glm::vec3(0.0f, -25.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_R") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(35.0f + armPitchOffset, 70.0f, -20.0f)
+                                : glm::vec3(30.0f + armPitchOffset, -75.0f, 25.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_L") {
+                            glm::vec3 targetRot(15.0f, -10.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        continue;
+                    }
+                    else if (nodeKey.find("low") != std::string::npos || melee.currentAttack == SunEngine::MeleeAttackType::Light) {
+                        if (block.name == "Torso") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(25.0f, spineTwist - 20.0f, 0.0f)
+                                : glm::vec3(35.0f, spineTwist + 25.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Head") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(-10.0f, 15.0f, 0.0f)
+                                : glm::vec3(-15.0f, -15.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_R") {
+                            glm::vec3 targetRot = (melee.currentPhase == SunEngine::MeleePhase::Windup)
+                                ? glm::vec3(-15.0f + armPitchOffset, -30.0f, -10.0f)
+                                : glm::vec3(75.0f + armPitchOffset, 20.0f, -15.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_L") {
+                            glm::vec3 targetRot(20.0f, -10.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        continue;
                     }
                 }
 
-                // STANDBY ARMI
-                if (melee.currentPhase == SunEngine::MeleePhase::None) {
+                // C. POSTURA TORSO IN BASE ALLA STANCE
+                if (block.name == "Torso") {
+                    float targetTorsoYaw = spineTwist;
+                    float targetTorsoPitch = 0.0f;
+                    float targetTorsoRoll = 0.0f;
+
+                    if (isAiming) {
+                        targetTorsoPitch = -torsoPitchOffset;
+
+                        if (stance == SunEngine::EquipStance::RangedTwoHanded || (isTwoHanded && stance != SunEngine::EquipStance::HybridRangedMelee)) {
+                            targetTorsoYaw += -38.0f;
+                            targetTorsoRoll = 4.0f;
+                        }
+                        else if (isSinglePistolStance) {
+                            targetTorsoYaw += -25.0f;
+                            targetTorsoRoll = 2.0f;
+                        }
+                        else if (stance == SunEngine::EquipStance::HybridRangedMelee) {
+                            targetTorsoYaw += 52.0f;
+                            targetTorsoRoll = -4.0f;
+                        }
+                        else if (isDualPistolStance) {
+                            targetTorsoYaw += -10.0f;
+                        }
+                    }
+
+                    glm::vec3 targetRot(targetTorsoPitch, targetTorsoYaw, targetTorsoRoll);
+                    block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                }
+
+                // D. POSTURA TESTA
+                else if (block.name == "Head") {
+                    float targetHeadPitch = -armPitchOffset;
+                    float targetHeadYaw = 0.0f;
+                    float targetHeadRoll = 0.0f;
+
+                    if (isAiming) {
+                        if (stance == SunEngine::EquipStance::RangedTwoHanded || (isTwoHanded && stance != SunEngine::EquipStance::HybridRangedMelee)) {
+                            targetHeadYaw = 38.0f;
+                            targetHeadRoll = -8.0f;
+                        }
+                        else if (isSinglePistolStance) {
+                            targetHeadYaw = 25.0f;
+                            targetHeadRoll = -4.0f;
+                        }
+                        else if (stance == SunEngine::EquipStance::HybridRangedMelee) {
+                            targetHeadYaw = -52.0f;
+                            targetHeadRoll = 6.0f;
+                        }
+                    }
+
+                    glm::vec3 targetRot(targetHeadPitch, targetHeadYaw, targetHeadRoll);
+                    block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                }
+
+                // E. POSTURA BRACCIA
+                else if (melee.currentPhase == SunEngine::MeleePhase::None) {
                     if (stance == SunEngine::EquipStance::RangedTwoHanded || (isTwoHanded && stance != SunEngine::EquipStance::HybridRangedMelee)) {
                         if (block.name == "Arm_R") {
-                            block.jointRotation.x = isAiming ? (55.0f + transform.AimPitch * 0.8f) : (38.0f + transform.AimPitch * 0.65f);
-                            block.jointRotation.y = isAiming ? -50.0f : -20.0f;
-                            block.jointRotation.z = isAiming ? 20.0f : 0.0f;
+                            glm::vec3 targetRot = isAiming
+                                ? glm::vec3(58.0f + armPitchOffset, -42.0f, 12.0f)
+                                : glm::vec3(38.0f + armPitchOffset * 0.5f, -20.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                         else if (block.name == "Arm_L") {
-                            block.jointRotation.x = isAiming ? (65.0f + transform.AimPitch * 0.8f) : (42.0f + transform.AimPitch * 0.65f);
-                            block.jointRotation.y = isAiming ? 35.0f : 40.0f;
-                            block.jointRotation.z = isAiming ? 15.0f : 22.0f;
+                            glm::vec3 targetRot = isAiming
+                                ? glm::vec3(64.0f + armPitchOffset, 28.0f, 18.0f)
+                                : glm::vec3(42.0f + armPitchOffset * 0.5f, 40.0f, 22.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                    }
+                    else if (isSinglePistolStance) {
+                        if (block.name == "Arm_R") {
+                            glm::vec3 targetRot = isAiming
+                                ? glm::vec3(54.0f + armPitchOffset * 1.05f, -20.0f, 5.0f)
+                                : glm::vec3(35.0f + armPitchOffset * 0.5f, -10.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
+                        }
+                        else if (block.name == "Arm_L") {
+                            glm::vec3 targetRot = isAiming
+                                ? glm::vec3(58.0f + armPitchOffset * 1.05f, 32.0f, 16.0f)
+                                : glm::vec3(20.0f, 10.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                     }
                     else if (stance == SunEngine::EquipStance::HybridRangedMelee) {
                         if (block.name == "Arm_R") {
-                            block.jointRotation.x = 20.0f;
-                            block.jointRotation.y = -45.0f;
-                            block.jointRotation.z = -15.0f;
+                            glm::vec3 targetRot(15.0f, -40.0f, -20.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                         else if (block.name == "Arm_L") {
-                            block.jointRotation.x = 52.0f + transform.AimPitch * 0.75f;
-                            block.jointRotation.y = 10.0f;
-                            block.jointRotation.z = 0.0f;
+                            glm::vec3 targetRot = isAiming
+                                ? glm::vec3(58.0f + armPitchOffset * 1.1f, -8.0f, 0.0f)
+                                : glm::vec3(35.0f + armPitchOffset * 0.5f, 15.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                     }
-                    else if (stance == SunEngine::EquipStance::DualRangedOneHanded) {
+                    else if (isDualPistolStance) {
                         if (block.name == "Arm_R" || block.name == "Arm_L") {
-                            block.jointRotation.x = 48.0f + transform.AimPitch * 0.7f;
-                            block.jointRotation.y = (block.name == "Arm_R") ? -15.0f : 15.0f;
-                            block.jointRotation.z = 0.0f;
+                            float sideSign = (block.name == "Arm_R") ? -1.0f : 1.0f;
+                            glm::vec3 targetRot = isAiming
+                                ? glm::vec3(52.0f + armPitchOffset, sideSign * 10.0f, 0.0f)
+                                : glm::vec3(35.0f + armPitchOffset * 0.5f, sideSign * 20.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                     }
                     else {
                         if (block.name == "Arm_R") {
-                            block.jointRotation.x = 30.0f + transform.AimPitch * 0.5f;
-                            block.jointRotation.y = -10.0f;
-                            block.jointRotation.z = 0.0f;
+                            glm::vec3 targetRot(30.0f + armPitchOffset * 0.5f, -10.0f, 0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                         else if (block.name == "Arm_L") {
-                            block.jointRotation = glm::vec3(0.0f);
+                            glm::vec3 targetRot(0.0f);
+                            block.jointRotation = glm::mix(block.jointRotation, targetRot, lerpSpeed * deltaTime);
                         }
                     }
                 }
             }
         }
 
-        // --- 2. REGOLAZIONE TELECAMERA OVER-THE-SHOULDER GEARS OF WAR ---
+        // =========================================================================
+        // --- 2. REGOLAZIONE TELECAMERA OVER-THE-SHOULDER ---
+        // =========================================================================
         float unitHeight = 1.8f;
         float torsoWidth = 0.5f;
 
@@ -1730,16 +1661,22 @@ void GameLayer::OnUpdate(float deltaTime)
 
         if (isAiming) {
             if (stance == SunEngine::EquipStance::HybridRangedMelee) {
-                dynamicDistance = 2.10f;
-                dynamicShoulderOffset = 0.65f;
+                dynamicDistance = 2.0f;
+                dynamicShoulderOffset = 0.62f;
                 dynamicHeightOffset = unitHeight * 0.18f;
                 extraFov -= 20.0f;
             }
-            else {
-                dynamicDistance = 2.05f;
-                dynamicShoulderOffset = 0.52f;
+            else if (stance == SunEngine::EquipStance::RangedTwoHanded || isSinglePistolStance) {
+                dynamicDistance = 1.95f;
+                dynamicShoulderOffset = 0.50f;
                 dynamicHeightOffset = unitHeight * 0.18f;
                 extraFov -= 22.0f;
+            }
+            else {
+                dynamicDistance = 2.05f;
+                dynamicShoulderOffset = 0.55f;
+                dynamicHeightOffset = unitHeight * 0.18f;
+                extraFov -= 18.0f;
             }
 
             if (wSt && wSt->isScopeActive && currentBP && currentBP->has_scope) {
@@ -1791,6 +1728,7 @@ void GameLayer::OnUpdate(float deltaTime)
 
         float totalTime = static_cast<float>(glfwGetTime());
 
+        // --- SISTEMA DI COLLISIONE E PUSHOUT TRA NEMICI ED ENTITA' ---
         auto enemyView = m_Scene.GetRegistry().view<SunEngine::TransformComponent, SunEngine::HealthComponent>(
             entt::exclude<SunEngine::PlayerTag, SunEngine::CorpseComponent>
         );
@@ -1801,91 +1739,45 @@ void GameLayer::OnUpdate(float deltaTime)
             glm::vec3 distVec = transform.Position - enemyTrans.Position;
             float distToPlayer = glm::length(distVec);
 
-            if (distToPlayer > 1.15f) {
-                float orkSeed = static_cast<float>(static_cast<uint32_t>(enemyEntity) % 100);
+            // 1. Pushout tra Player ed Orco (Impedisce compenetrazioni)
+            float minDistPlayer = 0.95f;
+            glm::vec2 pXZ(transform.Position.x, transform.Position.z);
+            glm::vec2 eXZ(enemyTrans.Position.x, enemyTrans.Position.z);
+            float distPE = glm::distance(pXZ, eXZ);
 
-                std::vector<glm::vec3> path = m_NavQuery.FindPath(enemyTrans.Position, transform.Position);
-
-                glm::vec3 targetWaypoint = transform.Position;
-                if (path.size() >= 2) {
-                    targetWaypoint = path[1];
-                }
-
-                glm::vec3 dirToTarget = targetWaypoint - enemyTrans.Position;
-                dirToTarget.y = 0.0f;
-
-                if (glm::length(dirToTarget) > 0.001f) {
-                    glm::vec3 moveDir = glm::normalize(dirToTarget);
-                    glm::vec3 sideDir = glm::cross(moveDir, glm::vec3(0.0f, 1.0f, 0.0f));
-
-                    float swayFreq = 6.0f + std::fmod(orkSeed, 3.0f);
-                    float swayAmp = (distToPlayer > 8.0f) ? 0.45f : 0.15f;
-                    float swayOffset = std::sin(totalTime * swayFreq + orkSeed) * swayAmp;
-
-                    glm::vec3 finalMoveDir = glm::normalize(moveDir + sideDir * swayOffset);
-
-                    float baseSpeed = 3.2f + std::fmod(orkSeed, 0.8f);
-                    float currentSpeed = (distToPlayer < 8.0f) ? (baseSpeed * 1.35f) : baseSpeed;
-
-                    enemyTrans.Position.x += finalMoveDir.x * currentSpeed * deltaTime;
-                    enemyTrans.Position.z += finalMoveDir.z * currentSpeed * deltaTime;
-
-                    float targetY = GetGroundHeightAt(m_Scene, enemyTrans.Position, enemyTrans.Position.y);
-                    enemyTrans.Position.y = glm::mix(enemyTrans.Position.y, targetY, 15.0f * deltaTime);
-                    m_PhysicsSystem.SetBodyPosition(m_Scene, enemyEntity, enemyTrans.Position);
-
-                    float targetYaw = glm::degrees(std::atan2(-finalMoveDir.x, -finalMoveDir.z));
-                    enemyTrans.Rotation.y = LerpAngle(enemyTrans.Rotation.y, targetYaw, 10.0f * deltaTime);
-
-                    if (m_Scene.GetRegistry().all_of<SunEngine::FootstepComponent>(enemyEntity)) {
-                        auto& footstep = m_Scene.GetRegistry().get<SunEngine::FootstepComponent>(enemyEntity);
-
-                        footstep.stepTimer += deltaTime * (currentSpeed / 3.5f);
-                        if (footstep.stepTimer >= footstep.stepInterval) {
-                            footstep.stepTimer = 0.0f;
-
-                            float spatialVol = CalculateSpatialVolume(distToPlayer) * 0.6f * m_VolumeSFX;
-                            if (spatialVol > 0.002f) {
-                                std::string audioDir = FindValidDir("Audio");
-                                if (audioDir.empty()) audioDir = "GameData/Audio/";
-                                std::string stepPath = audioDir + "Footsteps/step_concrete.wav";
-
-                                if (std::filesystem::exists(stepPath)) {
-                                    ma_engine_set_volume(&m_AudioEngine, spatialVol);
-                                    ma_engine_play_sound(&m_AudioEngine, stepPath.c_str(), NULL);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (m_Scene.GetRegistry().all_of<SunEngine::SkeletonComponent>(enemyEntity)) {
-                    auto& skel = m_Scene.GetRegistry().get<SunEngine::SkeletonComponent>(enemyEntity);
-                    float animSpeed = (distToPlayer < 8.0f) ? 12.0f : 8.0f;
-                    float legAngle = std::sin(totalTime * animSpeed + orkSeed) * 40.0f;
-
-                    for (auto& block : skel.data.blocks) {
-                        if (block.name == "Leg_L") block.jointRotation.x = legAngle;
-                        else if (block.name == "Leg_R") block.jointRotation.x = -legAngle;
-                        else if (block.name == "Arm_R") block.jointRotation.x = 30.0f + legAngle * 0.5f;
-                        else if (block.name == "Arm_L") block.jointRotation.x = 30.0f - legAngle * 0.5f;
-                    }
-                }
+            if (distPE < minDistPlayer && distPE > 0.001f) {
+                glm::vec2 pushDir = glm::normalize(eXZ - pXZ);
+                glm::vec2 correctedOrkPos = pXZ + pushDir * minDistPlayer;
+                enemyTrans.Position.x = correctedOrkPos.x;
+                enemyTrans.Position.z = correctedOrkPos.y;
+                m_PhysicsSystem.SetBodyPosition(m_Scene, enemyEntity, enemyTrans.Position);
             }
-            else {
-                playerHealth->currentHealth = 0.0f;
-                if (m_CurrentSquadMemberIdx < static_cast<int>(m_ActiveSquad.size())) {
-                    m_ActiveSquad[m_CurrentSquadMemberIdx].isAlive = false;
+
+            // 2. Animazione zampe e passo dell'Orco
+            if (m_Scene.GetRegistry().all_of<SunEngine::SkeletonComponent>(enemyEntity)) {
+                auto& skel = m_Scene.GetRegistry().get<SunEngine::SkeletonComponent>(enemyEntity);
+                auto* mState = m_Scene.GetRegistry().try_get<SunEngine::MeleeStateComponent>(enemyEntity);
+                bool isAttacking = mState && (mState->currentPhase != SunEngine::MeleePhase::None);
+
+                float animSpeed = isAttacking ? 4.0f : 10.0f;
+                float legAngle = isAttacking ? 5.0f : std::sin(totalTime * animSpeed) * 35.0f;
+
+                for (auto& block : skel.data.blocks) {
+                    if (block.name == "Leg_L") block.jointRotation.x = legAngle;
+                    else if (block.name == "Leg_R") block.jointRotation.x = -legAngle;
+                    else if (block.name == "Arm_R" && !isAttacking) block.jointRotation.x = 25.0f + legAngle * 0.4f;
+                    else if (block.name == "Arm_L" && !isAttacking) block.jointRotation.x = 25.0f - legAngle * 0.4f;
                 }
-                if (window) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-                break;
             }
         }
     }
 
     m_ParticleSystem.Update(m_Scene, deltaTime);
 
-    // RENDERING & ATTACHMENT DELLE ARMI SULLE MANI (BOX HITBOX PROPORZIONATE)
+    // =========================================================================
+    // RENDERING & ATTACHMENT DINAMICO DELLE ARMI 3D PER GIOCATORE ED ORCHI NEMICI
+    // =========================================================================
+    // A. ARMA GIOCATORE
     if (m_Scene.GetRegistry().valid(m_PlayerEntity)) {
         static entt::entity s_LeftWeaponEntity = entt::null;
         if (!m_Scene.GetRegistry().valid(s_LeftWeaponEntity)) {
@@ -1916,7 +1808,7 @@ void GameLayer::OnUpdate(float deltaTime)
             leftWeaponId = "";
         }
 
-        // 1. ARMA MANO DESTRA (m_WeaponEntity)
+        // 1. ARMA MANO DESTRA PLAYER (m_WeaponEntity)
         if (m_Scene.GetRegistry().valid(m_WeaponEntity) && !rightWeaponId.empty()) {
             auto& wTransR = m_Scene.GetRegistry().get<SunEngine::TransformComponent>(m_WeaponEntity);
             const auto* wBPR = SunEngine::BlueprintManager::Get().GetWeapon(rightWeaponId);
@@ -1933,17 +1825,15 @@ void GameLayer::OnUpdate(float deltaTime)
 
                     if (armRIndex >= 0 && armRIndex < static_cast<int>(worldTransforms.size())) {
                         glm::mat4 armWorldMat = worldTransforms[armRIndex];
-                        glm::vec3 armPos = glm::vec3(armWorldMat[3]);
+                        glm::mat4 weaponWorldMat = glm::translate(armWorldMat, wBPR->hold_offset);
 
-                        glm::vec3 localOffset = wBPR->hold_offset;
-                        glm::vec3 offsetInWorld = glm::vec3(armWorldMat * glm::vec4(localOffset, 0.0f));
-
-                        wTransR.Position = armPos + offsetInWorld;
-                        wTransR.Rotation = glm::vec3(transform.AimPitch, transform.AimYaw, 0.0f);
+                        wTransR.Position = glm::vec3(weaponWorldMat[3]);
+                        glm::quat armQuat = glm::quat_cast(weaponWorldMat);
+                        wTransR.Rotation = glm::degrees(glm::eulerAngles(armQuat));
 
                         glm::vec3 scale = wBPR->weapon_scale;
                         if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
-                            scale = wBPR->is_melee ? glm::vec3(0.06f, 0.15f, 0.90f) : glm::vec3(0.08f, 0.18f, 0.80f);
+                            scale = wBPR->is_melee ? glm::vec3(0.14f, 0.32f, 1.10f) : glm::vec3(0.08f, 0.18f, 0.80f);
                         }
                         wTransR.Scale = scale;
                     }
@@ -1959,7 +1849,7 @@ void GameLayer::OnUpdate(float deltaTime)
             }
         }
 
-        // 2. ARMA MANO SINISTRA (s_LeftWeaponEntity)
+        // 2. ARMA MANO SINISTRA PLAYER (s_LeftWeaponEntity)
         auto& wTransL = m_Scene.GetRegistry().get<SunEngine::TransformComponent>(s_LeftWeaponEntity);
         if (!leftWeaponId.empty()) {
             const auto* wBPL = SunEngine::BlueprintManager::Get().GetWeapon(leftWeaponId);
@@ -1975,13 +1865,14 @@ void GameLayer::OnUpdate(float deltaTime)
 
                     if (armLIndex >= 0 && armLIndex < static_cast<int>(worldTransforms.size())) {
                         glm::mat4 armWorldMat = worldTransforms[armLIndex];
-                        glm::vec3 armPos = glm::vec3(armWorldMat[3]);
+
                         glm::vec3 localOffset = wBPL->hold_offset;
                         localOffset.x = -localOffset.x;
-                        glm::vec3 offsetInWorld = glm::vec3(armWorldMat * glm::vec4(localOffset, 0.0f));
+                        glm::mat4 weaponWorldMat = glm::translate(armWorldMat, localOffset);
 
-                        wTransL.Position = armPos + offsetInWorld;
-                        wTransL.Rotation = glm::vec3(transform.AimPitch, transform.AimYaw, 0.0f);
+                        wTransL.Position = glm::vec3(weaponWorldMat[3]);
+                        glm::quat armQuat = glm::quat_cast(weaponWorldMat);
+                        wTransL.Rotation = glm::degrees(glm::eulerAngles(armQuat));
 
                         glm::vec3 scale = wBPL->weapon_scale;
                         if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
@@ -2004,12 +1895,43 @@ void GameLayer::OnUpdate(float deltaTime)
             wTransL.Scale = glm::vec3(0.0f);
         }
     }
+
+    // B. ARMA MANO DESTRA DI OGNI ORCO NEMICO DELL'ORDA (CHOPPA VISIBILE 3D)
+    auto orkWeaponView = m_Scene.GetRegistry().view<SunEngine::HordeAgentComponent, SunEngine::TransformComponent, SunEngine::SkeletonComponent>();
+    for (auto orkEnt : orkWeaponView) {
+        auto& horde = orkWeaponView.get<SunEngine::HordeAgentComponent>(orkEnt);
+        auto& orkTrans = orkWeaponView.get<SunEngine::TransformComponent>(orkEnt);
+        auto& skel = orkWeaponView.get<SunEngine::SkeletonComponent>(orkEnt);
+
+        if (m_Scene.GetRegistry().valid(horde.weaponEntity)) {
+            auto& wTrans = m_Scene.GetRegistry().get<SunEngine::TransformComponent>(horde.weaponEntity);
+            const auto* wBP = SunEngine::BlueprintManager::Get().GetWeapon("ork_choppa_1h");
+
+            if (wBP) {
+                auto worldTransforms = skel.data.ComputeWorldTransforms(orkTrans.Position, orkTrans.Rotation, skel.scale);
+
+                int armRIndex = -1;
+                for (size_t i = 0; i < skel.data.blocks.size(); ++i) {
+                    if (skel.data.blocks[i].name == "Arm_R") { armRIndex = static_cast<int>(i); break; }
+                }
+
+                if (armRIndex >= 0 && armRIndex < static_cast<int>(worldTransforms.size())) {
+                    glm::mat4 armWorldMat = worldTransforms[armRIndex];
+                    glm::mat4 weaponWorldMat = glm::translate(armWorldMat, glm::vec3(0.0f, -0.15f, 0.45f));
+
+                    wTrans.Position = glm::vec3(weaponWorldMat[3]);
+                    glm::quat armQuat = glm::quat_cast(weaponWorldMat);
+                    wTrans.Rotation = glm::degrees(glm::eulerAngles(armQuat));
+                    wTrans.Scale = glm::vec3(0.10f, 0.55f, 0.35f);
+                }
+            }
+        }
+    }
 }
 
 // =========================================================================
 // RENDER & UI METHODS
 // =========================================================================
-
 void GameLayer::OnRender()
 {
     m_RenderSystem.Render(m_Scene);
@@ -2019,6 +1941,7 @@ void GameLayer::OnRender()
         glm::vec2 screen = glm::vec2(1280.0f, 720.0f);
         glm::vec2 center = screen * 0.5f;
 
+        // 1. HUD SLOT ARMI IN ALTO
         if (m_Scene.GetRegistry().all_of<SunEngine::InventoryComponent>(m_PlayerEntity)) {
             auto& inv = m_Scene.GetRegistry().get<SunEngine::InventoryComponent>(m_PlayerEntity);
 
@@ -2045,10 +1968,39 @@ void GameLayer::OnRender()
             }
         }
 
+        // 2. PUNTATORE / CROSSHAIR DOT CENTRALE
         float dotSize = 4.0f;
         glm::vec2 dotPos = center - glm::vec2(dotSize * 0.5f);
         SunEngine::Renderer::DrawQuadUI(dotPos, glm::vec2(dotSize, dotSize), glm::vec4(1.0f, 1.0f, 1.0f, 0.9f), screen);
 
+        // 3. SCUDO DI PARATA PROCEDURALE SUL PUNTATORE (TASTO Q ACTIVE)
+        if (m_Scene.GetRegistry().all_of<SunEngine::MeleeStateComponent>(m_PlayerEntity)) {
+            auto& melee = m_Scene.GetRegistry().get<SunEngine::MeleeStateComponent>(m_PlayerEntity);
+            bool isParrying = (melee.currentAttack == SunEngine::MeleeAttackType::Parry) &&
+                (melee.currentPhase != SunEngine::MeleePhase::None);
+
+            if (isParrying) {
+                bool isPerfectWindow = (melee.currentPhase == SunEngine::MeleePhase::Active);
+
+                glm::vec4 shieldColor = isPerfectWindow
+                    ? glm::vec4(0.0f, 0.9f, 1.0f, 0.95f)  // Ciano Elettrico
+                    : glm::vec4(0.9f, 0.65f, 0.1f, 0.80f); // Oro Tattico
+
+                glm::vec4 coreColor = isPerfectWindow
+                    ? glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)   // Bianco Puro
+                    : glm::vec4(1.0f, 0.85f, 0.3f, 0.90f);
+
+                SunEngine::Renderer::DrawQuadUI(center + glm::vec2(-16.0f, -18.0f), glm::vec2(32.0f, 4.0f), shieldColor, screen);
+                SunEngine::Renderer::DrawQuadUI(center + glm::vec2(-14.0f, -14.0f), glm::vec2(28.0f, 16.0f), shieldColor, screen);
+                SunEngine::Renderer::DrawQuadUI(center + glm::vec2(-10.0f, 2.0f), glm::vec2(20.0f, 10.0f), shieldColor, screen);
+                SunEngine::Renderer::DrawQuadUI(center + glm::vec2(-5.0f, 12.0f), glm::vec2(10.0f, 8.0f), shieldColor, screen);
+
+                SunEngine::Renderer::DrawQuadUI(center + glm::vec2(-3.0f, -10.0f), glm::vec2(6.0f, 20.0f), coreColor, screen);
+                SunEngine::Renderer::DrawQuadUI(center + glm::vec2(-10.0f, -4.0f), glm::vec2(20.0f, 6.0f), coreColor, screen);
+            }
+        }
+
+        // 4. ANELLO DI RICARICA
         if (m_Scene.GetRegistry().all_of<SunEngine::WeaponStateComponent, SunEngine::WeaponBlueprintId>(m_PlayerEntity)) {
             auto& weaponState = m_Scene.GetRegistry().get<SunEngine::WeaponStateComponent>(m_PlayerEntity);
             const auto* weaponBP = SunEngine::BlueprintManager::Get().GetWeapon(
@@ -2074,6 +2026,7 @@ void GameLayer::OnRender()
             }
         }
 
+        // 5. BARRA DEL CALORE ARMA
         if (m_Scene.GetRegistry().all_of<SunEngine::WeaponStateComponent, SunEngine::WeaponBlueprintId>(m_PlayerEntity)) {
             auto& weaponState = m_Scene.GetRegistry().get<SunEngine::WeaponStateComponent>(m_PlayerEntity);
             const auto* weaponBP = SunEngine::BlueprintManager::Get().GetWeapon(
@@ -2098,6 +2051,7 @@ void GameLayer::OnRender()
             }
         }
 
+        // 6. BARRA HP GIOCATORE
         if (m_Scene.GetRegistry().all_of<SunEngine::HealthComponent>(m_PlayerEntity)) {
             auto& health = m_Scene.GetRegistry().get<SunEngine::HealthComponent>(m_PlayerEntity);
             float hpRatio = std::clamp(std::max(health.currentHealth / health.maxHealth, 0.0f), 0.0f, 1.0f);

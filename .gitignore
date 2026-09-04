@@ -1,7 +1,12 @@
-# Escludi la libreria esterna Jolt e build pesanti
-JoltPhysics/
+# Cartelle di build e binari
+out/
+build/
+Binaries/
+Intermediate/
+ExportedMaps/
+
+# File temporanei di Visual Studio / MSVC
 .vs/
-bin/
-obj/
-*.exe
-*.obj
+*.user
+*.suo
+*.pdb

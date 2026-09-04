@@ -32,6 +32,15 @@ namespace SunEngine {
 
                 if (trail.isBeam) {
                     Renderer::DrawLine(trail.start, currentPos, trail.color);
+
+                    if (trail.projectileWidth > 0.08f) {
+                        int steps = 8;
+                        for (int i = 0; i <= steps; ++i) {
+                            float t = static_cast<float>(i) / static_cast<float>(steps);
+                            glm::vec3 p = glm::mix(trail.start, currentPos, t);
+                            Renderer::DrawSphere(p, trail.projectileWidth * 0.45f, trail.color);
+                        }
+                    }
                 }
                 else {
                     Renderer::DrawSphere(currentPos, trail.projectileWidth, trail.color);
