@@ -1,32 +1,32 @@
 ﻿cmake_minimum_required(VERSION 3.20)
+
 project(SunEngine LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Opzioni di compilazione MSVC (posizionate all'inizio per tutti i target)
-if (MSVC)
-    add_compile_options(/utf-8)
-endif()
-
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 
 include(FetchContent)
 
+# ==========================
 # GLFW
+# ==========================
 FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4)
 FetchContent_MakeAvailable(glfw)
 
-# EnTT (Singola dichiarazione pulita)
+# ==========================
+# EnTT
+# ==========================
 FetchContent_Declare(entt GIT_REPOSITORY https://github.com/skypjack/entt.git GIT_TAG v3.14.0)
 FetchContent_MakeAvailable(entt)
 
 # ==========================
-# Recast & Detour (NavMesh 3D & Pathfinding)
+# Recast & Detour
 # ==========================
-set(RECASTNAVIGATION_DEMO OFF CACHE BOOL "" FORCE)     # Disabilita la Demo (rimuove la dipendenza da SDL2)
-set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "" FORCE)    # Disabilita i Test interni
-set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "" FORCE) # Disabilita gli Esempi
+set(RECASTNAVIGATION_DEMO OFF CACHE BOOL "" FORCE)
+set(RECASTNAVIGATION_TESTS OFF CACHE BOOL "" FORCE)
+set(RECASTNAVIGATION_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     recastnavigation
     GIT_REPOSITORY https://github.com/recastnavigation/recastnavigation.git
@@ -34,25 +34,66 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(recastnavigation)
 
+# ==========================
+# Assimp (Importatore Modelli 3D)
+# ==========================
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL_PDB OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INJECT_DEBUG_POSTFIX OFF CACHE BOOL "" FORCE)
+
+# Disabilita Exporter
+set(ASSIMP_BUILD_EXPORTERS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
+
+# Disabilita installazione e shared library
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+# Abilita Importer (solo quelli necessari)
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_GLTF2_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "" FORCE)   # per FBX
+set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_STL_IMPORTER ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    assimp
+    GIT_REPOSITORY https://github.com/assimp/assimp.git
+    GIT_TAG        v5.4.3
+)
+FetchContent_MakeAvailable(assimp)
+
+# ==========================
 # spdlog
+# ==========================
 FetchContent_Declare(spdlog GIT_REPOSITORY https://github.com/gabime/spdlog.git GIT_TAG v1.15.3)
 FetchContent_MakeAvailable(spdlog)
 
+# ==========================
 # GLM
+# ==========================
 FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 1.0.1)
 FetchContent_MakeAvailable(glm)
 
+# ==========================
 # nlohmann_json
+# ==========================
 FetchContent_Declare(nlohmann_json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.11.3)
 FetchContent_MakeAvailable(nlohmann_json)
 
+# ==========================
 # miniaudio
+# ==========================
 FetchContent_Declare(miniaudio GIT_REPOSITORY https://github.com/mackron/miniaudio.git GIT_TAG 0.11.21)
 FetchContent_MakeAvailable(miniaudio)
 
 find_package(OpenGL REQUIRED)
 
+# ==========================
 # Dear ImGui
+# ==========================
 FetchContent_Declare(imgui GIT_REPOSITORY https://github.com/ocornut/imgui.git GIT_TAG v1.90.8)
 FetchContent_GetProperties(imgui)
 if(NOT imgui_POPULATED)
@@ -65,7 +106,7 @@ if(NOT imgui_POPULATED)
         ${imgui_SOURCE_DIR}/imgui_demo.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-     "Engine/ECS/WeaponSystem.h")
+    )
     target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 endif()
@@ -88,8 +129,8 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics/Build" EXCLUD
 # ==========================
 # Engine (Libreria Statica)
 # ==========================
-file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
-add_library(SunEngine STATIC ${ENGINE_SOURCES} "Engine/ECS/WeaponSystem.h")
+file(GLOB_RECURSE ENGINE_SOURCES "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
+add_library(SunEngine STATIC ${ENGINE_SOURCES})
 
 target_include_directories(SunEngine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -97,8 +138,8 @@ target_include_directories(SunEngine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics"
     ${miniaudio_SOURCE_DIR}
     ${entt_SOURCE_DIR}/src
-    ${recastnavigation_SOURCE_DIR}/Recast/Include  # <-- Include di Recast
-    ${recastnavigation_SOURCE_DIR}/Detour/Include  # <-- Include di Detour
+    ${recastnavigation_SOURCE_DIR}/Recast/Include
+    ${recastnavigation_SOURCE_DIR}/Detour/Include
 )
 
 target_link_libraries(SunEngine PUBLIC 
@@ -110,16 +151,25 @@ target_link_libraries(SunEngine PUBLIC
     Jolt 
     nlohmann_json::nlohmann_json 
     imgui
-    Detour  # <--- Tolto il prefisso RecastNavigation::
-    Recast  # <--- Tolto il prefisso RecastNavigation::
+    Detour 
+    Recast 
+    assimp
 )
 
 # ==========================
 # Gioco (Eseguibile)
 # ==========================
-file(GLOB_RECURSE SANDBOX_SOURCES CONFIGURE_DEPENDS "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
-add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/ECS/WeaponSystem.h")
+file(GLOB_RECURSE SANDBOX_SOURCES "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
+add_executable(ProjectTrazyn ${SANDBOX_SOURCES})
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
+
+# ==========================
+# OPZIONI DI COMPILAZIONE MIRATE MSVC
+# ==========================
+if (MSVC)
+    target_compile_options(SunEngine PRIVATE /utf-8 /bigobj /MP)
+    target_compile_options(ProjectTrazyn PRIVATE /utf-8 /bigobj /MP)
+endif()
 
 add_custom_command(TARGET ProjectTrazyn POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

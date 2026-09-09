@@ -61,15 +61,20 @@ namespace SunEngine {
         trail.travelTime = 0.05f;
         trail.totalLife = 0.38f;
     }
-
-    void CombatSystem::Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime) {
+    void CombatSystem::Update(Scene& scene, PhysicsSystem& physicsSystem, NavMeshQuery& navQuery, float deltaTime) {
         entt::entity playerEnt = entt::null;
         glm::vec3 playerPos(0.0f);
+        glm::vec3 playerVelocity(0.0f);
 
         auto playerView = scene.GetRegistry().view<PlayerTag, TransformComponent>();
         for (auto p : playerView) {
             playerEnt = p;
             playerPos = playerView.get<TransformComponent>(p).Position;
+
+            // Recupero velocità del giocatore per il calcolo predittivo
+            if (scene.GetRegistry().all_of<RigidBodyComponent>(p)) {
+                playerVelocity = scene.GetRegistry().get<RigidBodyComponent>(p).velocity;
+            }
             break;
         }
 
@@ -102,43 +107,57 @@ namespace SunEngine {
 
                 float distToPlayer = glm::distance(trans.Position, playerPos);
 
+                // 1. MIRA PREDITTIVA (Studio del movimento del giocatore)
                 if (distToPlayer <= 8.0f) {
-                    glm::vec3 dirToP = playerPos - trans.Position;
-                    float targetYaw = glm::degrees(std::atan2(-dirToP.x, -dirToP.z));
-                    trans.AimYaw = targetYaw;
-                    trans.Rotation.y = LerpAngle(trans.Rotation.y, targetYaw, 12.0f * deltaTime);
+                    float leadTime = 0.28f; // Tempo di anticipo sul movimento
+                    glm::vec3 predictedPlayerPos = playerPos + (playerVelocity * leadTime);
+                    glm::vec3 dirToP = predictedPlayerPos - trans.Position;
+                    dirToP.y = 0.0f;
+
+                    if (glm::length(dirToP) > 0.001f) {
+                        float targetYaw = glm::degrees(std::atan2(-dirToP.x, -dirToP.z));
+                        trans.AimYaw = targetYaw;
+                        trans.Rotation.y = LerpAngle(trans.Rotation.y, targetYaw, 14.0f * deltaTime);
+                    }
                 }
+
+                // --- CALCOLO TARGET E VELOCITA' IN BASE ALLO STATO ---
+                glm::vec3 targetPos = trans.Position;
+                float moveSpeed = 0.0f;
+                bool needsToMove = false;
 
                 if (horde.state == HordeState::Cooldown) {
                     horde.cooldownTimer -= deltaTime;
 
-                    glm::vec3 backDir = glm::normalize(trans.Position - playerPos);
-                    backDir.y = 0.0f;
                     if (distToPlayer < 4.5f) {
-                        trans.Position += backDir * 2.8f * deltaTime;
+                        glm::vec3 backDir = glm::normalize(trans.Position - playerPos);
+                        backDir.y = 0.0f;
+                        // Usa GetNearestValidPoint per non indietreggiare fuori dalla mappa calpestabile
+                        targetPos = navQuery.GetNearestValidPoint(trans.Position + backDir * 3.5f);
+                        moveSpeed = 2.8f;
+                        needsToMove = true;
                     }
 
                     if (horde.cooldownTimer <= 0.0f) {
                         horde.state = HordeState::Waiting;
                     }
                 }
-
-                if (horde.state == HordeState::Waiting) {
+                else if (horde.state == HordeState::Waiting) {
                     float angle = (360.0f / std::max(1, totalOrksInHorde)) * orkIndex;
                     horde.circleAngle = angle;
 
-                    glm::vec3 waitPos = playerPos + glm::vec3(
+                    targetPos = playerPos + glm::vec3(
                         std::cos(glm::radians(angle)) * 5.5f,
                         0.0f,
                         std::sin(glm::radians(angle)) * 5.5f
                     );
 
-                    glm::vec3 dirToWait = waitPos - trans.Position;
-                    dirToWait.y = 0.0f;
-                    if (glm::length(dirToWait) > 0.4f) {
-                        trans.Position += glm::normalize(dirToWait) * 3.5f * deltaTime;
+                    if (glm::distance(trans.Position, targetPos) > 0.4f) {
+                        moveSpeed = 3.5f;
+                        needsToMove = true;
                     }
 
+                    // Logica assegnazione slot (invariata)
                     if (activeAttackersCount < 4) {
                         for (int s = 0; s < 4; ++s) {
                             if (!activeSlots[s]) {
@@ -154,27 +173,54 @@ namespace SunEngine {
                         }
                     }
                 }
-
-                if (horde.state == HordeState::Approaching) {
+                else if (horde.state == HordeState::Approaching) {
                     float slotAngles[4] = { 0.0f, 90.0f, 180.0f, 270.0f };
                     float slotAngle = slotAngles[horde.assignedSlotIndex];
 
-                    glm::vec3 slotTargetPos = playerPos + glm::vec3(
+                    targetPos = playerPos + glm::vec3(
                         std::cos(glm::radians(slotAngle)) * 1.45f,
                         0.0f,
                         std::sin(glm::radians(slotAngle)) * 1.45f
                     );
 
-                    glm::vec3 dirToSlot = slotTargetPos - trans.Position;
-                    dirToSlot.y = 0.0f;
-                    if (glm::length(dirToSlot) > 0.15f) {
-                        trans.Position += glm::normalize(dirToSlot) * 4.2f * deltaTime;
-                    }
+                    moveSpeed = 4.2f;
+                    needsToMove = true;
 
                     if (distToPlayer <= 1.65f) {
                         horde.state = HordeState::Attacking;
                         horde.attackTimer = 0.0f;
                     }
+                }
+
+                // --- ESECUZIONE NAVMESH PATHFINDING E MOVIMENTO ---
+                if (needsToMove) {
+                    horde.pathUpdateTimer -= deltaTime;
+
+                    // Ricalcola percorso ogni 0.5s o se il percorso è finito (stagger randomico per spalmare carico CPU)
+                    if (horde.pathUpdateTimer <= 0.0f || horde.currentPath.empty()) {
+                        horde.currentPath = navQuery.FindPath(trans.Position, targetPos);
+                        horde.pathUpdateTimer = 0.4f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.2f;
+                    }
+
+                    // Segue i waypoint
+                    if (!horde.currentPath.empty()) {
+                        glm::vec3 nextWaypoint = horde.currentPath.front();
+                        glm::vec3 dirToWaypoint = nextWaypoint - trans.Position;
+                        dirToWaypoint.y = 0.0f; // Teniamo Y piatta per il MovementSystem
+
+                        float distToWay = glm::length(dirToWaypoint);
+
+                        // Se siamo vicinissimi al waypoint attuale, passiamo al successivo
+                        if (distToWay < 0.25f) {
+                            horde.currentPath.erase(horde.currentPath.begin());
+                        }
+                        else {
+                            trans.Position += glm::normalize(dirToWaypoint) * moveSpeed * deltaTime;
+                        }
+                    }
+                }
+                else {
+                    horde.currentPath.clear(); // Arresta e pulisce memoria se non serve muoversi
                 }
 
                 if (horde.state == HordeState::Attacking) {
@@ -189,6 +235,13 @@ namespace SunEngine {
                         horde.currentAttackCount = 1;
                     }
 
+                    // 2. SLANCIO IN AVANTI (Lunge durante il wind-up del colpo)
+                    if (melee.currentPhase == MeleePhase::Windup) {
+                        glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
+                        glm::vec3 fwd = glm::normalize(glm::vec3(rot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+                        trans.Position += fwd * 3.6f * deltaTime; // Impulso di chiusura range
+                    }
+
                     if (horde.attacksToPerform == 2 && horde.currentAttackCount == 1) {
                         if (melee.currentAttackNode == "normal_1" && melee.currentPhase == MeleePhase::Active) {
                             melee.bufferedInput = "F_CLICK";
@@ -196,9 +249,15 @@ namespace SunEngine {
                         }
                     }
 
+                    // 3. COOLDOWN DINAMICO BASATO SUL NUMERO DI ORCHI NELL'ORDA
                     if (horde.currentAttackCount >= horde.attacksToPerform && melee.currentPhase == MeleePhase::None) {
                         horde.state = HordeState::Cooldown;
-                        horde.cooldownTimer = 2.5f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 1.5f;
+
+                        float baseCooldown = 2.5f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 1.5f;
+                        // Ogni orco oltre il primo riduce il cooldown dell'8% (fino a un max del 60% di riduzione)
+                        float hordeReductionFactor = std::clamp(1.0f - ((totalOrksInHorde - 1) * 0.08f), 0.40f, 1.0f);
+                        horde.cooldownTimer = std::max(0.7f, baseCooldown * hordeReductionFactor);
+
                         if (horde.assignedSlotIndex >= 0 && horde.assignedSlotIndex < 4) {
                             activeSlots[horde.assignedSlotIndex] = false;
                         }

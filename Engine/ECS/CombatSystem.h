@@ -4,6 +4,7 @@
 #include "../Scene/Scene.h"
 #include "../Core/Logger/Log.h"
 #include "../AssetManager/BlueprintManager.h"
+#include "../Navigation/NavMeshQuery.h" // <--- Aggiunto
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -14,7 +15,7 @@ namespace SunEngine {
 
     class CombatSystem {
     public:
-        void Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime);
+        void Update(Scene& scene, PhysicsSystem& physicsSystem, NavMeshQuery& navQuery, float deltaTime);
 
         inline static void ResolveMeleeClash(Scene& scene, entt::entity attacker, entt::entity defender, HitboxLocation location) {
             auto& attackerStats = scene.GetRegistry().get<UnitStatsComponent>(attacker);

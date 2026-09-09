@@ -35,6 +35,10 @@ namespace SunEngine {
         entt::entity weaponEntity = entt::null;
         int attacksToPerform = 1;
         int currentAttackCount = 0;
+
+        // --- NUOVI CAMPI PER LA NAVMESH ---
+        std::vector<glm::vec3> currentPath;
+        float pathUpdateTimer = 0.0f;
     };
 
     enum class SurfaceType {
@@ -340,12 +344,12 @@ namespace SunEngine {
         glm::vec3 targetPos{ 0.0f };
         bool isClimbing = false;
     };
-
     struct FootstepComponent {
         SurfaceType currentSurface = SurfaceType::Concrete;
         float stepTimer = 0.0f;
         float stepInterval = 0.42f;
         bool isMoving = false;
+        glm::vec3 lastPosition{ 0.0f }; // <--- TRACCIAMENTO POSIZIONE PRECEDENTE
     };
 
     struct ProjectileComponent {

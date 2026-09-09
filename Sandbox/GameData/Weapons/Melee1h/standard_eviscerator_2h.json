@@ -12,5 +12,130 @@
   "default_melee_type": "Heavy",
   "weapon_scale": [ 0.10, 0.22, 1.45 ],
   "hold_offset": [ 0.0, -0.08, 0.68 ],
-  "primary_color": [ 0.85, 0.15, 0.15, 1.0 ]
+  "primary_color": [ 0.85, 0.15, 0.15, 1.0 ],
+  "moveset": {
+    "entry_node": "normal_1",
+    "nodes": {
+      "heavy_1": {
+        "damage_multiplier": 1.8,
+        "stamina_cost": 28.0,
+        "timings": {
+          "windup": 0.32,
+          "active": 0.20,
+          "recovery": 0.35
+        },
+        "combo_window": {
+          "start": 0.22,
+          "end": 0.58
+        },
+        "transitions": {
+          "F_HOLD": "heavy_2",
+          "RMB": "heavy_2",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "heavy_2": {
+        "damage_multiplier": 2.1,
+        "stamina_cost": 32.0,
+        "timings": {
+          "windup": 0.28,
+          "active": 0.22,
+          "recovery": 0.38
+        },
+        "combo_window": {
+          "start": 0.20,
+          "end": 0.60
+        },
+        "transitions": {
+          "F_HOLD": "heavy_3",
+          "RMB": "heavy_3",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "heavy_3": {
+        "damage_multiplier": 2.5,
+        "stamina_cost": 38.0,
+        "timings": {
+          "windup": 0.30,
+          "active": 0.25,
+          "recovery": 0.45
+        },
+        "combo_window": {
+          "start": 0.22,
+          "end": 0.65
+        },
+        "transitions": {
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "normal_1": {
+        "damage_multiplier": 1.0,
+        "stamina_cost": 18.0,
+        "timings": {
+          "windup": 0.20,
+          "active": 0.18,
+          "recovery": 0.25
+        },
+        "combo_window": {
+          "start": 0.15,
+          "end": 0.45
+        },
+        "transitions": {
+          "F_CLICK": "normal_2",
+          "LMB": "normal_2",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "normal_2": {
+        "damage_multiplier": 1.2,
+        "stamina_cost": 20.0,
+        "timings": {
+          "windup": 0.18,
+          "active": 0.18,
+          "recovery": 0.28
+        },
+        "combo_window": {
+          "start": 0.15,
+          "end": 0.48
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "low_1": {
+        "damage_multiplier": 0.85,
+        "stamina_cost": 14.0,
+        "timings": {
+          "windup": 0.12,
+          "active": 0.14,
+          "recovery": 0.20
+        },
+        "combo_window": {
+          "start": 0.10,
+          "end": 0.35
+        },
+        "transitions": {
+          "C": "low_1",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      }
+    }
+  }
 }

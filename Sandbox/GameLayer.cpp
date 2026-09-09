@@ -570,11 +570,13 @@ void PlayStartWaaagh(float voiceVolume) {
         g_OrkVoices.startSoundPlayed = true;
     }
 }
-
 void PlayOrkVoiceAtPos(const glm::vec3& orkPos, const glm::vec3& playerPos, float voiceVolume, float pitchMin = 0.90f, float pitchMax = 1.10f) {
     if (g_OrkVoices.voicePool.empty() || voiceVolume <= 0.001f) return;
 
-    float volume = CalculateSpatialVolume(glm::distance(orkPos, playerPos)) * voiceVolume;
+    float distToPlayer = glm::distance(orkPos, playerPos);
+    if (distToPlayer > 35.0f) return;
+
+    float volume = CalculateSpatialVolume(distToPlayer) * voiceVolume;
     if (volume <= 0.005f) return;
 
     for (auto& item : g_OrkVoices.voicePool) {
@@ -633,15 +635,18 @@ void TriggerOrkShoutAndProvoke(entt::entity speakerEntity, SunEngine::Scene& sce
         }
     }
 }
-
 void UpdateOrkVoices(SunEngine::Scene& scene, entt::entity playerEntity, float deltaTime, float voiceVolume) {
     std::vector<entt::entity> livingOrks;
     auto orkView = scene.GetRegistry().view<SunEngine::TransformComponent, SunEngine::HealthComponent>(
         entt::exclude<SunEngine::PlayerTag, SunEngine::CorpseComponent>
     );
+    const auto& playerPos = scene.GetRegistry().get<SunEngine::TransformComponent>(playerEntity).Position;
 
     for (auto entity : orkView) {
-        livingOrks.push_back(entity);
+        const auto& orkPos = orkView.get<SunEngine::TransformComponent>(entity).Position;
+        if (glm::distance(orkPos, playerPos) <= 35.0f) {
+            livingOrks.push_back(entity);
+        }
     }
 
     if (livingOrks.empty()) {
@@ -649,7 +654,7 @@ void UpdateOrkVoices(SunEngine::Scene& scene, entt::entity playerEntity, float d
         return;
     }
 
-    const auto& playerPos = scene.GetRegistry().get<SunEngine::TransformComponent>(playerEntity).Position;
+    // --- RIMOSSA LA DICHIARAZIONE DUPLICATA DI playerPos CHE ERA QUI ---
 
     std::vector<entt::entity> readyToShout;
     for (auto it = g_OrkVoices.pendingShouts.begin(); it != g_OrkVoices.pendingShouts.end();) {
@@ -683,8 +688,10 @@ static void SpawnOrkBoy(SunEngine::Scene& scene, const glm::vec3& spawnPos) {
     auto enemyEntity = scene.CreateEntity();
     auto& enemyTransform = scene.GetRegistry().emplace<SunEngine::TransformComponent>(enemyEntity);
 
+    // --- DA MODIFICARE DA QUI ---
+    float groundY = GetGroundHeightAt(scene, spawnPos, spawnPos.y);
     enemyTransform.Position = spawnPos;
-    enemyTransform.Position.y = 0.0f;
+    enemyTransform.Position.y = groundY;
     enemyTransform.Scale = glm::vec3(1.0f, 1.0f, 1.0f);
 
     scene.GetRegistry().emplace<SunEngine::MeshComponent>(enemyEntity, 0u);
@@ -1303,8 +1310,7 @@ void GameLayer::OnUpdate(float deltaTime)
         m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, deltaTime);
         m_PhysicsSystem.Update(m_Scene, deltaTime);
         m_WeightSystem.Update(m_Scene, deltaTime);
-        m_CombatSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
-
+        m_CombatSystem.Update(m_Scene, m_PhysicsSystem, m_NavQuery, deltaTime);
         CheckUnitDeaths();
 
         // =========================================================================
@@ -1603,8 +1609,8 @@ void GameLayer::OnUpdate(float deltaTime)
         }
 
         // =========================================================================
-        // --- 2. REGOLAZIONE TELECAMERA OVER-THE-SHOULDER ---
-        // =========================================================================
+         // --- 2. REGOLAZIONE TELECAMERA OVER-THE-SHOULDER ---
+         // =========================================================================
         float unitHeight = 1.8f;
         float torsoWidth = 0.5f;
 
@@ -1686,17 +1692,87 @@ void GameLayer::OnUpdate(float deltaTime)
             }
         }
 
-        m_Camera.SetCameraOffsets(dynamicShoulderOffset, dynamicHeightOffset, dynamicDistance);
-
+        // --- SISTEMA ANTI-CLIPPING / SPRING ARM TELECAMERA ---
         glm::vec3 lookTarget = transform.Position + glm::vec3(0.0f, unitHeight * 0.65f, 0.0f);
+        float totalPitch = transform.AimPitch + recoilPitch;
+        float totalYaw = transform.AimYaw + recoilYaw;
+
+        // Calcolo della direzione teorica della telecamera
+        float pitchRad = glm::radians(totalPitch);
+        float yawRad = glm::radians(totalYaw);
+        glm::vec3 camDir(
+            std::sin(yawRad) * std::cos(pitchRad),
+            std::sin(pitchRad),
+            std::cos(yawRad) * std::cos(pitchRad)
+        );
+
+        glm::vec3 idealCamPos = lookTarget + camDir * dynamicDistance;
+
+        // 1. Raycast contro gli ostacoli statici (pareti, soffitti, casse)
+        auto colliderView = m_Scene.GetRegistry().view<SunEngine::ColliderComponent, SunEngine::TransformComponent>(
+            entt::exclude<SunEngine::PlayerTag, SunEngine::HealthComponent>
+        );
+
+        float minHitT = dynamicDistance;
+        glm::vec3 rayDir = glm::normalize(idealCamPos - lookTarget);
+
+        for (auto entity : colliderView) {
+            const auto& col = colliderView.get<SunEngine::ColliderComponent>(entity);
+            const auto& trans = colliderView.get<SunEngine::TransformComponent>(entity);
+
+            glm::vec3 half = col.halfExtents * trans.Scale;
+            glm::vec3 minBox = trans.Position - half;
+            glm::vec3 maxBox = trans.Position + half;
+
+            float tMin = 0.0f, tMax = dynamicDistance;
+            bool hit = true;
+
+            for (int a = 0; a < 3; ++a) {
+                if (std::abs(rayDir[a]) < 0.0001f) {
+                    if (lookTarget[a] < minBox[a] || lookTarget[a] > maxBox[a]) { hit = false; break; }
+                }
+                else {
+                    float invD = 1.0f / rayDir[a];
+                    float t0 = (minBox[a] - lookTarget[a]) * invD;
+                    float t1 = (maxBox[a] - lookTarget[a]) * invD;
+                    if (invD < 0.0f) std::swap(t0, t1);
+                    tMin = std::max(tMin, t0);
+                    tMax = std::min(tMax, t1);
+                    if (tMax < tMin) { hit = false; break; }
+                }
+            }
+
+            if (hit && tMin < minHitT && tMin > 0.2f) {
+                minHitT = tMin - 0.20f; // Buffer di sicurezza per prevenire compenetrazioni del near-plane
+            }
+        }
+
+        dynamicDistance = std::clamp(minHitT, 0.6f, dynamicDistance);
+
+        // 2. Clamp di sicurezza Y rispetto al terreno sotto la telecamera
+        glm::vec3 projectedCamPos = lookTarget + camDir * dynamicDistance;
+        float groundY = GetGroundHeightAt(m_Scene, projectedCamPos, projectedCamPos.y);
+        float minCamY = groundY + 0.35f; // Mantieni la telecamera ad almeno 35 cm sopra il pavimento
+
+        if (projectedCamPos.y < minCamY) {
+            float yDiff = minCamY - projectedCamPos.y;
+            // Accorcia la distanza fino a far rientrare la Y sopra il buffer
+            if (std::abs(camDir.y) > 0.05f) {
+                float requiredDist = (lookTarget.y - minCamY) / std::abs(camDir.y);
+                dynamicDistance = std::clamp(requiredDist, 0.5f, dynamicDistance);
+            }
+        }
+
+        m_Camera.SetCameraOffsets(dynamicShoulderOffset, dynamicHeightOffset, dynamicDistance);
         m_Camera.SetTarget(lookTarget, transform.AimYaw);
 
-        m_Camera.SetPitch(transform.AimPitch + recoilPitch);
+        m_Camera.SetPitch(totalPitch);
         m_Camera.SetYawOffset(recoilYaw);
         m_Camera.SetViewportSize(1280.0f, 720.0f, extraFov);
         m_Camera.Update(shakeOffset, 1.0f);
 
         SunEngine::Renderer::SetViewProjection(m_Camera.GetViewProjection());
+
 
         // Waaagh! Spawner & Ork Voices
         if (g_WaaaghActive) {
@@ -1705,19 +1781,31 @@ void GameLayer::OnUpdate(float deltaTime)
             if (g_WaaaghTimer >= 10.0f) {
                 g_WaaaghTimer = 0.0f;
 
-                const float minSpawnDistance = 20.0f;
-                const float maxSpawnDistance = 150.0f;
+                auto livingEnemyView = m_Scene.GetRegistry().view<SunEngine::HealthComponent>(
+                    entt::exclude<SunEngine::PlayerTag, SunEngine::CorpseComponent>
+                );
+                size_t activeEnemyCount = static_cast<size_t>(std::distance(livingEnemyView.begin(), livingEnemyView.end()));
+                constexpr size_t MAX_ACTIVE_ENEMIES = 60; // Tetto di sicurezza globale
 
-                for (int i = 0; i < g_WaaaghSpawnCount; ++i) {
-                    float angle = ((rand() % 360) * 3.14159265f) / 180.0f;
-                    float randomFactor = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-                    float distance = minSpawnDistance + randomFactor * (maxSpawnDistance - minSpawnDistance);
+                if (activeEnemyCount < MAX_ACTIVE_ENEMIES) {
 
-                    glm::vec3 spawnPos = transform.Position + glm::vec3(std::cos(angle) * distance, 0.0f, std::sin(angle) * distance);
-                    SpawnOrkBoy(m_Scene, spawnPos);
+                    const float minSpawnDistance = 20.0f;
+                    const float maxSpawnDistance = 60.0f;
+
+                    int spawnAmount = std::min(g_WaaaghSpawnCount, static_cast<int>(MAX_ACTIVE_ENEMIES - activeEnemyCount));
+
+                    for (int i = 0; i < spawnAmount; ++i) {
+                        float angle = ((rand() % 360) * 3.14159265f) / 180.0f;
+                        float randomFactor = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+                        float distance = minSpawnDistance + randomFactor * (maxSpawnDistance - minSpawnDistance);
+
+                        glm::vec3 spawnPos = transform.Position + glm::vec3(std::cos(angle) * distance, 0.0f, std::sin(angle) * distance);
+                        SpawnOrkBoy(m_Scene, spawnPos);
+                    }
                 }
 
-                g_WaaaghSpawnCount *= 2;
+                // Cap della crescita dell'ondata (max 12 nemici a spawn)
+                g_WaaaghSpawnCount = std::min(g_WaaaghSpawnCount * 2, 12);
             }
 
             UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VolumeVoice);
@@ -1757,11 +1845,13 @@ void GameLayer::OnUpdate(float deltaTime)
             if (m_Scene.GetRegistry().all_of<SunEngine::SkeletonComponent>(enemyEntity)) {
                 auto& skel = m_Scene.GetRegistry().get<SunEngine::SkeletonComponent>(enemyEntity);
                 auto* mState = m_Scene.GetRegistry().try_get<SunEngine::MeleeStateComponent>(enemyEntity);
+                auto* hordeComp = m_Scene.GetRegistry().try_get<SunEngine::HordeAgentComponent>(enemyEntity);
+
                 bool isAttacking = mState && (mState->currentPhase != SunEngine::MeleePhase::None);
+                bool isMoving = hordeComp && (hordeComp->state != SunEngine::HordeState::Waiting);
 
                 float animSpeed = isAttacking ? 4.0f : 10.0f;
-                float legAngle = isAttacking ? 5.0f : std::sin(totalTime * animSpeed) * 35.0f;
-
+                float legAngle = isAttacking ? 5.0f : (isMoving ? std::sin(totalTime * animSpeed) * 35.0f : 0.0f); 
                 for (auto& block : skel.data.blocks) {
                     if (block.name == "Leg_L") block.jointRotation.x = legAngle;
                     else if (block.name == "Leg_R") block.jointRotation.x = -legAngle;
@@ -2400,7 +2490,6 @@ void GameLayer::RenderTopNavBar() {
     ImGui::PopStyleVar();
     ImGui::End();
 }
-
 void GameLayer::RenderStasisVaultUI() {
     ImGuiIO& io = ImGui::GetIO();
 
@@ -2420,6 +2509,10 @@ void GameLayer::RenderStasisVaultUI() {
         if (ImGui::Button(btnText.c_str(), ImVec2(-1, 50))) {
             m_SelectedVaultIndex = i;
             ApplyUnitVisuals(m_PlayerRoster[i]);
+        }
+        // TOOLTIP PER NOME UNITA' LUNGO
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s [%s]", m_PlayerRoster[i].customName.c_str(), m_PlayerRoster[i].blueprintId.c_str());
         }
         ImGui::PopStyleColor();
     }
@@ -2443,7 +2536,15 @@ void GameLayer::RenderStasisVaultUI() {
         ImGui::Begin("RESOCONTO UNITA'", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s", activeUnit.customName.c_str());
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", activeUnit.customName.c_str());
+        }
+
         ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Classe: %s", currentBp ? currentBp->displayName.c_str() : "Sconosciuta");
+        if (currentBp && ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("ID Blueprint: %s", currentBp->displayName.c_str());
+        }
+
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "STATISTICHE COMBATTIMENTO");
@@ -2465,14 +2566,30 @@ void GameLayer::RenderStasisVaultUI() {
 
         ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "DOTAZIONE ATTUALE");
 
+        // TOOLTIP DETTAGLIATO PER ARMA PRIMARIA
         const auto* primBP = SunEngine::BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
         ImGui::Text("Primaria: %s", primBP ? primBP->displayName.c_str() : "[Vuoto]");
+        if (primBP && ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)",
+                primBP->displayName.c_str(), primBP->base_damage, primBP->armor_penetration, primBP->magazine_size);
+        }
 
+        // TOOLTIP DETTAGLIATO PER ARMA SECONDARIA
         const auto* secBP = SunEngine::BlueprintManager::Get().GetWeapon(activeUnit.secondaryWeaponId);
         ImGui::Text("Secondaria: %s", secBP ? secBP->displayName.c_str() : "[Vuoto]");
+        if (secBP && ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)",
+                secBP->displayName.c_str(), secBP->base_damage, secBP->armor_penetration, secBP->magazine_size);
+        }
 
+        // TOOLTIP DETTAGLIATO PER ARMA MELEE
         const auto* meleeBP = SunEngine::BlueprintManager::Get().GetWeapon(activeUnit.meleeWeaponId);
         ImGui::Text("Corpo a Corpo: %s", meleeBP ? meleeBP->displayName.c_str() : "[Nessuna / Disarmato]");
+        if (meleeBP && ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)",
+                meleeBP->displayName.c_str(), meleeBP->base_damage, meleeBP->default_melee_type.c_str());
+        }
+
         ImGui::Text("Granate: [Slot Vuoto]");
         ImGui::Text("Oggetto Supporto: [Slot Vuoto]");
 
@@ -2489,7 +2606,6 @@ void GameLayer::RenderStasisVaultUI() {
         ImGui::End();
     }
 }
-
 void GameLayer::RenderRecruitModal() {
     if (!m_ShowRecruitModal) return;
 
@@ -2562,14 +2678,13 @@ void GameLayer::RenderRecruitModal() {
         ImGui::EndPopup();
     }
 }
-
 void GameLayer::RenderCustomizeModal() {
     if (!m_ShowCustomizeModal) return;
 
     ImGui::OpenPopup("MODIFICA UNITA'");
     ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(600, 500));
+    ImGui::SetNextWindowSize(ImVec2(620, 520)); // Aumentata leggermente la dimensione finestra per dare più respiro
 
     if (ImGui::BeginPopupModal("MODIFICA UNITA'", &m_ShowCustomizeModal, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
 
@@ -2641,6 +2756,7 @@ void GameLayer::RenderCustomizeModal() {
                     // 1. SELEZIONA ARMA PRIMARIA
                     const auto* primBP = SunEngine::BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
                     std::string primName = primBP ? primBP->displayName : "Nessuna";
+
                     if (ImGui::BeginCombo("Seleziona Primaria", primName.c_str())) {
                         for (const auto& [wId, wBP] : SunEngine::BlueprintManager::Get().GetWeapons()) {
                             if (wBP.slot_type == SunEngine::WeaponSlotType::Primary) {
@@ -2648,14 +2764,23 @@ void GameLayer::RenderCustomizeModal() {
                                     activeUnit.primaryWeaponId = wId;
                                     ApplyUnitVisuals(activeUnit);
                                 }
+                                // TOOLTIP HOVER PER TESTO TRONCATO NELLA LISTA
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f)", wBP.displayName.c_str(), wBP.faction.c_str(), wBP.base_damage);
+                                }
                             }
                         }
                         ImGui::EndCombo();
+                    }
+                    // TOOLTIP HOVER SUL BOX CHIUSO
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("%s", primName.c_str());
                     }
 
                     // 2. SELEZIONA ARMA SECONDARIA
                     const auto* secBP = SunEngine::BlueprintManager::Get().GetWeapon(activeUnit.secondaryWeaponId);
                     std::string secName = secBP ? secBP->displayName : "Nessuna";
+
                     if (ImGui::BeginCombo("Seleziona Secondaria", secName.c_str())) {
                         for (const auto& [wId, wBP] : SunEngine::BlueprintManager::Get().GetWeapons()) {
                             if (wBP.slot_type == SunEngine::WeaponSlotType::Secondary) {
@@ -2663,14 +2788,23 @@ void GameLayer::RenderCustomizeModal() {
                                     activeUnit.secondaryWeaponId = wId;
                                     ApplyUnitVisuals(activeUnit);
                                 }
+                                // TOOLTIP HOVER PER TESTO TRONCATO NELLA LISTA
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f)", wBP.displayName.c_str(), wBP.faction.c_str(), wBP.base_damage);
+                                }
                             }
                         }
                         ImGui::EndCombo();
+                    }
+                    // TOOLTIP HOVER SUL BOX CHIUSO
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("%s", secName.c_str());
                     }
 
                     // 3. SELEZIONA ARMA CORPO A CORPO (MELEE)
                     const auto* meleeBP = SunEngine::BlueprintManager::Get().GetWeapon(activeUnit.meleeWeaponId);
                     std::string meleeName = meleeBP ? meleeBP->displayName : "[Nessuna / Disarmato]";
+
                     if (ImGui::BeginCombo("Seleziona Arma Melee", meleeName.c_str())) {
 
                         if (ImGui::Selectable("[Nessuna / Disarmato]", activeUnit.meleeWeaponId.empty() || activeUnit.meleeWeaponId == "none")) {
@@ -2684,9 +2818,17 @@ void GameLayer::RenderCustomizeModal() {
                                     activeUnit.meleeWeaponId = wId;
                                     ApplyUnitVisuals(activeUnit);
                                 }
+                                // TOOLTIP HOVER PER TESTO TRONCATO NELLA LISTA
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)", wBP.displayName.c_str(), wBP.base_damage, wBP.default_melee_type.c_str());
+                                }
                             }
                         }
                         ImGui::EndCombo();
+                    }
+                    // TOOLTIP HOVER SUL BOX CHIUSO
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip("%s", meleeName.c_str());
                     }
                 }
             }
@@ -2723,6 +2865,7 @@ void GameLayer::RenderCustomizeModal() {
 
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
+            // LAMBDA AGGIORNATA PER SUPPORTARE LO SCORRIMENTO/TOOLTIP SULLE ARMATURE
             auto drawArmorSlotCombo = [&](const char* slotLabel, SunEngine::HitboxLocation location, std::string& currentId) {
                 const auto* currentBp = SunEngine::BlueprintManager::Get().GetArmorPiece(currentId);
 
@@ -2753,10 +2896,22 @@ void GameLayer::RenderCustomizeModal() {
                                 currentId = aId;
                                 ApplyUnitVisuals(activeUnit);
                             }
+
+                            // TOOLTIP MOSTRATO SUL MOUSE HOVER SE IL TESTO E' PIU' LUNGO DEL BOX
+                            if (ImGui::IsItemHovered()) {
+                                ImGui::SetTooltip("%s\nPotere d'Arresto (AR): %d | Durabilita': %.0f HP | Peso: %.1f kg | Costo: %d Pti",
+                                    aBp.displayName.c_str(), aBp.armorRating, aBp.maxDurability, aBp.weight, aBp.pointCost);
+                            }
+
                             if (isSelected) ImGui::SetItemDefaultFocus();
                         }
                     }
                     ImGui::EndCombo();
+                }
+
+                // TOOLTIP ANCHE SUL COMBOBOX CHIUSO
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip("%s", comboName.c_str());
                 }
 
                 if (currentBp) {
@@ -2787,7 +2942,7 @@ void GameLayer::RenderCustomizeModal() {
             ImGui::Columns(1);
         }
 
-        ImGui::SetCursorPosY(450.0f);
+        ImGui::SetCursorPosY(465.0f);
         ImGui::Separator(); ImGui::Spacing();
         if (ImGui::Button("SALVA E CHIUDI", ImVec2(-1, 35))) {
             m_ShowCustomizeModal = false;
@@ -2988,7 +3143,6 @@ void GameLayer::RenderMapEditorUI() {
 
     ImGui::End();
 }
-
 void GameLayer::RenderDeploymentUI() {
     GLFWwindow* window = glfwGetCurrentContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -3012,6 +3166,9 @@ void GameLayer::RenderDeploymentUI() {
             if (isSelected) ImGui::SetItemDefaultFocus();
         }
         ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Mappa: %s", defaultMaps[selectedMapComboIdx]);
     }
 
     char customMapBuf[64];
@@ -3037,6 +3194,10 @@ void GameLayer::RenderDeploymentUI() {
 
         if (ImGui::Selectable(events[i], isSelected)) {
             m_SelectedEventIndex = i;
+        }
+        // TOOLTIP PER EVENTI/MODALITA'
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s", events[i]);
         }
 
         if (isSelected) ImGui::PopStyleColor();
@@ -3095,6 +3256,11 @@ void GameLayer::RenderDeploymentUI() {
                 ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
             }
         }
+        // TOOLTIP SULLA SELEZIONE COMPONENTI SQUADRA
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("%s\nBlueprint: %s | Costo Punti: %d",
+                m_PlayerRoster[i].customName.c_str(), m_PlayerRoster[i].blueprintId.c_str(), cost);
+        }
         ImGui::PopStyleColor();
     }
     ImGui::End();
@@ -3115,6 +3281,10 @@ void GameLayer::RenderDeploymentUI() {
             }
             else {
                 ImGui::Text("  - Rincalzo %d: %s", static_cast<int>(squadIdx), unit.customName.c_str());
+            }
+            // TOOLTIP ISPEZIONE SCHIERAMENTO FINALE
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("%s (Classe: %s)", unit.customName.c_str(), unit.blueprintId.c_str());
             }
         }
     }
