@@ -49,7 +49,7 @@ int main()
     std::string unitsPath = FindValidDir("Units");
     std::string weaponsPath = FindValidDir("Weapons");
     std::string armorsPath = FindValidDir("Armors");
-    // Fallback se FindValidDir non trova la cartella specifica
+
     if (armorsPath.empty()) {
         std::string gameDataDir = FindValidDir("GameData");
         if (!gameDataDir.empty()) {
@@ -62,14 +62,15 @@ int main()
     SUN_CORE_INFO("Percorso Units individuato: {0}", unitsPath);
     SUN_CORE_INFO("Percorso Weapons individuato: {0}", weaponsPath);
     SUN_CORE_INFO("Percorso Armors individuato: {0}", armorsPath);
-    // Corretto namespace: SunEngine::BlueprintManager
+
     bool success = SunEngine::BlueprintManager::Get().LoadAll(unitsPath, weaponsPath, armorsPath);
 
     if (!success) {
         SUN_CORE_ERROR("ERRORE CRITICO: Impossibile caricare i Blueprint di gioco!");
     }
 
-    app.PushLayer(new GameLayer());
+    // FIX C2061: Aggiunto namespace esplicito SunEngine::
+    app.PushLayer(new SunEngine::GameLayer());
     app.Run();
 
     return 0;

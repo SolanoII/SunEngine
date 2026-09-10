@@ -74,7 +74,11 @@ FetchContent_MakeAvailable(spdlog)
 # ==========================
 # GLM
 # ==========================
-FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 1.0.1)
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.1
+)
 FetchContent_MakeAvailable(glm)
 
 # ==========================
@@ -106,7 +110,7 @@ if(NOT imgui_POPULATED)
         ${imgui_SOURCE_DIR}/imgui_demo.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    )
+     "Engine/Renderer/SkinnedVertex.h" "Engine/Renderer/SkinnedModel.h" "Engine/Renderer/SkinnedModelShader.h" "Engine/ECS/RifleLocomotionState.h" "Engine/Renderer/RifleAnimationController.h" "Engine/Renderer/Animator.h")
     target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 endif()
@@ -130,7 +134,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics/Build" EXCLUD
 # Engine (Libreria Statica)
 # ==========================
 file(GLOB_RECURSE ENGINE_SOURCES "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
-add_library(SunEngine STATIC ${ENGINE_SOURCES})
+add_library(SunEngine STATIC ${ENGINE_SOURCES} "Engine/Renderer/SkinnedVertex.h" "Engine/Renderer/SkinnedModel.h" "Engine/Renderer/SkinnedModelShader.h" "Engine/ECS/RifleLocomotionState.h" "Engine/Renderer/RifleAnimationController.h" "Engine/Renderer/Animator.h")
 
 target_include_directories(SunEngine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -160,7 +164,7 @@ target_link_libraries(SunEngine PUBLIC
 # Gioco (Eseguibile)
 # ==========================
 file(GLOB_RECURSE SANDBOX_SOURCES "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
-add_executable(ProjectTrazyn ${SANDBOX_SOURCES})
+add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/Renderer/SkinnedVertex.h" "Engine/Renderer/SkinnedModel.h" "Engine/Renderer/SkinnedModelShader.h" "Engine/ECS/RifleLocomotionState.h" "Engine/Renderer/RifleAnimationController.h" "Engine/Renderer/Animator.h")
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
 
 # ==========================

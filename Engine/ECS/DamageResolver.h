@@ -2,20 +2,55 @@
 
 #include "Components.h"
 #include "../Scene/Scene.h"
-#include "../Core/Logger/Log.h"
 #include "../AssetManager/BlueprintManager.h"
-#include "../Navigation/NavMeshQuery.h" // <--- Aggiunto
+#include "../Core/Logger/Log.h"
 #include <algorithm>
 #include <cstdlib>
-#include <cmath>
 
 namespace SunEngine {
 
-    class PhysicsSystem;
-
-    class CombatSystem {
+    class DamageResolver {
     public:
-        void Update(Scene& scene, PhysicsSystem& physicsSystem, NavMeshQuery& navQuery, float deltaTime);
+        inline static void ResolveHit(float rawDamage, int weaponAP, HitboxLocation location, UnitStatsComponent& stats, HealthComponent& health) {
+            ArmorPiece* armor = stats.armorSet.GetPiece(location);
+            float finalHpDamage = rawDamage;
+
+            if (armor && armor->currentDurability > 0.0f && armor->armorRating > 0) {
+                float coverageRoll = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+
+                if (coverageRoll <= armor->coverage) {
+                    int effectiveArmor = std::max(0, armor->armorRating - weaponAP);
+                    float mitigation = 100.0f / (100.0f + static_cast<float>(effectiveArmor));
+                    finalHpDamage = rawDamage * mitigation;
+
+                    armor->currentDurability -= rawDamage * 0.2f;
+                    if (armor->currentDurability < 0.0f) {
+                        armor->currentDurability = 0.0f;
+                    }
+                }
+            }
+
+            float toughnessMitigation = 100.0f / (100.0f + stats.toughness);
+            finalHpDamage *= toughnessMitigation;
+
+            if (location == HitboxLocation::Head) {
+                finalHpDamage *= 1.75f;
+            }
+            else if (location == HitboxLocation::LeftLeg || location == HitboxLocation::RightLeg ||
+                location == HitboxLocation::LeftArm || location == HitboxLocation::RightArm) {
+                finalHpDamage *= 0.8f;
+            }
+
+            health.currentHealth -= finalHpDamage;
+            if (health.currentHealth < 0.0f) health.currentHealth = 0.0f;
+        }
+
+        inline static void InterruptUnit(MeleeStateComponent& melee) {
+            melee.currentPhase = MeleePhase::Recovery;
+            melee.stateTimer = 0.0f;
+            melee.hasHyperArmor = false;
+            melee.hasHitInThisAttack = true;
+        }
 
         inline static void ResolveMeleeClash(Scene& scene, entt::entity attacker, entt::entity defender, HitboxLocation location) {
             auto& attackerStats = scene.GetRegistry().get<UnitStatsComponent>(attacker);
@@ -84,74 +119,6 @@ namespace SunEngine {
 
             ResolveHit(rawDamage, ap, location, defenderStats, defenderHealth);
             attackerMelee.hasHitInThisAttack = true;
-        }
-
-        inline static void ResolveHit(float rawDamage, int weaponAP, HitboxLocation location, UnitStatsComponent& stats, HealthComponent& health) {
-            ArmorPiece* armor = stats.armorSet.GetPiece(location);
-            float finalHpDamage = rawDamage;
-
-            if (armor && armor->currentDurability > 0.0f && armor->armorRating > 0) {
-                float coverageRoll = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-
-                if (coverageRoll <= armor->coverage) {
-                    int effectiveArmor = std::max(0, armor->armorRating - weaponAP);
-                    float mitigation = 100.0f / (100.0f + static_cast<float>(effectiveArmor));
-                    finalHpDamage = rawDamage * mitigation;
-
-                    armor->currentDurability -= rawDamage * 0.2f;
-                    if (armor->currentDurability < 0.0f) {
-                        armor->currentDurability = 0.0f;
-                    }
-                }
-            }
-
-            float toughnessMitigation = 100.0f / (100.0f + stats.toughness);
-            finalHpDamage *= toughnessMitigation;
-
-            if (location == HitboxLocation::Head) {
-                finalHpDamage *= 1.75f;
-            }
-            else if (location == HitboxLocation::LeftLeg || location == HitboxLocation::RightLeg ||
-                location == HitboxLocation::LeftArm || location == HitboxLocation::RightArm) {
-                finalHpDamage *= 0.8f;
-            }
-
-            health.currentHealth -= finalHpDamage;
-            if (health.currentHealth < 0.0f) health.currentHealth = 0.0f;
-        }
-
-    private:
-        inline static void InterruptUnit(MeleeStateComponent& melee) {
-            melee.currentPhase = MeleePhase::Recovery;
-            melee.stateTimer = 0.0f;
-            melee.hasHyperArmor = false;
-            melee.hasHitInThisAttack = true;
-        }
-
-        inline static void CheckMeleeHits(Scene& scene, entt::entity attacker, UnitStatsComponent& atkStats, MeleeStateComponent& atkMelee, TransformComponent& atkTrans) {
-            if (atkMelee.hasHitInThisAttack) return;
-
-            glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(atkTrans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
-            glm::vec3 fwd = glm::normalize(glm::vec3(rot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
-
-            auto targetView = scene.GetRegistry().view<TransformComponent, HealthComponent, UnitStatsComponent, MeleeStateComponent>();
-
-            for (auto defender : targetView) {
-                if (defender == attacker) continue;
-
-                const auto& defTrans = targetView.get<TransformComponent>(defender);
-                float dist = glm::distance(atkTrans.Position, defTrans.Position);
-
-                if (dist <= 1.85f) {
-                    glm::vec3 dirToDef = glm::normalize(defTrans.Position - atkTrans.Position);
-                    float dot = glm::dot(fwd, dirToDef);
-
-                    if (dot > 0.40f) {
-                        ResolveMeleeClash(scene, attacker, defender, HitboxLocation::Torso);
-                        break;
-                    }
-                }
-            }
         }
     };
 

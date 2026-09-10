@@ -1,5 +1,5 @@
 #include "WeaponSystem.h"
-#include "CombatSystem.h"
+#include "DamageResolver.h"
 
 namespace SunEngine {
 
@@ -199,7 +199,7 @@ namespace SunEngine {
                     effectiveAP += 20;
                 }
 
-                CombatSystem::ResolveHit(frameDamage, effectiveAP, hitLoc, targetStats, targetHealth);
+                DamageResolver::ResolveHit(frameDamage, effectiveAP, hitLoc, targetStats, targetHealth);
             }
         }
 
@@ -345,7 +345,7 @@ namespace SunEngine {
                         continue;
                     }
 
-                    CombatSystem::ResolveHit(finalDamage, effectiveAP, hitLoc, targetStats, targetHealth);
+                    DamageResolver::ResolveHit(finalDamage, effectiveAP, hitLoc, targetStats, targetHealth);
                 }
             }
 
@@ -385,7 +385,7 @@ namespace SunEngine {
                     auto& targetHealth = view.get<HealthComponent>(entity);
 
                     float flamerDamage = wpBP.base_damage * 0.2f;
-                    CombatSystem::ResolveHit(flamerDamage, wpBP.armor_penetration, HitboxLocation::Torso, targetStats, targetHealth);
+                    DamageResolver::ResolveHit(flamerDamage, wpBP.armor_penetration, HitboxLocation::Torso, targetStats, targetHealth);
                 }
             }
         }
