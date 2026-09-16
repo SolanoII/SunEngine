@@ -167,7 +167,7 @@ namespace SunEngine {
         Camera m_Camera;
         MapData m_CurrentMapData;
         NavMeshQuery m_NavQuery;
-
+        bool ReloadMap(const std::string& mapId);
         PhysicsSystem m_PhysicsSystem;
         MovementSystem m_MovementSystem;
         WeightSystem m_WeightSystem;
@@ -187,6 +187,8 @@ namespace SunEngine {
         bool m_RifleAnimLoaded = false;
 
         ma_engine m_AudioEngine;
+        ma_sound_group m_SFXGroup;      // o "m_FootstepGroup"
+        bool m_SFXGroupInitialized = false;
 
         entt::entity m_PlayerEntity = entt::null;
         entt::entity m_WeaponEntity = entt::null;
@@ -218,7 +220,7 @@ namespace SunEngine {
 
         std::vector<ActiveSquadMember> m_ActiveSquad;
         int m_CurrentSquadMemberIdx = 0;
-
+        bool m_PlayerDeathHandled = false;
         int m_KillCount = 0;
 
         bool m_ShowOptionsMenu = false;

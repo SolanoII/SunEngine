@@ -12,21 +12,20 @@ namespace SunEngine {
         NavMeshQuery();
         ~NavMeshQuery();
 
-        // Inizializza la query agganciandosi ad una NavMesh precedentemente creata
+        // IMPORTANTE: navMesh è NON-OWNING. Il chiamante garantisce che
+        // la NavMesh sopravviva alla query. Preferibilmente usa NavMeshPtr
+        // e chiama Destroy() PRIMA di far morire la mesh.
         bool Init(dtNavMesh* navMesh);
 
-        // Dealloca la memoria
+        // Libera la query e scollega dalla mesh (non libera la mesh)
         void Destroy();
 
-        // Trova il percorso più breve lungo il terreno esplorabile e le rampe
         std::vector<glm::vec3> FindPath(const glm::vec3& start, const glm::vec3& end);
-
-        // Trova il punto calpestabile valido più vicino ad una posizione data
         glm::vec3 GetNearestValidPoint(const glm::vec3& point);
 
     private:
-        dtNavMesh* m_NavMesh = nullptr;
-        dtNavMeshQuery* m_NavQuery = nullptr;
+        dtNavMesh* m_NavMesh = nullptr;         // non-owning
+        dtNavMeshQuery* m_NavQuery = nullptr;   // owned
     };
 
 }

@@ -1,5 +1,7 @@
+#include "../Core/Random.h"
 #include "HordeAISystem.h"
 #include "CombatVFX.h"
+#include "RaycastUtils.h"          // <-- AGGIUNGI
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -52,10 +54,47 @@ namespace SunEngine {
 
             float distToPlayer = glm::distance(trans.Position, playerPos);
 
-            // 1. MIRA PREDITTIVA
-            if (distToPlayer <= 8.0f) {
+            // ------------------------------------------------------------------
+            // LINE OF SIGHT: raycast periodico dagli occhi al petto del player.
+            // Se libero -> aggiorna lastKnownPlayerPos. Se bloccato -> l'ork
+            // va verso la memoria (l'ultima posizione dove ha VISTO il player).
+            // ------------------------------------------------------------------
+            horde.losCheckTimer -= deltaTime;
+            if (horde.losCheckTimer <= 0.0f) {
+                horde.losCheckTimer = horde.losCheckInterval;
+
+                glm::vec3 eyePos = trans.Position + glm::vec3(0.0f, 1.20f, 0.0f);
+                glm::vec3 targetPos = playerPos + glm::vec3(0.0f, 1.00f, 0.0f);
+
+                horde.hasLOS = HasLineOfSight(scene, eyePos, targetPos, ork);
+                if (horde.hasLOS) {
+                    horde.lastKnownPlayerPos = playerPos;
+                }
+            }
+
+            // Posizione "di riferimento" per l'AI: se vede il player uso la posizione
+            // reale, altrimenti quella memorizzata (o, se non ha mai visto il player,
+            // resta in attesa in cerchio attorno al player per non impazzire).
+            glm::vec3 effectivePlayerPos = horde.hasLOS
+                ? playerPos
+                : (horde.lastKnownPlayerPos != glm::vec3(0.0f)
+                    ? horde.lastKnownPlayerPos
+                    : playerPos);
+
+            // Se non ha LOS e non ha mai visto il player, non deve caricare:
+            // resta in cerchio (Waiting) finche' non acquisisce visibilità.
+            if (!horde.hasLOS && horde.lastKnownPlayerPos == glm::vec3(0.0f)) {
+                if (horde.state == HordeState::Approaching || horde.state == HordeState::Attacking) {
+                    horde.state = HordeState::Waiting;
+                    horde.assignedSlotIndex = -1;
+                    horde.currentPath.clear();
+                }
+            }
+
+            // 1. MIRA PREDITTIVA (solo se ha LOS: sparare a un ricordo non ha senso)
+            if (horde.hasLOS && distToPlayer <= 8.0f) {
                 float leadTime = 0.28f;
-                glm::vec3 predictedPlayerPos = playerPos + (playerVelocity * leadTime);
+                glm::vec3 predictedPlayerPos = effectivePlayerPos + (playerVelocity * leadTime);
                 glm::vec3 dirToP = predictedPlayerPos - trans.Position;
                 dirToP.y = 0.0f;
 
@@ -63,6 +102,16 @@ namespace SunEngine {
                     float targetYaw = glm::degrees(std::atan2(-dirToP.x, -dirToP.z));
                     trans.AimYaw = targetYaw;
                     trans.Rotation.y = LerpAngle(trans.Rotation.y, targetYaw, 14.0f * deltaTime);
+                }
+            }
+            else if (!horde.hasLOS) {
+                // Senza LOS: l'Ork si guarda attorno verso l'ultima posizione nota
+                glm::vec3 dirToMem = effectivePlayerPos - trans.Position;
+                dirToMem.y = 0.0f;
+                if (glm::length(dirToMem) > 0.5f) {
+                    float targetYaw = glm::degrees(std::atan2(-dirToMem.x, -dirToMem.z));
+                    trans.AimYaw = targetYaw;
+                    trans.Rotation.y = LerpAngle(trans.Rotation.y, targetYaw, 6.0f * deltaTime);
                 }
             }
 
@@ -75,7 +124,8 @@ namespace SunEngine {
                 horde.cooldownTimer -= deltaTime;
 
                 if (distToPlayer < 4.5f) {
-                    glm::vec3 backDir = glm::normalize(trans.Position - playerPos);
+                    glm::vec3 backDir = glm::normalize(trans.Position - effectivePlayerPos);
+                    if (glm::length(backDir) < 0.001f) backDir = glm::vec3(0.0f, 0.0f, 1.0f);
                     backDir.y = 0.0f;
                     targetPos = navQuery.GetNearestValidPoint(trans.Position + backDir * 3.5f);
                     moveSpeed = 2.8f;
@@ -87,15 +137,14 @@ namespace SunEngine {
                 }
             }
             else if (horde.state == HordeState::Waiting) {
-                float angle = (360.0f / std::max(1, totalOrksInHorde)) * orkIndex;
+                float angle = (360.0f / (std::max)(1, totalOrksInHorde)) * orkIndex;
                 horde.circleAngle = angle;
 
-                targetPos = playerPos + glm::vec3(
+                targetPos = effectivePlayerPos + glm::vec3(
                     std::cos(glm::radians(angle)) * 5.5f,
                     0.0f,
                     std::sin(glm::radians(angle)) * 5.5f
                 );
-
                 if (glm::distance(trans.Position, targetPos) > 0.4f) {
                     moveSpeed = 3.5f;
                     needsToMove = true;
@@ -107,8 +156,8 @@ namespace SunEngine {
                             activeSlots[s] = true;
                             horde.assignedSlotIndex = s;
                             horde.state = HordeState::Approaching;
-                            horde.attackDelay = 0.4f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.8f;
-                            horde.attacksToPerform = (rand() % 2 == 0) ? 1 : 2;
+                            horde.attackDelay = Random::Range(0.4f, 1.2f);
+                            horde.attacksToPerform = Random::Chance(0.5f) ? 1 : 2;
                             horde.currentAttackCount = 0;
                             activeAttackersCount++;
                             break;
@@ -120,7 +169,7 @@ namespace SunEngine {
                 float slotAngles[4] = { 0.0f, 90.0f, 180.0f, 270.0f };
                 float slotAngle = slotAngles[horde.assignedSlotIndex];
 
-                targetPos = playerPos + glm::vec3(
+                targetPos = effectivePlayerPos + glm::vec3(
                     std::cos(glm::radians(slotAngle)) * 1.45f,
                     0.0f,
                     std::sin(glm::radians(slotAngle)) * 1.45f
@@ -128,8 +177,7 @@ namespace SunEngine {
 
                 moveSpeed = 4.2f;
                 needsToMove = true;
-
-                if (distToPlayer <= 1.65f) {
+                if (distToPlayer <= 1.65f && horde.hasLOS) {
                     horde.state = HordeState::Attacking;
                     horde.attackTimer = 0.0f;
                 }
@@ -141,7 +189,7 @@ namespace SunEngine {
 
                 if (horde.pathUpdateTimer <= 0.0f || horde.currentPath.empty()) {
                     horde.currentPath = navQuery.FindPath(trans.Position, targetPos);
-                    horde.pathUpdateTimer = 0.4f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.2f;
+                    horde.pathUpdateTimer = Random::Range(0.4f, 0.6f);
                 }
 
                 if (!horde.currentPath.empty()) {
@@ -191,7 +239,7 @@ namespace SunEngine {
                 if (horde.currentAttackCount >= horde.attacksToPerform && melee.currentPhase == MeleePhase::None) {
                     horde.state = HordeState::Cooldown;
 
-                    float baseCooldown = 2.5f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 1.5f;
+                    float baseCooldown = Random::Range(2.5f, 4.0f);
                     float hordeReductionFactor = std::clamp(1.0f - ((totalOrksInHorde - 1) * 0.08f), 0.40f, 1.0f);
                     horde.cooldownTimer = std::max(0.7f, baseCooldown * hordeReductionFactor);
 

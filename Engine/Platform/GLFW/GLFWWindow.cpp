@@ -34,6 +34,7 @@ namespace SunEngine {
         }
 
         glfwMakeContextCurrent(m_Window);
+        glfwSwapInterval(1);
         glfwSetWindowUserPointer(m_Window, &m_Data);
 
         glfwSetKeyCallback(m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods) {

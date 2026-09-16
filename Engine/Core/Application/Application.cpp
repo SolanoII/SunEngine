@@ -48,6 +48,15 @@ namespace SunEngine
             float deltaTime = std::chrono::duration<float>(currentTime - m_LastFrameTime).count();
             m_LastFrameTime = currentTime;
 
+            // Clamp: se un frame dura più di 50ms (20 FPS) significa che è successo
+            // qualcosa di anomalo (loading, breakpoint, hitch del driver). Passare
+            // un deltaTime enorme a Jolt causerebbe tunneling e ragdoll esplosivi.
+            // Il clamp "rallenta" il mondo in caso di hitch invece di rompere la sim.
+            constexpr float MAX_DELTA = 0.05f;
+            if (deltaTime > MAX_DELTA) {
+                deltaTime = MAX_DELTA;
+            }
+
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

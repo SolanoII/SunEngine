@@ -4,6 +4,7 @@
 #include "../Scene/Scene.h"
 #include "../AssetManager/BlueprintManager.h"
 #include "../Core/Logger/Log.h"
+#include "../Core/Random.h"
 #include <algorithm>
 #include <cstdlib>
 
@@ -16,9 +17,7 @@ namespace SunEngine {
             float finalHpDamage = rawDamage;
 
             if (armor && armor->currentDurability > 0.0f && armor->armorRating > 0) {
-                float coverageRoll = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-
-                if (coverageRoll <= armor->coverage) {
+                if (Random::Chance(armor->coverage)) {
                     int effectiveArmor = std::max(0, armor->armorRating - weaponAP);
                     float mitigation = 100.0f / (100.0f + static_cast<float>(effectiveArmor));
                     finalHpDamage = rawDamage * mitigation;

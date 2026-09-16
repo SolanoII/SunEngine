@@ -1,8 +1,122 @@
+﻿// --- FIX: va fatto PRIMA di qualsiasi include ---
+// 1. NOMINMAX impedisce a <windows.h> (incluso da miniaudio) di definire
+//    i macro min/max, che romperebbero std::max / std::min.
+// 2. GLFW_INCLUDE_NONE evita che GLFW includa OpenGL (glad è già il loader).
+#define NOMINMAX
+#define GLFW_INCLUDE_NONE
 #include "WeaponSystem.h"
 #include "DamageResolver.h"
+#include "RaycastUtils.h"          // <-- AGGIUNGI
+#include "../Core/Random.h"
+#include <GLFW/glfw3.h>
+#include <glm/gtc/type_ptr.hpp>
+#include <cmath>
 
 namespace SunEngine {
+    
+    WeaponSystem::~WeaponSystem() {
+        ShutdownAudio();
+    }
 
+    void WeaponSystem::InitAudio(ma_engine* engine, ma_sound_group* group, const std::string& audioDir) {
+        // Se già inizializzato, shakera il vecchio pool per evitare leak
+        if (m_AudioInitialized) {
+            ShutdownAudio();
+        }
+
+        m_Engine = engine;
+        m_SFXGroup = group;
+        m_AudioDir = audioDir;
+
+        if (m_AudioDir.empty()) {
+            m_AudioDir = "GameData/Audio/";
+        }
+        else if (m_AudioDir.back() != '/' && m_AudioDir.back() != '\\') {
+            m_AudioDir += "/";
+        }
+
+        m_AudioInitialized = (m_Engine != nullptr);
+        SUN_CORE_INFO("WeaponSystem: pool audio inizializzato (dir: {0})", m_AudioDir);
+    }
+
+    void WeaponSystem::ShutdownAudio() {
+        for (auto& [path, pool] : m_SoundPools) {
+            for (auto& item : pool) {
+                if (item && item->loaded) {
+                    ma_sound_uninit(&item->sound);
+                    item->loaded = false;
+                }
+            }
+        }
+        m_SoundPools.clear();
+
+        m_Engine = nullptr;
+        m_SFXGroup = nullptr;
+        m_AudioInitialized = false;
+    }
+
+    WeaponSystem::WeaponSoundInstance* WeaponSystem::GetFreeInstance(const std::string& absolutePath) {
+        if (!m_AudioInitialized || !m_Engine) return nullptr;
+
+        auto& pool = m_SoundPools[absolutePath];
+
+        // Pool vuoto: crea 8 istanze (abbastanza per full-auto a 700 RPM)
+        if (pool.empty()) {
+            constexpr int kPoolSize = 8;
+            for (int i = 0; i < kPoolSize; ++i) {
+                auto inst = std::make_unique<WeaponSoundInstance>();
+
+                ma_sound_config cfg = ma_sound_config_init();
+                cfg.pFilePath = absolutePath.c_str();
+                cfg.flags = MA_SOUND_FLAG_DECODE;             // suoni brevi → decode in RAM
+                cfg.pInitialAttachment = m_SFXGroup;          // aggancia al gruppo SFX
+
+                if (ma_sound_init_ex(m_Engine, &cfg, &inst->sound) == MA_SUCCESS) {
+                    inst->loaded = true;
+                    pool.push_back(std::move(inst));
+                }
+                else {
+                    SUN_CORE_WARN("WeaponSystem: impossibile caricare {0}", absolutePath);
+                    break;   // se il primo fallisce, non insistere
+                }
+            }
+        }
+
+        // Ritorna la prima istanza non in riproduzione
+        for (auto& item : pool) {
+            if (item && item->loaded && !ma_sound_is_playing(&item->sound)) {
+                return item.get();
+            }
+        }
+
+        // Tutte occupate: ritorna la prima (sovrascrive il più vecchio)
+        return pool.empty() ? nullptr : pool.front().get();
+    }
+
+    void WeaponSystem::PlayWeaponSound(const glm::vec3& sourcePos, const glm::vec3& listenerPos,
+        float baseVolume) {
+        if (!m_AudioInitialized || baseVolume <= 0.001f) return;
+
+        // Falloff lineare da 1.0 a 0.0 in 40 metri (più secco delle voci Ork)
+        float dist = glm::distance(sourcePos, listenerPos);
+        float attenuation = 1.0f;
+        if (dist > 1.0f) {
+            attenuation = std::clamp(1.0f - ((dist - 1.0f) / 40.0f), 0.0f, 1.0f);
+        }
+        float finalVol = baseVolume * attenuation;
+        if (finalVol <= 0.005f) return;
+
+        // Per ora tutte le armi usano lo stesso file (path risolto una volta)
+        std::string path = m_AudioDir + "laser.wav";
+
+        WeaponSoundInstance* inst = GetFreeInstance(path);
+        if (!inst) return;
+
+        ma_sound_set_volume(&inst->sound, finalVol);
+        ma_sound_set_position(&inst->sound, sourcePos.x, sourcePos.y, sourcePos.z);
+        ma_sound_seek_to_pcm_frame(&inst->sound, 0);
+        ma_sound_start(&inst->sound);
+    }
     float WeaponSystem::CalculateDamageWithFalloff(float baseDamage, float distance, float falloffStart, float falloffEnd) {
         if (falloffStart <= 0.0f || falloffEnd <= falloffStart) {
             return baseDamage;
@@ -21,7 +135,7 @@ namespace SunEngine {
         return baseDamage * multiplier;
     }
 
-    void WeaponSystem::Update(Scene& scene, PhysicsSystem& physicsSystem, ma_engine* audioEngine, float deltaTime) {
+    void WeaponSystem::Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime) {
         auto view = scene.GetRegistry().view<TransformComponent, UnitStatsComponent, WeaponStateComponent, InventoryComponent, CameraRecoilComponent>();
 
         for (auto entity : view) {
@@ -41,7 +155,7 @@ namespace SunEngine {
             // GESTIONE ARMI A RAGGIO CONTINUO (MELTA GUN)
             if (wpBP->projectile_type == ProjectileType::ContinuousBeam) {
                 if (wantsToFire && !wState.isOverheating && !wState.isReloading) {
-                    FireContinuousBeam(scene, entity, wState, recoil, *wpBP, trans, stats, audioEngine, deltaTime);
+                    FireContinuousBeam(scene, entity, wState, recoil, *wpBP, trans, stats, deltaTime);
                 }
                 else {
                     if (wState.currentHeat > 0.0f) {
@@ -104,7 +218,7 @@ namespace SunEngine {
 
             if (wantsToFire && wState.fireCooldown <= 0.0f && !wState.isOverheating) {
                 if (wState.currentAmmo > 0) {
-                    FireWeapon(scene, entity, wState, recoil, *wpBP, trans, stats, audioEngine);
+                    FireWeapon(scene, entity, wState, recoil, *wpBP, trans, stats);
                 }
                 else if (!wState.isReloading) {
                     wState.isReloading = true;
@@ -115,7 +229,10 @@ namespace SunEngine {
         }
     }
 
-    void WeaponSystem::FireContinuousBeam(Scene& scene, entt::entity shooter, WeaponStateComponent& wState, CameraRecoilComponent& recoil, const WeaponBlueprint& wpBP, TransformComponent& trans, UnitStatsComponent& stats, ma_engine* audioEngine, float deltaTime) {
+    void WeaponSystem::FireContinuousBeam(Scene& scene, entt::entity shooter,
+        WeaponStateComponent& wState, CameraRecoilComponent& recoil,
+        const WeaponBlueprint& wpBP, TransformComponent& trans,
+        UnitStatsComponent& stats, float deltaTime) {
         float heatRate = 30.0f;
         wState.currentHeat += heatRate * deltaTime;
         if (wState.currentHeat >= wpBP.heat_capacity) {
@@ -125,7 +242,7 @@ namespace SunEngine {
             return;
         }
 
-        if ((rand() % 4 == 0) && wState.currentAmmo > 0) {
+        if (Random::Chance(0.25f) && wState.currentAmmo > 0) {
             wState.currentAmmo--;
         }
 
@@ -174,33 +291,29 @@ namespace SunEngine {
                 barrelOrigin = weaponPos + barrelWorldOffset;
             }
         }
-
         float maxRange = (wpBP.range_effective > 1.0f) ? wpBP.range_effective : 12.0f;
-        glm::vec3 hitPoint = barrelOrigin + (baseDir * maxRange);
-        entt::entity hitEntity = entt::null;
-        HitboxLocation hitLoc = HitboxLocation::Torso;
-        float hitDist = maxRange;
+        RaycastResult hit = RaycastAll(scene, barrelOrigin, baseDir, maxRange, shooter);
 
-        if (RaycastHitbox(scene, barrelOrigin, baseDir, maxRange, shooter, hitEntity, hitLoc, hitDist)) {
-            hitPoint = barrelOrigin + (baseDir * hitDist);
+        glm::vec3 hitPoint = hit.hit ? hit.point : (barrelOrigin + baseDir * maxRange);
 
-            if (hitEntity != entt::null && scene.GetRegistry().all_of<UnitStatsComponent, HealthComponent>(hitEntity)) {
-                auto& targetStats = scene.GetRegistry().get<UnitStatsComponent>(hitEntity);
-                auto& targetHealth = scene.GetRegistry().get<HealthComponent>(hitEntity);
+        if (hit.hitUnit && hit.entity != entt::null &&
+            scene.GetRegistry().all_of<UnitStatsComponent, HealthComponent>(hit.entity)) {
 
-                float dps = (wpBP.base_damage > 1.0f) ? wpBP.base_damage : 120.0f;
-                float frameDamage = dps * deltaTime;
-                int effectiveAP = wpBP.armor_penetration;
+            auto& targetStats = scene.GetRegistry().get<UnitStatsComponent>(hit.entity);
+            auto& targetHealth = scene.GetRegistry().get<HealthComponent>(hit.entity);
 
-                float meltaThreshold = (wpBP.melta_range > 0.5f) ? wpBP.melta_range : 4.5f;
-                if (hitDist <= meltaThreshold) {
-                    float meltaMult = (wpBP.melta_multiplier > 1.0f) ? wpBP.melta_multiplier : 2.5f;
-                    frameDamage *= meltaMult;
-                    effectiveAP += 20;
-                }
+            float dps = (wpBP.base_damage > 1.0f) ? wpBP.base_damage : 120.0f;
+            float frameDamage = dps * deltaTime;
+            int effectiveAP = wpBP.armor_penetration;
 
-                DamageResolver::ResolveHit(frameDamage, effectiveAP, hitLoc, targetStats, targetHealth);
+            float meltaThreshold = (wpBP.melta_range > 0.5f) ? wpBP.melta_range : 4.5f;
+            if (hit.distance <= meltaThreshold) {
+                float meltaMult = (wpBP.melta_multiplier > 1.0f) ? wpBP.melta_multiplier : 2.5f;
+                frameDamage *= meltaMult;
+                effectiveAP += 20;
             }
+
+            DamageResolver::ResolveHit(frameDamage, effectiveAP, hit.location, targetStats, targetHealth);
         }
 
         entt::entity meltaBeamEntity = scene.CreateEntity();
@@ -214,7 +327,10 @@ namespace SunEngine {
         beamTrail.totalLife = deltaTime * 1.8f;
     }
 
-    void WeaponSystem::FireWeapon(Scene& scene, entt::entity shooter, WeaponStateComponent& wState, CameraRecoilComponent& recoil, const WeaponBlueprint& wpBP, TransformComponent& trans, UnitStatsComponent& stats, ma_engine* audioEngine) {
+    void WeaponSystem::FireWeapon(Scene& scene, entt::entity shooter,
+        WeaponStateComponent& wState, CameraRecoilComponent& recoil,
+        const WeaponBlueprint& wpBP, TransformComponent& trans,
+        UnitStatsComponent& stats) {
         wState.currentAmmo--;
         wState.fireCooldown = (wpBP.rate_of_fire > 0.0f) ? (60.0f / wpBP.rate_of_fire) : 0.15f;
 
@@ -226,8 +342,7 @@ namespace SunEngine {
         }
 
         recoil.recoilPitch += wpBP.recoil_force;
-        recoil.recoilYaw += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * wpBP.recoil_force * 0.5f;
-
+        recoil.recoilYaw += (Random::Float01() - 0.5f) * wpBP.recoil_force * 0.5f;
         glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
         rotMat = glm::rotate(rotMat, glm::radians(trans.AimPitch + recoil.recoilPitch), glm::vec3(1.0f, 0.0f, 0.0f));
         glm::vec3 baseDir = glm::normalize(glm::vec3(rotMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
@@ -312,43 +427,46 @@ namespace SunEngine {
             glm::vec3 shootDir = baseDir;
 
             if (isShotgun || totalSpread > 0.001f) {
-                float r = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * totalSpread;
-                float theta = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 6.28318530718f;
+                float r = Random::Float01() * totalSpread;
+                float theta = Random::Range(0.0f, 6.28318530718f); 
                 glm::vec3 pelletOffset = (rightDir * std::cos(theta) + upDir * std::sin(theta)) * r;
                 shootDir = glm::normalize(baseDir + pelletOffset);
             }
+            RaycastResult hit = RaycastAll(scene, barrelOrigin, shootDir, wpBP.range_effective, shooter);
 
-            glm::vec3 hitPoint = barrelOrigin + (shootDir * wpBP.range_effective);
-            entt::entity hitEntity = entt::null;
-            HitboxLocation hitLoc = HitboxLocation::Torso;
-            float hitDist = wpBP.range_effective;
+            glm::vec3 hitPoint = hit.hit
+                ? hit.point
+                : (barrelOrigin + shootDir * wpBP.range_effective);
+            bool skipTrail = false;
+            if (hit.hitUnit && hit.entity != entt::null &&
+                scene.GetRegistry().all_of<UnitStatsComponent, HealthComponent>(hit.entity)) {
 
-            if (RaycastHitbox(scene, barrelOrigin, shootDir, wpBP.range_effective, shooter, hitEntity, hitLoc, hitDist)) {
-                hitPoint = barrelOrigin + (shootDir * hitDist);
+                auto& targetStats = scene.GetRegistry().get<UnitStatsComponent>(hit.entity);
+                auto& targetHealth = scene.GetRegistry().get<HealthComponent>(hit.entity);
 
-                if (hitEntity != entt::null && scene.GetRegistry().all_of<UnitStatsComponent, HealthComponent>(hitEntity)) {
-                    auto& targetStats = scene.GetRegistry().get<UnitStatsComponent>(hitEntity);
-                    auto& targetHealth = scene.GetRegistry().get<HealthComponent>(hitEntity);
+                float finalDamage = isUnderbarrelShotgun ? 15.0f : wpBP.base_damage;
+                int effectiveAP = isUnderbarrelShotgun ? 5 : wpBP.armor_penetration;
 
-                    float finalDamage = isUnderbarrelShotgun ? 15.0f : wpBP.base_damage;
-                    int effectiveAP = isUnderbarrelShotgun ? 5 : wpBP.armor_penetration;
+                finalDamage = CalculateDamageWithFalloff(finalDamage, hit.distance,
+                    wpBP.damage_falloff_start,
+                    wpBP.damage_falloff_end);
 
-                    finalDamage = CalculateDamageWithFalloff(finalDamage, hitDist, wpBP.damage_falloff_start, wpBP.damage_falloff_end);
-
-                    if (wpBP.projectile_type == ProjectileType::Grav) {
-                        ArmorPiece* armor = targetStats.armorSet.GetPiece(hitLoc);
-                        int targetArmorRating = armor ? armor->armorRating : targetStats.armorSet.GetAverageRating();
-                        finalDamage = wpBP.base_damage + (targetArmorRating * 1.5f);
-                    }
-                    else if (wpBP.projectile_type == ProjectileType::Psychic) {
-                        targetHealth.currentHealth -= finalDamage;
-                        continue;
-                    }
-
-                    DamageResolver::ResolveHit(finalDamage, effectiveAP, hitLoc, targetStats, targetHealth);
+                if (wpBP.projectile_type == ProjectileType::Grav) {
+                    ArmorPiece* armor = targetStats.armorSet.GetPiece(hit.location);
+                    int targetArmorRating = armor ? armor->armorRating
+                        : targetStats.armorSet.GetAverageRating();
+                    finalDamage = wpBP.base_damage + (targetArmorRating * 1.5f);
+                }
+                else if (wpBP.projectile_type == ProjectileType::Psychic) {
+                    targetHealth.currentHealth -= finalDamage;
+                    skipTrail = true;   // era un "continue" prima
+                }
+                else {
+                    DamageResolver::ResolveHit(finalDamage, effectiveAP, hit.location,
+                        targetStats, targetHealth);
                 }
             }
-
+            if (skipTrail) continue;
             entt::entity bulletTrailEntity = scene.CreateEntity();
             auto& bulletTrail = scene.GetRegistry().emplace<TrailRequestComponent>(bulletTrailEntity);
             bulletTrail.start = barrelOrigin;
@@ -359,90 +477,129 @@ namespace SunEngine {
             bulletTrail.travelTime = (wpBP.projectile_type == ProjectileType::Laser) ? 0.05f : 0.12f;
             bulletTrail.totalLife = 0.20f;
         }
+        // Suono positional: sorgente = bocca di fuoco, listener = posizione del player
+// (il player è sempre l'ascoltatore; per ora solo il player spara, quindi dist=0)
+        glm::vec3 listenerPos = trans.Position + glm::vec3(0.0f, 1.2f, 0.0f);
 
-        if (audioEngine) {
-            ma_engine_play_sound(audioEngine, "GameData/Audio/laser.wav", NULL);
-        }
+        // Distingui per proiettile: melta/flamer/laser hanno timbri diversi, ma per
+        // ora usiamo lo stesso file — la struttura è pronta per essere estesa.
+        float baseVol = 1.0f;
+        if (isShotgun) baseVol = 1.15f;   // shotgun un po' più "cattivo"
+        if (isUnderbarrelShotgun) baseVol = 0.9f;
+
+        PlayWeaponSound(barrelOrigin, listenerPos, baseVol);
     }
 
-    void WeaponSystem::FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP, const glm::vec3& origin, const glm::vec3& dir) {
-        auto view = scene.GetRegistry().view<TransformComponent, UnitStatsComponent, HealthComponent>();
+    void WeaponSystem::FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP,
+        const glm::vec3& origin, const glm::vec3& dir) {
+        auto view = scene.GetRegistry().view<TransformComponent, UnitStatsComponent, HealthComponent>(
+            entt::exclude<CorpseComponent>
+        );
 
         for (auto entity : view) {
             if (entity == shooter) continue;
 
             const auto& targetTrans = view.get<TransformComponent>(entity);
-            glm::vec3 toTarget = targetTrans.Position - origin;
+
+            // Mira al petto, non ai piedi
+            glm::vec3 targetCenter = targetTrans.Position + glm::vec3(0.0f, 0.9f, 0.0f);
+            glm::vec3 toTarget = targetCenter - origin;
             float dist = glm::length(toTarget);
+            if (dist < 0.001f) continue;
+            if (dist > wpBP.range_effective) continue;
 
-            if (dist <= wpBP.range_effective) {
-                glm::vec3 normToTarget = glm::normalize(toTarget);
-                float dot = glm::dot(dir, normToTarget);
-                float angleDegrees = glm::degrees(std::acos(glm::clamp(dot, -1.0f, 1.0f)));
+            glm::vec3 normToTarget = toTarget / dist;
+            float dot = glm::dot(dir, normToTarget);
+            float angleDegrees = glm::degrees(std::acos(glm::clamp(dot, -1.0f, 1.0f)));
+            if (angleDegrees > (wpBP.flamer_cone_angle * 0.5f)) continue;
 
-                if (angleDegrees <= (wpBP.flamer_cone_angle * 0.5f)) {
-                    auto& targetStats = view.get<UnitStatsComponent>(entity);
-                    auto& targetHealth = view.get<HealthComponent>(entity);
+            // LOS check: se colpisce qualcosa PRIMA del bersaglio, niente danno
+            RaycastResult los = RaycastAll(scene, origin, normToTarget, dist - 0.1f, shooter);
+            if (los.hit && los.distance < dist - 0.1f) continue;
 
-                    float flamerDamage = wpBP.base_damage * 0.2f;
-                    DamageResolver::ResolveHit(flamerDamage, wpBP.armor_penetration, HitboxLocation::Torso, targetStats, targetHealth);
-                }
-            }
+            auto& targetStats = view.get<UnitStatsComponent>(entity);
+            auto& targetHealth = view.get<HealthComponent>(entity);
+
+            float flamerDamage = wpBP.base_damage * 0.2f;
+            DamageResolver::ResolveHit(flamerDamage, wpBP.armor_penetration,
+                HitboxLocation::Torso, targetStats, targetHealth);
         }
     }
+    WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,
+        const glm::vec3& rayDir, float maxDist,
+        entt::entity shooter) {
+        RaycastResult result;
+        float closest = maxDist;
 
-    bool WeaponSystem::RaycastHitbox(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir, float maxDist, entt::entity shooter, entt::entity& outHitEntity, HitboxLocation& outLocation, float& outHitDist) {
-        float minT = maxDist;
-        bool hasHit = false;
+        auto& reg = scene.GetRegistry();
 
-        auto view = scene.GetRegistry().view<TransformComponent, UnitStatsComponent, HealthComponent>();
+        // ---- 1. UNITA' (player + nemici), hitbox ai piedi ----
+        auto unitView = reg.view<TransformComponent, UnitStatsComponent, HealthComponent>(
+            entt::exclude<CorpseComponent>
+        );
+        for (auto e : unitView) {
+            if (e == shooter) continue;
+            const auto& trans = unitView.get<TransformComponent>(e);
 
-        for (auto entity : view) {
-            if (entity == shooter) continue;
-
-            const auto& targetTrans = view.get<TransformComponent>(entity);
-
-            glm::vec3 minBox = targetTrans.Position - glm::vec3(0.5f, 0.0f, 0.5f);
-            glm::vec3 maxBox = targetTrans.Position + glm::vec3(0.5f, 1.8f, 0.5f);
-
-            float tMin = 0.0f, tMax = maxDist;
-            bool hit = true;
-
-            for (int i = 0; i < 3; ++i) {
-                if (std::abs(rayDir[i]) < 0.0001f) {
-                    if (rayOrigin[i] < minBox[i] || rayOrigin[i] > maxBox[i]) { hit = false; break; }
-                }
-                else {
-                    float invD = 1.0f / rayDir[i];
-                    float t0 = (minBox[i] - rayOrigin[i]) * invD;
-                    float t1 = (maxBox[i] - rayOrigin[i]) * invD;
-                    if (invD < 0.0f) std::swap(t0, t1);
-                    tMin = (std::max)(tMin, t0);
-                    tMax = (std::min)(tMax, t1);
-                    if (tMax < tMin) { hit = false; break; }
-                }
+            glm::vec3 half = glm::vec3(0.5f, 0.9f, 0.5f);   // fallback
+            if (auto* col = reg.try_get<ColliderComponent>(e)) {
+                half = col->halfExtents * trans.Scale;
             }
+            glm::vec3 minB = trans.Position;
+            glm::vec3 maxB = trans.Position + glm::vec3(half.x * 2.0f, half.y * 2.0f, half.z * 2.0f);
+            
+            float t;
+            if (IntersectAABB(rayOrigin, rayDir, minB, maxB, closest, t) && t < closest) {
+                closest = t;
+                result.hit = true;
+                result.hitUnit = true;
+                result.entity = e;
+                result.distance = t;
+                result.point = rayOrigin + rayDir * t;
 
-            if (hit && tMin < minT && tMin > 0.0f) {
-                minT = tMin;
-                outHitEntity = entity;
-                hasHit = true;
-
-                float hitY = rayOrigin.y + (rayDir.y * tMin);
-                float relativeY = hitY - targetTrans.Position.y;
-
-                if (relativeY >= 1.4f) outLocation = HitboxLocation::Head;
-                else if (relativeY >= 0.7f) outLocation = HitboxLocation::Torso;
-                else outLocation = HitboxLocation::RightLeg;
+                float hitY = result.point.y - trans.Position.y;
+                if (hitY >= 1.4f)      result.location = HitboxLocation::Head;
+                else if (hitY >= 0.7f) result.location = HitboxLocation::Torso;
+                else                    result.location = HitboxLocation::RightLeg;
             }
         }
 
-        if (hasHit) {
-            outHitDist = minT;
-            return true;
+        // ---- 2. MURI / STRUTTURE / PROPS (collider centrato su Position) ----
+        auto staticView = reg.view<TransformComponent, ColliderComponent>(
+            entt::exclude<PlayerTag, HealthComponent>
+        );
+        for (auto e : staticView) {
+            if (e == shooter) continue;
+            const auto& trans = staticView.get<TransformComponent>(e);
+            const auto& col = staticView.get<ColliderComponent>(e);
+
+            glm::vec3 half = col.halfExtents * trans.Scale;
+            glm::vec3 minB = trans.Position - half;
+            glm::vec3 maxB = trans.Position + half;
+
+            float t;
+            if (IntersectAABB(rayOrigin, rayDir, minB, maxB, closest, t) && t < closest) {
+                closest = t;
+                result.hit = true;
+                result.hitUnit = false;
+                result.entity = e;
+                result.distance = t;
+                result.point = rayOrigin + rayDir * t;
+            }
         }
 
-        return false;
+        return result;
     }
 
+    // Wrapper retro-compatibile (se qualcosa lo chiama ancora)
+    bool WeaponSystem::RaycastHitbox(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
+        float maxDist, entt::entity shooter, entt::entity& outHitEntity,
+        HitboxLocation& outLocation, float& outHitDist) {
+        auto r = RaycastAll(scene, rayOrigin, rayDir, maxDist, shooter);
+        if (!r.hit || !r.hitUnit) return false;
+        outHitEntity = r.entity;
+        outLocation = r.location;
+        outHitDist = r.distance;
+        return true;
+    }
 }

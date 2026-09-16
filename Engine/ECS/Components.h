@@ -23,7 +23,6 @@ namespace SunEngine {
         Attacking,    // In ingaggio melee (Attacco Normale)
         Cooldown      // Arretra temporaneamente dopo un attacco
     };
-
     struct HordeAgentComponent {
         HordeState state = HordeState::Waiting;
         int assignedSlotIndex = -1;
@@ -36,9 +35,15 @@ namespace SunEngine {
         int attacksToPerform = 1;
         int currentAttackCount = 0;
 
-        // --- NUOVI CAMPI PER LA NAVMESH ---
+        // --- CAMPI PER LA NAVMESH ---
         std::vector<glm::vec3> currentPath;
         float pathUpdateTimer = 0.0f;
+
+        // --- CAMPI PER LINE OF SIGHT ---
+        bool hasLOS = false;
+        glm::vec3 lastKnownPlayerPos{ 0.0f };
+        float losCheckTimer = 0.0f;   // countdown per il prossimo raycast
+        float losCheckInterval = 0.30f; // quanto spesso rivalutare la visibilità
     };
 
     enum class SurfaceType {

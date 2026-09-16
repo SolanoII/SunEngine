@@ -1,9 +1,10 @@
 #pragma once
 #include <vector>
+#include <memory>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-// Forward declarations di Recast/Detour per non inquinare gli header del motore
+// Forward declaration di Recast/Detour per non inquinare gli header del motore
 class dtNavMesh;
 struct rcHeightfield;
 struct rcCompactHeightfield;
@@ -13,22 +14,28 @@ struct rcPolyMeshDetail;
 
 namespace SunEngine {
 
+    // Deleter custom: chiama dtFreeNavMesh (API C di Detour)
+    struct NavMeshDeleter {
+        void operator()(dtNavMesh* mesh) const;
+    };
+
+    // Alias di ownership: usare SEMPRE questo invece di dtNavMesh*
+    using NavMeshPtr = std::unique_ptr<dtNavMesh, NavMeshDeleter>;
+
     class NavMeshBuilder {
     public:
         NavMeshBuilder();
         ~NavMeshBuilder();
 
-        // Pulisce la geometria accumulata
         void Reset();
 
-        // Aggiunge un piano (es. il terreno base)
         void AddPlane(const glm::vec3& center, const glm::vec3& size);
 
-        // Aggiunge un blocco, un muretto o un edificio (supporta rotazioni per le rampe!)
-        void AddBox(const glm::vec3& center, const glm::vec3& halfExtents, const glm::quat& rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+        void AddBox(const glm::vec3& center, const glm::vec3& halfExtents,
+            const glm::quat& rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
 
-        // Esegue il processo di Voxelizzazione di Recast e restituisce la NavMesh finita
-        dtNavMesh* Build();
+        // Restituisce ownership esclusiva della NavMesh
+        NavMeshPtr Build();
 
     private:
         std::vector<float> m_Vertices;

@@ -3,28 +3,45 @@
 #include "../Engine/Core/Logger/Log.h"
 #include "GameLayer.h"
 #include <filesystem>
-
+#include <unordered_map>   // <-- AGGIUNGI se manca
 namespace fs = std::filesystem;
-
 std::string FindValidDir(const std::string& targetDirName) {
+    // Cache dei risultati: il filesystem non cambia durante l'esecuzione, quindi
+    // una volta trovato il path di una cartella, non serve cercarla di nuovo.
+    // Senza questa cache, ogni SpawnOrkBoy faceva un walk ricorsivo completo.
+    static std::unordered_map<std::string, std::string> s_Cache;
+
+    // Fast path: già risolto
+    auto it = s_Cache.find(targetDirName);
+    if (it != s_Cache.end()) {
+        return it->second;
+    }
+
+    // Slow path: prima ricerca (una sola volta per cartella)
     fs::path searchRoot = fs::current_path();
 
     for (int depth = 0; depth < 4; ++depth) {
         if (fs::exists(searchRoot)) {
             try {
-                for (auto it = fs::recursive_directory_iterator(searchRoot, fs::directory_options::skip_permission_denied);
-                    it != fs::recursive_directory_iterator(); ++it)
+                for (auto iter = fs::recursive_directory_iterator(
+                    searchRoot, fs::directory_options::skip_permission_denied);
+                    iter != fs::recursive_directory_iterator(); ++iter)
                 {
-                    if (it->is_directory()) {
-                        std::string dirName = it->path().filename().string();
+                    if (iter->is_directory()) {
+                        std::string dirName = iter->path().filename().string();
 
+                        // Skip cartelle build/IDE: evita di entrare in .vs/out/.git
                         if (dirName == ".vs" || dirName == "out" || dirName == ".git") {
-                            it.disable_recursion_pending();
+                            iter.disable_recursion_pending();
                             continue;
                         }
 
                         if (dirName == targetDirName) {
-                            return it->path().string() + "/";
+                            std::string result = iter->path().string() + "/";
+                            s_Cache[targetDirName] = result;   // <-- memorizza
+                            SUN_CORE_INFO("[FindValidDir] Cache miss per '{0}' -> {1}",
+                                targetDirName, result);
+                            return result;
                         }
                     }
                 }
@@ -37,6 +54,9 @@ std::string FindValidDir(const std::string& targetDirName) {
         searchRoot = searchRoot.parent_path();
     }
 
+    // Cache anche i fallimenti: evita di ripetere walk inutili se una cartella non esiste
+    s_Cache[targetDirName] = "";
+    SUN_CORE_WARN("[FindValidDir] Cartella '{0}' non trovata (risultato cachato)", targetDirName);
     return "";
 }
 

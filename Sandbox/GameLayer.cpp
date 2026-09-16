@@ -3,6 +3,7 @@
 
 #include "GameLayer.h"
 #include "Engine/Core/Application/Application.h"
+#include "Engine/Core/Random.h"
 #include "Engine/Core/Input.h"
 #include "Engine/Core/Logger/Log.h"
 #include "Engine/ECS/Components.h"
@@ -262,7 +263,7 @@ namespace SunEngine {
     void GameLayer::CreateNewMap() {
         m_EditorMap = EditorMapData();
 
-        int randomId = rand() % 9000 + 1000;
+        int randomId = Random::RangeInt(1000, 9999);
         m_EditorMap.id = "custom_map_" + std::to_string(randomId);
         m_EditorMap.name = "Mappa Personalizzata " + std::to_string(randomId);
         m_EditorMap.terrainSize = glm::vec3(150.0f, 1.0f, 150.0f);
@@ -578,9 +579,7 @@ namespace SunEngine {
 
         for (auto& item : g_OrkVoices.voicePool) {
             if (!ma_sound_is_playing(&item->sound)) {
-                float randomFactor = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-                float randomPitch = pitchMin + randomFactor * (pitchMax - pitchMin);
-
+                float randomPitch = Random::Range(pitchMin, pitchMax);
                 ma_sound_set_volume(&item->sound, volume);
                 ma_sound_set_pitch(&item->sound, randomPitch);
                 ma_sound_set_position(&item->sound, orkPos.x, orkPos.y, orkPos.z);
@@ -611,9 +610,8 @@ namespace SunEngine {
 
             if (perceivedVolume > 0.05f) {
                 float provocationChance = perceivedVolume * 0.65f;
-                float roll = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 
-                if (roll < provocationChance) {
+                if (Random::Chance(provocationChance)) {
                     bool alreadyPending = false;
                     for (const auto& pending : g_OrkVoices.pendingShouts) {
                         if (pending.orkEntity == otherEntity) {
@@ -625,7 +623,7 @@ namespace SunEngine {
                     if (!alreadyPending) {
                         PendingShout shout{};
                         shout.orkEntity = otherEntity;
-                        shout.delayTimer = 0.2f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.6f;
+                        shout.delayTimer = Random::Range(0.2f, 0.8f);
                         g_OrkVoices.pendingShouts.push_back(shout);
                     }
                 }
@@ -672,10 +670,10 @@ namespace SunEngine {
 
         g_OrkVoices.nextShoutTimer -= deltaTime;
         if (g_OrkVoices.nextShoutTimer <= 0.0f) {
-            entt::entity leaderOrk = livingOrks[rand() % livingOrks.size()];
+            entt::entity leaderOrk = livingOrks[Random::RangeInt(0, static_cast<int>(livingOrks.size()) - 1)];
             TriggerOrkShoutAndProvoke(leaderOrk, scene, playerPos, voiceVolume);
 
-            float baseCooldown = 4.0f + static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 3.0f;
+            float baseCooldown = Random::Range(4.0f, 7.0f);
             g_OrkVoices.nextShoutTimer = std::max(1.5f, baseCooldown / std::sqrt(static_cast<float>(livingOrks.size())));
         }
     }
@@ -758,7 +756,6 @@ namespace SunEngine {
         stats.visionRange = bp->vision_range;
         stats.fovDegrees = bp->fov_degrees;
         stats.weightCapacity = bp->weight_capacity;
-
         std::string skeletonsDir = FindValidDir("Skeletons");
         std::string skelPath = skeletonsDir + newUnitId + ".json";
         auto skeletonData = SkeletonLoader::LoadFromFile(skelPath);
@@ -767,6 +764,48 @@ namespace SunEngine {
             skelComp.data = *skeletonData;
             skelComp.scale = 1.0f;
             skelComp.blockFlashTimers.assign(skelComp.data.blocks.size(), 0.0f);
+
+            // --- FIX: adatta il collider ai bounds reali del nuovo skeleton ---
+            // Calcoliamo gli 8 vertici del cubo unitario [-0.5, 0.5]^3 per ogni blocco,
+            // trasformati dallo skeleton in posa A (rotazioni a zero, posizione zero).
+            auto worldTransforms = skelComp.data.ComputeWorldTransforms(
+                glm::vec3(0.0f), glm::vec3(0.0f), skelComp.scale);
+
+            float minX = 9999.0f, maxX = -9999.0f;
+            float minY = 9999.0f, maxY = -9999.0f;
+            float minZ = 9999.0f, maxZ = -9999.0f;
+
+            for (const auto& M : worldTransforms) {
+                for (int bx = 0; bx < 2; ++bx)
+                    for (int by = 0; by < 2; ++by)
+                        for (int bz = 0; bz < 2; ++bz) {
+                            glm::vec4 p = M * glm::vec4(
+                                bx ? 0.5f : -0.5f,
+                                by ? 0.5f : -0.5f,
+                                bz ? 0.5f : -0.5f, 1.0f);
+                            minX = std::min(minX, p.x); maxX = std::max(maxX, p.x);
+                            minY = std::min(minY, p.y); maxY = std::max(maxY, p.y);
+                            minZ = std::min(minZ, p.z); maxZ = std::max(maxZ, p.z);
+                        }
+            }
+
+            // Il transform.Position del player è "ai piedi". RefreshBodies() centra
+            // automaticamente il box Jolt a `Position + halfExtents.y`, quindi il box
+            // va da Position.y a Position.y + altezzaReale. Nessun offset extra necessario.
+            if (auto* col = scene.GetRegistry().try_get<ColliderComponent>(playerEntity)) {
+                col->halfExtents = glm::vec3(
+                    std::max(0.10f, (maxX - minX) * 0.5f),
+                    std::max(0.10f, (maxY - minY) * 0.5f),
+                    std::max(0.10f, (maxZ - minZ) * 0.5f)
+                );
+            }
+            else {
+                scene.GetRegistry().emplace<ColliderComponent>(playerEntity, glm::vec3(
+                    std::max(0.10f, (maxX - minX) * 0.5f),
+                    std::max(0.10f, (maxY - minY) * 0.5f),
+                    std::max(0.10f, (maxZ - minZ) * 0.5f)
+                ));
+            }
         }
 
         glm::vec4 unitColor(0.8f, 0.8f, 0.8f, 1.0f);
@@ -781,7 +820,6 @@ namespace SunEngine {
         colorComp.Color = unitColor;
         colorComp.BaseColor = unitColor;
     }
-
     void GameLayer::ApplyUnitVisuals(const TrainedUnit& unit) {
         SwapPlayerUnit(m_Scene, m_PlayerEntity, unit.blueprintId);
 
@@ -849,7 +887,30 @@ namespace SunEngine {
             }
         }
     }
+    bool GameLayer::ReloadMap(const std::string& mapId) {
+        // 1. Smonta la query PRIMA di distruggere la vecchia mesh
+        m_NavQuery.Destroy();
 
+        // 2. Carica la nuova mappa (move assignment libera la vecchia NavMesh)
+        std::string mapsDir = FindValidDir("Maps");
+        if (mapsDir.empty()) mapsDir = "GameData/Maps/";
+
+        m_CurrentMapData = MapLoader::LoadFromFile(m_Scene, mapsDir + mapId + ".json");
+        m_PhysicsSystem.RefreshBodies(m_Scene);
+
+        // 3. Aggancia la query alla nuova mesh
+        if (m_CurrentMapData.navMesh) {
+            if (!m_NavQuery.Init(m_CurrentMapData.navMesh.get())) {
+                SUN_CORE_ERROR("NavMeshQuery::Init fallita dopo reload mappa '{0}'", mapId);
+                return false;
+            }
+        }
+        else {
+            SUN_CORE_WARN("Mappa '{0}' senza NavMesh: pathfinding disabilitato.", mapId);
+        }
+
+        return true;
+    }
     int GameLayer::CalculateSquadPoints() const {
         int total = 0;
         for (int rosterIdx : m_SelectedSquadIndices) {
@@ -956,7 +1017,7 @@ namespace SunEngine {
 
         auto& inv = m_Scene.GetRegistry().emplace<InventoryComponent>(m_PlayerEntity);
         inv.primaryWeaponId = "lasgun_standard";
-        inv.secondaryWeaponId = "laspistol_m-g";
+        inv.secondaryWeaponId = "laspistol_standard";
         inv.meleeWeaponId = "combat_knife_1h";
         inv.currentSlot = 0;
 
@@ -970,28 +1031,32 @@ namespace SunEngine {
         wColor.Color = glm::vec4(0.2f, 0.2f, 0.25f, 1.0f);
         wColor.BaseColor = wColor.Color;
 
-        std::string mapsDir = FindValidDir("Maps");
-        if (mapsDir.empty()) mapsDir = "GameData/Maps/";
-
-        m_CurrentMapData = MapLoader::LoadFromFile(m_Scene, mapsDir + "warzone_sector4.json");
-        m_PhysicsSystem.RefreshBodies(m_Scene);
-
-        if (m_CurrentMapData.navMesh) {
-            m_NavQuery.Init(m_CurrentMapData.navMesh);
-        }
+        
+        ReloadMap("warzone_sector4");
 
         if (!m_CurrentMapData.playerSpawnPoints.empty()) {
             playerTransform.Position = m_CurrentMapData.playerSpawnPoints[0];
             m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, playerTransform.Position);
         }
-
         if (ma_engine_init(NULL, &m_AudioEngine) != MA_SUCCESS) {
             SUN_CORE_ERROR("ERRORE: Impossibile inizializzare MiniAudio!");
         }
         else {
+            // Crea un gruppo per gli SFX (passi, spari, ecc.)
+            if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_SFXGroup) == MA_SUCCESS) {
+                m_SFXGroupInitialized = true;
+                ma_sound_group_set_volume(&m_SFXGroup, m_VolumeSFX);
+            }
             InitOrkAudio(&m_AudioEngine);
-        }
 
+            // Inizializza il pool audio del WeaponSystem (spari positional)
+            std::string audioDir = FindValidDir("Audio");
+            m_WeaponSystem.InitAudio(
+                &m_AudioEngine,
+                m_SFXGroupInitialized ? &m_SFXGroup : nullptr,
+                audioDir
+            );
+        }
         m_Scene.GetRegistry().emplace<ParticleEmitterComponent>(m_PlayerEntity);
 
         TrainedUnit unit1{ "Sgt. Kael", "imperium_kasrkin", glm::vec4(0.35f, 0.45f, 0.25f, 1.0f) };
@@ -1008,18 +1073,32 @@ namespace SunEngine {
 
     GameLayer::~GameLayer()
     {
+        m_NavQuery.Destroy();
+
+        // 1. Ferma i pool del WeaponSystem PRIMA del gruppo (altrimenti i sound
+        //    attaccati al gruppo diventano dangling quando il gruppo viene distrutto)
+        m_WeaponSystem.ShutdownAudio();
+
+        // 2. Voci Ork
         if (g_OrkVoices.startSoundLoaded) {
             ma_sound_uninit(&g_OrkVoices.startWaaaghSound);
+            g_OrkVoices.startSoundLoaded = false;
         }
-
         for (auto& item : g_OrkVoices.voicePool) {
-            if (item) {
-                ma_sound_uninit(&item->sound);
-            }
+            if (item) ma_sound_uninit(&item->sound);
         }
         g_OrkVoices.voicePool.clear();
 
+        // 3. Gruppo SFX
+        if (m_SFXGroupInitialized) {
+            ma_sound_group_uninit(&m_SFXGroup);
+            m_SFXGroupInitialized = false;
+        }
+
+        // 4. Engine
         ma_engine_uninit(&m_AudioEngine);
+
+        // m_CurrentMapData.navMesh verrà liberata automaticamente da unique_ptr
     }
 
     void GameLayer::OnUpdate(float deltaTime)
@@ -1087,9 +1166,19 @@ namespace SunEngine {
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
             return;
         }
+        // --- Rilevamento morte del player giocante (una sola volta per morte) ---
+        auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity);
+        bool isPlayerAlive = hp && (hp->currentHealth > 0.0f);
 
-        auto* playerHealth = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity);
-        bool isPlayerAlive = playerHealth && (playerHealth->currentHealth > 0.0f);
+        if (hp && !isPlayerAlive && !m_PlayerDeathHandled) {
+            if (m_CurrentSquadMemberIdx >= 0 &&
+                m_CurrentSquadMemberIdx < static_cast<int>(m_ActiveSquad.size())) {
+                m_ActiveSquad[m_CurrentSquadMemberIdx].isAlive = false;
+                m_ActiveSquad[m_CurrentSquadMemberIdx].currentHealth = 0.0f;
+            }
+            m_PlayerDeathHandled = true;
+        }
+
         bool isAiming = false;
 
         EquipStance stance = EquipStance::RangedTwoHanded;
@@ -1305,8 +1394,8 @@ namespace SunEngine {
                 }
             }
 
-            m_MovementSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, deltaTime, m_VolumeSFX);
-            m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, deltaTime);
+            m_MovementSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, &m_SFXGroup, deltaTime, m_VolumeSFX);
+            m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
             m_PhysicsSystem.Update(m_Scene, deltaTime);
             m_WeightSystem.Update(m_Scene, deltaTime);
 
@@ -1648,10 +1737,9 @@ namespace SunEngine {
                 recoilPitch = recoil.recoilPitch;
                 recoilYaw = recoil.recoilYaw;
                 extraFov = recoil.fovOffset;
-
                 if (recoil.shakeIntensity > 0.001f) {
-                    float shakeX = ((rand() % 100) / 100.0f - 0.5f) * recoil.shakeIntensity;
-                    float shakeY = ((rand() % 100) / 100.0f - 0.5f) * recoil.shakeIntensity;
+                    float shakeX = (Random::Float01() - 0.5f) * recoil.shakeIntensity;
+                    float shakeY = (Random::Float01() - 0.5f) * recoil.shakeIntensity;
                     shakeOffset = glm::vec3(shakeX, shakeY, 0.0f);
                 }
 
@@ -1787,9 +1875,8 @@ namespace SunEngine {
                         int spawnAmount = std::min(g_WaaaghSpawnCount, static_cast<int>(MAX_ACTIVE_ENEMIES - activeEnemyCount));
 
                         for (int i = 0; i < spawnAmount; ++i) {
-                            float angle = ((rand() % 360) * 3.14159265f) / 180.0f;
-                            float randomFactor = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-                            float distance = minSpawnDistance + randomFactor * (maxSpawnDistance - minSpawnDistance);
+                            float angle = Random::Range(0.0f, 6.28318530718f);
+                            float distance = Random::Range(minSpawnDistance, maxSpawnDistance);
 
                             glm::vec3 spawnPos = transform.Position + glm::vec3(std::cos(angle) * distance, 0.0f, std::sin(angle) * distance);
                             SpawnOrkBoy(m_Scene, spawnPos);
@@ -2244,6 +2331,7 @@ namespace SunEngine {
                 if (ImGui::Button("Torna al Menu Principale", ImVec2(-1, 40))) {
                     m_GameState = GameState::MainMenu;
                     m_IsPaused = false;
+                    m_PlayerDeathHandled = false;
                     g_WaaaghActive = false;
                     g_WaaaghTimer = 0.0f;
                     g_WaaaghSpawnCount = 1;
@@ -3143,15 +3231,7 @@ namespace SunEngine {
                     m_Scene.DestroyEntity(e);
                 }
 
-                std::string mapsDir = FindValidDir("Maps");
-                if (mapsDir.empty()) mapsDir = "GameData/Maps/";
-
-                m_CurrentMapData = MapLoader::LoadFromFile(m_Scene, mapsDir + m_SelectedMapId + ".json");
-                m_PhysicsSystem.RefreshBodies(m_Scene);
-
-                if (m_CurrentMapData.navMesh) {
-                    m_NavQuery.Init(m_CurrentMapData.navMesh);
-                }
+                ReloadMap(m_SelectedMapId);
 
                 m_ActiveSquad.clear();
                 for (int rosterIdx : m_SelectedSquadIndices) {
@@ -3163,7 +3243,7 @@ namespace SunEngine {
 
                 m_CurrentSquadMemberIdx = 0;
                 m_KillCount = 0;
-
+                m_PlayerDeathHandled = false;   
                 ApplyUnitVisuals(m_PlayerRoster[m_ActiveSquad[0].rosterIndex]);
 
                 if (m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
@@ -3225,6 +3305,7 @@ namespace SunEngine {
 
             if (ImGui::Button("Torna al Menu Principale (Garage)", ImVec2(-1, 50))) {
                 m_GameState = GameState::MainMenu;
+                m_PlayerDeathHandled = false;   
                 g_WaaaghActive = false;
                 g_WaaaghTimer = 0.0f;
                 g_WaaaghSpawnCount = 1;
@@ -3265,14 +3346,36 @@ namespace SunEngine {
                         if (m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
                             auto& playerTrans = m_Scene.GetRegistry().get<TransformComponent>(m_PlayerEntity);
                             if (!m_CurrentMapData.playerSpawnPoints.empty()) {
-                                int randomSpawnIdx = rand() % m_CurrentMapData.playerSpawnPoints.size();
+                                int randomSpawnIdx = Random::RangeInt(0, static_cast<int>(m_CurrentMapData.playerSpawnPoints.size()) - 1);
                                 playerTrans.Position = m_CurrentMapData.playerSpawnPoints[randomSpawnIdx];
                                 m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, playerTrans.Position);
                             }
                         }
 
-                        auto& hp = m_Scene.GetRegistry().get<HealthComponent>(m_PlayerEntity);
-                        hp.currentHealth = hp.maxHealth;
+                        if (auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity)) {
+                            hp->currentHealth = hp->maxHealth;
+                        }
+
+                        // Reset stato combattimento del player (respawn pulito)
+                        if (auto* melee = m_Scene.GetRegistry().try_get<MeleeStateComponent>(m_PlayerEntity)) {
+                            melee->currentPhase = MeleePhase::None;
+                            melee->currentAttack = MeleeAttackType::None;
+                            melee->currentAttackNode = "";
+                            melee->stateTimer = 0.0f;
+                            melee->bufferedInput = "";
+                            melee->inputBufferTimer = 0.0f;
+                            melee->hasHitInThisAttack = false;
+                        }
+                        if (auto* wState = m_Scene.GetRegistry().try_get<WeaponStateComponent>(m_PlayerEntity)) {
+                            wState->isReloading = false;
+                            wState->reloadTimer = 0.0f;
+                            wState->fireCooldown = 0.0f;
+                            wState->currentHeat = 0.0f;
+                            wState->isOverheating = false;
+                        }
+
+                        // Reset del flag di morte: senza questo la prossima morte non triggera
+                        m_PlayerDeathHandled = false;
 
                         if (window) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                     }
@@ -3331,7 +3434,11 @@ namespace SunEngine {
                     ImGui::Separator(); ImGui::Spacing();
 
                     ImGui::Text("Ambienza & Effetti Gioco (SFX):");
-                    ImGui::SliderFloat("##VolumeSFX", &m_VolumeSFX, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::SliderFloat("##VolumeSFX", &m_VolumeSFX, 0.0f, 1.0f, "%.2f")) {
+                        if (m_SFXGroupInitialized) {
+                            ma_sound_group_set_volume(&m_SFXGroup, m_VolumeSFX);
+                        }
+                    }
 
                     ImGui::Spacing();
                     ImGui::Text("Voci, Schiamazzi & Versi:");

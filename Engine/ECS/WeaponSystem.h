@@ -9,8 +9,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
-
-#define GLFW_KEY_R 82
+#include <unordered_map>
+#include <vector>
+#include <memory>
+#include <string>
 
 namespace SunEngine {
 
@@ -19,19 +21,71 @@ namespace SunEngine {
     class WeaponSystem {
     public:
         WeaponSystem() = default;
+        ~WeaponSystem();
 
-        void Update(Scene& scene, PhysicsSystem& physicsSystem, ma_engine* audioEngine, float deltaTime);
+        // Inizializza il pool audio. Chiamare UNA VOLTA dal GameLayer dopo ma_engine_init.
+        // audioDir è il path assoluto (da FindValidDir) alla cartella Audio.
+        // group può essere nullptr: in quel caso il volume SFX globale non ha effetto.
+        void InitAudio(ma_engine* engine, ma_sound_group* group, const std::string& audioDir);
+
+        // Libera i sound del pool. Chiamare PRIMA di ma_sound_group_uninit / ma_engine_uninit.
+        void ShutdownAudio();
+
+        void Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime);
 
     private:
-        void FireWeapon(Scene& scene, entt::entity shooter, WeaponStateComponent& wState, CameraRecoilComponent& recoil, const WeaponBlueprint& wpBP, TransformComponent& trans, UnitStatsComponent& stats, ma_engine* audioEngine);
+        // --- Pool di suoni per path (fire-and-forget con volume/posizione individuali) ---
+        struct WeaponSoundInstance {
+            ma_sound sound{};
+            bool loaded = false;
+        };
 
-        void FireContinuousBeam(Scene& scene, entt::entity shooter, WeaponStateComponent& wState, CameraRecoilComponent& recoil, const WeaponBlueprint& wpBP, TransformComponent& trans, UnitStatsComponent& stats, ma_engine* audioEngine, float deltaTime);
+        ma_engine* m_Engine = nullptr;
+        ma_sound_group* m_SFXGroup = nullptr;
+        bool m_AudioInitialized = false;
+        std::string m_AudioDir;
 
-        void FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP, const glm::vec3& origin, const glm::vec3& dir);
+        std::unordered_map<std::string, std::vector<std::unique_ptr<WeaponSoundInstance>>> m_SoundPools;
 
-        bool RaycastHitbox(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir, float maxDist, entt::entity shooter, entt::entity& outHitEntity, HitboxLocation& outLocation, float& outHitDist);
+        // Ritorna un'istanza libera dal pool per quel path, creando il pool se necessario.
+        WeaponSoundInstance* GetFreeInstance(const std::string& absolutePath);
 
-        float CalculateDamageWithFalloff(float baseDamage, float distance, float falloffStart, float falloffEnd);
+        // Riproduce lo sparo con attenuazione spaziale simulata sul volume.
+        void PlayWeaponSound(const glm::vec3& sourcePos, const glm::vec3& listenerPos, float baseVolume = 1.0f);
+
+        // --- Sistemi interni ---
+        void FireWeapon(Scene& scene, entt::entity shooter,
+            WeaponStateComponent& wState, CameraRecoilComponent& recoil,
+            const WeaponBlueprint& wpBP, TransformComponent& trans,
+            UnitStatsComponent& stats);
+
+        void FireContinuousBeam(Scene& scene, entt::entity shooter,
+            WeaponStateComponent& wState, CameraRecoilComponent& recoil,
+            const WeaponBlueprint& wpBP, TransformComponent& trans,
+            UnitStatsComponent& stats, float deltaTime);
+
+        void FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP,
+            const glm::vec3& origin, const glm::vec3& dir);
+
+        // --- Raycast ---
+        struct RaycastResult {
+            bool hit = false;
+            bool hitUnit = false;
+            entt::entity entity = entt::null;
+            HitboxLocation location = HitboxLocation::Torso;
+            float distance = 0.0f;
+            glm::vec3 point{ 0.0f };
+        };
+
+        RaycastResult RaycastAll(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
+            float maxDist, entt::entity shooter);
+
+        bool RaycastHitbox(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
+            float maxDist, entt::entity shooter, entt::entity& outHitEntity,
+            HitboxLocation& outLocation, float& outHitDist);
+
+        float CalculateDamageWithFalloff(float baseDamage, float distance,
+            float falloffStart, float falloffEnd);
     };
 
 }

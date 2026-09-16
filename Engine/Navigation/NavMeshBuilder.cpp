@@ -2,13 +2,17 @@
 #include "../Core/Logger/Log.h"
 
 #include <Recast.h>
-#include <DetourNavMesh.h>
+#include <DetourNavMesh.h> 
 #include <DetourNavMeshBuilder.h>
 #include <algorithm>
 #include <cstring>
 
 namespace SunEngine {
-
+    void NavMeshDeleter::operator()(dtNavMesh* mesh) const {
+        if (mesh) {
+            dtFreeNavMesh(mesh);
+        }
+    }
     // Context minimale per i log di Recast
     class SunRecastContext : public rcContext {
     protected:
@@ -83,7 +87,7 @@ namespace SunEngine {
         AddFace(corners[3], corners[0], corners[4], corners[7]); // Left
     }
 
-    dtNavMesh* NavMeshBuilder::Build() {
+    NavMeshPtr NavMeshBuilder::Build() {
         if (m_Vertices.empty() || m_Indices.empty()) {
             SUN_CORE_ERROR("NavMeshBuilder: Nessuna geometria fornita per costruire la NavMesh.");
             return nullptr;
@@ -179,12 +183,18 @@ namespace SunEngine {
             return nullptr;
         }
 
-        // 8. Costruzione NavMesh Finale
-        dtNavMesh* navMesh = dtAllocNavMesh();
+        // --- OWNERSHIP: unique_ptr che si auto-libera ---
+        NavMeshPtr navMesh(dtAllocNavMesh());
+        if (!navMesh) {
+            SUN_CORE_ERROR("NavMeshBuilder: dtAllocNavMesh fallita.");
+            dtFree(navData);
+            return nullptr;
+        }
+
         if (dtStatusFailed(navMesh->init(navData, navDataSize, DT_TILE_FREE_DATA))) {
             SUN_CORE_ERROR("NavMeshBuilder: Inizializzazione dtNavMesh fallita.");
             dtFree(navData);
-            dtFreeNavMesh(navMesh);
+            // navMesh esce di scope e chiama dtFreeNavMesh automaticamente
             return nullptr;
         }
 

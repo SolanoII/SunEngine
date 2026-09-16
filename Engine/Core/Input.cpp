@@ -50,9 +50,20 @@ namespace SunEngine
             s_MouseStates[button] = false;
         }
     }
-
     void Input::OnMouseMoved(double x, double y)
     {
+        // Primo evento dopo l'acquisizione: inizializza la posizione senza produrre delta.
+        // Senza questo, il primo OnMouseMoved genera un salto enorme perché s_LastMouseX/Y
+        // partono da 0 mentre il cursore è già a metà schermo.
+        static bool s_FirstMouse = true;
+        if (s_FirstMouse) {
+            s_LastMouseX = x;
+            s_LastMouseY = y;
+            s_MouseDelta = { 0.0f, 0.0f };
+            s_FirstMouse = false;
+            return;
+        }
+
         s_MouseDelta.x = static_cast<float>(x - s_LastMouseX);
         s_MouseDelta.y = static_cast<float>(y - s_LastMouseY);
         s_LastMouseX = x;
