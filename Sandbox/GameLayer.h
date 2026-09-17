@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine/Core/Layer/Layer.h"
 #include "Engine/Scene/Scene.h"
@@ -15,6 +15,7 @@
 #include "Engine/Navigation/NavMeshQuery.h"
 #include "Engine/AssetManager/BlueprintManager.h"
 
+#include "Engine/Renderer/Pipeline/DeferredRenderer.h"
 #include "Engine/Renderer/Model.h"
 #include "Engine/Renderer/StaticModelShader.h"
 #include "Engine/Renderer/SkinnedModel.h"
@@ -158,6 +159,7 @@ namespace SunEngine {
         void RenderEditorGizmos3D();
 
         void ApplyDisplaySettings(int width, int height, bool fullscreen);
+        void UpdateWindowSize();               // ← AGGIUNGI QUESTA DICHIARAZIONE
         void ApplyUnitVisuals(const TrainedUnit& unit);
         int CalculateSquadPoints() const;
         void CheckUnitDeaths();
@@ -189,6 +191,7 @@ namespace SunEngine {
         ma_engine m_AudioEngine;
         ma_sound_group m_SFXGroup;      // o "m_FootstepGroup"
         bool m_SFXGroupInitialized = false;
+        bool m_AudioEngineInitialized = false;   // ← AGGIUNGI QUESTA RIGA
 
         entt::entity m_PlayerEntity = entt::null;
         entt::entity m_WeaponEntity = entt::null;
@@ -226,7 +229,10 @@ namespace SunEngine {
         bool m_ShowOptionsMenu = false;
         bool m_IsFullscreen = false;
         int m_SelectedResolutionIdx = 0;
-
+        // Dimensioni correnti della finestra (in pixel framebuffer).
+// Aggiornate ad ogni frame da UpdateWindowSize().
+        float m_WindowWidth = 1280.0f;
+        float m_WindowHeight = 720.0f;
         float m_VolumeSFX = 0.8f;
         float m_VolumeVoice = 0.8f;
         float m_VolumeMusic = 0.8f;
@@ -241,6 +247,9 @@ namespace SunEngine {
 
         EditorGizmoMode m_GizmoMode = EditorGizmoMode::Translate;
         bool m_IsDraggingGizmo = false;
+
+        DeferredRenderer m_DeferredRenderer;
+        bool m_UseDeferredTest = false;  // toggle
     };
 
 }

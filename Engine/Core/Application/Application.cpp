@@ -81,6 +81,7 @@ namespace SunEngine
         if (event.GetEventType() == EventType::WindowClose)
         {
             m_Running = false;
+            event.Handled = true;
         }
     }
 

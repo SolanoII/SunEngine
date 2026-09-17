@@ -35,15 +35,14 @@ namespace SunEngine {
         int attacksToPerform = 1;
         int currentAttackCount = 0;
 
-        // --- CAMPI PER LA NAVMESH ---
         std::vector<glm::vec3> currentPath;
         float pathUpdateTimer = 0.0f;
 
-        // --- CAMPI PER LINE OF SIGHT ---
         bool hasLOS = false;
         glm::vec3 lastKnownPlayerPos{ 0.0f };
-        float losCheckTimer = 0.0f;   // countdown per il prossimo raycast
-        float losCheckInterval = 0.30f; // quanto spesso rivalutare la visibilità
+        bool hasEverSeenPlayer = false;   // <-- AGGIUNGI QUESTA RIGA
+        float losCheckTimer = 0.0f;
+        float losCheckInterval = 0.30f;
     };
 
     enum class SurfaceType {
@@ -188,7 +187,17 @@ namespace SunEngine {
         float maxHealth = 100.0f;
     };
 
-    struct ColliderComponent { glm::vec3 halfExtents = glm::vec3(0.5f); };
+    struct ColliderComponent {
+        glm::vec3 halfExtents = glm::vec3(0.5f);
+        // Offset dal TransformComponent.Position al CENTRO del box, in spazio
+        // locale (pre-scala, pre-rotazione). Viene moltiplicato per transform.Scale
+        // e ruotato dalla rotazione dell'entita'.
+        //
+        // Convenzione "box con la base a Position": (0, halfExtents.y, 0).
+        // Convenzione "box centrato su Position":   (0, 0, 0).
+        // Convenzione "skeleton-based":             (0, (minY+maxY)/2, 0).
+        glm::vec3 localCenterOffset = glm::vec3(0.0f);
+    };
     struct UnitBlueprintId { std::string id; };
     struct WeaponBlueprintId { std::string id; };
 

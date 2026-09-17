@@ -69,6 +69,7 @@ namespace SunEngine {
                 horde.hasLOS = HasLineOfSight(scene, eyePos, targetPos, ork);
                 if (horde.hasLOS) {
                     horde.lastKnownPlayerPos = playerPos;
+                    horde.hasEverSeenPlayer = true;   // <-- AGGIUNGI QUESTA RIGA
                 }
             }
 
@@ -77,13 +78,11 @@ namespace SunEngine {
             // resta in attesa in cerchio attorno al player per non impazzire).
             glm::vec3 effectivePlayerPos = horde.hasLOS
                 ? playerPos
-                : (horde.lastKnownPlayerPos != glm::vec3(0.0f)
-                    ? horde.lastKnownPlayerPos
-                    : playerPos);
+                : (horde.hasEverSeenPlayer ? horde.lastKnownPlayerPos : playerPos);
 
             // Se non ha LOS e non ha mai visto il player, non deve caricare:
             // resta in cerchio (Waiting) finche' non acquisisce visibilità.
-            if (!horde.hasLOS && horde.lastKnownPlayerPos == glm::vec3(0.0f)) {
+            if (!horde.hasLOS && !horde.hasEverSeenPlayer) {
                 if (horde.state == HordeState::Approaching || horde.state == HordeState::Attacking) {
                     horde.state = HordeState::Waiting;
                     horde.assignedSlotIndex = -1;

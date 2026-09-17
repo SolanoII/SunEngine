@@ -42,19 +42,16 @@ set(ASSIMP_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INSTALL_PDB OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INJECT_DEBUG_POSTFIX OFF CACHE BOOL "" FORCE)
 
-# Disabilita Exporter
 set(ASSIMP_BUILD_EXPORTERS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_NO_EXPORT ON CACHE BOOL "" FORCE)
 
-# Disabilita installazione e shared library
 set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_INSTALL OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-# Abilita Importer (solo quelli necessari)
 set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_GLTF2_IMPORTER ON CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "" FORCE)   # per FBX
+set(ASSIMP_BUILD_FBX_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_OBJ_IMPORTER ON CACHE BOOL "" FORCE)
 set(ASSIMP_BUILD_STL_IMPORTER ON CACHE BOOL "" FORCE)
 
@@ -93,6 +90,23 @@ FetchContent_MakeAvailable(nlohmann_json)
 FetchContent_Declare(miniaudio GIT_REPOSITORY https://github.com/mackron/miniaudio.git GIT_TAG 0.11.21)
 FetchContent_MakeAvailable(miniaudio)
 
+# ==========================
+# STB (header-only: stb_image, stb_image_write)
+# ==========================
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        master
+)
+FetchContent_MakeAvailable(stb)
+
+# STB image implementation (va compilata una sola volta in tutto il progetto)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/stb_image_impl.c"
+"#define STB_IMAGE_IMPLEMENTATION\n#include \"stb_image.h\"\n"
+)
+add_library(stb_image STATIC "${CMAKE_CURRENT_BINARY_DIR}/stb_image_impl.c")
+target_include_directories(stb_image PUBLIC ${stb_SOURCE_DIR})
+
 find_package(OpenGL REQUIRED)
 
 # ==========================
@@ -110,7 +124,7 @@ if(NOT imgui_POPULATED)
         ${imgui_SOURCE_DIR}/imgui_demo.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-     "Engine/Renderer/SkinnedVertex.h" "Engine/Renderer/SkinnedModel.h" "Engine/Renderer/SkinnedModelShader.h" "Engine/ECS/RifleLocomotionState.h" "Engine/Renderer/RifleAnimationController.h" "Engine/Renderer/Animator.h" "Engine/ECS/RaycastUtils.h" "Engine/Core/Random.h")
+    )
     target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 endif()
@@ -134,7 +148,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics/Build" EXCLUD
 # Engine (Libreria Statica)
 # ==========================
 file(GLOB_RECURSE ENGINE_SOURCES "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
-add_library(SunEngine STATIC ${ENGINE_SOURCES} "Engine/Renderer/SkinnedVertex.h" "Engine/Renderer/SkinnedModel.h" "Engine/Renderer/SkinnedModelShader.h" "Engine/ECS/RifleLocomotionState.h" "Engine/Renderer/RifleAnimationController.h" "Engine/Renderer/Animator.h" "Engine/ECS/RaycastUtils.h" "Engine/Core/Random.h")
+add_library(SunEngine STATIC ${ENGINE_SOURCES})
 
 target_include_directories(SunEngine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -158,13 +172,14 @@ target_link_libraries(SunEngine PUBLIC
     Detour 
     Recast 
     assimp
+    stb_image
 )
 
 # ==========================
 # Gioco (Eseguibile)
 # ==========================
 file(GLOB_RECURSE SANDBOX_SOURCES "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
-add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/Renderer/SkinnedVertex.h" "Engine/Renderer/SkinnedModel.h" "Engine/Renderer/SkinnedModelShader.h" "Engine/ECS/RifleLocomotionState.h" "Engine/Renderer/RifleAnimationController.h" "Engine/Renderer/Animator.h" "Engine/ECS/RaycastUtils.h" "Engine/Core/Random.h")
+add_executable(ProjectTrazyn ${SANDBOX_SOURCES})
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
 
 # ==========================

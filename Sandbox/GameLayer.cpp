@@ -1,10 +1,10 @@
-#define NOMINMAX
+﻿#define NOMINMAX
 #include <glad/glad.h>
 
 #include "GameLayer.h"
 #include "Engine/Core/Application/Application.h"
 #include "Engine/Core/Random.h"
-#include "Engine/Core/MathUtils.h"     // <-- AGGIUNGI
+#include "Engine/Core/MathUtils.h"
 #include "Engine/Core/Input.h"
 #include "Engine/Core/Logger/Log.h"
 #include "Engine/ECS/Components.h"
@@ -28,6 +28,7 @@
 #include <memory>
 #include <fstream>
 #include <filesystem>
+#include <cstdio>
 #include <nlohmann/json.hpp>
 
 #define MINIAUDIO_IMPLEMENTATION
@@ -52,8 +53,6 @@ namespace SunEngine {
         float y = (1.0f - ndc.y) * 0.5f * screenHeight;
         return glm::vec2(x, y);
     }
-
-    
 
     struct ResOption {
         int width;
@@ -125,7 +124,8 @@ namespace SunEngine {
         trans.Scale = localScale;
 
         scene.GetRegistry().emplace<MeshComponent>(entity, 0u);
-        scene.GetRegistry().emplace<ColliderComponent>(entity, glm::vec3(0.5f));
+        auto& col = scene.GetRegistry().emplace<ColliderComponent>(entity, glm::vec3(0.5f));
+        col.localCenterOffset = glm::vec3(0.0f, 0.5f, 0.0f);
         scene.GetRegistry().emplace<RigidBodyComponent>(entity, glm::vec3(0.0f), 0.0f, true);
 
         auto& c = scene.GetRegistry().emplace<ColorComponent>(entity);
@@ -396,7 +396,7 @@ namespace SunEngine {
             if (window) glfwGetCursorPos(window, &mouseXDouble, &mouseYDouble);
             glm::vec2 mousePos(static_cast<float>(mouseXDouble), static_cast<float>(mouseYDouble));
 
-            float screenW = 1280.0f, screenH = 720.0f;
+            float screenW = m_WindowWidth, screenH = m_WindowHeight;
             float ndcX = (2.0f * mousePos.x) / screenW - 1.0f;
             float ndcY = 1.0f - (2.0f * mousePos.y) / screenH;
 
@@ -484,7 +484,7 @@ namespace SunEngine {
         glm::vec3 origin = st.position;
 
         glm::mat4 vp = m_Camera.GetViewProjection();
-        float screenW = 1280.0f, screenH = 720.0f;
+        float screenW = m_WindowWidth, screenH = m_WindowHeight;
 
         glm::vec2 center2D = WorldToScreen(origin, vp, screenW, screenH);
         glm::vec2 posX2D = WorldToScreen(origin + glm::vec3(3.0f, 0.0f, 0.0f), vp, screenW, screenH);
@@ -668,7 +668,8 @@ namespace SunEngine {
         scene.GetRegistry().emplace<MeshComponent>(enemyEntity, 0u);
         scene.GetRegistry().emplace<HealthComponent>(enemyEntity, 50.0f, 50.0f);
 
-        scene.GetRegistry().emplace<ColliderComponent>(enemyEntity, glm::vec3(0.35f, 0.65f, 0.35f));
+        auto& enemyCol = scene.GetRegistry().emplace<ColliderComponent>(enemyEntity, glm::vec3(0.35f, 0.65f, 0.35f));
+        enemyCol.localCenterOffset = glm::vec3(0.0f, 0.65f, 0.0f);
         scene.GetRegistry().emplace<RigidBodyComponent>(enemyEntity, glm::vec3(0.0f), 0.0f, false);
 
         auto& enemyColor = scene.GetRegistry().emplace<ColorComponent>(enemyEntity);
@@ -743,9 +744,6 @@ namespace SunEngine {
             skelComp.scale = 1.0f;
             skelComp.blockFlashTimers.assign(skelComp.data.blocks.size(), 0.0f);
 
-            // --- FIX: adatta il collider ai bounds reali del nuovo skeleton ---
-            // Calcoliamo gli 8 vertici del cubo unitario [-0.5, 0.5]^3 per ogni blocco,
-            // trasformati dallo skeleton in posa A (rotazioni a zero, posizione zero).
             auto worldTransforms = skelComp.data.ComputeWorldTransforms(
                 glm::vec3(0.0f), glm::vec3(0.0f), skelComp.scale);
 
@@ -767,22 +765,26 @@ namespace SunEngine {
                         }
             }
 
-            // Il transform.Position del player � "ai piedi". RefreshBodies() centra
-            // automaticamente il box Jolt a `Position + halfExtents.y`, quindi il box
-            // va da Position.y a Position.y + altezzaReale. Nessun offset extra necessario.
-            if (auto* col = scene.GetRegistry().try_get<ColliderComponent>(playerEntity)) {
-                col->halfExtents = glm::vec3(
-                    std::max(0.10f, (maxX - minX) * 0.5f),
-                    std::max(0.10f, (maxY - minY) * 0.5f),
-                    std::max(0.10f, (maxZ - minZ) * 0.5f)
-                );
+            const glm::vec3 rawHalfExtents(
+                std::max(0.05f, (maxX - minX) * 0.5f),
+                std::max(0.05f, (maxY - minY) * 0.5f),
+                std::max(0.05f, (maxZ - minZ) * 0.5f)
+            );
+
+            const glm::vec3 rawCenterOffset(
+                (minX + maxX) * 0.5f,
+                (minY + maxY) * 0.5f,
+                (minZ + maxZ) * 0.5f
+            );
+
+            if (auto* existingCol = scene.GetRegistry().try_get<ColliderComponent>(playerEntity)) {
+                existingCol->halfExtents = rawHalfExtents;
+                existingCol->localCenterOffset = rawCenterOffset;
             }
             else {
-                scene.GetRegistry().emplace<ColliderComponent>(playerEntity, glm::vec3(
-                    std::max(0.10f, (maxX - minX) * 0.5f),
-                    std::max(0.10f, (maxY - minY) * 0.5f),
-                    std::max(0.10f, (maxZ - minZ) * 0.5f)
-                ));
+                auto& newCol = scene.GetRegistry().emplace<ColliderComponent>(playerEntity);
+                newCol.halfExtents = rawHalfExtents;
+                newCol.localCenterOffset = rawCenterOffset;
             }
         }
 
@@ -859,24 +861,21 @@ namespace SunEngine {
                 wState.fireCooldown = 0.0f;
                 wState.currentHeat = 0.0f;
                 wState.isOverheating = false;
-                wState.burstRemaining = 0;   // <-- AGGIUNGI: evita che una raffica a meta' passi all'arma nuova
+                wState.burstRemaining = 0;
                 const auto* weaponBP = BlueprintManager::Get().GetWeapon(activeId);
                 if (weaponBP) wState.currentAmmo = weaponBP->magazine_size;
             }
         }
     }
     bool GameLayer::ReloadMap(const std::string& mapId) {
-        // 1. Smonta la query PRIMA di distruggere la vecchia mesh
         m_NavQuery.Destroy();
 
-        // 2. Carica la nuova mappa (move assignment libera la vecchia NavMesh)
         std::string mapsDir = FindValidDir("Maps");
         if (mapsDir.empty()) mapsDir = "GameData/Maps/";
 
         m_CurrentMapData = MapLoader::LoadFromFile(m_Scene, mapsDir + mapId + ".json");
         m_PhysicsSystem.RefreshBodies(m_Scene);
 
-        // 3. Aggancia la query alla nuova mesh
         if (m_CurrentMapData.navMesh) {
             if (!m_NavQuery.Init(m_CurrentMapData.navMesh.get())) {
                 SUN_CORE_ERROR("NavMeshQuery::Init fallita dopo reload mappa '{0}'", mapId);
@@ -899,7 +898,18 @@ namespace SunEngine {
         }
         return total;
     }
+    void GameLayer::UpdateWindowSize() {
+        GLFWwindow* window = glfwGetCurrentContext();
+        if (!window) return;
 
+        int w = 0, h = 0;
+        glfwGetFramebufferSize(window, &w, &h);
+
+        if (w > 0 && h > 0) {
+            m_WindowWidth = static_cast<float>(w);
+            m_WindowHeight = static_cast<float>(h);
+        }
+    }
     void GameLayer::ApplyDisplaySettings(int width, int height, bool fullscreen) {
         GLFWwindow* window = glfwGetCurrentContext();
         if (!window) return;
@@ -917,7 +927,10 @@ namespace SunEngine {
             glfwSetWindowMonitor(window, NULL, std::max(50, posX), std::max(50, posY), width, height, 0);
         }
         glViewport(0, 0, width, height);
-        m_Camera.SetViewportSize(static_cast<float>(width), static_cast<float>(height));
+
+        m_WindowWidth = static_cast<float>(width);
+        m_WindowHeight = static_cast<float>(height);
+        m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
     }
 
     void GameLayer::CheckUnitDeaths() {
@@ -938,7 +951,7 @@ namespace SunEngine {
     GameLayer::GameLayer() : Layer("Game Layer")
     {
         m_PhysicsSystem.Init(m_Scene);
-
+        m_DeferredRenderer.Init(1280, 720);
         m_StaticShader.Init();
 
         std::string modelsDir = FindValidDir("Models");
@@ -973,7 +986,11 @@ namespace SunEngine {
             }
         }
 
-        m_Camera.SetViewportSize(1280.0f, 720.0f);
+        int fbW = 0, fbH = 0;
+        if (window) glfwGetFramebufferSize(window, &fbW, &fbH);
+        m_WindowWidth = (fbW > 0) ? static_cast<float>(fbW) : 1280.0f;
+        m_WindowHeight = (fbH > 0) ? static_cast<float>(fbH) : 720.0f;
+        m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
 
         m_PlayerEntity = m_Scene.CreateEntity();
         auto& playerTransform = m_Scene.GetRegistry().emplace<TransformComponent>(m_PlayerEntity);
@@ -982,7 +999,8 @@ namespace SunEngine {
         playerTransform.Position = glm::vec3(0.0f, 0.0f, 0.0f);
         playerTransform.Scale = glm::vec3(1.0f, 1.0f, 1.0f);
 
-        m_Scene.GetRegistry().emplace<ColliderComponent>(m_PlayerEntity, glm::vec3(0.3f, 0.62f, 0.3f));
+        auto& playerCol = m_Scene.GetRegistry().emplace<ColliderComponent>(m_PlayerEntity, glm::vec3(0.3f, 0.62f, 0.3f));
+        playerCol.localCenterOffset = glm::vec3(0.0f, 0.62f, 0.0f);
         m_Scene.GetRegistry().emplace<RigidBodyComponent>(m_PlayerEntity, glm::vec3(0.0f), 0.0f, false);
 
         m_Scene.GetRegistry().emplace<HealthComponent>(m_PlayerEntity, 100.0f, 100.0f);
@@ -1009,7 +1027,6 @@ namespace SunEngine {
         wColor.Color = glm::vec4(0.2f, 0.2f, 0.25f, 1.0f);
         wColor.BaseColor = wColor.Color;
 
-        
         ReloadMap("warzone_sector4");
 
         if (!m_CurrentMapData.playerSpawnPoints.empty()) {
@@ -1018,16 +1035,17 @@ namespace SunEngine {
         }
         if (ma_engine_init(NULL, &m_AudioEngine) != MA_SUCCESS) {
             SUN_CORE_ERROR("ERRORE: Impossibile inizializzare MiniAudio!");
+            m_AudioEngineInitialized = false;
         }
         else {
-            // Crea un gruppo per gli SFX (passi, spari, ecc.)
+            m_AudioEngineInitialized = true;
+
             if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_SFXGroup) == MA_SUCCESS) {
                 m_SFXGroupInitialized = true;
                 ma_sound_group_set_volume(&m_SFXGroup, m_VolumeSFX);
             }
             InitOrkAudio(&m_AudioEngine);
 
-            // Inizializza il pool audio del WeaponSystem (spari positional)
             std::string audioDir = FindValidDir("Audio");
             m_WeaponSystem.InitAudio(
                 &m_AudioEngine,
@@ -1052,13 +1070,10 @@ namespace SunEngine {
     GameLayer::~GameLayer()
     {
         m_NavQuery.Destroy();
-
-        // 1. Ferma i pool audio dei sistemi PRIMA del gruppo (altrimenti i sound
-        //    attaccati al gruppo diventano dangling quando il gruppo viene distrutto)
+        m_DeferredRenderer.Shutdown();
         m_WeaponSystem.ShutdownAudio();
         m_MovementSystem.ShutdownAudio();
 
-        // 2. Voci Ork
         if (g_OrkVoices.startSoundLoaded) {
             ma_sound_uninit(&g_OrkVoices.startWaaaghSound);
             g_OrkVoices.startSoundLoaded = false;
@@ -1068,22 +1083,21 @@ namespace SunEngine {
         }
         g_OrkVoices.voicePool.clear();
 
-        // 3. Gruppo SFX
         if (m_SFXGroupInitialized) {
             ma_sound_group_uninit(&m_SFXGroup);
             m_SFXGroupInitialized = false;
         }
 
-        // 4. Engine
-        ma_engine_uninit(&m_AudioEngine);
-
-        // m_CurrentMapData.navMesh verr� liberata automaticamente da unique_ptr
+        if (m_AudioEngineInitialized) {
+            ma_engine_uninit(&m_AudioEngine);
+            m_AudioEngineInitialized = false;
+        }
     }
 
     void GameLayer::OnUpdate(float deltaTime)
     {
         GLFWwindow* window = glfwGetCurrentContext();
-
+        UpdateWindowSize();
         static bool escPressedLastFrame = false;
         bool escPressed = Input::IsKeyPressed(GLFW_KEY_ESCAPE);
         if (escPressed && !escPressedLastFrame) {
@@ -1116,7 +1130,7 @@ namespace SunEngine {
             if (Input::IsKeyPressed(GLFW_KEY_A) && Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) m_EditorCameraTarget -= right * moveSpeed;
             if (Input::IsKeyPressed(GLFW_KEY_D) && Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) m_EditorCameraTarget += right * moveSpeed;
 
-            m_Camera.SetViewportSize(1280.0f, 720.0f);
+            m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
             m_Camera.SetCameraOffsets(0.0f, 0.0f, m_EditorCameraDistance);
             m_Camera.SetTarget(m_EditorCameraTarget, m_EditorCameraYaw);
             m_Camera.SetPitch(m_EditorCameraPitch);
@@ -1136,7 +1150,7 @@ namespace SunEngine {
 
             glm::vec3 garageTargetPos = transform.Position + glm::vec3(0.0f, 0.9f, 0.0f);
 
-            m_Camera.SetViewportSize(1280.0f, 720.0f);
+            m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
             m_Camera.SetCameraOffsets(0.0f, 0.2f, m_GarageCameraDistance);
             m_Camera.SetTarget(garageTargetPos, m_GarageCameraAngle);
             m_Camera.SetPitch(-5.0f);
@@ -1145,7 +1159,6 @@ namespace SunEngine {
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
             return;
         }
-        // --- Rilevamento morte del player giocante (una sola volta per morte) ---
         auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity);
         bool isPlayerAlive = hp && (hp->currentHealth > 0.0f);
 
@@ -1155,6 +1168,13 @@ namespace SunEngine {
                 m_ActiveSquad[m_CurrentSquadMemberIdx].isAlive = false;
                 m_ActiveSquad[m_CurrentSquadMemberIdx].currentHealth = 0.0f;
             }
+
+            // Attiva ragdoll anche per il player (feedback visivo).
+            // KillUnit gestisce sia la creazione dei body Jolt sia
+            // l'aggiunta di CorpseComponent per escluderlo dai sistemi AI.
+            glm::vec3 deathImpulse(0.0f, 1.5f, -3.5f);
+            m_PhysicsSystem.KillUnit(m_Scene, m_PlayerEntity, deathImpulse);
+
             m_PlayerDeathHandled = true;
         }
 
@@ -1373,7 +1393,14 @@ namespace SunEngine {
                 }
             }
 
-            m_MovementSystem.Update(m_Scene, m_PhysicsSystem, &m_AudioEngine, &m_SFXGroup, deltaTime, m_VolumeSFX);
+            m_MovementSystem.Update(
+                m_Scene,
+                m_PhysicsSystem,
+                m_AudioEngineInitialized ? &m_AudioEngine : nullptr,
+                m_SFXGroupInitialized ? &m_SFXGroup : nullptr,
+                deltaTime,
+                m_VolumeSFX
+            );
             m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
             m_PhysicsSystem.Update(m_Scene, deltaTime);
             m_WeightSystem.Update(m_Scene, deltaTime);
@@ -1774,7 +1801,7 @@ namespace SunEngine {
             glm::vec3 idealCamPos = lookTarget + camDir * dynamicDistance;
 
             auto colliderView = m_Scene.GetRegistry().view<ColliderComponent, TransformComponent>(
-                entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
+                entt::exclude<PlayerTag, HealthComponent, CorpseComponent>
             );
 
             float minHitT = dynamicDistance;
@@ -1829,7 +1856,7 @@ namespace SunEngine {
 
             m_Camera.SetPitch(totalPitch);
             m_Camera.SetYawOffset(recoilYaw);
-            m_Camera.SetViewportSize(1280.0f, 720.0f, extraFov);
+            m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight, extraFov);
             m_Camera.Update(shakeOffset, 1.0f);
 
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
@@ -1915,7 +1942,11 @@ namespace SunEngine {
                 }
             }
         }
-
+        else if (!m_IsPaused && !isPlayerAlive) {
+            // Player morto: la fisica deve continuare a girare per simulare il ragdoll.
+            // Niente input, camera, AI: solo lo step di Jolt.
+            m_PhysicsSystem.Update(m_Scene, deltaTime);
+            }
         m_ParticleSystem.Update(m_Scene, deltaTime);
 
         if (m_Scene.GetRegistry().valid(m_PlayerEntity)) {
@@ -2068,7 +2099,98 @@ namespace SunEngine {
 
     void GameLayer::OnRender()
     {
-        m_RenderSystem.Render(m_Scene);
+        if (m_UseDeferredTest && m_DeferredRenderer.IsInitialized()) {
+            // ==== STEP 1B TEST: scena hardcoded per validare la pipeline ====
+            // Camera fissa sul centro della scena di test (0,0,0).
+            // La camera di gioco orbita attorno al player a (0, 0.5, 80),
+            // quindi non vedrebbe mai la scena di test.
+            Camera testCam;
+            testCam.SetViewportSize(m_WindowWidth, m_WindowHeight);
+            testCam.SetCameraOffsets(0.0f, 0.5f, 8.0f);          // shoulder, height, distance
+            testCam.SetTarget(glm::vec3(0.0f, 0.5f, 0.0f), 0.0f); // target, yaw
+            testCam.SetPitch(-15.0f);                             // pitch (guarda un po' in giù)
+            testCam.Update();
+
+            m_DeferredRenderer.ClearLights();
+            m_DeferredRenderer.SetDirectionalLight(
+                glm::vec3(-0.5f, -1.0f, -0.3f),
+                glm::vec3(1.0f, 0.95f, 0.85f),
+                1.5f);
+
+            m_DeferredRenderer.AddLight(
+                Light::Point(glm::vec3(3.0f, 2.0f, 3.0f), 8.0f,
+                    glm::vec3(1.0f, 0.4f, 0.1f), 3.0f));
+
+            m_DeferredRenderer.AddLight(
+                Light::Point(glm::vec3(-3.0f, 2.0f, -2.0f), 6.0f,
+                    glm::vec3(0.2f, 0.5f, 1.0f), 2.5f));
+
+            m_DeferredRenderer.BeginGeometryPass(testCam);
+
+            m_DeferredRenderer.DrawTestGround(40.0f);
+
+            for (int x = -2; x <= 2; ++x) {
+                for (int z = -2; z <= 2; ++z) {
+                    if (x == 0 && z == 0) continue;
+
+                    glm::mat4 t = glm::translate(glm::mat4(1.0f),
+                        glm::vec3(x * 2.0f, 0.5f, z * 2.0f));
+                    glm::vec4 color = glm::vec4(
+                        0.5f + 0.5f * std::sin(x * 1.3f),
+                        0.5f + 0.5f * std::sin(z * 1.7f),
+                        0.5f + 0.5f * std::cos((x + z) * 1.1f),
+                        1.0f);
+
+                    m_DeferredRenderer.DrawTestCube(t, color, 0.3f, 0.0f);
+                }
+            }
+
+            glm::mat4 centerT = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            m_DeferredRenderer.DrawTestCube(centerT,
+                glm::vec4(0.8f, 0.8f, 0.9f, 1.0f),
+                0.15f, 1.0f);
+
+            m_DeferredRenderer.EndGeometryPassAndPresent(testCam);
+
+            // Rendi comunque l'UI (menu, kill counter, ecc.) — se ritorni
+            // senza chiamare OnImGuiRender vedi solo la scena di test e
+            // perdi tutta la UI.
+            OnImGuiRender();
+            return;
+        }
+        // ================================================================
+// PIPELINE PBR DEFERRED — disegna la scena di gioco
+// ================================================================
+        if (m_DeferredRenderer.IsInitialized()) {
+            // Luci
+            m_DeferredRenderer.ClearLights();
+
+            // Sole obliquo, luce calda grimdark
+            m_DeferredRenderer.SetDirectionalLight(
+                glm::vec3(-0.4f, -1.0f, 0.3f),
+                glm::vec3(1.0f, 0.90f, 0.75f),
+                1.3f);
+
+            // Point light "faro" sopra il player per dare profondità local
+            if (m_Scene.GetRegistry().valid(m_PlayerEntity) &&
+                m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
+                glm::vec3 playerPos = m_Scene.GetRegistry()
+                    .get<TransformComponent>(m_PlayerEntity).Position;
+                m_DeferredRenderer.AddLight(
+                    Light::Point(playerPos + glm::vec3(0.0f, 6.0f, 0.0f),
+                        25.0f,
+                        glm::vec3(0.70f, 0.80f, 1.0f),
+                        0.45f));
+            }
+
+            m_DeferredRenderer.BeginGeometryPass(m_Camera);
+            m_RenderSystem.RenderDeferred(m_Scene, m_DeferredRenderer);
+            m_DeferredRenderer.EndGeometryPassAndPresent(m_Camera);
+        }
+        else {
+            // Fallback al vecchio renderer (solo se DeferredRenderer non è init)
+            m_RenderSystem.Render(m_Scene);
+        }
         m_ParticleSystem.Render(m_Scene);
         glm::vec3 debugAnchorPos(0.0f);
         if (m_Scene.GetRegistry().valid(m_PlayerEntity) &&
@@ -2121,7 +2243,7 @@ namespace SunEngine {
         }
 
         if (m_GameState == GameState::Gameplay) {
-            glm::vec2 screen = glm::vec2(1280.0f, 720.0f);
+            glm::vec2 screen = glm::vec2(m_WindowWidth, m_WindowHeight);
             glm::vec2 center = screen * 0.5f;
 
             if (m_Scene.GetRegistry().all_of<InventoryComponent>(m_PlayerEntity)) {
@@ -2233,9 +2355,13 @@ namespace SunEngine {
                 auto& health = m_Scene.GetRegistry().get<HealthComponent>(m_PlayerEntity);
                 float hpRatio = std::clamp(std::max(health.currentHealth / health.maxHealth, 0.0f), 0.0f, 1.0f);
 
-                Renderer::DrawQuadUI(glm::vec2(1000.0f, 30.0f), glm::vec2(250.0f, 30.0f), glm::vec4(0.3f, 0.0f, 0.0f, 0.8f), screen);
+                float hpBarW = 250.0f;
+                float hpBarH = 30.0f;
+                glm::vec2 hpBarPos = glm::vec2(screen.x - hpBarW - 30.0f, 30.0f);
+
+                Renderer::DrawQuadUI(hpBarPos, glm::vec2(hpBarW, hpBarH), glm::vec4(0.3f, 0.0f, 0.0f, 0.8f), screen);
                 glm::vec4 hpColor = (hpRatio > 0.4f) ? glm::vec4(0.0f, 1.0f, 0.2f, 1.0f) : glm::vec4(1.0f, 0.1f, 0.1f, 1.0f);
-                Renderer::DrawQuadUI(glm::vec2(1000.0f, 30.0f), glm::vec2(250.0f * hpRatio, 30.0f), hpColor, screen);
+                Renderer::DrawQuadUI(hpBarPos, glm::vec2(hpBarW * hpRatio, hpBarH), hpColor, screen);
             }
         }
 
@@ -2642,7 +2768,7 @@ namespace SunEngine {
             if (m_CustomizeMainTab == 0) {
                 ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ANAGRAFICA E IDENTITA'");
                 char nameBuf[64];
-                strcpy_s(nameBuf, activeUnit.customName.c_str());
+                std::snprintf(nameBuf, sizeof(nameBuf), "%s", activeUnit.customName.c_str());
                 if (ImGui::InputText("Nome Unita'", nameBuf, IM_ARRAYSIZE(nameBuf))) {
                     activeUnit.customName = nameBuf;
                 }
@@ -2901,10 +3027,12 @@ namespace SunEngine {
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         if (ImGui::CollapsingHeader("1. Impostazioni Mappa")) {
-            char idBuf[64]; strcpy_s(idBuf, m_EditorMap.id.c_str());
+            char idBuf[64];
+            std::snprintf(idBuf, sizeof(idBuf), "%s", m_EditorMap.id.c_str());
             if (ImGui::InputText("ID File (.json)", idBuf, IM_ARRAYSIZE(idBuf))) m_EditorMap.id = idBuf;
 
-            char nameBuf[128]; strcpy_s(nameBuf, m_EditorMap.name.c_str());
+            char nameBuf[128];
+            std::snprintf(nameBuf, sizeof(nameBuf), "%s", m_EditorMap.name.c_str());
             if (ImGui::InputText("Nome Visualizzato", nameBuf, IM_ARRAYSIZE(nameBuf))) m_EditorMap.name = nameBuf;
 
             if (ImGui::DragFloat3("Dimensione Terreno", glm::value_ptr(m_EditorMap.terrainSize), 5.0f, 10.0f, 1000.0f)) SyncEditorEntitiesWithScene();
@@ -3083,7 +3211,7 @@ namespace SunEngine {
         }
 
         char customMapBuf[64];
-        strcpy_s(customMapBuf, m_SelectedMapId.c_str());
+        std::snprintf(customMapBuf, sizeof(customMapBuf), "%s", m_SelectedMapId.c_str());
         if (ImGui::InputText("ID Mappa Custom", customMapBuf, IM_ARRAYSIZE(customMapBuf))) {
             m_SelectedMapId = customMapBuf;
         }
@@ -3222,7 +3350,7 @@ namespace SunEngine {
 
                 m_CurrentSquadMemberIdx = 0;
                 m_KillCount = 0;
-                m_PlayerDeathHandled = false;   
+                m_PlayerDeathHandled = false;
                 ApplyUnitVisuals(m_PlayerRoster[m_ActiveSquad[0].rosterIndex]);
 
                 if (m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
@@ -3284,7 +3412,7 @@ namespace SunEngine {
 
             if (ImGui::Button("Torna al Menu Principale (Garage)", ImVec2(-1, 50))) {
                 m_GameState = GameState::MainMenu;
-                m_PlayerDeathHandled = false;   
+                m_PlayerDeathHandled = false;
                 g_WaaaghActive = false;
                 g_WaaaghTimer = 0.0f;
                 g_WaaaghSpawnCount = 1;
@@ -3319,6 +3447,16 @@ namespace SunEngine {
                 if (member.isAlive) {
                     std::string label = "SCHIERA: " + unit.customName + " [" + unit.blueprintId + "]";
                     if (ImGui::Button(label.c_str(), ImVec2(-1, 45))) {
+                        // Cleanup stato morte: rimuove ragdoll Jolt e CorpseComponent.
+                        // DestroyJoltBody rimuove sia JoltBodyComponent sia RagdollComponent,
+                        // e fa scattare gli observer di cleanup dei body Jolt.
+                        if (m_Scene.GetRegistry().all_of<RagdollComponent>(m_PlayerEntity)) {
+                            m_PhysicsSystem.DestroyJoltBody(m_Scene, m_PlayerEntity);
+                        }
+                        if (m_Scene.GetRegistry().all_of<CorpseComponent>(m_PlayerEntity)) {
+                            m_Scene.GetRegistry().remove<CorpseComponent>(m_PlayerEntity);
+                        }
+
                         m_CurrentSquadMemberIdx = static_cast<int>(i);
                         ApplyUnitVisuals(unit);
 
@@ -3335,7 +3473,6 @@ namespace SunEngine {
                             hp->currentHealth = hp->maxHealth;
                         }
 
-                        // Reset stato combattimento del player (respawn pulito)
                         if (auto* melee = m_Scene.GetRegistry().try_get<MeleeStateComponent>(m_PlayerEntity)) {
                             melee->currentPhase = MeleePhase::None;
                             melee->currentAttack = MeleeAttackType::None;
@@ -3353,7 +3490,6 @@ namespace SunEngine {
                             wState->isOverheating = false;
                         }
 
-                        // Reset del flag di morte: senza questo la prossima morte non triggera
                         m_PlayerDeathHandled = false;
 
                         if (window) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);

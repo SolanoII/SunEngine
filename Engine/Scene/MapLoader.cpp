@@ -17,7 +17,8 @@ namespace SunEngine {
 
         scene.GetRegistry().emplace<MeshComponent>(entity, 0u);
         // FIX DOUBLE SCALING: halfExtents unitario (0.5f), la dimensione finale e' gestita da trans.Scale
-        scene.GetRegistry().emplace<ColliderComponent>(entity, glm::vec3(0.5f));
+        auto& col = scene.GetRegistry().emplace<ColliderComponent>(entity, glm::vec3(0.5f));
+        col.localCenterOffset = glm::vec3(0.0f, 0.5f, 0.0f);
         scene.GetRegistry().emplace<RigidBodyComponent>(entity, glm::vec3(0.0f), 0.0f, false);
 
         auto& cComp = scene.GetRegistry().emplace<ColorComponent>(entity);

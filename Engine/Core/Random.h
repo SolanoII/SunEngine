@@ -62,7 +62,6 @@ namespace SunEngine {
             return std::mt19937(static_cast<uint32_t>(seed));
         }
 
-        static int s_SeedAnchor_;
     };
 
 }

@@ -11,7 +11,7 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Collision/GroupFilterTable.h>
+#include <Jolt/Physics/Collision/CollisionGroup.h>
 #include <Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h>
 #include <Jolt/Physics/Collision/ObjectLayer.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -59,6 +59,20 @@ namespace SunEngine {
         }
         return q.Normalized();
     }
+
+    // Filtro custom per ragdoll: impedisce la self-collision tra gli arti
+// dello stesso ragdoll. Jolt chiama CanCollide() solo quando entrambi
+// i body condividono lo stesso GroupFilter; se il GroupID coincide,
+// sono dello stesso ragdoll → niente collisione interna.
+    class RagdollSelfCollisionFilter : public JPH::GroupFilter {
+    public:
+        virtual bool CanCollide(const JPH::CollisionGroup& inGroup1,
+            const JPH::CollisionGroup& inGroup2) const override {
+            // Gruppi diversi (ragdoll diversi, o ragdoll vs ambiente) → collidono.
+            // Stesso gruppo (stesso ragdoll) → niente self-collision.
+            return inGroup1.GetGroupID() != inGroup2.GetGroupID();
+        }
+    };
 
     namespace Layers {
         static constexpr JPH::ObjectLayer NON_MOVING = 0;
@@ -154,9 +168,7 @@ namespace SunEngine {
                 Layers::NON_MOVING
             );
             m_FloorBodyID = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
-
-            m_RagdollGroupFilter = new JPH::GroupFilterTable();
-
+            m_RagdollGroupFilter = new RagdollSelfCollisionFilter();
             // ------------------------------------------------------------------
             // Observer di distruzione: quando JoltBodyComponent o RagdollComponent
             // vengono rimossi (esplicitamente o per distruzione dell'entita'),
@@ -201,9 +213,8 @@ namespace SunEngine {
                 rotMat = glm::rotate(rotMat, glm::radians(transform.Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
                 JPH::Quat qRot = Mat4ToJoltQuat(rotMat);
-
-                glm::vec3 localCenterOffset(0.0f, col.halfExtents.y * transform.Scale.y, 0.0f);
-                glm::vec3 worldCenterOffset = ToGlmQuat(qRot) * localCenterOffset;
+                glm::vec3 scaledOffset = col.localCenterOffset * transform.Scale;
+                glm::vec3 worldCenterOffset = ToGlmQuat(qRot) * scaledOffset;
 
                 JPH::BodyCreationSettings settings(
                     boxShape,
@@ -246,8 +257,8 @@ namespace SunEngine {
                         JPH::Quat rot = bodyInterface.GetRotation(joltComp.bodyID);
 
                         glm::quat glmRot = ToGlmQuat(rot);
-                        glm::vec3 localCenterOffset(0.0f, col.halfExtents.y * transform.Scale.y, 0.0f);
-                        glm::vec3 worldCenterOffset = glmRot * localCenterOffset;
+                        glm::vec3 scaledOffset = col.localCenterOffset * transform.Scale;
+                        glm::vec3 worldCenterOffset = glmRot * scaledOffset;
 
                         transform.Position = ToGlmVec3(pos) - worldCenterOffset;
                         transform.Rotation = glm::degrees(glm::eulerAngles(glmRot));
@@ -296,8 +307,8 @@ namespace SunEngine {
 
                         JPH::Quat qRot = Mat4ToJoltQuat(rotMat);
 
-                        glm::vec3 localCenterOffset(0.0f, col.halfExtents.y * transform.Scale.y, 0.0f);
-                        glm::vec3 worldCenterOffset = ToGlmQuat(qRot) * localCenterOffset;
+                        glm::vec3 scaledOffset = col.localCenterOffset * transform.Scale;
+                        glm::vec3 worldCenterOffset = ToGlmQuat(qRot) * scaledOffset;
 
                         bodyInterface.SetPosition(joltComp.bodyID, ToJoltRVec3(position + worldCenterOffset), JPH::EActivation::Activate);
                     }
@@ -495,7 +506,7 @@ namespace SunEngine {
         JPH::PhysicsSystem m_PhysicsSystem;
         JPH::BodyID m_FloorBodyID;
 
-        JPH::Ref<JPH::GroupFilterTable> m_RagdollGroupFilter;
+        JPH::Ref<JPH::GroupFilter> m_RagdollGroupFilter;
         uint32_t m_NextRagdollGroupID = 1;
     };
 }

@@ -10,6 +10,7 @@ namespace SunEngine {
         glm::mat4 m_Projection = glm::mat4(1.0f);
         glm::mat4 m_View = glm::mat4(1.0f);
         glm::vec3 m_TargetPosition = { 0.0f, 0.0f, 0.0f };
+        glm::vec3 m_CameraPosition = { 0.0f, 0.0f, 0.0f };
         float m_TargetYaw = 0.0f;
         float m_Width = 1280.0f;
         float m_Height = 720.0f;
@@ -23,7 +24,7 @@ namespace SunEngine {
 
     public:
         Camera() = default;
-
+        const glm::vec3& GetPosition() const { return m_CameraPosition; }
         void SetPitch(float pitch) { m_PitchOffset = pitch; }
         void SetYawOffset(float yaw) { m_YawOffset = yaw; }
 
@@ -58,7 +59,7 @@ namespace SunEngine {
             glm::vec3 rotatedOffset = glm::vec3(camRot * glm::vec4(localOffset, 0.0f));
 
             glm::vec3 cameraPos = m_TargetPosition + rotatedOffset + shakeOffset;
-
+            m_CameraPosition = cameraPos;
             glm::vec3 forwardDir = glm::vec3(camRot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
             glm::vec3 lookTarget = cameraPos + (forwardDir * 50.0f);
 

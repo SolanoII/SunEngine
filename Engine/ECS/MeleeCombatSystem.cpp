@@ -1,6 +1,7 @@
 #include "MeleeCombatSystem.h"
 #include "DamageResolver.h"
 #include "CombatVFX.h"
+#include "RaycastUtils.h" 
 #include <algorithm>
 
 namespace SunEngine {
@@ -138,8 +139,19 @@ namespace SunEngine {
                 float dot = glm::dot(fwd, dirToDef);
 
                 if (dot > 0.40f) {
-                    DamageResolver::ResolveMeleeClash(scene, attacker, defender, HitboxLocation::Torso);
-                    break;
+                    // LOS check: dal petto dell'attaccante al petto del difensore.
+                    // Se un muro/ostacolo statico blocca la linea, il colpo non va a segno.
+                    glm::vec3 atkChest = atkTrans.Position + glm::vec3(0.0f, 1.0f, 0.0f);
+                    glm::vec3 defChest = defTrans.Position + glm::vec3(0.0f, 1.0f, 0.0f);
+
+                    // HasLineOfSight ritorna true se la linea è libera.
+                    // Passiamo "attacker" come ignoreEntity per non far collidere
+                    // il raycast con il proprio stesso collider (che potrebbe
+                    // essere molto vicino ai piedi).
+                    if (HasLineOfSight(scene, atkChest, defChest, attacker)) {
+                        DamageResolver::ResolveMeleeClash(scene, attacker, defender, HitboxLocation::Torso);
+                        break;
+                    }
                 }
             }
         }

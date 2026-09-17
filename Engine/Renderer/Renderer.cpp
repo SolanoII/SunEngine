@@ -219,7 +219,6 @@ namespace SunEngine
     // ============================================================
     void Renderer::DrawLine(const glm::vec3& start, const glm::vec3& end, const glm::vec4& color)
     {
-        // Aggiorna vertici...
         float vertices[] = { start.x, start.y, start.z, end.x, end.y, end.z };
         glBindVertexArray(s_LineVAO);
         glBindBuffer(GL_ARRAY_BUFFER, s_LineVBO);
@@ -231,15 +230,14 @@ namespace SunEngine
         glm::mat4 mvp = s_ViewProjectionMatrix;
         if (s_MVPLocation != -1) glUniformMatrix4fv(s_MVPLocation, 1, GL_FALSE, glm::value_ptr(mvp));
 
-        // --- FIX: Disabilita il test di profondità per far vedere SEMPRE il raggio ---
-        glDisable(GL_DEPTH_TEST);
-
+        // Depth test ATTIVO: i beam vengono occlusi dalla geometria.
+        // LEQUAL invece del default LESS evita flicker quando la linea coincide
+        // con una faccia del box di partenza.
+        glDepthFunc(GL_LEQUAL);
         glLineWidth(1.0f);
         glDrawArrays(GL_LINES, 0, 2);
-
-        // --- FIX: Riabilita il test di profondità dopo aver disegnato ---
-        glEnable(GL_DEPTH_TEST);
-        glLineWidth(1.0f); // ripristina
+        glLineWidth(1.0f);
+        glDepthFunc(GL_LESS);   // ripristina il default
     }
     void Renderer::DrawRingUI(const glm::vec2& center, float radius, float progress, const glm::vec4& color, const glm::vec2& screenSize)
     {
