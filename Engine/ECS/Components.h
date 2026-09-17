@@ -249,6 +249,14 @@ namespace SunEngine {
         float currentHeat = 0.0f;
         bool isOverheating = false;
         bool isScopeActive = false;
+
+        // --- Trigger tracking per fire modes ---
+        // wasFiringLastFrame: stato del grilletto al frame precedente.
+        //   Serve a rilevare il fronte di salita (click) per semi-auto.
+        // burstRemaining: colpi ancora da sparare nella raffica corrente.
+        //   Quando e' 0, serve un nuovo click per ripartire (burst non auto-ripetente).
+        bool wasFiringLastFrame = false;
+        int  burstRemaining = 0;
     };
 
     struct TrailRequestComponent {

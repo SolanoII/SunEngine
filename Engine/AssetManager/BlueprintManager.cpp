@@ -109,7 +109,14 @@ namespace SunEngine {
                 bp.toughness_bypass = j.value("toughness_bypass", 0.0f);
                 bp.range_effective = j.value("range_effective", 0.0f);
                 bp.heat_capacity = j.value("heat_capacity", 100.0f);
+                bp.burst_count = j.value("burst_count", 3);   // <-- AGGIUNGI QUESTA RIGA
 
+                // fire_modes: array di stringhe nel JSON, es. ["semi"] o ["auto"] o ["burst"]
+                if (j.contains("fire_modes") && j["fire_modes"].is_array()) {
+                    for (const auto& m : j["fire_modes"]) {
+                        if (m.is_string()) bp.fire_modes.push_back(m.get<std::string>());
+                    }
+                }
                 bp.pellet_count = j.value("pellet_count", 1);
                 bp.spread_base = j.value("spread_base", 0.0f);
                 bp.spread_auto_multiplier = j.value("spread_auto_multiplier", 1.0f);

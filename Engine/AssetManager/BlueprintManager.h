@@ -100,6 +100,7 @@ namespace SunEngine {
         int magazine_size = 0;
         float reload_time_sec = 0.0f;
         std::vector<std::string> fire_modes;
+        int burst_count = 3;   // <-- NUOVO: colpi per raffica se fire_modes == ["burst"]
         float rate_of_fire = 0.0f;
         float base_damage = 0.0f;
         int armor_penetration = 0;

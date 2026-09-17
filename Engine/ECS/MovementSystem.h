@@ -8,32 +8,55 @@
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <miniaudio.h>
 
 #include "../Scene/Scene.h"
 #include "../Core/Input.h"
+#include "../Core/MathUtils.h"
 #include "../AssetManager/BlueprintManager.h"
 #include "../Core/Logger/Log.h"
 #include "Components.h"
 #include "SunPhysicsSystem.h"
 
 namespace SunEngine {
-    inline float LerpAngle(float a, float b, float t) {
-        float diff = std::fmod(b - a + 180.0f, 360.0f) - 180.0f;
-        if (diff < -180.0f) diff += 360.0f;
-        return a + diff * std::clamp(t, 0.0f, 1.0f);
-    }
+    
     struct FootstepSoundPoolItem {
         ma_sound sound{};
         bool loaded = false;
     };
-    inline std::unordered_map<SurfaceType, std::vector<FootstepSoundPoolItem>> m_FootstepPools;
     class MovementSystem {
+    public:
+        // Rilascia tutti i sound del pool dei passi. Chiamare PRIMA di
+        // ma_sound_group_uninit / ma_engine_uninit. Idempotente.
+        void ShutdownAudio() {
+            for (auto& [surface, pool] : m_FootstepPools) {
+                for (auto& item : pool) {
+                    if (item.loaded) {
+                        ma_sound_uninit(&item.sound);
+                        item.loaded = false;
+                    }
+                }
+                pool.clear();
+            }
+            m_FootstepPools.clear();
+        }
+
+        ~MovementSystem() {
+            // Difensivo: se GameLayer non ha chiamato ShutdownAudio esplicitamente,
+            // almeno proviamo a liberare qui. Nota: se m_SFXGroup è già stato
+            // distrutto, questo può generare warning di miniaudio — per questo
+            // GameLayer DEVE chiamare ShutdownAudio PRIMA di ma_sound_group_uninit.
+            ShutdownAudio();
+        }
+
     private:
         float m_WalkAnimTimer = 0.0f;
+
+        // Pool di istanze concorrenti per ciascun tipo di superficie.
+        // Ownership: questa classe. Vita: legata a MovementSystem.
+        std::unordered_map<SurfaceType, std::vector<FootstepSoundPoolItem>> m_FootstepPools;
 
         void PlayFootstep(ma_engine* engine, ma_sound_group* sfxGroup, SurfaceType surface,
             const glm::vec3& position, bool isPlayer, float volume) {
@@ -83,7 +106,7 @@ namespace SunEngine {
             bool hasHit = false;
 
             auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(
-                entt::exclude<PlayerTag, HealthComponent>
+                entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
             );
 
             for (auto entity : view) {
@@ -259,35 +282,10 @@ namespace SunEngine {
                 scene.GetRegistry().remove<VaultComponent>(entity);
             }
         }
-        float GetGroundHeightAt(Scene& scene, const glm::vec3& position, float currentY, float playerRadius = 0.35f) {
-            float maxGroundY = 0.0f;
-
-            auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(
-                entt::exclude<PlayerTag, HealthComponent>
-            );
-
-            for (auto entity : view) {
-                const auto& col = view.get<ColliderComponent>(entity);
-                const auto& trans = view.get<TransformComponent>(entity);
-
-                glm::vec3 halfExtents = col.halfExtents * trans.Scale;
-                glm::vec3 minBox = trans.Position - halfExtents;
-                glm::vec3 maxBox = trans.Position + halfExtents;
-
-                if (position.x + playerRadius >= minBox.x && position.x - playerRadius <= maxBox.x &&
-                    position.z + playerRadius >= minBox.z && position.z - playerRadius <= maxBox.z) {
-
-                    if (maxBox.y > maxGroundY && maxBox.y <= currentY + 0.6f) {
-                        maxGroundY = maxBox.y;
-                    }
-                }
-            }
-            return maxGroundY;
-        }
-
+        
         bool CheckWallCollision(Scene& scene, const glm::vec3& targetPos, float currentY, float playerRadius = 0.35f) {
             auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(
-                entt::exclude<PlayerTag, HealthComponent>
+                entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
             );
 
             for (auto entity : view) {

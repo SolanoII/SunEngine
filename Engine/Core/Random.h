@@ -50,6 +50,8 @@ namespace SunEngine {
         }
 
     private:
+        inline static int s_SeedAnchor_ = 0;   // <-- inline static, definito qui
+
         static std::mt19937 MakeSeedEngine() {
             // Seed non deterministico ma stabile per sessione:
             // high_resolution_clock + reinterpret del puntatore a thread_local

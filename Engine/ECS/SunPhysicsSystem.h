@@ -121,7 +121,9 @@ namespace SunEngine {
     public:
         PhysicsSystem() = default;
 
-        void Init() {
+        void Init(Scene& scene) {
+            m_SceneRef = &scene;
+
             JPH::RegisterDefaultAllocator();
             JPH::Factory::sInstance = new JPH::Factory();
             JPH::RegisterTypes();
@@ -154,6 +156,17 @@ namespace SunEngine {
             m_FloorBodyID = bodyInterface.CreateAndAddBody(floorSettings, JPH::EActivation::DontActivate);
 
             m_RagdollGroupFilter = new JPH::GroupFilterTable();
+
+            // ------------------------------------------------------------------
+            // Observer di distruzione: quando JoltBodyComponent o RagdollComponent
+            // vengono rimossi (esplicitamente o per distruzione dell'entita'),
+            // libera automaticamente i body Jolt associati. Elimina la necessita'
+            // di chiamare DestroyJoltBody manualmente prima di DestroyEntity.
+            // ------------------------------------------------------------------
+            scene.GetRegistry().on_destroy<JoltBodyComponent>()
+                .connect<&PhysicsSystem::OnJoltBodyDestroyed>(*this);
+            scene.GetRegistry().on_destroy<RagdollComponent>()
+                .connect<&PhysicsSystem::OnRagdollDestroyed>(*this);
         }
 
         ~PhysicsSystem() {
@@ -427,34 +440,53 @@ namespace SunEngine {
         }
 
         void DestroyJoltBody(Scene& scene, entt::entity entity) {
-            JPH::BodyInterface& bodyInterface = m_PhysicsSystem.GetBodyInterface();
+            // Rimuovere i componenti triggera gli observer OnJoltBodyDestroyed /
+            // OnRagdollDestroyed, che si occupano del cleanup reale dei body Jolt.
+            // La funzione resta idempotente: chiamarla su un'entita' senza
+            // componenti fisici e' un no-op.
+            auto& registry = scene.GetRegistry();
+            if (registry.all_of<JoltBodyComponent>(entity)) {
+                registry.remove<JoltBodyComponent>(entity);
+            }
+            if (registry.all_of<RagdollComponent>(entity)) {
+                registry.remove<RagdollComponent>(entity);
+            }
+        }
 
-            if (scene.GetRegistry().all_of<JoltBodyComponent>(entity)) {
-                auto& joltComp = scene.GetRegistry().get<JoltBodyComponent>(entity);
-                if (!joltComp.bodyID.IsInvalid() && bodyInterface.IsAdded(joltComp.bodyID)) {
+        JPH::PhysicsSystem& GetJoltSystem() { return m_PhysicsSystem; }
+
+        private:
+            Scene* m_SceneRef = nullptr;
+
+            void OnJoltBodyDestroyed(entt::registry& reg, entt::entity entity) {
+                if (!reg.all_of<JoltBodyComponent>(entity)) return;
+
+                const auto& joltComp = reg.get<JoltBodyComponent>(entity);
+                if (joltComp.bodyID.IsInvalid()) return;
+
+                JPH::BodyInterface& bodyInterface = m_PhysicsSystem.GetBodyInterface();
+                if (bodyInterface.IsAdded(joltComp.bodyID)) {
                     bodyInterface.RemoveBody(joltComp.bodyID);
                     bodyInterface.DestroyBody(joltComp.bodyID);
                 }
-                scene.GetRegistry().remove<JoltBodyComponent>(entity);
             }
 
-            if (scene.GetRegistry().all_of<RagdollComponent>(entity)) {
-                auto& ragdoll = scene.GetRegistry().get<RagdollComponent>(entity);
+            void OnRagdollDestroyed(entt::registry& reg, entt::entity entity) {
+                if (!reg.all_of<RagdollComponent>(entity)) return;
+
+                const auto& ragdoll = reg.get<RagdollComponent>(entity);
+                JPH::BodyInterface& bodyInterface = m_PhysicsSystem.GetBodyInterface();
+
                 for (const JPH::BodyID& bID : ragdoll.bodyIDs) {
                     if (!bID.IsInvalid() && bodyInterface.IsAdded(bID)) {
                         bodyInterface.RemoveBody(bID);
                         bodyInterface.DestroyBody(bID);
                     }
                 }
-                scene.GetRegistry().remove<RagdollComponent>(entity);
             }
-        }
 
-        JPH::PhysicsSystem& GetJoltSystem() { return m_PhysicsSystem; }
-
-    private:
-        std::unique_ptr<JPH::TempAllocatorImpl> m_TempAllocator;
-        std::unique_ptr<JPH::JobSystemThreadPool> m_JobSystem;
+            std::unique_ptr<JPH::TempAllocatorImpl> m_TempAllocator;
+            std::unique_ptr<JPH::JobSystemThreadPool> m_JobSystem;
 
         BPLayerInterfaceImpl m_BPLayerInterface;
         ObjectVsBroadPhaseLayerFilterImpl m_ObjectVsBPLayerFilter;

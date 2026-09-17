@@ -11,6 +11,7 @@
   "is_melee": false,
   "magazine_size": 30,
   "reload_time_sec": 2.0,
+  "fire_modes": [ "auto" ],
   "rate_of_fire": 350.0,
   "base_damage": 25.0,
   "armor_penetration": 2,

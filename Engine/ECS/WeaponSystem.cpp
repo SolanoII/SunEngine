@@ -148,11 +148,18 @@ namespace SunEngine {
             std::string activeWeaponId = inventory.GetActiveWeaponId();
             const WeaponBlueprint* wpBP = BlueprintManager::Get().GetWeapon(activeWeaponId);
 
-            if (!wpBP || wpBP->is_melee) continue;
+            if (!wpBP || wpBP->is_melee) {
+                // Reset stato trigger: evita di trascinare un fronte di salita
+                // stantio quando si passa arma -> melee -> arma.
+                wState.wasFiringLastFrame = false;
+                wState.burstRemaining = 0;
+                continue;
+            }
 
             bool wantsToFire = Input::IsMouseButtonPressed(0);
 
-            // GESTIONE ARMI A RAGGIO CONTINUO (MELTA GUN)
+            // -------- ARMI A RAGGIO CONTINUO (MELTA GUN) --------
+            // Restano "auto finché tieni premuto": non ha senso semi/burst su un beam.
             if (wpBP->projectile_type == ProjectileType::ContinuousBeam) {
                 if (wantsToFire && !wState.isOverheating && !wState.isReloading) {
                     FireContinuousBeam(scene, entity, wState, recoil, *wpBP, trans, stats, deltaTime);
@@ -167,6 +174,7 @@ namespace SunEngine {
                         }
                     }
                 }
+                wState.wasFiringLastFrame = wantsToFire;
                 continue;
             }
 
@@ -192,6 +200,7 @@ namespace SunEngine {
                     wState.currentAmmo = wpBP->magazine_size;
                     SUN_CORE_INFO("Arma ricaricata! Munizioni: {0}", wState.currentAmmo);
                 }
+                wState.wasFiringLastFrame = wantsToFire;
                 continue;
             }
 
@@ -199,6 +208,7 @@ namespace SunEngine {
                 wState.isReloading = true;
                 wState.reloadTimer = wpBP->reload_time_sec;
                 SUN_CORE_INFO("Ricarica avviata...");
+                wState.wasFiringLastFrame = wantsToFire;
                 continue;
             }
 
@@ -216,9 +226,50 @@ namespace SunEngine {
                 if (std::abs(recoil.recoilYaw) < 0.05f) recoil.recoilYaw = 0.0f;
             }
 
-            if (wantsToFire && wState.fireCooldown <= 0.0f && !wState.isOverheating) {
+            // ============================================================
+            // LOGICA FIRE MODES
+            //   "auto"  -> spara finche' il grilletto e' premuto
+            //   "semi"  -> spara sul fronte di salita (1 click = 1 colpo)
+            //   "burst" -> N colpi per click, gestiti con burstRemaining
+            // Fallback: se fire_modes e' vuoto -> "auto" (compatibilita').
+            // ============================================================
+            std::string effectiveMode = "auto";
+
+            if (wState.currentFireMode != "standard" && !wState.currentFireMode.empty()) {
+                // Sotto-canna attivo (es. shotgun): sempre un colpo per click.
+                effectiveMode = "semi";
+            }
+            else if (!wpBP->fire_modes.empty()) {
+                effectiveMode = wpBP->fire_modes[0];
+            }
+
+            const bool triggerJustPressed = wantsToFire && !wState.wasFiringLastFrame;
+
+            bool wantsToShootThisFrame = false;
+            if (effectiveMode == "auto") {
+                wantsToShootThisFrame = wantsToFire;
+            }
+            else if (effectiveMode == "semi" || effectiveMode == "single") {
+                wantsToShootThisFrame = triggerJustPressed;
+            }
+            else if (effectiveMode == "burst") {
+                if (triggerJustPressed) {
+                    wState.burstRemaining = wpBP->burst_count;
+                }
+                if (wState.burstRemaining > 0) {
+                    wantsToShootThisFrame = true;   // la raffica si completa anche se rilasci il grilletto
+                }
+            }
+            else {
+                wantsToShootThisFrame = wantsToFire;   // fallback
+            }
+
+            if (wantsToShootThisFrame && wState.fireCooldown <= 0.0f && !wState.isOverheating) {
                 if (wState.currentAmmo > 0) {
                     FireWeapon(scene, entity, wState, recoil, *wpBP, trans, stats);
+                    if (effectiveMode == "burst" && wState.burstRemaining > 0) {
+                        wState.burstRemaining--;
+                    }
                 }
                 else if (!wState.isReloading) {
                     wState.isReloading = true;
@@ -226,6 +277,8 @@ namespace SunEngine {
                     SUN_CORE_WARN("Caricatore vuoto! Ricarica automatica...");
                 }
             }
+
+            wState.wasFiringLastFrame = wantsToFire;
         }
     }
 
@@ -566,7 +619,7 @@ namespace SunEngine {
 
         // ---- 2. MURI / STRUTTURE / PROPS (collider centrato su Position) ----
         auto staticView = reg.view<TransformComponent, ColliderComponent>(
-            entt::exclude<PlayerTag, HealthComponent>
+            entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
         );
         for (auto e : staticView) {
             if (e == shooter) continue;

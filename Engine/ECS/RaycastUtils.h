@@ -50,7 +50,7 @@ namespace SunEngine {
 
         auto& reg = scene.GetRegistry();
         auto staticView = reg.view<TransformComponent, ColliderComponent>(
-            entt::exclude<PlayerTag, HealthComponent>
+            entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
         );
 
         for (auto e : staticView) {

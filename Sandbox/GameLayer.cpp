@@ -4,6 +4,7 @@
 #include "GameLayer.h"
 #include "Engine/Core/Application/Application.h"
 #include "Engine/Core/Random.h"
+#include "Engine/Core/MathUtils.h"     // <-- AGGIUNGI
 #include "Engine/Core/Input.h"
 #include "Engine/Core/Logger/Log.h"
 #include "Engine/ECS/Components.h"
@@ -52,30 +53,7 @@ namespace SunEngine {
         return glm::vec2(x, y);
     }
 
-    static float GetGroundHeightAt(Scene& scene, const glm::vec3& position, float currentY = 0.0f) {
-        float maxGroundY = 0.0f;
-        auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(
-            entt::exclude<PlayerTag, HealthComponent>
-        );
-
-        for (auto entity : view) {
-            const auto& col = view.get<ColliderComponent>(entity);
-            const auto& trans = view.get<TransformComponent>(entity);
-
-            glm::vec3 halfExtents = col.halfExtents * trans.Scale;
-            glm::vec3 minBox = trans.Position - halfExtents;
-            glm::vec3 maxBox = trans.Position + halfExtents;
-
-            if (position.x >= minBox.x - 0.2f && position.x <= maxBox.x + 0.2f &&
-                position.z >= minBox.z - 0.2f && position.z <= maxBox.z + 0.2f) {
-
-                if (maxBox.y > maxGroundY && maxBox.y <= currentY + 0.6f) {
-                    maxGroundY = maxBox.y;
-                }
-            }
-        }
-        return maxGroundY;
-    }
+    
 
     struct ResOption {
         int width;
@@ -881,7 +859,7 @@ namespace SunEngine {
                 wState.fireCooldown = 0.0f;
                 wState.currentHeat = 0.0f;
                 wState.isOverheating = false;
-
+                wState.burstRemaining = 0;   // <-- AGGIUNGI: evita che una raffica a meta' passi all'arma nuova
                 const auto* weaponBP = BlueprintManager::Get().GetWeapon(activeId);
                 if (weaponBP) wState.currentAmmo = weaponBP->magazine_size;
             }
@@ -959,7 +937,7 @@ namespace SunEngine {
 
     GameLayer::GameLayer() : Layer("Game Layer")
     {
-        m_PhysicsSystem.Init();
+        m_PhysicsSystem.Init(m_Scene);
 
         m_StaticShader.Init();
 
@@ -1075,9 +1053,10 @@ namespace SunEngine {
     {
         m_NavQuery.Destroy();
 
-        // 1. Ferma i pool del WeaponSystem PRIMA del gruppo (altrimenti i sound
+        // 1. Ferma i pool audio dei sistemi PRIMA del gruppo (altrimenti i sound
         //    attaccati al gruppo diventano dangling quando il gruppo viene distrutto)
         m_WeaponSystem.ShutdownAudio();
+        m_MovementSystem.ShutdownAudio();
 
         // 2. Voci Ork
         if (g_OrkVoices.startSoundLoaded) {
@@ -1795,7 +1774,7 @@ namespace SunEngine {
             glm::vec3 idealCamPos = lookTarget + camDir * dynamicDistance;
 
             auto colliderView = m_Scene.GetRegistry().view<ColliderComponent, TransformComponent>(
-                entt::exclude<PlayerTag, HealthComponent>
+                entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
             );
 
             float minHitT = dynamicDistance;
