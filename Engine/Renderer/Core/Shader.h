@@ -46,6 +46,8 @@ namespace SunEngine {
 
         GLuint GetID() const { return m_ProgramID; }
         bool IsValid() const { return m_ProgramID != 0; }
+        bool LoadComputeFromSource(const std::string& src, const std::string& debugName = "unnamed");
+
 
     private:
         GLuint m_ProgramID = 0;

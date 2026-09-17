@@ -29,6 +29,7 @@
 #include <fstream>
 #include <filesystem>
 #include <cstdio>
+#include <mutex>
 #include <nlohmann/json.hpp>
 
 #define MINIAUDIO_IMPLEMENTATION
@@ -93,6 +94,7 @@ namespace SunEngine {
         std::vector<PendingShout> pendingShouts;
     } g_OrkVoices;
 
+    static std::mutex g_OrkVoiceMutex;
     static float CalculateSpatialVolume(float distance) {
         if (distance <= 1.0f) return 1.0f;
         if (distance >= 101.0f) return 0.0f;
@@ -536,9 +538,9 @@ namespace SunEngine {
             }
         }
     }
-
     static void PlayStartWaaagh(float voiceVolume) {
         if (g_OrkVoices.startSoundLoaded && voiceVolume > 0.001f) {
+            std::lock_guard<std::mutex> lock(g_OrkVoiceMutex);   // ← AGGIUNGI
             ma_sound_seek_to_pcm_frame(&g_OrkVoices.startWaaaghSound, 0);
             ma_sound_set_volume(&g_OrkVoices.startWaaaghSound, voiceVolume);
             ma_sound_start(&g_OrkVoices.startWaaaghSound);
@@ -555,6 +557,7 @@ namespace SunEngine {
         float volume = CalculateSpatialVolume(distToPlayer) * voiceVolume;
         if (volume <= 0.005f) return;
 
+        std::lock_guard<std::mutex> lock(g_OrkVoiceMutex);   // ← AGGIUNGI
         for (auto& item : g_OrkVoices.voicePool) {
             if (!ma_sound_is_playing(&item->sound)) {
                 float randomPitch = Random::Range(pitchMin, pitchMax);
@@ -961,7 +964,18 @@ namespace SunEngine {
 
             m_SkinnedShader.Init();
             m_SkinnedModelLoaded = m_SkinnedTestModel.LoadModel(fbxPath);
+            if (m_SkinnedModelLoaded) {
+                m_TestSkinnedEntity = m_Scene.CreateEntity();
+                auto& trans = m_Scene.GetRegistry().emplace<TransformComponent>(m_TestSkinnedEntity);
+                trans.Position = glm::vec3(0.0f, 0.0f, 0.0f);
+                trans.Scale = glm::vec3(1.0f);
 
+                auto& inst = m_Scene.GetRegistry().emplace<SkinnedModelInstanceComponent>(m_TestSkinnedEntity);
+                inst.sourceModel = &m_SkinnedTestModel;
+                inst.albedo = glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
+                inst.roughness = 0.55f;
+                inst.metallic = 0.1f;
+            }
             if (m_SkinnedModelLoaded) {
                 std::string animsDir = FindValidDir("Animations");
                 if (!animsDir.empty()) {
@@ -1096,6 +1110,7 @@ namespace SunEngine {
 
     void GameLayer::OnUpdate(float deltaTime)
     {
+        m_DeferredRenderer.SetFrameDelta(deltaTime);
         GLFWwindow* window = glfwGetCurrentContext();
         UpdateWindowSize();
         static bool escPressedLastFrame = false;
@@ -1417,6 +1432,13 @@ namespace SunEngine {
                 bool sprint = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
 
                 m_RifleAnimController.Update(deltaTime, moving, fwd, back, left, right, sprint, isAiming);
+                if (m_SkinnedModelLoaded && m_Scene.GetRegistry().valid(m_TestSkinnedEntity)) {
+                    if (auto* inst = m_Scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(m_TestSkinnedEntity)) {
+                        if (m_RifleAnimLoaded) {
+                            inst->boneMatrices = &m_RifleAnimController.GetFinalBoneMatrices();
+                        }
+                    }
+                }
             }
 
             CheckUnitDeaths();
@@ -2141,12 +2163,12 @@ namespace SunEngine {
                         0.5f + 0.5f * std::cos((x + z) * 1.1f),
                         1.0f);
 
-                    m_DeferredRenderer.DrawTestCube(t, color, 0.3f, 0.0f);
+                    m_DeferredRenderer.DrawCube(t, color, 0.3f, 0.0f);
                 }
             }
 
             glm::mat4 centerT = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            m_DeferredRenderer.DrawTestCube(centerT,
+            m_DeferredRenderer.DrawCube(centerT,
                 glm::vec4(0.8f, 0.8f, 0.9f, 1.0f),
                 0.15f, 1.0f);
 
@@ -2182,7 +2204,31 @@ namespace SunEngine {
                         glm::vec3(0.70f, 0.80f, 1.0f),
                         0.45f));
             }
+            m_DeferredRenderer.SetSunDirection(glm::vec3(-0.4f, -1.0f, 0.3f));
+            m_DeferredRenderer.GetShadowMap().UpdateCascades(m_Camera, glm::vec3(-0.4f, -1.0f, 0.3f), 60.0f);
 
+            // ===== SHADOW PASS =====
+            const glm::vec3 sunDir = glm::normalize(glm::vec3(-0.4f, -1.0f, 0.3f));
+            m_DeferredRenderer.SetSunDirection(sunDir);
+
+            auto& shadowMap = m_DeferredRenderer.GetShadowMap();
+            shadowMap.UpdateCascades(m_Camera, sunDir, 60.0f);
+
+            for (int c = 0; c < ShadowMap::CASCADE_COUNT; ++c) {
+                shadowMap.BeginCascade(c);
+
+                // Disegna TUTTI i cubi della scena (per ora solo i cubi, in futuro le mesh)
+                auto view = m_Scene.GetRegistry().view<TransformComponent, MeshComponent, ColorComponent>();
+                for (auto entity : view) {
+                    auto& t = view.get<TransformComponent>(entity);
+                    m_DeferredRenderer.RenderShadowPassCube(t.GetTransform(), c);
+                }
+
+                shadowMap.EndCascade();
+            }
+
+            shadowMap.UploadMatrices();
+            // ===== FINE SHADOW PASS =====
             m_DeferredRenderer.BeginGeometryPass(m_Camera);
             m_RenderSystem.RenderDeferred(m_Scene, m_DeferredRenderer);
             m_DeferredRenderer.EndGeometryPassAndPresent(m_Camera);

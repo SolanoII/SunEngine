@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -14,7 +14,7 @@
 #include "Tags.h"
 #include "../Physics/HitboxBlock.h"
 #include "../AssetManager/BlueprintManager.h"
-
+#include "../Renderer/SkinnedModel.h"
 namespace SunEngine {
 
     enum class HordeState {
@@ -412,4 +412,14 @@ namespace SunEngine {
 
     struct TreeObstacleTag {};
 
-}
+    struct SkinnedModelInstanceComponent {
+        SunEngine::SkinnedModel* sourceModel = nullptr;
+        const std::vector<glm::mat4>* boneMatrices = nullptr;
+        glm::vec4 albedo = glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
+        float roughness = 0.7f;
+        float metallic = 0.0f;
+        float emissive = 0.0f;
+        // Modello vuoto di default: non renderizzato finché non setti i puntatori
+    };                               // ← aggiungi ; 
+
+}                                    // ← aggiungi chiusura namespace

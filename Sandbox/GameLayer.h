@@ -182,6 +182,7 @@ namespace SunEngine {
         Model m_TestModel;
         StaticModelShader m_StaticShader;
         SkinnedModel m_SkinnedTestModel;
+        entt::entity m_TestSkinnedEntity = entt::null;
         SkinnedModelShader m_SkinnedShader;
         bool m_SkinnedModelLoaded = false;
         bool m_TestModelLoaded = false;

@@ -69,5 +69,11 @@ namespace SunEngine {
         glm::mat4 GetViewProjection() const {
             return m_Projection * m_View;
         }
+        glm::mat4 GetView() const { return m_View; }
+        glm::mat4 GetProjection() const { return m_Projection; }
+        float GetNearPlane() const { return 0.1f; }
+        float GetFarPlane() const { return 100.0f; }
+        float GetFovDegrees() const { return 50.0f + /*extraFov non tracciato*/ 0.0f; }
+        float GetAspectRatio() const { return m_Width / m_Height; }
     };
 }

@@ -104,7 +104,7 @@ FetchContent_MakeAvailable(stb)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/stb_image_impl.c"
 "#define STB_IMAGE_IMPLEMENTATION\n#include \"stb_image.h\"\n"
 )
-add_library(stb_image STATIC "${CMAKE_CURRENT_BINARY_DIR}/stb_image_impl.c")
+add_library(stb_image STATIC "${CMAKE_CURRENT_BINARY_DIR}/stb_image_impl.c" "Engine/Renderer/PostFX/AutoExposure.h")
 target_include_directories(stb_image PUBLIC ${stb_SOURCE_DIR})
 
 find_package(OpenGL REQUIRED)
@@ -124,7 +124,7 @@ if(NOT imgui_POPULATED)
         ${imgui_SOURCE_DIR}/imgui_demo.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    )
+     "Engine/Renderer/PostFX/AutoExposure.h")
     target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 endif()
@@ -148,7 +148,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics/Build" EXCLUD
 # Engine (Libreria Statica)
 # ==========================
 file(GLOB_RECURSE ENGINE_SOURCES "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
-add_library(SunEngine STATIC ${ENGINE_SOURCES})
+add_library(SunEngine STATIC ${ENGINE_SOURCES} "Engine/Renderer/PostFX/AutoExposure.h")
 
 target_include_directories(SunEngine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -179,7 +179,7 @@ target_link_libraries(SunEngine PUBLIC
 # Gioco (Eseguibile)
 # ==========================
 file(GLOB_RECURSE SANDBOX_SOURCES "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
-add_executable(ProjectTrazyn ${SANDBOX_SOURCES})
+add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/Renderer/PostFX/AutoExposure.h")
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
 
 # ==========================

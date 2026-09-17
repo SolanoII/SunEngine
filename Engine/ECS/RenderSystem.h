@@ -39,34 +39,51 @@ namespace SunEngine {
         // NUOVO: rendering PBR deferred. Da chiamare tra BeginGeometryPass()
         // ed EndGeometryPassAndPresent().
         void RenderDeferred(Scene& scene, DeferredRenderer& deferred) {
-            auto view = scene.GetRegistry().view<TransformComponent, MeshComponent, ColorComponent>();
+            auto view = scene.GetRegistry().view<TransformComponent, ColorComponent>();
+
             for (auto entity : view) {
                 auto& transform = view.get<TransformComponent>(entity);
                 auto& color = view.get<ColorComponent>(entity);
                 const glm::vec4 baseColor = color.Color;
 
-                // 1. RAGDOLL (cadavere smontato)
+                // 0. MODELLO SKINNATO FBX (nuova priorità più alta)
+                if (auto* skinnedInst = scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(entity)) {
+                    if (skinnedInst->sourceModel && skinnedInst->boneMatrices) {
+                        const glm::mat4 modelMat = transform.GetTransform();
+                        const auto& bones = *skinnedInst->boneMatrices;
+
+                        for (const auto& submesh : skinnedInst->sourceModel->meshes) {
+                            deferred.DrawSkinnedMesh(
+                                submesh,
+                                modelMat,
+                                bones,
+                                skinnedInst->albedo,
+                                skinnedInst->roughness,
+                                skinnedInst->metallic,
+                                skinnedInst->emissive);
+                        }
+                        continue;   // non disegnare i cubi procedurali per questa entità
+                    }
+                }
+
+                // 1. RAGDOLL
                 if (scene.GetRegistry().all_of<RagdollComponent>(entity)) {
                     auto& ragdoll = scene.GetRegistry().get<RagdollComponent>(entity);
                     for (const auto& mat : ragdoll.worldTransforms) {
-                        // Carne/stoffa: ruvido, non metallico
                         deferred.DrawCube(mat, baseColor, 0.85f, 0.0f, 0.0f);
                     }
                 }
-                // 2. SKELETON VIVO (blocchi corpo)
+                // 2. SKELETON PROCEDURALE (cubi corpo)
                 else if (scene.GetRegistry().all_of<SkeletonComponent>(entity)) {
                     auto& skel = scene.GetRegistry().get<SkeletonComponent>(entity);
                     auto worldTransforms = skel.data.ComputeWorldTransforms(
                         transform.Position, transform.Rotation, skel.scale);
                     for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
-                        // Blocchi corpo: materiale "carne/armatura" di default.
-                        // In futuro leggeremo ArmorPiece per tint/rating.
                         deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
                     }
                 }
-                // 3. MESH STANDARD (muri, terrain, props, armi)
-                else {
-                    // Muri/terrain: ruvidi, opachi, non metallici
+                // 3. MESH/CUBO STANDARD
+                else if (scene.GetRegistry().all_of<MeshComponent>(entity)) {
                     deferred.DrawCube(transform.GetTransform(), baseColor, 0.9f, 0.0f, 0.0f);
                 }
             }

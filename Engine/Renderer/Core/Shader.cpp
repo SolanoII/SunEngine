@@ -187,5 +187,35 @@ namespace SunEngine {
         glBindTexture(GL_TEXTURE_2D, textureId);
         SetInt(name, unit);
     }
+    bool Shader::LoadComputeFromSource(const std::string& src, const std::string& debugName) {
+        if (m_ProgramID != 0) {
+            glDeleteProgram(m_ProgramID);
+            m_ProgramID = 0;
+            m_UniformCache.clear();
+        }
 
+        GLuint comp = CompileShader(GL_COMPUTE_SHADER, src, debugName);
+        if (comp == 0) return false;
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, comp);
+        glLinkProgram(program);
+        glDeleteShader(comp);
+
+        GLint success = 0;
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        if (!success) {
+            GLint logLength = 0;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+            std::vector<char> log(logLength);
+            glGetProgramInfoLog(program, logLength, nullptr, log.data());
+            SUN_CORE_ERROR("Compute shader link error [{0}]:\n{1}", debugName, log.data());
+            glDeleteProgram(program);
+            return false;
+        }
+
+        m_ProgramID = program;
+        SUN_CORE_INFO("Compute shader caricato: {0}", debugName);
+        return true;
+    }
 } // namespace SunEngine
