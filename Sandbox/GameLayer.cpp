@@ -44,7 +44,17 @@ extern std::string FindValidDir(const std::string& targetDirName);
 
 namespace SunEngine {
 
-    struct ProcessedCorpseTag {};
+    // FIX #3: observer on_destroy di HordeAgentComponent. Quando un'unita' nemica viene distrutta
+    // (timeout cadavere, reload mappa, ritorno al garage...) distrugge anche l'arma "figlia"
+    // (orkWeaponEntity, entity separata Mesh+Color) che altrimenti restava a fluttuare per sempre.
+    // Distrugge un'entity DIVERSA da quella in corso di rimozione, quindi e' sicuro dentro il segnale.
+    static void OnHordeAgentDestroyed(entt::registry& reg, entt::entity enemy) {
+        if (!reg.all_of<HordeAgentComponent>(enemy)) return;
+        entt::entity weapon = reg.get<HordeAgentComponent>(enemy).weaponEntity;
+        if (weapon != entt::null && weapon != enemy && reg.valid(weapon)) {
+            reg.destroy(weapon);
+        }
+    }
 
     static glm::vec2 WorldToScreen(const glm::vec3& worldPos, const glm::mat4& viewProj, float screenWidth, float screenHeight) {
         glm::vec4 clipPos = viewProj * glm::vec4(worldPos, 1.0f);
@@ -85,7 +95,6 @@ namespace SunEngine {
     struct OrkVoiceManager {
         ma_sound startWaaaghSound;
         bool startSoundLoaded = false;
-        bool startSoundPlayed = false;
 
         std::vector<std::unique_ptr<OrkVoicePoolItem>> voicePool;
         std::vector<std::string> variationFiles;
@@ -127,7 +136,9 @@ namespace SunEngine {
 
         scene.GetRegistry().emplace<MeshComponent>(entity, 0u);
         auto& col = scene.GetRegistry().emplace<ColliderComponent>(entity, glm::vec3(0.5f));
-        col.localCenterOffset = glm::vec3(0.0f, 0.5f, 0.0f);
+        // FIX #1: localPos dei sub-blocchi e' gia' il centro (es. scale.y*0.5 sopra la base),
+        // quindi nessun offset: altrimenti Jolt si sposta ancora di 0.5*Scale.y rispetto al visibile.
+        col.localCenterOffset = glm::vec3(0.0f);
         scene.GetRegistry().emplace<RigidBodyComponent>(entity, glm::vec3(0.0f), 0.0f, true);
 
         auto& c = scene.GetRegistry().emplace<ColorComponent>(entity);
@@ -493,7 +504,8 @@ namespace SunEngine {
         glm::vec2 posY2D = WorldToScreen(origin + glm::vec3(0.0f, 3.0f, 0.0f), vp, screenW, screenH);
         glm::vec2 posZ2D = WorldToScreen(origin + glm::vec3(0.0f, 0.0f, 3.0f), vp, screenW, screenH);
 
-        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+        // FIX #14: foreground -> i gizmo stanno SOPRA i pannelli ImGui (prima: dietro, coperti dalle finestre)
+        ImDrawList* drawList = ImGui::GetForegroundDrawList();
 
         if (center2D.x > 0.0f && posX2D.x > 0.0f) {
             drawList->AddLine(ImVec2(center2D.x, center2D.y), ImVec2(posX2D.x, posX2D.y), IM_COL32(255, 50, 50, 255), 3.0f);
@@ -519,6 +531,10 @@ namespace SunEngine {
         std::string startPath = audioDir + "i-say-waaagh.wav";
         if (ma_sound_init_from_file(engine, startPath.c_str(), MA_SOUND_FLAG_DECODE, NULL, NULL, &g_OrkVoices.startWaaaghSound) == MA_SUCCESS) {
             g_OrkVoices.startSoundLoaded = true;
+            // FIX #7: "I say waaagh" e' un annuncio globale senza posizione. Ora che il listener segue il
+            // player, se restasse spazializzato (posizione di default = origine) verrebbe attenuato e
+            // panneggiato in base alla distanza dall'origine della mappa.
+            ma_sound_set_spatialization_enabled(&g_OrkVoices.startWaaaghSound, MA_FALSE);
         }
 
         g_OrkVoices.variationFiles = {
@@ -544,7 +560,6 @@ namespace SunEngine {
             ma_sound_seek_to_pcm_frame(&g_OrkVoices.startWaaaghSound, 0);
             ma_sound_set_volume(&g_OrkVoices.startWaaaghSound, voiceVolume);
             ma_sound_start(&g_OrkVoices.startWaaaghSound);
-            g_OrkVoices.startSoundPlayed = true;
         }
     }
 
@@ -564,6 +579,9 @@ namespace SunEngine {
                 ma_sound_set_volume(&item->sound, volume);
                 ma_sound_set_pitch(&item->sound, randomPitch);
                 ma_sound_set_position(&item->sound, orkPos.x, orkPos.y, orkPos.z);
+                // FIX #7: l'attenuazione per distanza e' gia' calcolata a mano (CalculateSpatialVolume):
+                // miniaudio fa SOLO il panning rispetto al listener, senza una seconda attenuazione 1/d.
+                ma_sound_set_attenuation_model(&item->sound, ma_attenuation_model_none);
                 ma_sound_seek_to_pcm_frame(&item->sound, 0);
                 ma_sound_start(&item->sound);
                 break;
@@ -663,7 +681,8 @@ namespace SunEngine {
         auto enemyEntity = scene.CreateEntity();
         auto& enemyTransform = scene.GetRegistry().emplace<TransformComponent>(enemyEntity);
 
-        float groundY = GetGroundHeightAt(scene, spawnPos, spawnPos.y);
+        // FIX #21: spawn fuori mappa -> resta alla quota richiesta invece di y=0
+        float groundY = GetGroundHeightAt(scene, spawnPos, spawnPos.y).value_or(spawnPos.y);
         enemyTransform.Position = spawnPos;
         enemyTransform.Position.y = groundY;
         enemyTransform.Scale = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -911,7 +930,20 @@ namespace SunEngine {
         if (w > 0 && h > 0) {
             m_WindowWidth = static_cast<float>(w);
             m_WindowHeight = static_cast<float>(h);
+            // FIX #6a: rete di sicurezza, il renderer segue SEMPRE la size reale del framebuffer.
+            // Resize() esce subito se la size e' invariata, quindi il costo per frame e' un confronto.
+            m_DeferredRenderer.Resize(w, h);
         }
+    }
+
+    // FIX #6d: arriva dal framebuffer-size callback GLFW via Application::OnEvent.
+    void GameLayer::OnWindowResize(int width, int height) {
+        if (width <= 0 || height <= 0) return;
+        m_WindowWidth = static_cast<float>(width);
+        m_WindowHeight = static_cast<float>(height);
+        glViewport(0, 0, width, height);
+        m_DeferredRenderer.Resize(width, height);
+        m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
     }
     void GameLayer::ApplyDisplaySettings(int width, int height, bool fullscreen) {
         GLFWwindow* window = glfwGetCurrentContext();
@@ -929,32 +961,97 @@ namespace SunEngine {
             int posY = (mode->height - height) / 2;
             glfwSetWindowMonitor(window, NULL, std::max(50, posX), std::max(50, posY), width, height, 0);
         }
-        glViewport(0, 0, width, height);
+        // FIX #6b: la size reale del framebuffer puo' differire da quella richiesta (HiDPI, driver);
+        // si legge dopo glfwSetWindowMonitor e si ridimensiona il renderer deferred di conseguenza.
+        int fbW = 0, fbH = 0;
+        glfwGetFramebufferSize(window, &fbW, &fbH);
+        if (fbW <= 0 || fbH <= 0) { fbW = width; fbH = height; }
+        glViewport(0, 0, fbW, fbH);
 
-        m_WindowWidth = static_cast<float>(width);
-        m_WindowHeight = static_cast<float>(height);
+        m_WindowWidth = static_cast<float>(fbW);
+        m_WindowHeight = static_cast<float>(fbH);
+        m_DeferredRenderer.Resize(fbW, fbH);   // sicuro: chiamato da ImGui dopo il present del frame
         m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
     }
 
     void GameLayer::CheckUnitDeaths() {
-        auto view = m_Scene.GetRegistry().view<HealthComponent, TransformComponent>(
-            entt::exclude<CorpseComponent, PlayerTag>
-        );
-
-        for (auto entity : view) {
-            auto& health = view.get<HealthComponent>(entity);
-            if (health.currentHealth <= 0.0f) {
-                SUN_CORE_WARN("Unita' eliminata! Attivazione Ragdoll Jolt Physics...");
-                glm::vec3 deathImpulse(0.0f, 1.5f, -3.5f);
-                m_PhysicsSystem.KillUnit(m_Scene, entity, deathImpulse);
+        // FIX #22: prima si raccolgono le unita' morte, POI si modifica il registry (KillUnit fa
+        // emplace/replace di Corpse/Ragdoll/JoltBody): niente mutazioni durante l'iterazione della view.
+        auto& reg = m_Scene.GetRegistry();
+        std::vector<entt::entity> dead;
+        {
+            auto view = reg.view<HealthComponent, TransformComponent>(
+                entt::exclude<CorpseComponent, PlayerTag>
+            );
+            for (auto entity : view) {
+                if (view.get<HealthComponent>(entity).currentHealth <= 0.0f) {
+                    dead.push_back(entity);
+                }
             }
+        }
+
+        for (auto entity : dead) {
+            if (!reg.valid(entity)) continue;
+            SUN_CORE_WARN("Unita' eliminata! Attivazione Ragdoll Jolt Physics...");
+
+            // FIX #3: l'arma dell'ork sparisce alla morte (il ragdoll non la regge in mano).
+            // L'observer on_destroy copre comunque i casi in cui l'ork sparisce senza passare di qui.
+            if (auto* horde = reg.try_get<HordeAgentComponent>(entity)) {
+                if (horde->weaponEntity != entt::null && reg.valid(horde->weaponEntity)) {
+                    reg.destroy(horde->weaponEntity);
+                }
+                horde->weaponEntity = entt::null;
+            }
+
+            glm::vec3 deathImpulse(0.0f, 1.5f, -3.5f);
+            m_PhysicsSystem.KillUnit(m_Scene, entity, deathImpulse);
+
+            if (reg.all_of<CorpseComponent>(entity)) {
+                // FIX #4/#19: la kill si conta QUI, nell'unico punto in cui un'unita' non-player muore
+                // (la view esclude PlayerTag). Niente piu' scansione per-frame dei cadaveri ne'
+                // ProcessedCorpseTag: il cadavere del player non puo' piu' essere contato per errore.
+                AwardKill();
+            }
+            else {
+                // Nessuno scheletro -> KillUnit non puo' creare il ragdoll e l'unita' resterebbe
+                // "morta ma viva" (rientrerebbe in questa lista ogni frame). La rimuovo.
+                m_PhysicsSystem.DestroyJoltBody(m_Scene, entity);
+                m_Scene.DestroyEntity(entity);
+                AwardKill();
+            }
+        }
+    }
+
+    // FIX #4: pulisce lo stato "morto" del player (ragdoll Jolt + CorpseComponent).
+    // Prima lo faceva solo il pulsante SCHIERA del respawn: tornando al garage a squadra distrutta
+    // il player manteneva CorpseComponent+Ragdoll (ragdoll visibile in garage) e al redeploy il suo
+    // cadavere veniva contato come kill. Idempotente.
+    void GameLayer::ClearPlayerDeathState() {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(m_PlayerEntity)) return;
+        if (reg.all_of<RagdollComponent>(m_PlayerEntity)) {
+            m_PhysicsSystem.DestroyJoltBody(m_Scene, m_PlayerEntity);
+        }
+        if (reg.all_of<CorpseComponent>(m_PlayerEntity)) {
+            reg.remove<CorpseComponent>(m_PlayerEntity);
         }
     }
 
     GameLayer::GameLayer() : Layer("Game Layer")
     {
         m_PhysicsSystem.Init(m_Scene);
-        m_DeferredRenderer.Init(1280, 720);
+        // FIX #3: pulizia automatica dell'arma nemica alla distruzione dell'ork
+        m_Scene.GetRegistry().on_destroy<HordeAgentComponent>().connect<&OnHordeAgentDestroyed>();
+        {
+            // FIX #6: size iniziale = framebuffer reale (non 1280x720 hardcoded)
+            int initW = 1280, initH = 720;
+            if (GLFWwindow* w0 = glfwGetCurrentContext()) {
+                int fw = 0, fh = 0;
+                glfwGetFramebufferSize(w0, &fw, &fh);
+                if (fw > 0 && fh > 0) { initW = fw; initH = fh; }
+            }
+            m_DeferredRenderer.Init(initW, initH);
+        }
         m_StaticShader.Init();
 
         std::string modelsDir = FindValidDir("Models");
@@ -1047,6 +1144,10 @@ namespace SunEngine {
             playerTransform.Position = m_CurrentMapData.playerSpawnPoints[0];
             m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, playerTransform.Position);
         }
+        // PROFILO: carico impostazioni (volumi, risoluzione, ...) PRIMA di inizializzare l'audio, cosi'
+        // il gruppo SFX parte gia' col volume salvato.
+        LoadProfile();
+
         if (ma_engine_init(NULL, &m_AudioEngine) != MA_SUCCESS) {
             SUN_CORE_ERROR("ERRORE: Impossibile inizializzare MiniAudio!");
             m_AudioEngineInitialized = false;
@@ -1077,12 +1178,179 @@ namespace SunEngine {
         m_PlayerRoster.push_back(unit2);
         m_PlayerRoster.push_back(unit3);
 
-        m_SelectedSquadIndices.push_back(0);
-        ApplyUnitVisuals(m_PlayerRoster[0]);
+        // PROFILO: se esiste un salvataggio sostituisce il roster di default e la squadra selezionata
+        LoadRosterFromProfile();
+        if (m_SelectedSquadIndices.empty()) m_SelectedSquadIndices.push_back(0);
+        ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
+
+        // PROFILO: risoluzione/fullscreen salvati (la finestra parte sempre 1280x720 windowed)
+        if (m_IsFullscreen || m_SelectedResolutionIdx != 0) {
+            ApplyDisplaySettings(g_Resolutions[m_SelectedResolutionIdx].width,
+                                 g_Resolutions[m_SelectedResolutionIdx].height, m_IsFullscreen);
+        }
+    }
+
+    // ===================== PROFILO LOCALE =====================
+    void GameLayer::LoadProfile() {
+        PlayerProfile loaded;
+        if (PlayerProfile::Load(loaded)) {
+            m_Profile = loaded;
+            SUN_CORE_INFO("Profilo caricato: {0}", PlayerProfile::GetProfilePath().string());
+        }
+        else {
+            SUN_CORE_INFO("Nessun profilo valido in {0}: parto dai valori di default",
+                PlayerProfile::GetProfilePath().string());
+        }
+
+        constexpr int kResCount = static_cast<int>(sizeof(g_Resolutions) / sizeof(g_Resolutions[0]));
+        m_SelectedResolutionIdx = std::clamp(m_Profile.resolutionIdx, 0, kResCount - 1);
+        m_IsFullscreen = m_Profile.fullscreen;
+        m_VolumeSFX = m_Profile.volumeSFX;
+        m_VolumeVoice = m_Profile.volumeVoice;
+        m_VolumeMusic = m_Profile.volumeMusic;
+        if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
+        m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 3);
+    }
+
+    void GameLayer::LoadRosterFromProfile() {
+        if (!m_Profile.roster.is_array() || m_Profile.roster.empty()) return;
+
+        std::vector<TrainedUnit> loaded;
+        try {
+            for (const auto& u : m_Profile.roster) {
+                if (!u.is_object()) continue;
+                if (static_cast<int>(loaded.size()) >= MAX_ROSTER_SIZE) break;
+
+                TrainedUnit t;
+                t.blueprintId = u.value("blueprintId", std::string());
+                // Unita' non piu' presente nei blueprint (file rimosso/rinominato): la salto
+                if (!BlueprintManager::Get().GetUnit(t.blueprintId)) {
+                    SUN_CORE_WARN("Profilo: unita' '{0}' non trovata nei blueprint, ignorata", t.blueprintId);
+                    continue;
+                }
+                t.customName = u.value("name", t.blueprintId);
+                if (u.contains("armorColor") && u["armorColor"].is_array() && u["armorColor"].size() == 4) {
+                    t.armorColor = glm::vec4(u["armorColor"][0].get<float>(), u["armorColor"][1].get<float>(),
+                                             u["armorColor"][2].get<float>(), u["armorColor"][3].get<float>());
+                }
+                t.facePreset = u.value("facePreset", 0);
+                t.primaryWeaponId = u.value("primaryWeaponId", t.primaryWeaponId);
+                t.secondaryWeaponId = u.value("secondaryWeaponId", t.secondaryWeaponId);
+                t.meleeWeaponId = u.value("meleeWeaponId", t.meleeWeaponId);
+                if (u.contains("equipmentSlots") && u["equipmentSlots"].is_array()) {
+                    for (size_t i = 0; i < 3 && i < u["equipmentSlots"].size(); ++i)
+                        t.equipmentSlots[i] = u["equipmentSlots"][i].get<std::string>();
+                }
+                t.armorHeadId = u.value("armorHeadId", t.armorHeadId);
+                t.armorTorsoId = u.value("armorTorsoId", t.armorTorsoId);
+                t.armorLeftArmId = u.value("armorLeftArmId", t.armorLeftArmId);
+                t.armorRightArmId = u.value("armorRightArmId", t.armorRightArmId);
+                t.armorLeftLegId = u.value("armorLeftLegId", t.armorLeftLegId);
+                t.armorRightLegId = u.value("armorRightLegId", t.armorRightLegId);
+                t.exp = std::max(0, u.value("exp", 0));
+                loaded.push_back(t);
+            }
+        }
+        catch (const std::exception& e) {
+            SUN_CORE_WARN("Profilo: roster non leggibile ({0}), uso quello di default", e.what());
+            return;
+        }
+        if (loaded.empty()) return;
+
+        m_PlayerRoster = std::move(loaded);
+        m_SelectedVaultIndex = 0;
+        m_SelectedSquadIndices.clear();
+        for (int idx : m_Profile.squadIndices) {
+            bool valid = idx >= 0 && idx < static_cast<int>(m_PlayerRoster.size());
+            bool dup = std::find(m_SelectedSquadIndices.begin(), m_SelectedSquadIndices.end(), idx) != m_SelectedSquadIndices.end();
+            if (valid && !dup) m_SelectedSquadIndices.push_back(idx);
+        }
+    }
+
+    // Riallinea il profilo allo stato corrente e lo scrive solo se e' cambiato (confronto sul JSON
+    // serializzato: non serve ricordarsi di segnare "dirty" in ogni punto della UI).
+    void GameLayer::SaveProfileIfChanged() {
+        m_Profile.resolutionIdx = m_SelectedResolutionIdx;
+        m_Profile.fullscreen = m_IsFullscreen;
+        m_Profile.volumeSFX = m_VolumeSFX;
+        m_Profile.volumeVoice = m_VolumeVoice;
+        m_Profile.volumeMusic = m_VolumeMusic;
+        m_Profile.squadIndices = m_SelectedSquadIndices;
+        m_Profile.selectedMapId = m_SelectedMapId;
+        m_Profile.selectedEventIndex = m_SelectedEventIndex;
+
+        m_Profile.roster = nlohmann::json::array();
+        for (const auto& t : m_PlayerRoster) {
+            nlohmann::json u;
+            u["name"] = t.customName;
+            u["blueprintId"] = t.blueprintId;
+            u["armorColor"] = { t.armorColor.r, t.armorColor.g, t.armorColor.b, t.armorColor.a };
+            u["facePreset"] = t.facePreset;
+            u["primaryWeaponId"] = t.primaryWeaponId;
+            u["secondaryWeaponId"] = t.secondaryWeaponId;
+            u["meleeWeaponId"] = t.meleeWeaponId;
+            u["equipmentSlots"] = { t.equipmentSlots[0], t.equipmentSlots[1], t.equipmentSlots[2] };
+            u["armorHeadId"] = t.armorHeadId;
+            u["armorTorsoId"] = t.armorTorsoId;
+            u["armorLeftArmId"] = t.armorLeftArmId;
+            u["armorRightArmId"] = t.armorRightArmId;
+            u["armorLeftLegId"] = t.armorLeftLegId;
+            u["armorRightLegId"] = t.armorRightLegId;
+            u["exp"] = t.exp;
+            m_Profile.roster.push_back(std::move(u));
+        }
+
+        const std::string text = m_Profile.Serialize();
+        if (text == m_LastSavedProfile) return;
+
+        static bool s_WarnedWriteFailure = false;
+        if (PlayerProfile::WriteText(text)) {
+            m_LastSavedProfile = text;
+            s_WarnedWriteFailure = false;
+        }
+        else if (!s_WarnedWriteFailure) {
+            s_WarnedWriteFailure = true;   // niente spam nel log: riprova al prossimo intervallo
+            SUN_CORE_WARN("Profilo: impossibile scrivere {0}", PlayerProfile::GetProfilePath().string());
+        }
+    }
+
+    // Ricompensa per un nemico eliminato: +1 kill, +1 energia (valuta principale), +1 exp all'unita'
+    // attualmente in campo e all'arma attiva. La Pietra Nera NON si guadagna in partita.
+    void GameLayer::AwardKill() {
+        m_KillCount++;
+        m_Profile.energy += 1;
+
+        if (m_CurrentSquadMemberIdx >= 0 && m_CurrentSquadMemberIdx < static_cast<int>(m_ActiveSquad.size())) {
+            int rosterIdx = m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex;
+            if (rosterIdx >= 0 && rosterIdx < static_cast<int>(m_PlayerRoster.size())) {
+                m_PlayerRoster[rosterIdx].exp += 1;
+            }
+        }
+        if (auto* wbp = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(m_PlayerEntity)) {
+            if (!wbp->id.empty()) m_Profile.weaponExp[wbp->id] += 1;
+        }
+    }
+
+    std::string GameLayer::WeaponLabel(const std::string& name, const std::string& weaponId) const {
+        auto it = m_Profile.weaponExp.find(weaponId);
+        int64_t exp = (it != m_Profile.weaponExp.end()) ? it->second : 0;
+        return name + "  [EXP " + std::to_string(exp) + "]";
     }
 
     GameLayer::~GameLayer()
     {
+        SaveProfileIfChanged();   // ultimo salvataggio all'uscita
+
+        // FIX #15: shutdown ImGui (ordine inverso all'init: backend renderer, backend platform,
+        // contesto). Va fatto col contesto GL ancora valido, prima di renderer e audio.
+        // Il controllo sui BackendUserData evita assert se un backend non era stato inizializzato.
+        if (ImGui::GetCurrentContext() != nullptr) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.BackendRendererUserData) ImGui_ImplOpenGL3_Shutdown();
+            if (io.BackendPlatformUserData) ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+        }
+
         m_NavQuery.Destroy();
         m_DeferredRenderer.Shutdown();
         m_WeaponSystem.ShutdownAudio();
@@ -1108,11 +1376,154 @@ namespace SunEngine {
         }
     }
 
+    // FIX #8: logica di aggancio arma->scheletro estratta da OnUpdate. Chiamata sia nel ramo Gameplay
+    // sia nel MainMenu (garage): prima in garage l'arma restava all'origine perche' la sync stava
+    // DOPO i return di MapEditor/MainMenu.
+    // FIX #10: se il player e' cadavere (ragdoll) l'arma viene nascosta (Scale 0): lo scheletro e'
+    // congelato mentre i cubi del ragdoll si muovono, quindi l'arma altrimenti resterebbe a mezz'aria.
+    void GameLayer::SyncWeaponAttachment() {
+        auto* playerTransform = m_Scene.GetRegistry().try_get<TransformComponent>(m_PlayerEntity);
+        if (!playerTransform || !m_Scene.GetRegistry().all_of<InventoryComponent>(m_PlayerEntity)) return;
+        auto& transform = *playerTransform;
+
+        if (m_Scene.GetRegistry().valid(m_PlayerEntity)) {
+            if (!m_Scene.GetRegistry().valid(m_LeftWeaponEntity)) {
+                m_LeftWeaponEntity = m_Scene.CreateEntity();
+                m_Scene.GetRegistry().emplace<TransformComponent>(m_LeftWeaponEntity);
+                m_Scene.GetRegistry().emplace<MeshComponent>(m_LeftWeaponEntity, 0u);
+                auto& c = m_Scene.GetRegistry().emplace<ColorComponent>(m_LeftWeaponEntity);
+                c.Color = glm::vec4(1.0f);
+                c.BaseColor = glm::vec4(1.0f);
+            }
+
+            // FIX #10: durante il ragdoll niente arma agganciata allo scheletro congelato
+            if (m_Scene.GetRegistry().all_of<CorpseComponent>(m_PlayerEntity)) {
+                if (m_Scene.GetRegistry().valid(m_WeaponEntity)) {
+                    if (auto* wt = m_Scene.GetRegistry().try_get<TransformComponent>(m_WeaponEntity)) wt->Scale = glm::vec3(0.0f);
+                }
+                if (auto* wtl = m_Scene.GetRegistry().try_get<TransformComponent>(m_LeftWeaponEntity)) wtl->Scale = glm::vec3(0.0f);
+                return;
+            }
+
+            auto& inv = m_Scene.GetRegistry().get<InventoryComponent>(m_PlayerEntity);
+            EquipStance currentStance = inv.GetEquipStance();
+
+            std::string rightWeaponId = "";
+            std::string leftWeaponId = "";
+
+            if (currentStance == EquipStance::HybridRangedMelee) {
+                rightWeaponId = inv.meleeWeaponId;
+                leftWeaponId = inv.secondaryWeaponId;
+            }
+            else if (currentStance == EquipStance::DualRangedOneHanded) {
+                rightWeaponId = inv.primaryWeaponId;
+                leftWeaponId = inv.secondaryWeaponId;
+            }
+            else {
+                rightWeaponId = inv.GetActiveWeaponId();
+                leftWeaponId = "";
+            }
+
+            if (m_Scene.GetRegistry().valid(m_WeaponEntity) && !rightWeaponId.empty()) {
+                auto& wTransR = m_Scene.GetRegistry().get<TransformComponent>(m_WeaponEntity);
+                const auto* wBPR = BlueprintManager::Get().GetWeapon(rightWeaponId);
+
+                if (wBPR) {
+                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
+                        auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
+                        auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
+
+                        int armRIndex = -1;
+                        for (size_t i = 0; i < skel.data.blocks.size(); ++i) {
+                            if (skel.data.blocks[i].name == "Arm_R") { armRIndex = static_cast<int>(i); break; }
+                        }
+
+                        if (armRIndex >= 0 && armRIndex < static_cast<int>(worldTransforms.size())) {
+                            glm::mat4 armWorldMat = worldTransforms[armRIndex];
+                            glm::mat4 weaponWorldMat = glm::translate(armWorldMat, wBPR->hold_offset);
+
+                            wTransR.Position = glm::vec3(weaponWorldMat[3]);
+                            glm::quat armQuat = glm::quat_cast(weaponWorldMat);
+                            wTransR.Rotation = glm::degrees(glm::eulerAngles(armQuat));
+
+                            glm::vec3 scale = wBPR->weapon_scale;
+                            if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
+                                scale = wBPR->is_melee ? glm::vec3(0.14f, 0.32f, 1.10f) : glm::vec3(0.08f, 0.18f, 0.80f);
+                            }
+                            wTransR.Scale = scale;
+                        }
+                    }
+
+                    if (m_Scene.GetRegistry().all_of<ColorComponent>(m_WeaponEntity)) {
+                        auto& wColor = m_Scene.GetRegistry().get<ColorComponent>(m_WeaponEntity);
+                        glm::vec4 col = wBPR->primary_color;
+                        if (glm::length(glm::vec3(col)) < 0.05f) col = wBPR->is_melee ? glm::vec4(0.85f, 0.75f, 0.2f, 1.0f) : glm::vec4(0.8f, 0.2f, 0.2f, 1.0f);
+                        wColor.Color = col;
+                        wColor.BaseColor = col;
+                    }
+                }
+            }
+
+            auto& wTransL = m_Scene.GetRegistry().get<TransformComponent>(m_LeftWeaponEntity);
+            if (!leftWeaponId.empty()) {
+                const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
+                if (wBPL) {
+                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
+                        auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
+                        auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
+
+                        int armLIndex = -1;
+                        for (size_t i = 0; i < skel.data.blocks.size(); ++i) {
+                            if (skel.data.blocks[i].name == "Arm_L") { armLIndex = static_cast<int>(i); break; }
+                        }
+
+                        if (armLIndex >= 0 && armLIndex < static_cast<int>(worldTransforms.size())) {
+                            glm::mat4 armWorldMat = worldTransforms[armLIndex];
+
+                            glm::vec3 localOffset = wBPL->hold_offset;
+                            localOffset.x = -localOffset.x;
+                            glm::mat4 weaponWorldMat = glm::translate(armWorldMat, localOffset);
+
+                            wTransL.Position = glm::vec3(weaponWorldMat[3]);
+                            glm::quat armQuat = glm::quat_cast(weaponWorldMat);
+                            wTransL.Rotation = glm::degrees(glm::eulerAngles(armQuat));
+
+                            glm::vec3 scale = wBPL->weapon_scale;
+                            if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
+                                scale = glm::vec3(0.06f, 0.14f, 0.30f);
+                            }
+                            wTransL.Scale = scale;
+                        }
+                    }
+
+                    if (m_Scene.GetRegistry().all_of<ColorComponent>(m_LeftWeaponEntity)) {
+                        auto& wColorL = m_Scene.GetRegistry().get<ColorComponent>(m_LeftWeaponEntity);
+                        glm::vec4 col = wBPL->primary_color;
+                        if (glm::length(glm::vec3(col)) < 0.05f) col = glm::vec4(0.8f, 0.2f, 0.2f, 1.0f);
+                        wColorL.Color = col;
+                        wColorL.BaseColor = col;
+                    }
+                }
+            }
+            else {
+                wTransL.Scale = glm::vec3(0.0f);
+            }
+        }
+
+    }
+
     void GameLayer::OnUpdate(float deltaTime)
     {
         m_DeferredRenderer.SetFrameDelta(deltaTime);
         GLFWwindow* window = glfwGetCurrentContext();
         UpdateWindowSize();
+
+        // Autosave del profilo ogni 2 secondi (scrive solo se qualcosa e' cambiato)
+        m_ProfileSaveTimer += deltaTime;
+        if (m_ProfileSaveTimer >= 2.0f) {
+            m_ProfileSaveTimer = 0.0f;
+            SaveProfileIfChanged();
+        }
         static bool escPressedLastFrame = false;
         bool escPressed = Input::IsKeyPressed(GLFW_KEY_ESCAPE);
         if (escPressed && !escPressedLastFrame) {
@@ -1172,6 +1583,9 @@ namespace SunEngine {
             m_Camera.Update(glm::vec3(0.0f), 1.0f);
 
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
+
+            // FIX #8: arma visibile nel garage (stessa logica del ramo Gameplay)
+            SyncWeaponAttachment();
             return;
         }
         auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity);
@@ -1217,6 +1631,13 @@ namespace SunEngine {
             (hasPrimary1H && hasSecondary1H);
 
         if (!m_IsPaused && isPlayerAlive) {
+            // FIX #11: la salute del membro attivo segue l'HealthComponent (prima restava al valore
+            // iniziale fino alla morte, quando veniva forzata a 0).
+            if (hp && m_CurrentSquadMemberIdx >= 0 &&
+                m_CurrentSquadMemberIdx < static_cast<int>(m_ActiveSquad.size())) {
+                m_ActiveSquad[m_CurrentSquadMemberIdx].currentHealth = hp->currentHealth;
+            }
+
             glm::vec2 mouseDelta = Input::GetMouseDelta();
             float mouseSensitivity = 0.15f;
 
@@ -1237,11 +1658,7 @@ namespace SunEngine {
                 }
             }
 
-            auto corpseView = m_Scene.GetRegistry().view<CorpseComponent>(entt::exclude<ProcessedCorpseTag>);
-            for (auto entity : corpseView) {
-                m_KillCount++;
-                m_Scene.GetRegistry().emplace<ProcessedCorpseTag>(entity);
-            }
+            // FIX #4/#19: il conteggio kill e' ora in CheckUnitDeaths (ProcessedCorpseTag rimosso).
 
             if (m_Scene.GetRegistry().all_of<
                 InventoryComponent,
@@ -1418,6 +1835,8 @@ namespace SunEngine {
             );
             m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
             m_PhysicsSystem.Update(m_Scene, deltaTime);
+            // FIX #2: despawn dei cadaveri dopo maxLifetime (ragdoll Jolt + entity)
+            CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
             m_WeightSystem.Update(m_Scene, deltaTime);
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
@@ -1833,9 +2252,11 @@ namespace SunEngine {
                 const auto& col = colliderView.get<ColliderComponent>(entity);
                 const auto& trans = colliderView.get<TransformComponent>(entity);
 
+                // FIX #1: centro = Position + localCenterOffset
                 glm::vec3 half = col.halfExtents * trans.Scale;
-                glm::vec3 minBox = trans.Position - half;
-                glm::vec3 maxBox = trans.Position + half;
+                glm::vec3 center = GetColliderWorldCenter(trans, col);
+                glm::vec3 minBox = center - half;
+                glm::vec3 maxBox = center + half;
 
                 float tMin = 0.0f, tMax = dynamicDistance;
                 bool hit = true;
@@ -1863,7 +2284,8 @@ namespace SunEngine {
             dynamicDistance = std::clamp(minHitT, 0.6f, dynamicDistance);
 
             glm::vec3 projectedCamPos = lookTarget + camDir * dynamicDistance;
-            float groundY = GetGroundHeightAt(m_Scene, projectedCamPos, projectedCamPos.y);
+            // FIX #21: senza terreno sotto la camera non applico il clamp (prima: terreno fittizio a y=0)
+            float groundY = GetGroundHeightAt(m_Scene, projectedCamPos, projectedCamPos.y).value_or(-1.0e6f);
             float minCamY = groundY + 0.35f;
 
             if (projectedCamPos.y < minCamY) {
@@ -1968,124 +2390,28 @@ namespace SunEngine {
             // Player morto: la fisica deve continuare a girare per simulare il ragdoll.
             // Niente input, camera, AI: solo lo step di Jolt.
             m_PhysicsSystem.Update(m_Scene, deltaTime);
-            }
-        m_ParticleSystem.Update(m_Scene, deltaTime);
-
-        if (m_Scene.GetRegistry().valid(m_PlayerEntity)) {
-            static entt::entity s_LeftWeaponEntity = entt::null;
-            if (!m_Scene.GetRegistry().valid(s_LeftWeaponEntity)) {
-                s_LeftWeaponEntity = m_Scene.CreateEntity();
-                m_Scene.GetRegistry().emplace<TransformComponent>(s_LeftWeaponEntity);
-                m_Scene.GetRegistry().emplace<MeshComponent>(s_LeftWeaponEntity, 0u);
-                auto& c = m_Scene.GetRegistry().emplace<ColorComponent>(s_LeftWeaponEntity);
-                c.Color = glm::vec4(1.0f);
-                c.BaseColor = glm::vec4(1.0f);
-            }
-
-            auto& inv = m_Scene.GetRegistry().get<InventoryComponent>(m_PlayerEntity);
-            EquipStance currentStance = inv.GetEquipStance();
-
-            std::string rightWeaponId = "";
-            std::string leftWeaponId = "";
-
-            if (currentStance == EquipStance::HybridRangedMelee) {
-                rightWeaponId = inv.meleeWeaponId;
-                leftWeaponId = inv.secondaryWeaponId;
-            }
-            else if (currentStance == EquipStance::DualRangedOneHanded) {
-                rightWeaponId = inv.primaryWeaponId;
-                leftWeaponId = inv.secondaryWeaponId;
-            }
-            else {
-                rightWeaponId = inv.GetActiveWeaponId();
-                leftWeaponId = "";
-            }
-
-            if (m_Scene.GetRegistry().valid(m_WeaponEntity) && !rightWeaponId.empty()) {
-                auto& wTransR = m_Scene.GetRegistry().get<TransformComponent>(m_WeaponEntity);
-                const auto* wBPR = BlueprintManager::Get().GetWeapon(rightWeaponId);
-
-                if (wBPR) {
-                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
-                        auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
-                        auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
-
-                        int armRIndex = -1;
-                        for (size_t i = 0; i < skel.data.blocks.size(); ++i) {
-                            if (skel.data.blocks[i].name == "Arm_R") { armRIndex = static_cast<int>(i); break; }
-                        }
-
-                        if (armRIndex >= 0 && armRIndex < static_cast<int>(worldTransforms.size())) {
-                            glm::mat4 armWorldMat = worldTransforms[armRIndex];
-                            glm::mat4 weaponWorldMat = glm::translate(armWorldMat, wBPR->hold_offset);
-
-                            wTransR.Position = glm::vec3(weaponWorldMat[3]);
-                            glm::quat armQuat = glm::quat_cast(weaponWorldMat);
-                            wTransR.Rotation = glm::degrees(glm::eulerAngles(armQuat));
-
-                            glm::vec3 scale = wBPR->weapon_scale;
-                            if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
-                                scale = wBPR->is_melee ? glm::vec3(0.14f, 0.32f, 1.10f) : glm::vec3(0.08f, 0.18f, 0.80f);
-                            }
-                            wTransR.Scale = scale;
-                        }
-                    }
-
-                    if (m_Scene.GetRegistry().all_of<ColorComponent>(m_WeaponEntity)) {
-                        auto& wColor = m_Scene.GetRegistry().get<ColorComponent>(m_WeaponEntity);
-                        glm::vec4 col = wBPR->primary_color;
-                        if (glm::length(glm::vec3(col)) < 0.05f) col = wBPR->is_melee ? glm::vec4(0.85f, 0.75f, 0.2f, 1.0f) : glm::vec4(0.8f, 0.2f, 0.2f, 1.0f);
-                        wColor.Color = col;
-                        wColor.BaseColor = col;
-                    }
-                }
-            }
-
-            auto& wTransL = m_Scene.GetRegistry().get<TransformComponent>(s_LeftWeaponEntity);
-            if (!leftWeaponId.empty()) {
-                const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
-                if (wBPL) {
-                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
-                        auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
-                        auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
-
-                        int armLIndex = -1;
-                        for (size_t i = 0; i < skel.data.blocks.size(); ++i) {
-                            if (skel.data.blocks[i].name == "Arm_L") { armLIndex = static_cast<int>(i); break; }
-                        }
-
-                        if (armLIndex >= 0 && armLIndex < static_cast<int>(worldTransforms.size())) {
-                            glm::mat4 armWorldMat = worldTransforms[armLIndex];
-
-                            glm::vec3 localOffset = wBPL->hold_offset;
-                            localOffset.x = -localOffset.x;
-                            glm::mat4 weaponWorldMat = glm::translate(armWorldMat, localOffset);
-
-                            wTransL.Position = glm::vec3(weaponWorldMat[3]);
-                            glm::quat armQuat = glm::quat_cast(weaponWorldMat);
-                            wTransL.Rotation = glm::degrees(glm::eulerAngles(armQuat));
-
-                            glm::vec3 scale = wBPL->weapon_scale;
-                            if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
-                                scale = glm::vec3(0.06f, 0.14f, 0.30f);
-                            }
-                            wTransL.Scale = scale;
-                        }
-                    }
-
-                    if (m_Scene.GetRegistry().all_of<ColorComponent>(s_LeftWeaponEntity)) {
-                        auto& wColorL = m_Scene.GetRegistry().get<ColorComponent>(s_LeftWeaponEntity);
-                        glm::vec4 col = wBPL->primary_color;
-                        if (glm::length(glm::vec3(col)) < 0.05f) col = glm::vec4(0.8f, 0.2f, 0.2f, 1.0f);
-                        wColorL.Color = col;
-                        wColorL.BaseColor = col;
-                    }
-                }
-            }
-            else {
-                wTransL.Scale = glm::vec3(0.0f);
-            }
+            // FIX #2: i cadaveri nemici devono scadere anche mentre il player e' morto
+            CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
         }
+        // FIX #16: le particelle non avanzano in pausa
+        if (!m_IsPaused) {
+            m_ParticleSystem.Update(m_Scene, deltaTime);
+        }
+
+        // FIX #7: il listener audio segue il player (posizione) e la camera (orientamento).
+        // Senza questo il listener restava a (0,0,0) fisso e panning/direzione di voci, passi e
+        // spari erano relativi all'origine della mappa.
+        if (m_AudioEngineInitialized && m_Scene.GetRegistry().valid(m_PlayerEntity)) {
+            const glm::vec3 listenerPos = transform.Position + glm::vec3(0.0f, 1.6f, 0.0f);
+            const glm::mat4 viewMat = m_Camera.GetView();
+            // righe della view = (right, up, -forward) in coordinate mondo
+            const glm::vec3 listenerFwd = -glm::vec3(viewMat[0][2], viewMat[1][2], viewMat[2][2]);
+            ma_engine_listener_set_position(&m_AudioEngine, 0, listenerPos.x, listenerPos.y, listenerPos.z);
+            ma_engine_listener_set_direction(&m_AudioEngine, 0, listenerFwd.x, listenerFwd.y, listenerFwd.z);
+            ma_engine_listener_set_world_up(&m_AudioEngine, 0, 0.0f, 1.0f, 0.0f);
+        }
+
+        SyncWeaponAttachment();
 
         auto orkWeaponView = m_Scene.GetRegistry().view<HordeAgentComponent, TransformComponent, SkeletonComponent>();
         for (auto orkEnt : orkWeaponView) {
@@ -2121,65 +2447,8 @@ namespace SunEngine {
 
     void GameLayer::OnRender()
     {
-        if (m_UseDeferredTest && m_DeferredRenderer.IsInitialized()) {
-            // ==== STEP 1B TEST: scena hardcoded per validare la pipeline ====
-            // Camera fissa sul centro della scena di test (0,0,0).
-            // La camera di gioco orbita attorno al player a (0, 0.5, 80),
-            // quindi non vedrebbe mai la scena di test.
-            Camera testCam;
-            testCam.SetViewportSize(m_WindowWidth, m_WindowHeight);
-            testCam.SetCameraOffsets(0.0f, 0.5f, 8.0f);          // shoulder, height, distance
-            testCam.SetTarget(glm::vec3(0.0f, 0.5f, 0.0f), 0.0f); // target, yaw
-            testCam.SetPitch(-15.0f);                             // pitch (guarda un po' in giù)
-            testCam.Update();
-
-            m_DeferredRenderer.ClearLights();
-            m_DeferredRenderer.SetDirectionalLight(
-                glm::vec3(-0.5f, -1.0f, -0.3f),
-                glm::vec3(1.0f, 0.95f, 0.85f),
-                1.5f);
-
-            m_DeferredRenderer.AddLight(
-                Light::Point(glm::vec3(3.0f, 2.0f, 3.0f), 8.0f,
-                    glm::vec3(1.0f, 0.4f, 0.1f), 3.0f));
-
-            m_DeferredRenderer.AddLight(
-                Light::Point(glm::vec3(-3.0f, 2.0f, -2.0f), 6.0f,
-                    glm::vec3(0.2f, 0.5f, 1.0f), 2.5f));
-
-            m_DeferredRenderer.BeginGeometryPass(testCam);
-
-            m_DeferredRenderer.DrawTestGround(40.0f);
-
-            for (int x = -2; x <= 2; ++x) {
-                for (int z = -2; z <= 2; ++z) {
-                    if (x == 0 && z == 0) continue;
-
-                    glm::mat4 t = glm::translate(glm::mat4(1.0f),
-                        glm::vec3(x * 2.0f, 0.5f, z * 2.0f));
-                    glm::vec4 color = glm::vec4(
-                        0.5f + 0.5f * std::sin(x * 1.3f),
-                        0.5f + 0.5f * std::sin(z * 1.7f),
-                        0.5f + 0.5f * std::cos((x + z) * 1.1f),
-                        1.0f);
-
-                    m_DeferredRenderer.DrawCube(t, color, 0.3f, 0.0f);
-                }
-            }
-
-            glm::mat4 centerT = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            m_DeferredRenderer.DrawCube(centerT,
-                glm::vec4(0.8f, 0.8f, 0.9f, 1.0f),
-                0.15f, 1.0f);
-
-            m_DeferredRenderer.EndGeometryPassAndPresent(testCam);
-
-            // Rendi comunque l'UI (menu, kill counter, ecc.) — se ritorni
-            // senza chiamare OnImGuiRender vedi solo la scena di test e
-            // perdi tutta la UI.
-            OnImGuiRender();
-            return;
-        }
+        // FIX #12: rimosso il ramo m_UseDeferredTest (scena hardcoded mai eseguita: il flag non veniva
+        // mai messo a true). La pipeline si valida direttamente sulla scena di gioco.
         // ================================================================
 // PIPELINE PBR DEFERRED — disegna la scena di gioco
 // ================================================================
@@ -2501,8 +2770,9 @@ namespace SunEngine {
                 }
 
                 if (ImGui::Button("Esci dal Gioco", ImVec2(-1, 40))) {
+                    // FIX #15: uscita pulita. Application::Run controlla glfwWindowShouldClose, poi
+                    // vengono eseguiti i distruttori (ImGui/audio/GL). std::exit(0) li saltava tutti.
                     if (window) glfwSetWindowShouldClose(window, GLFW_TRUE);
-                    std::exit(0);
                 }
                 ImGui::End();
 
@@ -2582,6 +2852,19 @@ namespace SunEngine {
         }
         ImGui::PopStyleColor();
 
+        // Valute del profilo, allineate a destra
+        {
+            char energyBuf[48], stoneBuf[48];
+            std::snprintf(energyBuf, sizeof(energyBuf), "ENERGIA: %lld", static_cast<long long>(m_Profile.energy));
+            std::snprintf(stoneBuf, sizeof(stoneBuf), "PIETRA NERA: %lld", static_cast<long long>(m_Profile.blackStone));
+            const float spacing = 24.0f;
+            const float totalW = ImGui::CalcTextSize(energyBuf).x + ImGui::CalcTextSize(stoneBuf).x + spacing;
+            ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - totalW - 20.0f, 19.0f));
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "%s", energyBuf);
+            ImGui::SameLine(0.0f, spacing);
+            ImGui::TextColored(ImVec4(0.7f, 0.4f, 1.0f, 1.0f), "%s", stoneBuf);
+        }
+
         ImGui::PopStyleVar();
         ImGui::End();
     }
@@ -2601,7 +2884,7 @@ namespace SunEngine {
             if (isSelected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.4f, 0.7f, 1.0f));
             else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 
-            std::string btnText = m_PlayerRoster[i].customName + "\n(" + m_PlayerRoster[i].blueprintId + ")";
+            std::string btnText = m_PlayerRoster[i].customName + "\n(" + m_PlayerRoster[i].blueprintId + ")  EXP " + std::to_string(m_PlayerRoster[i].exp);
             if (ImGui::Button(btnText.c_str(), ImVec2(-1, 50))) {
                 m_SelectedVaultIndex = i;
                 ApplyUnitVisuals(m_PlayerRoster[i]);
@@ -2853,7 +3136,7 @@ namespace SunEngine {
                         if (ImGui::BeginCombo("Seleziona Primaria", primName.c_str())) {
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
                                 if (wBP.slot_type == WeaponSlotType::Primary) {
-                                    if (ImGui::Selectable(wBP.displayName.c_str(), activeUnit.primaryWeaponId == wId)) {
+                                    if (ImGui::Selectable(WeaponLabel(wBP.displayName, wId).c_str(), activeUnit.primaryWeaponId == wId)) {
                                         activeUnit.primaryWeaponId = wId;
                                         ApplyUnitVisuals(activeUnit);
                                     }
@@ -2874,7 +3157,7 @@ namespace SunEngine {
                         if (ImGui::BeginCombo("Seleziona Secondaria", secName.c_str())) {
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
                                 if (wBP.slot_type == WeaponSlotType::Secondary) {
-                                    if (ImGui::Selectable(wBP.displayName.c_str(), activeUnit.secondaryWeaponId == wId)) {
+                                    if (ImGui::Selectable(WeaponLabel(wBP.displayName, wId).c_str(), activeUnit.secondaryWeaponId == wId)) {
                                         activeUnit.secondaryWeaponId = wId;
                                         ApplyUnitVisuals(activeUnit);
                                     }
@@ -2901,7 +3184,7 @@ namespace SunEngine {
 
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
                                 if (wBP.slot_type == WeaponSlotType::Melee || wBP.is_melee) {
-                                    if (ImGui::Selectable(wBP.displayName.c_str(), activeUnit.meleeWeaponId == wId)) {
+                                    if (ImGui::Selectable(WeaponLabel(wBP.displayName, wId).c_str(), activeUnit.meleeWeaponId == wId)) {
                                         activeUnit.meleeWeaponId = wId;
                                         ApplyUnitVisuals(activeUnit);
                                     }
@@ -3397,6 +3680,7 @@ namespace SunEngine {
                 m_CurrentSquadMemberIdx = 0;
                 m_KillCount = 0;
                 m_PlayerDeathHandled = false;
+                ClearPlayerDeathState();   // FIX #4: rete di sicurezza, il player parte sempre "vivo" pulito
                 ApplyUnitVisuals(m_PlayerRoster[m_ActiveSquad[0].rosterIndex]);
 
                 if (m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
@@ -3469,6 +3753,8 @@ namespace SunEngine {
                     m_Scene.DestroyEntity(e);
                 }
 
+                ClearPlayerDeathState();   // FIX #4: niente ragdoll/Corpse residui nel garage
+
                 if (auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity)) {
                     hp->currentHealth = hp->maxHealth;
                 }
@@ -3496,12 +3782,7 @@ namespace SunEngine {
                         // Cleanup stato morte: rimuove ragdoll Jolt e CorpseComponent.
                         // DestroyJoltBody rimuove sia JoltBodyComponent sia RagdollComponent,
                         // e fa scattare gli observer di cleanup dei body Jolt.
-                        if (m_Scene.GetRegistry().all_of<RagdollComponent>(m_PlayerEntity)) {
-                            m_PhysicsSystem.DestroyJoltBody(m_Scene, m_PlayerEntity);
-                        }
-                        if (m_Scene.GetRegistry().all_of<CorpseComponent>(m_PlayerEntity)) {
-                            m_Scene.GetRegistry().remove<CorpseComponent>(m_PlayerEntity);
-                        }
+                        ClearPlayerDeathState();
 
                         m_CurrentSquadMemberIdx = static_cast<int>(i);
                         ApplyUnitVisuals(unit);
@@ -3534,6 +3815,12 @@ namespace SunEngine {
                             wState->fireCooldown = 0.0f;
                             wState->currentHeat = 0.0f;
                             wState->isOverheating = false;
+                            // FIX #5: caricatore pieno esplicito, indipendente dall'ordine di ApplyUnitVisuals
+                            if (auto* wbp = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(m_PlayerEntity)) {
+                                if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) {
+                                    wState->currentAmmo = bp->magazine_size;
+                                }
+                            }
                         }
 
                         m_PlayerDeathHandled = false;

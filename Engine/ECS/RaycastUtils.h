@@ -59,9 +59,11 @@ namespace SunEngine {
             const auto& trans = staticView.get<TransformComponent>(e);
             const auto& col = staticView.get<ColliderComponent>(e);
 
+            // FIX #1: il box e' centrato su Position + localCenterOffset (non su Position)
             glm::vec3 half = col.halfExtents * trans.Scale;
-            glm::vec3 minB = trans.Position - half;
-            glm::vec3 maxB = trans.Position + half;
+            glm::vec3 center = GetColliderWorldCenter(trans, col);
+            glm::vec3 minB = center - half;
+            glm::vec3 maxB = center + half;
 
             float t;
             // Sottraggo un epsilon per non considerare il bersaglio stesso come ostruzione

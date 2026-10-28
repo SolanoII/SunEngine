@@ -1,6 +1,7 @@
 #include "GLFWWindow.h"
 #include "../../Core/Logger/Log.h"
 #include "../../Core/Input.h"
+#include "../../Core/Events/WindowEvent.h"
 
 namespace SunEngine {
 
@@ -56,6 +57,28 @@ namespace SunEngine {
         glfwSetCursorPosCallback(m_Window, [](GLFWwindow* window, double xpos, double ypos) {
             (void)window;
             Input::OnMouseMoved(xpos, ypos);
+        });
+
+        // FIX #7: chiusura finestra (X) -> WindowCloseEvent -> Application::OnEvent mette m_Running=false
+        glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* window) {
+            auto* data = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
+            if (data && data->EventCallback) {
+                WindowCloseEvent event;
+                data->EventCallback(event);
+            }
+        });
+
+        // FIX #6: resize del FRAMEBUFFER (pixel reali, corretto anche su HiDPI e in fullscreen).
+        // Genera un WindowResizeEvent verso Application::OnEvent, che lo gira ai Layer.
+        glfwSetFramebufferSizeCallback(m_Window, [](GLFWwindow* window, int width, int height) {
+            auto* data = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
+            if (!data) return;
+            data->Width = width;
+            data->Height = height;
+            if (data->EventCallback) {
+                WindowResizeEvent event(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+                data->EventCallback(event);
+            }
         });
     }
 

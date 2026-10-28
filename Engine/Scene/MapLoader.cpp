@@ -18,7 +18,10 @@ namespace SunEngine {
         scene.GetRegistry().emplace<MeshComponent>(entity, 0u);
         // FIX DOUBLE SCALING: halfExtents unitario (0.5f), la dimensione finale e' gestita da trans.Scale
         auto& col = scene.GetRegistry().emplace<ColliderComponent>(entity, glm::vec3(0.5f));
-        col.localCenterOffset = glm::vec3(0.0f, 0.5f, 0.0f);
+        // FIX #1: Position e' gia' il CENTRO del cubo (mesh unitario centrato, navmesh e raycast
+        // AABB lo trattano cosi'). L'offset (0,0.5,0) spostava SOLO il corpo Jolt di 0.5*Scale.y
+        // verso l'alto rispetto alla geometria visibile -> ragdoll/proiettili fisici sfasati.
+        col.localCenterOffset = glm::vec3(0.0f);
         scene.GetRegistry().emplace<RigidBodyComponent>(entity, glm::vec3(0.0f), 0.0f, false);
 
         auto& cComp = scene.GetRegistry().emplace<ColorComponent>(entity);
@@ -134,8 +137,15 @@ namespace SunEngine {
                 else if (type == "block") {
                     glm::vec3 pos = { s["position"][0], s["position"][1], s["position"][2] };
                     glm::vec3 scale = { s["scale"][0], s["scale"][1], s["scale"][2] };
-                    CreateBlock(scene, pos, scale, color);
-                    navBuilder.AddBox(pos, scale * 0.5f);
+                    // FIX #1: nei JSON "block" position.y e' la BASE del blocco (barricata y=0, h=0.4
+                    // poggia sul terreno). Le entity (mesh centrata, AABB, navmesh, Jolt) usano invece
+                    // Position = CENTRO: l'editor lo fa gia' con localPos.y = scale.y*0.5. Qui mancava la
+                    // conversione, quindi i blocchi affondavano di scale.y/2 nel pavimento.
+                    // I JSON restano invariati; CreateBlock continua a prendere un CENTRO (come per
+                    // terreno, rampe ed edifici).
+                    const glm::vec3 center = pos + glm::vec3(0.0f, scale.y * 0.5f, 0.0f);
+                    CreateBlock(scene, center, scale, color);
+                    navBuilder.AddBox(center, scale * 0.5f);
                 }
             }
         }

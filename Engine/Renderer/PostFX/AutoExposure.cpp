@@ -90,6 +90,17 @@ namespace SunEngine {
         m_Width = width;
         m_Height = height;
 
+        // Le compute (4.3) e le image unit (4.2) richiedono che glad abbia caricato queste funzioni.
+        // Se un puntatore e' nullo, chiamarlo = access violation a 0x00000000. In quel caso si
+        // disattiva l'auto-esposizione (DeferredRenderer prosegue con esposizione fissa).
+        if (!glDispatchCompute || !glBindImageTexture || !glMemoryBarrier) {
+            SUN_CORE_WARN("AutoExposure: funzioni compute/image non caricate da glad (serve OpenGL 4.3+), disattivo");
+            return false;
+        }
+        if (!glDispatchCompute || !glBindImageTexture || !glMemoryBarrier) {
+            SUN_CORE_WARN("AutoExposure: funzioni compute/image non caricate da glad (serve OpenGL 4.3+), disattivo");
+            return false;
+        }
         // Luminance 16x16 R32F
         glGenTextures(1, &m_LuminanceTex);
         glBindTexture(GL_TEXTURE_2D, m_LuminanceTex);

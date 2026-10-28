@@ -8,10 +8,16 @@ namespace SunEngine
 
     LayerStack::~LayerStack()
     {
+        Clear();
+    }
+
+    void LayerStack::Clear()
+    {
         for (Layer* layer : Layers)
         {
             delete layer;
         }
+        Layers.clear();
     }
 
     void LayerStack::PushLayer(Layer* layer)

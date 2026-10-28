@@ -13,6 +13,7 @@ namespace SunEngine {
 
         virtual void Update() override;
         virtual void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
+        virtual void* GetNativeWindow() const override { return m_Window; }   // FIX #7
 
     private:
         virtual void Init(int width, int height, const std::string& title);

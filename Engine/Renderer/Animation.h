@@ -1,13 +1,17 @@
 #pragma once
 #include "SkinnedModel.h"
 #include <assimp/Importer.hpp>
+#include <assimp/config.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
+#include <cstdio>
 
 namespace SunEngine {
 
@@ -15,9 +19,22 @@ namespace SunEngine {
     struct KeyRotation { glm::quat orientation{ 1.0f, 0.0f, 0.0f, 0.0f }; float timeStamp = 0.0f; };
     struct KeyScale { glm::vec3 scale{ 1.0f }; float timeStamp = 0.0f; };
 
+    // Scompone una matrice locale di nodo in posizione / rotazione / scala.
+    inline void DecomposeLocalBind(const glm::mat4& m, glm::vec3& outPos, glm::quat& outRot, glm::vec3& outScale) {
+        outPos = glm::vec3(m[3]);
+        glm::vec3 cx = glm::vec3(m[0]), cy = glm::vec3(m[1]), cz = glm::vec3(m[2]);
+        float sx = glm::length(cx), sy = glm::length(cy), sz = glm::length(cz);
+        outScale = glm::vec3(sx > 0.0001f ? sx : 1.0f, sy > 0.0001f ? sy : 1.0f, sz > 0.0001f ? sz : 1.0f);
+        glm::mat3 rotMat(cx / outScale.x, cy / outScale.y, cz / outScale.z);
+        outRot = glm::normalize(glm::quat_cast(rotMat));
+    }
+
     class Bone {
     public:
-        Bone(const std::string& name, int id, const aiNodeAnim* channel) : m_Name(name), m_ID(id) {
+        // animBindLocal = trasformazione locale del nodo nel file dell'ANIMAZIONE (la sua posa di riposo).
+        Bone(const std::string& name, int id, const aiNodeAnim* channel, const glm::mat4& animBindLocal)
+            : m_Name(name), m_ID(id) {
+            DecomposeLocalBind(animBindLocal, m_AnimBindPos, m_AnimBindRot, m_AnimBindScale);
             if (channel) {
                 for (unsigned int i = 0; i < channel->mNumPositionKeys; i++) {
                     auto k = channel->mPositionKeys[i];
@@ -34,34 +51,39 @@ namespace SunEngine {
             }
         }
 
-        void Update(float animationTime, const glm::mat4& nodeBindTransform) {
-            glm::vec3 bindPos = glm::vec3(nodeBindTransform[3]);
+        // RETARGET (fix upside-down): le chiavi dell'animazione sono applicate come VARIAZIONE rispetto
+        // alla posa di riposo dell'animazione, sopra la posa di riposo del MODELLO:
+        //   rot   = modelBindRot * inverse(animBindRot) * keyRot
+        //   pos   = modelBindPos + (keyPos - animBindPos) * rapportoUnita'
+        //   scale = modelBindScale * keyScale / animBindScale
+        // Con modello e clip sullo stesso rig (bind uguali) il risultato coincide con la chiave assoluta,
+        // quindi l'idle (letta dal file del modello) non cambia. Con rig diversi (armature ruotata,
+        // unita' cm/m, Hips con altro bind) evita che una rotazione costante capovolga il corpo.
+        void Update(float animationTime, const glm::mat4& modelBindLocal) {
+            glm::vec3 mPos, mScale;
+            glm::quat mRot;
+            DecomposeLocalBind(modelBindLocal, mPos, mRot, mScale);
 
-            glm::vec3 scaleX = glm::vec3(nodeBindTransform[0]);
-            glm::vec3 scaleY = glm::vec3(nodeBindTransform[1]);
-            glm::vec3 scaleZ = glm::vec3(nodeBindTransform[2]);
+            glm::vec3 keyPos = SamplePosition(animationTime);
+            float ratio = 1.0f;
+            float lm = glm::length(mPos), la = glm::length(m_AnimBindPos);
+            if (lm > 1e-4f && la > 1e-4f) ratio = std::clamp(lm / la, 1e-3f, 1e3f);
+            glm::vec3 pos = mPos + (keyPos - m_AnimBindPos) * ratio;
 
-            float sx = glm::length(scaleX);
-            float sy = glm::length(scaleY);
-            float sz = glm::length(scaleZ);
-            glm::vec3 bindScale(sx > 0.0001f ? sx : 1.0f, sy > 0.0001f ? sy : 1.0f, sz > 0.0001f ? sz : 1.0f);
+            glm::quat keyRot = SampleRotation(animationTime);
+            glm::quat rot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
 
-            glm::mat3 rotMat(
-                scaleX / bindScale.x,
-                scaleY / bindScale.y,
-                scaleZ / bindScale.z
-            );
-            glm::quat bindRot = glm::normalize(glm::quat_cast(rotMat));
+            glm::vec3 keyScale = SampleScale(animationTime);
+            glm::vec3 scale = mScale * (keyScale / m_AnimBindScale);
 
-            glm::mat4 translation = InterpolatePosition(animationTime, bindPos);
-            glm::mat4 rotation = InterpolateRotation(animationTime, bindRot);
-            glm::mat4 scale = InterpolateScale(animationTime, bindScale);
-
-            m_LocalTransform = translation * rotation * scale;
+            m_LocalTransform = glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), scale);
         }
 
         glm::mat4 GetLocalTransform() const { return m_LocalTransform; }
         const std::string& GetBoneName() const { return m_Name; }
+        bool HasPositionKeys() const { return !m_Positions.empty(); }
+        const glm::quat& GetAnimBindRot() const { return m_AnimBindRot; }
+        const glm::vec3& GetAnimBindPos() const { return m_AnimBindPos; }
 
     private:
         int GetPositionIndex(float animationTime) const {
@@ -87,29 +109,27 @@ namespace SunEngine {
             return std::clamp(midWayLength / framesDiff, 0.0f, 1.0f);
         }
 
-        glm::mat4 InterpolatePosition(float animationTime, const glm::vec3& defaultPos) const {
-            if (m_Positions.empty()) return glm::translate(glm::mat4(1.0f), defaultPos);
-            if (m_Positions.size() == 1) return glm::translate(glm::mat4(1.0f), m_Positions[0].position);
-            int p0 = GetPositionIndex(animationTime), p1 = p0 + 1;
-            float t = GetScaleFactor(m_Positions[p0].timeStamp, m_Positions[p1].timeStamp, animationTime);
-            glm::vec3 pos = glm::mix(m_Positions[p0].position, m_Positions[p1].position, t);
-            return glm::translate(glm::mat4(1.0f), pos);
+        // Campionamento chiavi. Senza chiavi: valore di riposo dell'animazione (=> delta nullo).
+        glm::vec3 SamplePosition(float t) const {
+            if (m_Positions.empty()) return m_AnimBindPos;
+            if (m_Positions.size() == 1) return m_Positions[0].position;
+            int p0 = GetPositionIndex(t), p1 = p0 + 1;
+            float f = GetScaleFactor(m_Positions[p0].timeStamp, m_Positions[p1].timeStamp, t);
+            return glm::mix(m_Positions[p0].position, m_Positions[p1].position, f);
         }
-        glm::mat4 InterpolateRotation(float animationTime, const glm::quat& defaultRot) const {
-            if (m_Rotations.empty()) return glm::mat4_cast(defaultRot);
-            if (m_Rotations.size() == 1) return glm::mat4_cast(glm::normalize(m_Rotations[0].orientation));
-            int p0 = GetRotationIndex(animationTime), p1 = p0 + 1;
-            float t = GetScaleFactor(m_Rotations[p0].timeStamp, m_Rotations[p1].timeStamp, animationTime);
-            glm::quat rot = glm::slerp(m_Rotations[p0].orientation, m_Rotations[p1].orientation, t);
-            return glm::mat4_cast(glm::normalize(rot));
+        glm::quat SampleRotation(float t) const {
+            if (m_Rotations.empty()) return m_AnimBindRot;
+            if (m_Rotations.size() == 1) return glm::normalize(m_Rotations[0].orientation);
+            int p0 = GetRotationIndex(t), p1 = p0 + 1;
+            float f = GetScaleFactor(m_Rotations[p0].timeStamp, m_Rotations[p1].timeStamp, t);
+            return glm::normalize(glm::slerp(m_Rotations[p0].orientation, m_Rotations[p1].orientation, f));
         }
-        glm::mat4 InterpolateScale(float animationTime, const glm::vec3& defaultScale) const {
-            if (m_Scales.empty()) return glm::scale(glm::mat4(1.0f), defaultScale);
-            if (m_Scales.size() == 1) return glm::scale(glm::mat4(1.0f), m_Scales[0].scale);
-            int p0 = GetScaleIndex(animationTime), p1 = p0 + 1;
-            float t = GetScaleFactor(m_Scales[p0].timeStamp, m_Scales[p1].timeStamp, animationTime);
-            glm::vec3 sc = glm::mix(m_Scales[p0].scale, m_Scales[p1].scale, t);
-            return glm::scale(glm::mat4(1.0f), sc);
+        glm::vec3 SampleScale(float t) const {
+            if (m_Scales.empty()) return m_AnimBindScale;
+            if (m_Scales.size() == 1) return m_Scales[0].scale;
+            int p0 = GetScaleIndex(t), p1 = p0 + 1;
+            float f = GetScaleFactor(m_Scales[p0].timeStamp, m_Scales[p1].timeStamp, t);
+            return glm::mix(m_Scales[p0].scale, m_Scales[p1].scale, f);
         }
 
         std::vector<KeyPosition> m_Positions;
@@ -118,12 +138,18 @@ namespace SunEngine {
         glm::mat4 m_LocalTransform{ 1.0f };
         std::string m_Name;
         int m_ID = -1;
+        glm::vec3 m_AnimBindPos{ 0.0f };
+        glm::quat m_AnimBindRot{ 1.0f, 0.0f, 0.0f, 0.0f };
+        glm::vec3 m_AnimBindScale{ 1.0f };
     };
 
     class Animation {
     public:
         bool LoadFromFile(const std::string& path, SkinnedModel* model) {
             Assimp::Importer importer;
+            // Stessa impostazione di SkinnedModel::LoadModel (vedi li' la spiegazione): niente nodi
+            // ausiliari $AssimpFbx$, altrimenti le chiavi vengono applicate sopra pivot gia' presenti.
+            importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
             const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate);
 
             if (!scene || !scene->mRootNode || scene->mNumAnimations == 0) {
@@ -137,10 +163,23 @@ namespace SunEngine {
             m_Duration = (float)anim->mDuration;
             m_TicksPerSecond = anim->mTicksPerSecond != 0 ? (float)anim->mTicksPerSecond : 25.0f;
 
-            ReadHierarchyData(m_RootNode, scene->mRootNode);
-            ReadMissingBones(anim, *model);
+            // Gerarchia del file ANIMAZIONE: serve solo per leggere le pose di riposo dei suoi nodi.
+            AssimpNodeData animRoot;
+            ReadHierarchyData(animRoot, scene->mRootNode);
+            std::unordered_map<std::string, glm::mat4> animBind;
+            CollectLocalBind(animRoot, animBind);
+
+            // Gerarchia usata per il calcolo = quella del MODELLO, coerente con le sue offsetMatrix.
+            m_RootNode = model->rootNode;
+            std::unordered_set<std::string> modelNodes;
+            CollectNodeNames(m_RootNode, modelNodes);
+            std::unordered_map<std::string, glm::mat4> modelBind;
+            CollectLocalBind(m_RootNode, modelBind);
+
+            ReadMissingBones(anim, *model, animBind, modelNodes);
 
             SUN_CORE_INFO("Animazione caricata: {0} (durata: {1} tick, {2} ossa animate)", path, m_Duration, m_Bones.size());
+            LogRetargetDiagnostics(path, animRoot, *model, animBind, modelBind);
             return true;
         }
 
@@ -156,20 +195,78 @@ namespace SunEngine {
         const glm::mat4& GetGlobalInverseTransform() const { return m_GlobalInverseTransform; }
 
     private:
-        void ReadMissingBones(const aiAnimation* animation, SkinnedModel& model) {
+        static std::string Describe(const glm::mat4& m) {
+            glm::vec3 p, s;
+            glm::quat r;
+            DecomposeLocalBind(m, p, r, s);
+            glm::vec3 e = glm::degrees(glm::eulerAngles(r));
+            char buf[200];
+            snprintf(buf, sizeof(buf), "pos(%.2f,%.2f,%.2f) rotEuler(%.1f,%.1f,%.1f) scala(%.3f,%.3f,%.3f)",
+                p.x, p.y, p.z, e.x, e.y, e.z, s.x, s.y, s.z);
+            return buf;
+        }
+
+        static void CollectLocalBind(const AssimpNodeData& n, std::unordered_map<std::string, glm::mat4>& out) {
+            out[n.name] = n.transformation;
+            for (const auto& c : n.children) CollectLocalBind(c, out);
+        }
+        static void CollectNodeNames(const AssimpNodeData& n, std::unordered_set<std::string>& out) {
+            out.insert(n.name);
+            for (const auto& c : n.children) CollectNodeNames(c, out);
+        }
+
+        void ReadMissingBones(const aiAnimation* animation, SkinnedModel& model,
+            const std::unordered_map<std::string, glm::mat4>& animBind,
+            const std::unordered_set<std::string>& modelNodes) {
             m_BoneInfoMap = model.boneInfoMap;
 
+            int dropped = 0;
+            std::string droppedNames;
             for (unsigned int i = 0; i < animation->mNumChannels; i++) {
                 auto channel = animation->mChannels[i];
                 std::string boneName = channel->mNodeName.C_Str();
 
-                if (m_BoneInfoMap.find(boneName) == m_BoneInfoMap.end()) {
-                    BoneInfo info{};
-                    info.id = model.boneCounter++;
-                    info.offsetMatrix = glm::mat4(1.0f);
-                    m_BoneInfoMap[boneName] = info;
+                // Canale su un nodo che il modello non ha: non si puo' applicare. (Prima veniva creata
+                // una BoneInfo fittizia modificando model.boneCounter.)
+                if (modelNodes.find(boneName) == modelNodes.end()) {
+                    dropped++;
+                    if (dropped <= 5) droppedNames += boneName + "; ";
+                    continue;
                 }
-                m_Bones.push_back(Bone(boneName, m_BoneInfoMap[boneName].id, channel));
+
+                glm::mat4 ab(1.0f);
+                auto ait = animBind.find(boneName);
+                if (ait != animBind.end()) ab = ait->second;
+
+                int id = -1;
+                auto bit = m_BoneInfoMap.find(boneName);
+                if (bit != m_BoneInfoMap.end()) id = bit->second.id;
+
+                m_Bones.push_back(Bone(boneName, id, channel, ab));
+            }
+
+            if (dropped > 0) {
+                SUN_CORE_WARN("Animazione: {0} canali su {1} NON presenti nel modello (ignorati). Primi: {2}",
+                    dropped, animation->mNumChannels, droppedNames);
+            }
+        }
+
+        // Diagnostica retarget: confronta le pose di riposo di modello e clip. Se nodo radice o Hips
+        // differiscono molto (rotazione, scala, unita') e' la causa di un corpo capovolto/deformato.
+        void LogRetargetDiagnostics(const std::string& path, const AssimpNodeData& animRoot, const SkinnedModel& model,
+            const std::unordered_map<std::string, glm::mat4>& animBind,
+            const std::unordered_map<std::string, glm::mat4>& modelBind) {
+            SUN_CORE_INFO("[RETARGET] {0}", path);
+            SUN_CORE_INFO("[RETARGET]   radice modello '{0}': {1}", model.rootNode.name, Describe(model.rootNode.transformation));
+            SUN_CORE_INFO("[RETARGET]   radice animazione '{0}': {1}", animRoot.name, Describe(animRoot.transformation));
+            int shown = 0;
+            for (const auto& b : m_Bones) {
+                if (!b.HasPositionKeys() && shown >= 2) continue;   // priorita' alle ossa con traslazione (Hips)
+                auto m = modelBind.find(b.GetBoneName());
+                auto a = animBind.find(b.GetBoneName());
+                if (m == modelBind.end() || a == animBind.end()) continue;
+                SUN_CORE_INFO("[RETARGET]   osso '{0}': modello {1} | anim {2}", b.GetBoneName(), Describe(m->second), Describe(a->second));
+                if (++shown >= 4) break;
             }
         }
 

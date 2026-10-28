@@ -28,6 +28,12 @@ namespace SunEngine
             SUN_CORE_ERROR("Failed to initialize GLAD!");
             m_Running = false;
         }
+        // Diagnostica: versione/driver effettivi del contesto (utile per compute, ImageTexture, ecc.)
+        SUN_CORE_INFO("OpenGL {0} | {1} | {2}",
+            reinterpret_cast<const char*>(glGetString(GL_VERSION)),
+            reinterpret_cast<const char*>(glGetString(GL_RENDERER)),
+            reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
+
         SUN_CORE_INFO("Window created successfully");
         m_LastFrameTime = std::chrono::steady_clock::now();
     }
@@ -35,6 +41,10 @@ namespace SunEngine
     Application::~Application()
     {
         SUN_CORE_INFO("Shutting down Sun Engine");
+        // FIX #15: i layer (GameLayer: ImGui, audio, renderer deferred) vanno distrutti PRIMA della
+        // finestra. Prima il membro m_LayerStack veniva distrutto DOPO `delete m_Window`, cioe'
+        // con il contesto GL gia' morto (cleanup GL/ImGui su contesto inesistente).
+        m_LayerStack.Clear();
         delete m_Window;
     }
 
@@ -42,7 +52,11 @@ namespace SunEngine
     {
         Renderer::Init();
 
-        while (m_Running)
+        // FIX #7/#15: la X genera WindowCloseEvent (m_Running=false). glfwWindowShouldClose resta come
+        // rete di sicurezza per il pulsante "Esci" (glfwSetWindowShouldClose non invoca il callback),
+        // letto dal handle della NOSTRA finestra e non da glfwGetCurrentContext() che puo' essere null.
+        GLFWwindow* nativeWindow = m_Window ? static_cast<GLFWwindow*>(m_Window->GetNativeWindow()) : nullptr;
+        while (m_Running && !(nativeWindow && glfwWindowShouldClose(nativeWindow)))
         {
             auto currentTime = std::chrono::steady_clock::now();
             float deltaTime = std::chrono::duration<float>(currentTime - m_LastFrameTime).count();
@@ -82,6 +96,16 @@ namespace SunEngine
         {
             m_Running = false;
             event.Handled = true;
+        }
+        // FIX #6: propaga il resize a tutti i Layer (dal piu' alto al piu' basso, come in Hazel)
+        else if (event.GetEventType() == EventType::WindowResize)
+        {
+            auto& resize = static_cast<WindowResizeEvent&>(event);
+            const int w = static_cast<int>(resize.GetWidth());
+            const int h = static_cast<int>(resize.GetHeight());
+            if (w > 0 && h > 0) {   // finestra minimizzata: 0x0, ignoro
+                for (Layer* layer : m_LayerStack) layer->OnWindowResize(w, h);
+            }
         }
     }
 

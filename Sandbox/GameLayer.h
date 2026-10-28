@@ -9,6 +9,8 @@
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
 #include "Engine/ECS/ParticleSystem.h"
+#include "Engine/ECS/CorpseSystem.h"
+#include "PlayerProfile.h"
 #include "Engine/ECS/RenderSystem.h"
 #include "Engine/ECS/WeaponSystem.h"
 #include "Engine/Scene/MapLoader.h"
@@ -64,6 +66,8 @@ namespace SunEngine {
         std::string armorRightArmId = "arm_r_guardsman_recruit";
         std::string armorLeftLegId = "leg_l_guardsman_recruit";
         std::string armorRightLegId = "leg_r_guardsman_recruit";
+
+        int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni orco ucciso)
 
         int CalculateTotalPoints() const {
             int points = 0;
@@ -160,9 +164,19 @@ namespace SunEngine {
 
         void ApplyDisplaySettings(int width, int height, bool fullscreen);
         void UpdateWindowSize();               // ← AGGIUNGI QUESTA DICHIARAZIONE
+        void OnWindowResize(int width, int height) override;   // FIX #6
         void ApplyUnitVisuals(const TrainedUnit& unit);
         int CalculateSquadPoints() const;
         void CheckUnitDeaths();
+
+        // --- Profilo locale (impostazioni, valute, exp, roster) ---
+        void LoadProfile();                    // legge il file e applica le impostazioni
+        void LoadRosterFromProfile();          // sostituisce il roster di default se il profilo ne ha uno
+        void SaveProfileIfChanged();           // scrive su disco solo se qualcosa e' cambiato
+        void AwardKill();                      // +1 kill, +1 energia, +1 exp unita' e arma
+        std::string WeaponLabel(const std::string& name, const std::string& weaponId) const;
+        void SyncWeaponAttachment();    // FIX #8/#10: arma del player agganciata allo scheletro
+        void ClearPlayerDeathState();   // FIX #4: toglie ragdoll + CorpseComponent dal player
 
     private:
         Scene m_Scene;
@@ -196,6 +210,7 @@ namespace SunEngine {
 
         entt::entity m_PlayerEntity = entt::null;
         entt::entity m_WeaponEntity = entt::null;
+        entt::entity m_LeftWeaponEntity = entt::null;   // FIX #6: era static in SyncWeaponAttachment
 
         bool m_IsPaused = false;
         GameState m_GameState = GameState::MainMenu;
@@ -227,6 +242,10 @@ namespace SunEngine {
         bool m_PlayerDeathHandled = false;
         int m_KillCount = 0;
 
+        PlayerProfile m_Profile;
+        std::string m_LastSavedProfile;
+        float m_ProfileSaveTimer = 0.0f;
+
         bool m_ShowOptionsMenu = false;
         bool m_IsFullscreen = false;
         int m_SelectedResolutionIdx = 0;
@@ -250,7 +269,6 @@ namespace SunEngine {
         bool m_IsDraggingGizmo = false;
 
         DeferredRenderer m_DeferredRenderer;
-        bool m_UseDeferredTest = false;  // toggle
     };
 
 }

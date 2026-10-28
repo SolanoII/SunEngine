@@ -9,6 +9,7 @@
 #include "SkinnedMesh.h"
 #include "../Core/Logger/Log.h"
 #include <assimp/Importer.hpp>
+#include <assimp/config.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <glm/glm.hpp>
@@ -43,6 +44,13 @@ namespace SunEngine {
 
         bool LoadModel(const std::string& path) {
             Assimp::Importer importer;
+            // FIX animazioni capovolte: di default Assimp spezza ogni osso FBX in nodi ausiliari
+            // (X_$AssimpFbx$_Translation / _PreRotation / _Rotation) lasciando il nodo dell'osso con
+            // trasformazione identica, mentre le chiavi di animazione contengono la trasformazione
+            // locale COMPLETA. Applicate al nodo dell'osso, traslazione e pre-rotazione venivano contate
+            // due volte (piedi sopra la testa). Con PRESERVE_PIVOTS=false ogni osso e' un solo nodo.
+            // DEVE essere identico in Animation::LoadFromFile: stessa gerarchia in modello e clip.
+            importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
             const aiScene* scene = importer.ReadFile(path,
                 aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs);
 

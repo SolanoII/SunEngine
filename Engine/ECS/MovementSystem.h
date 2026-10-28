@@ -17,6 +17,7 @@
 #include "../Core/MathUtils.h"
 #include "../AssetManager/BlueprintManager.h"
 #include "../Core/Logger/Log.h"
+#include <memory>
 #include "Components.h"
 #include "SunPhysicsSystem.h"
 
@@ -33,9 +34,9 @@ namespace SunEngine {
         void ShutdownAudio() {
             for (auto& [surface, pool] : m_FootstepPools) {
                 for (auto& item : pool) {
-                    if (item.loaded) {
-                        ma_sound_uninit(&item.sound);
-                        item.loaded = false;
+                    if (item && item->loaded) {
+                        ma_sound_uninit(&item->sound);
+                        item->loaded = false;
                     }
                 }
                 pool.clear();
@@ -56,7 +57,10 @@ namespace SunEngine {
 
         // Pool di istanze concorrenti per ciascun tipo di superficie.
         // Ownership: questa classe. Vita: legata a MovementSystem.
-        std::unordered_map<SurfaceType, std::vector<FootstepSoundPoolItem>> m_FootstepPools;
+        // FIX crash audio: unique_ptr perche' un ma_sound inizializzato NON puo' essere copiato ne'
+        // spostato (il grafo audio ne conserva l'indirizzo). Prima: pool.push_back(item) copiava il
+        // sound inizializzato da una variabile locale -> il thread audio leggeva memoria gia' riusata.
+        std::unordered_map<SurfaceType, std::vector<std::unique_ptr<FootstepSoundPoolItem>>> m_FootstepPools;
 
         void PlayFootstep(ma_engine* engine, ma_sound_group* sfxGroup, SurfaceType surface,
             const glm::vec3& position, bool isPlayer, float volume) {
@@ -77,26 +81,28 @@ namespace SunEngine {
             if (pool.empty()) {
                 // Inizializza il pool alla prima chiamata (o fallo in Init)
                 for (int i = 0; i < 4; ++i) {   // 4 istanze concorrenti max
-                    FootstepSoundPoolItem item;
+                    auto item = std::make_unique<FootstepSoundPoolItem>();   // indirizzo stabile
                     ma_sound_config config = ma_sound_config_init();
                     config.pFilePath = soundPath.c_str();
                     config.flags = MA_SOUND_FLAG_DECODE;   // file breve → decode in RAM
                     config.pInitialAttachment = sfxGroup;  // attacca al gruppo SFX
-                    if (ma_sound_init_ex(engine, &config, &item.sound) == MA_SUCCESS) {
-                        item.loaded = true;
-                        pool.push_back(item);
+                    if (ma_sound_init_ex(engine, &config, &item->sound) == MA_SUCCESS) {
+                        item->loaded = true;
+                        pool.push_back(std::move(item));
                     }
                 }
             }
 
             // Trova un'istanza libera e riproduci
             for (auto& item : pool) {
-                if (!item.loaded) continue;
-                if (!ma_sound_is_playing(&item.sound)) {
-                    ma_sound_set_volume(&item.sound, volume);          // volume individuale
-                    ma_sound_set_position(&item.sound, position.x, position.y, position.z);
-                    ma_sound_seek_to_pcm_frame(&item.sound, 0);
-                    ma_sound_start(&item.sound);
+                if (!item || !item->loaded) continue;
+                if (!ma_sound_is_playing(&item->sound)) {
+                    ma_sound_set_volume(&item->sound, volume);          // volume individuale
+                    ma_sound_set_position(&item->sound, position.x, position.y, position.z);
+                    // FIX #7: volume gia' attenuato a mano; qui solo panning rispetto al listener
+                    ma_sound_set_attenuation_model(&item->sound, ma_attenuation_model_none);
+                    ma_sound_seek_to_pcm_frame(&item->sound, 0);
+                    ma_sound_start(&item->sound);
                     return;
                 }
             }
@@ -115,9 +121,11 @@ namespace SunEngine {
                 const auto& col = view.get<ColliderComponent>(entity);
                 const auto& trans = view.get<TransformComponent>(entity);
 
+                // FIX #1: centro = Position + localCenterOffset
                 glm::vec3 half = col.halfExtents * trans.Scale;
-                glm::vec3 minBox = trans.Position - half;
-                glm::vec3 maxBox = trans.Position + half;
+                glm::vec3 center = GetColliderWorldCenter(trans, col);
+                glm::vec3 minBox = center - half;
+                glm::vec3 maxBox = center + half;
 
                 float tMin = 0.0f, tMax = maxDist;
                 bool hit = true;
@@ -176,14 +184,33 @@ namespace SunEngine {
             if (RaycastScene(scene, forwardRayStart, forwardDir, checkDistance, forwardHitPoint, entity)) {
                 float wallDist = glm::distance(glm::vec2(trans.Position.x, trans.Position.z), glm::vec2(forwardHitPoint.x, forwardHitPoint.z));
 
-                // Raycast verso il basso per trovare il bordo superiore dell'ostacolo
-                glm::vec3 downRayStart = trans.Position + forwardDir * (wallDist + 0.35f) + glm::vec3(0.0f, maxClimbHeight + 0.5f, 0.0f);
-                glm::vec3 downHitPoint;
+                // Raycast verso il basso per trovare il bordo superiore dell'ostacolo.
+                // FIX vault: prima si provava solo a wallDist+0.35m. Un ostacolo piu' sottile di 0.35m
+                // (barricata 0.3m, muretto 0.2m) veniva "saltato" dal raggio, che cadeva sul terreno
+                // dietro di lui (altezza 0 -> nessun vault). Per questo funzionava solo guardando di
+                // lato: il raggio obliquo penetra meno in profondita'. Ora si provano piu' offset,
+                // dal piu' profondo al piu' vicino alla faccia anteriore, e vince il primo che trova
+                // una cima valida.
+                glm::vec3 downHitPoint(0.0f);
+                float obstacleHeight = 0.0f;
+                bool foundTop = false;
+                const float topProbeOffsets[] = { 0.35f, 0.20f, 0.08f };
+                for (float probeOffset : topProbeOffsets) {
+                    glm::vec3 downRayStart = trans.Position + forwardDir * (wallDist + probeOffset) + glm::vec3(0.0f, maxClimbHeight + 0.5f, 0.0f);
+                    glm::vec3 probeHit;
+                    if (RaycastScene(scene, downRayStart, glm::vec3(0.0f, -1.0f, 0.0f), maxClimbHeight + 1.0f, probeHit, entity)) {
+                        float h = probeHit.y - trans.Position.y;
+                        if (h > 0.25f && h <= maxClimbHeight) {
+                            downHitPoint = probeHit;
+                            obstacleHeight = h;
+                            foundTop = true;
+                            break;
+                        }
+                    }
+                }
 
-                if (RaycastScene(scene, downRayStart, glm::vec3(0.0f, -1.0f, 0.0f), maxClimbHeight + 1.0f, downHitPoint, entity)) {
-                    float obstacleHeight = downHitPoint.y - trans.Position.y;
-
-                    if (obstacleHeight > 0.25f && obstacleHeight <= maxClimbHeight) {
+                {
+                    if (foundTop) {
 
                         // Secondo raycast più avanti (1.3m) per verificare se la cassa è larga o stretta
                         glm::vec3 farDownRayStart = trans.Position + forwardDir * (wallDist + 1.30f) + glm::vec3(0.0f, maxClimbHeight + 0.5f, 0.0f);
@@ -207,7 +234,9 @@ namespace SunEngine {
                             outPeakPos = downHitPoint + glm::vec3(0.0f, 0.45f, 0.0f) + forwardDir * 0.25f;
 
                             // Atterraggio a terra ben oltre la cassa (1.3m avanti)
-                            float targetY = hasFarHit ? farDownHitPoint.y : GetGroundHeightAt(scene, trans.Position + forwardDir * (wallDist + 1.30f), trans.Position.y);
+                            // FIX #21: se non c'e' terreno oltre l'ostacolo atterra alla quota di partenza
+                            float targetY = hasFarHit ? farDownHitPoint.y
+                                : GetGroundHeightAt(scene, trans.Position + forwardDir * (wallDist + 1.30f), trans.Position.y).value_or(trans.Position.y);
                             outTargetPos = trans.Position + forwardDir * (wallDist + 1.30f);
                             outTargetPos.y = targetY;
                         }
@@ -292,9 +321,11 @@ namespace SunEngine {
                 const auto& col = view.get<ColliderComponent>(entity);
                 const auto& trans = view.get<TransformComponent>(entity);
 
+                // FIX #1: centro = Position + localCenterOffset
                 glm::vec3 halfExtents = col.halfExtents * trans.Scale;
-                glm::vec3 minBox = trans.Position - halfExtents;
-                glm::vec3 maxBox = trans.Position + halfExtents;
+                glm::vec3 center = GetColliderWorldCenter(trans, col);
+                glm::vec3 minBox = center - halfExtents;
+                glm::vec3 maxBox = center + halfExtents;
 
                 if (maxBox.y > currentY + 0.6f) {
                     if (targetPos.x + playerRadius > minBox.x && targetPos.x - playerRadius < maxBox.x &&
@@ -351,6 +382,7 @@ public:
             if (Input::IsKeyPressed(GLFW_KEY_D)) moveDir.x += 1.0f;
 
             bool isMoving = glm::length(moveDir) > 0.001f;
+            const glm::vec3 posBeforeMove = transform.Position;   // FIX #21: ultima posizione valida del frame
 
             transform.Rotation.x = 0.0f;
             transform.Rotation.z = 0.0f;
@@ -381,8 +413,15 @@ public:
                 transform.Rotation.y = LerpAngle(transform.Rotation.y, transform.AimYaw, 15.0f * deltaTime);
             }
 
-            float targetY = GetGroundHeightAt(scene, transform.Position, transform.Position.y);
-            transform.Position.y = glm::mix(transform.Position.y, targetY, 20.0f * deltaTime);
+            // FIX #21: nessun terreno sotto (bordo mappa) -> annulla lo spostamento orizzontale di
+            // questo frame e mantieni Y, invece di teletrasportare a y=0.
+            if (auto groundY = GetGroundHeightAt(scene, transform.Position, transform.Position.y)) {
+                transform.Position.y = glm::mix(transform.Position.y, *groundY, 20.0f * deltaTime);
+            }
+            else {
+                transform.Position.x = posBeforeMove.x;
+                transform.Position.z = posBeforeMove.z;
+            }
 
             physicsSystem.SetBodyPosition(scene, entity, transform.Position);
 

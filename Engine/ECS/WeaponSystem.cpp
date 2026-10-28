@@ -4,6 +4,8 @@
 // 2. GLFW_INCLUDE_NONE evita che GLFW includa OpenGL (glad è già il loader).
 #define NOMINMAX
 #define GLFW_INCLUDE_NONE
+#include <algorithm>
+#include <cmath>
 #include "WeaponSystem.h"
 #include "DamageResolver.h"
 #include "RaycastUtils.h"          // <-- AGGIUNGI
@@ -114,6 +116,8 @@ namespace SunEngine {
 
         ma_sound_set_volume(&inst->sound, finalVol);
         ma_sound_set_position(&inst->sound, sourcePos.x, sourcePos.y, sourcePos.z);
+        // FIX #7: attenuazione gia' fatta a mano sopra; miniaudio fa solo il panning col listener
+        ma_sound_set_attenuation_model(&inst->sound, ma_attenuation_model_none);
         ma_sound_seek_to_pcm_frame(&inst->sound, 0);
         ma_sound_start(&inst->sound);
     }
@@ -594,13 +598,18 @@ namespace SunEngine {
             if (e == shooter) continue;
             const auto& trans = unitView.get<TransformComponent>(e);
 
-            glm::vec3 half = glm::vec3(0.5f, 0.9f, 0.5f);   // fallback
+            // FIX #1: centro = Position + localCenterOffset. Prima il box andava da Position a
+            // Position+2*half su TUTTI gli assi: in X/Z era spostato di +half (colpi a sinistra/dietro
+            // mancavano, a destra/davanti "colpivano" aria). Fallback (nessun collider): box 1.8m ai piedi.
+            glm::vec3 half = glm::vec3(0.5f, 0.9f, 0.5f);
+            glm::vec3 center = trans.Position + glm::vec3(0.0f, half.y, 0.0f);
             if (auto* col = reg.try_get<ColliderComponent>(e)) {
                 half = col->halfExtents * trans.Scale;
+                center = GetColliderWorldCenter(trans, *col);
             }
-            glm::vec3 minB = trans.Position;
-            glm::vec3 maxB = trans.Position + glm::vec3(half.x * 2.0f, half.y * 2.0f, half.z * 2.0f);
-            
+            glm::vec3 minB = center - half;
+            glm::vec3 maxB = center + half;
+
             float t;
             if (IntersectAABB(rayOrigin, rayDir, minB, maxB, closest, t) && t < closest) {
                 closest = t;
@@ -610,10 +619,19 @@ namespace SunEngine {
                 result.distance = t;
                 result.point = rayOrigin + rayDir * t;
 
-                float hitY = result.point.y - trans.Position.y;
-                if (hitY >= 1.4f)      result.location = HitboxLocation::Head;
-                else if (hitY >= 0.7f) result.location = HitboxLocation::Torso;
-                else                    result.location = HitboxLocation::RightLeg;
+                // FIX #20: altezza normalizzata sul box dell'unita' (0 = piedi, 1 = cima) invece di
+                // soglie fisse per 1.8m: Nob (2m+) e ratling (1.2m) ora hanno testa/torso proporzionati.
+                float spanY = (std::max)(maxB.y - minB.y, 0.001f);
+                float hitYn = std::clamp((result.point.y - minB.y) / spanY, 0.0f, 1.0f);
+                if (hitYn > 0.82f)      result.location = HitboxLocation::Head;
+                else if (hitYn > 0.45f) result.location = HitboxLocation::Torso;
+                else {
+                    // Gambe: sinistra/destra in base al lato rispetto all'asse destro dell'unita'
+                    float yawRad = glm::radians(trans.AimYaw);
+                    glm::vec3 right(std::cos(yawRad), 0.0f, -std::sin(yawRad));
+                    float side = glm::dot(result.point - center, right);
+                    result.location = (side < 0.0f) ? HitboxLocation::LeftLeg : HitboxLocation::RightLeg;
+                }
             }
         }
 
@@ -626,9 +644,11 @@ namespace SunEngine {
             const auto& trans = staticView.get<TransformComponent>(e);
             const auto& col = staticView.get<ColliderComponent>(e);
 
+            // FIX #1: centro = Position + localCenterOffset
             glm::vec3 half = col.halfExtents * trans.Scale;
-            glm::vec3 minB = trans.Position - half;
-            glm::vec3 maxB = trans.Position + half;
+            glm::vec3 center = GetColliderWorldCenter(trans, col);
+            glm::vec3 minB = center - half;
+            glm::vec3 maxB = center + half;
 
             float t;
             if (IntersectAABB(rayOrigin, rayDir, minB, maxB, closest, t) && t < closest) {

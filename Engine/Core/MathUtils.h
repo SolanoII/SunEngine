@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <glm/glm.hpp>
 
 #include "../Scene/Scene.h"
@@ -29,10 +30,13 @@ namespace SunEngine {
     //                 su piattaforme lontane verticalmente)
     // playerRadius  : tolleranza orizzontale attorno alla posizione (default 0.35m)
     //
-    // Ritorna 0.0f se non trova nulla di calpestabile sotto.
-    inline float GetGroundHeightAt(Scene& scene, const glm::vec3& position,
+    // FIX #21 (ROTTURA DI SIGNATURE DOCUMENTATA): ritorna std::optional<float>.
+    // Prima ritornava 0.0f quando non trovava nulla -> un'unita' fuori mappa veniva
+    // teletrasportata a y=0 (sotto un pavimento o dentro un muro). Ora std::nullopt = "nessun
+    // terreno sotto": il chiamante decide (mantiene Y, blocca il movimento, usa un fallback).
+    inline std::optional<float> GetGroundHeightAt(Scene& scene, const glm::vec3& position,
         float currentY = 0.0f, float playerRadius = 0.35f) {
-        float maxGroundY = 0.0f;
+        std::optional<float> maxGroundY;
 
         auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(
             entt::exclude<PlayerTag, HealthComponent>
@@ -42,14 +46,16 @@ namespace SunEngine {
             const auto& col = view.get<ColliderComponent>(entity);
             const auto& trans = view.get<TransformComponent>(entity);
 
+            // FIX #1: centro = Position + localCenterOffset (come i corpi Jolt)
             glm::vec3 halfExtents = col.halfExtents * trans.Scale;
-            glm::vec3 minBox = trans.Position - halfExtents;
-            glm::vec3 maxBox = trans.Position + halfExtents;
+            glm::vec3 center = GetColliderWorldCenter(trans, col);
+            glm::vec3 minBox = center - halfExtents;
+            glm::vec3 maxBox = center + halfExtents;
 
             if (position.x + playerRadius >= minBox.x && position.x - playerRadius <= maxBox.x &&
                 position.z + playerRadius >= minBox.z && position.z - playerRadius <= maxBox.z) {
 
-                if (maxBox.y > maxGroundY && maxBox.y <= currentY + 0.6f) {
+                if (maxBox.y <= currentY + 0.6f && (!maxGroundY || maxBox.y > *maxGroundY)) {
                     maxGroundY = maxBox.y;
                 }
             }

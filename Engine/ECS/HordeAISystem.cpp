@@ -1,4 +1,5 @@
 #include "../Core/Random.h"
+#include "../Core/Logger/Log.h"
 #include "HordeAISystem.h"
 #include "CombatVFX.h"
 #include "RaycastUtils.h"          // <-- AGGIUNGI
@@ -189,6 +190,16 @@ namespace SunEngine {
                 if (horde.pathUpdateTimer <= 0.0f || horde.currentPath.empty()) {
                     horde.currentPath = navQuery.FindPath(trans.Position, targetPos);
                     horde.pathUpdateTimer = Random::Range(0.4f, 0.6f);
+
+                    // Diagnostica: un ork che "cammina" ma non si muove ha quasi sempre un percorso vuoto
+                    // (partenza o destinazione fuori dalla navmesh). Solo le prime segnalazioni.
+                    static int s_EmptyPathLogs = 0;
+                    if (horde.currentPath.empty() && s_EmptyPathLogs < 6) {
+                        ++s_EmptyPathLogs;
+                        SUN_CORE_WARN("Horde: percorso VUOTO da ({0:.1f},{1:.1f},{2:.1f}) a ({3:.1f},{4:.1f},{5:.1f}), stato {6}",
+                            trans.Position.x, trans.Position.y, trans.Position.z,
+                            targetPos.x, targetPos.y, targetPos.z, static_cast<int>(horde.state));
+                    }
                 }
 
                 if (!horde.currentPath.empty()) {

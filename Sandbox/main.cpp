@@ -69,7 +69,14 @@ int main()
     std::string unitsPath = FindValidDir("Units");
     std::string weaponsPath = FindValidDir("Weapons");
     std::string armorsPath = FindValidDir("Armors");
-
+    // Il walk ricorsivo di FindValidDir puo' trovare GameData/Models/Weapons (modelli 3D) prima di
+// GameData/Weapons (blueprint JSON). Le armi stanno accanto a Units: uso quella cartella se esiste.
+    if (!unitsPath.empty()) {
+        fs::path sibling = (fs::path(unitsPath) / ".." / "Weapons").lexically_normal();
+        if (fs::is_directory(sibling)) {
+            weaponsPath = sibling.string() + "/";
+        }
+    }
     if (armorsPath.empty()) {
         std::string gameDataDir = FindValidDir("GameData");
         if (!gameDataDir.empty()) {

@@ -1,0 +1,77 @@
+diff --git a/Engine/ECS/MovementSystem.h b/Engine/ECS/MovementSystem.h
+index dcbc7db..77127c6 100644
+--- a/Engine/ECS/MovementSystem.h
++++ b/Engine/ECS/MovementSystem.h
+@@ -17,6 +17,7 @@
+ #include "../Core/MathUtils.h"
+ #include "../AssetManager/BlueprintManager.h"
+ #include "../Core/Logger/Log.h"
++#include <memory>
+ #include "Components.h"
+ #include "SunPhysicsSystem.h"
+ 
+@@ -33,9 +34,9 @@ namespace SunEngine {
+         void ShutdownAudio() {
+             for (auto& [surface, pool] : m_FootstepPools) {
+                 for (auto& item : pool) {
+-                    if (item.loaded) {
+-                        ma_sound_uninit(&item.sound);
+-                        item.loaded = false;
++                    if (item && item->loaded) {
++                        ma_sound_uninit(&item->sound);
++                        item->loaded = false;
+                     }
+                 }
+                 pool.clear();
+@@ -56,7 +57,10 @@ namespace SunEngine {
+ 
+         // Pool di istanze concorrenti per ciascun tipo di superficie.
+         // Ownership: questa classe. Vita: legata a MovementSystem.
+-        std::unordered_map<SurfaceType, std::vector<FootstepSoundPoolItem>> m_FootstepPools;
++        // FIX crash audio: unique_ptr perche' un ma_sound inizializzato NON puo' essere copiato ne'
++        // spostato (il grafo audio ne conserva l'indirizzo). Prima: pool.push_back(item) copiava il
++        // sound inizializzato da una variabile locale -> il thread audio leggeva memoria gia' riusata.
++        std::unordered_map<SurfaceType, std::vector<std::unique_ptr<FootstepSoundPoolItem>>> m_FootstepPools;
+ 
+         void PlayFootstep(ma_engine* engine, ma_sound_group* sfxGroup, SurfaceType surface,
+             const glm::vec3& position, bool isPlayer, float volume) {
+@@ -77,28 +81,28 @@ namespace SunEngine {
+             if (pool.empty()) {
+                 // Inizializza il pool alla prima chiamata (o fallo in Init)
+                 for (int i = 0; i < 4; ++i) {   // 4 istanze concorrenti max
+-                    FootstepSoundPoolItem item;
++                    auto item = std::make_unique<FootstepSoundPoolItem>();   // indirizzo stabile
+                     ma_sound_config config = ma_sound_config_init();
+                     config.pFilePath = soundPath.c_str();
+                     config.flags = MA_SOUND_FLAG_DECODE;   // file breve → decode in RAM
+                     config.pInitialAttachment = sfxGroup;  // attacca al gruppo SFX
+-                    if (ma_sound_init_ex(engine, &config, &item.sound) == MA_SUCCESS) {
+-                        item.loaded = true;
+-                        pool.push_back(item);
++                    if (ma_sound_init_ex(engine, &config, &item->sound) == MA_SUCCESS) {
++                        item->loaded = true;
++                        pool.push_back(std::move(item));
+                     }
+                 }
+             }
+ 
+             // Trova un'istanza libera e riproduci
+             for (auto& item : pool) {
+-                if (!item.loaded) continue;
+-                if (!ma_sound_is_playing(&item.sound)) {
+-                    ma_sound_set_volume(&item.sound, volume);          // volume individuale
+-                    ma_sound_set_position(&item.sound, position.x, position.y, position.z);
++                if (!item || !item->loaded) continue;
++                if (!ma_sound_is_playing(&item->sound)) {
++                    ma_sound_set_volume(&item->sound, volume);          // volume individuale
++                    ma_sound_set_position(&item->sound, position.x, position.y, position.z);
+                     // FIX #7: volume gia' attenuato a mano; qui solo panning rispetto al listener
+-                    ma_sound_set_attenuation_model(&item.sound, ma_attenuation_model_none);
+-                    ma_sound_seek_to_pcm_frame(&item.sound, 0);
+-                    ma_sound_start(&item.sound);
++                    ma_sound_set_attenuation_model(&item->sound, ma_attenuation_model_none);
++                    ma_sound_seek_to_pcm_frame(&item->sound, 0);
++                    ma_sound_start(&item->sound);
+                     return;
+                 }
+             }

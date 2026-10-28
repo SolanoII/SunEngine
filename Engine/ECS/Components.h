@@ -10,6 +10,7 @@
 #include <entt/entt.hpp>
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyID.h>
+#include <Jolt/Physics/Constraints/Constraint.h>
 
 #include "Tags.h"
 #include "../Physics/HitboxBlock.h"
@@ -171,6 +172,10 @@ namespace SunEngine {
 
     struct RagdollComponent {
         std::vector<JPH::BodyID> bodyIDs;
+        // FIX crash Jolt: i vincoli (giunti) del ragdoll vanno ricordati per poterli RIMUOVERE dal
+        // PhysicsSystem prima di distruggere i body. Prima restavano registrati con puntatori a body
+        // gia' distrutti e Jolt crashava in ConstraintManager::sBuildIslands -> Body::IsActive.
+        std::vector<JPH::Ref<JPH::Constraint>> constraints;
         std::vector<glm::mat4> worldTransforms;
     };
 
@@ -198,6 +203,23 @@ namespace SunEngine {
         // Convenzione "skeleton-based":             (0, (minY+maxY)/2, 0).
         glm::vec3 localCenterOffset = glm::vec3(0.0f);
     };
+
+    // FIX #1: centro MONDO del collider = Position + R * (localCenterOffset * Scale).
+    // Stessa formula usata da PhysicsSystem::RefreshBodies/SetBodyPosition, cosi' raycast,
+    // LOS, collisioni muro e corpi Jolt vedono lo STESSO box. Usare questa funzione in
+    // OGNI test AABB (mai trans.Position da solo, altrimenti il box e' shiftato di offset).
+    // La rotazione (Y, X, Z, come in TransformComponent::GetTransform) e' applicata solo
+    // se l'entita' e' ruotata: per i blocchi normali costo nullo.
+    inline glm::vec3 GetColliderWorldCenter(const TransformComponent& trans, const ColliderComponent& col) {
+        glm::vec3 scaledOffset = col.localCenterOffset * trans.Scale;
+        if (trans.Rotation.x != 0.0f || trans.Rotation.y != 0.0f || trans.Rotation.z != 0.0f) {
+            glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(trans.Rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            rot = glm::rotate(rot, glm::radians(trans.Rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            rot = glm::rotate(rot, glm::radians(trans.Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+            scaledOffset = glm::vec3(rot * glm::vec4(scaledOffset, 0.0f));
+        }
+        return trans.Position + scaledOffset;
+    }
     struct UnitBlueprintId { std::string id; };
     struct WeaponBlueprintId { std::string id; };
 

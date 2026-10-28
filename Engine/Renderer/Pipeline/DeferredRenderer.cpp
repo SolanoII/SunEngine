@@ -536,6 +536,8 @@ void main() {
         m_HDRTarget.Resize(width, height);
         if (m_BloomEnabled) m_Bloom.Resize(width, height);
         if (m_AutoExposureEnabled) m_AutoExposure.Resize(width, height);
+        // FIX #8: nessun FBO lasciato bindato (Resize puo' arrivare durante il frame ImGui)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void DeferredRenderer::CreateTestGeometry() {

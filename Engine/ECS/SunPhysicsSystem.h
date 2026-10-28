@@ -412,6 +412,7 @@ namespace SunEngine {
 
                     JPH::Constraint* constraint = constraintSettings.Create(*parentBody, *childBody);
                     m_PhysicsSystem.AddConstraint(constraint);
+                    ragdollComp.constraints.push_back(constraint);   // per poterlo rimuovere alla distruzione
                 }
             }
 
@@ -487,6 +488,12 @@ namespace SunEngine {
 
                 const auto& ragdoll = reg.get<RagdollComponent>(entity);
                 JPH::BodyInterface& bodyInterface = m_PhysicsSystem.GetBodyInterface();
+
+                // PRIMA i vincoli, poi i body: un vincolo che referenzia un body distrutto manda in
+                // crash il solver (Body::IsActive su memoria liberata).
+                for (const JPH::Ref<JPH::Constraint>& c : ragdoll.constraints) {
+                    if (c != nullptr) m_PhysicsSystem.RemoveConstraint(c);
+                }
 
                 for (const JPH::BodyID& bID : ragdoll.bodyIDs) {
                     if (!bID.IsInvalid() && bodyInterface.IsAdded(bID)) {

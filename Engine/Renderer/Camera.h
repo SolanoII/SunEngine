@@ -16,6 +16,7 @@ namespace SunEngine {
         float m_Height = 720.0f;
         float m_PitchOffset = 0.0f;
         float m_YawOffset = 0.0f;
+        float m_ExtraFov = 0.0f;   // FIX #13: ultimo extraFov passato a SetViewportSize
 
         // Parametri adattativi calcolati dinamicamente (Gears Style)
         float m_ShoulderOffset = 0.45f;
@@ -38,7 +39,8 @@ namespace SunEngine {
         void SetViewportSize(float width, float height, float extraFovDegrees = 0.0f) {
             m_Width = std::max(1.0f, width);
             m_Height = std::max(1.0f, height);
-            float baseFov = 50.0f + extraFovDegrees;
+            m_ExtraFov = extraFovDegrees;
+            float baseFov = 50.0f + m_ExtraFov;
             m_Projection = glm::perspective(glm::radians(baseFov), m_Width / m_Height, 0.1f, 100.0f);
         }
 
@@ -73,7 +75,7 @@ namespace SunEngine {
         glm::mat4 GetProjection() const { return m_Projection; }
         float GetNearPlane() const { return 0.1f; }
         float GetFarPlane() const { return 100.0f; }
-        float GetFovDegrees() const { return 50.0f + /*extraFov non tracciato*/ 0.0f; }
+        float GetFovDegrees() const { return 50.0f + m_ExtraFov; }
         float GetAspectRatio() const { return m_Width / m_Height; }
     };
 }
