@@ -99,6 +99,19 @@ namespace SunEngine {
             }
         }
 
+        // Manichini del campo da tiro (opzionale)
+        if (j.contains("training_dummies") && j["training_dummies"].is_array()) {
+            for (const auto& d : j["training_dummies"]) {
+                TrainingDummySpawn spawn;
+                spawn.unitId = d.value("unit", std::string());
+                if (d.contains("position") && d["position"].is_array() && d["position"].size() >= 3) {
+                    spawn.position = glm::vec3(d["position"][0], d["position"][1], d["position"][2]);
+                }
+                spawn.yawDegrees = d.value("yaw", 0.0f);
+                if (!spawn.unitId.empty()) data.trainingDummies.push_back(spawn);
+            }
+        }
+
         // Strutture ed Edifici
         if (j.contains("structures")) {
             for (const auto& s : j["structures"]) {

@@ -361,7 +361,8 @@ namespace SunEngine {
     struct SkeletonComponent {
         SunEngine::SkeletonData data;
         float scale = 1.0f;
-        std::vector<float> blockFlashTimers;
+        std::vector<float> blockFlashTimers;        // >0: il blocco e' stato colpito da poco e si illumina
+        std::vector<glm::vec3> blockFlashColors;    // colore del flash (verde -> rosso in base al danno)
     };
 
     struct WeaponComponent {
@@ -382,6 +383,48 @@ namespace SunEngine {
     // Posizione MONDO della bocca della canna dell'arma in mano (per mano), aggiornata ogni frame da
     // GameLayer dal modello a blocchi dell'arma. WeaponSystem la usa come origine del colpo/tracciante:
     // cosi' il colpo parte dalla punta dell'arma che si vede, non da un offset fisso calcolato sui cubi.
+    // Feedback di colpo per il giocatore: un cerchio sul punto colpito, colorato in base all'efficacia
+    // del colpo (verde = poco danno, rosso = colpo pesante / uccisione). Creato da WeaponSystem come
+    // entity a parte; GameLayer lo disegna nell'HUD, lo fa invecchiare e lo distrugge.
+    struct HitMarkerComponent {
+        entt::entity target = entt::null;
+        glm::vec3 localOffset{ 0.0f };   // punto colpito relativo a target.Position (segue il bersaglio)
+        glm::vec3 worldPoint{ 0.0f };    // ultimo punto mondo noto (se il bersaglio sparisce)
+        float damage = 0.0f;             // danno REALE inflitto (dopo armatura/robustezza), sommato per raffica
+        float targetMaxHealth = 100.0f;
+        bool killed = false;
+        float age = 0.0f;
+    };
+
+    // Colore di efficacia del colpo: verde (danno trascurabile) -> giallo -> rosso (colpo pesante).
+    // Pieno rosso quando un colpo (o raffica) toglie kHitRedFraction della salute massima, o uccide.
+    inline constexpr float kHitRedFraction = 0.25f;
+    inline glm::vec3 HitEffectivenessColor(float damage, float targetMaxHealth, bool killed) {
+        float k = killed ? 1.0f : damage / ((targetMaxHealth > 1.0f ? targetMaxHealth : 100.0f) * kHitRedFraction);
+        k = k < 0.0f ? 0.0f : (k > 1.0f ? 1.0f : k);
+        // verde (0.2,1,0.3) -> giallo (1,0.9,0.2) -> rosso (1,0.15,0.1)
+        if (k < 0.5f) {
+            const float t = k / 0.5f;
+            return glm::vec3(0.2f + 0.8f * t, 1.0f - 0.1f * t, 0.3f - 0.1f * t);
+        }
+        const float t = (k - 0.5f) / 0.5f;
+        return glm::vec3(1.0f, 0.9f - 0.75f * t, 0.2f - 0.1f * t);
+    }
+
+    // Manichino del campo da tiro (Testing Lobby): non muore, non attacca, mostra il danno ricevuto.
+    // La salute torna piena qualche secondo dopo l'ultimo colpo.
+    struct TrainingDummyComponent {
+        std::string unitId;
+        std::string displayName;
+        float prevHealth = 0.0f;
+        float lastDamage = 0.0f;       // danno dell'ultimo colpo (o raffica nello stesso frame)
+        float totalDamage = 0.0f;      // danno dall'ultimo reset
+        int hits = 0;
+        float sinceHit = 999.0f;       // secondi dall'ultimo colpo
+        bool lethal = false;           // la salute e' arrivata a zero (avrebbe ucciso)
+        int lastLocation = -1;         // HitboxLocation dell'ultimo colpo a distanza (-1 = sconosciuta/mischia)
+    };
+
     struct MuzzleComponent {
         glm::vec3 right{ 0.0f };
         glm::vec3 left{ 0.0f };

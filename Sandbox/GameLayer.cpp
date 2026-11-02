@@ -909,6 +909,7 @@ namespace SunEngine {
             SUN_CORE_WARN("Mappa '{0}' senza NavMesh: pathfinding disabilitato.", mapId);
         }
 
+        SpawnTrainingDummies();
         return true;
     }
     int GameLayer::CalculateSquadPoints() const {
@@ -981,8 +982,9 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         std::vector<entt::entity> dead;
         {
+            // I manichini del campo da tiro non muoiono mai (la loro salute viene ripristinata)
             auto view = reg.view<HealthComponent, TransformComponent>(
-                entt::exclude<CorpseComponent, PlayerTag>
+                entt::exclude<CorpseComponent, PlayerTag, TrainingDummyComponent>
             );
             for (auto entity : view) {
                 if (view.get<HealthComponent>(entity).currentHealth <= 0.0f) {
@@ -1058,22 +1060,10 @@ namespace SunEngine {
         std::string modelsDir = FindValidDir("Models");
         if (!modelsDir.empty()) {
             std::string fbxPath = modelsDir + "Characters/guardsman_master.fbx";
-            m_TestModelLoaded = m_TestModel.LoadModel(fbxPath);
-
+            // Il modello skinnato serve al personaggio animato (UpdateAnimatedPlayer). Rimossi i modelli di
+            // prova: la copia statica in T-pose, il dummy animato accanto al giocatore e l'entity all'origine.
             m_SkinnedShader.Init();
             m_SkinnedModelLoaded = m_SkinnedTestModel.LoadModel(fbxPath);
-            if (m_SkinnedModelLoaded) {
-                m_TestSkinnedEntity = m_Scene.CreateEntity();
-                auto& trans = m_Scene.GetRegistry().emplace<TransformComponent>(m_TestSkinnedEntity);
-                trans.Position = glm::vec3(0.0f, 0.0f, 0.0f);
-                trans.Scale = glm::vec3(1.0f);
-
-                auto& inst = m_Scene.GetRegistry().emplace<SkinnedModelInstanceComponent>(m_TestSkinnedEntity);
-                inst.sourceModel = &m_SkinnedTestModel;
-                inst.albedo = glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
-                inst.roughness = 0.55f;
-                inst.metallic = 0.1f;
-            }
             if (m_SkinnedModelLoaded) {
                 std::string animsDir = FindValidDir("Animations");
                 if (!animsDir.empty()) {
@@ -1380,6 +1370,269 @@ namespace SunEngine {
         if (m_AudioEngineInitialized) {
             ma_engine_uninit(&m_AudioEngine);
             m_AudioEngineInitialized = false;
+        }
+    }
+
+    // ===================== CAMPO DA TIRO (TESTING LOBBY) =====================
+    static const char* HitLocationName(int location) {
+        switch (location) {
+        case static_cast<int>(HitboxLocation::Head):     return "Testa";
+        case static_cast<int>(HitboxLocation::Torso):    return "Torso";
+        case static_cast<int>(HitboxLocation::LeftArm):  return "Braccio SX";
+        case static_cast<int>(HitboxLocation::RightArm): return "Braccio DX";
+        case static_cast<int>(HitboxLocation::LeftLeg):  return "Gamba SX";
+        case static_cast<int>(HitboxLocation::RightLeg): return "Gamba DX";
+        default: return "Mischia";
+        }
+    }
+
+    // Colore dei manichini: stessi colori delle unita' giocabili (vedi SwapPlayerUnit)
+    static glm::vec4 TrainingDummyColor(const std::string& unitId) {
+        if (unitId == "imperium_guardsman_recruit") return glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
+        if (unitId == "imperium_kasrkin") return glm::vec4(0.35f, 0.25f, 0.18f, 1.0f);
+        if (unitId == "imperium_ogryn") return glm::vec4(0.60f, 0.45f, 0.30f, 1.0f);
+        if (unitId == "spacemarines_neophyte") return glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
+        if (unitId == "spacemarines_battle_brother") return glm::vec4(0.05f, 0.25f, 0.75f, 1.0f);
+        if (unitId == "orks_boy") return glm::vec4(0.15f, 0.60f, 0.15f, 1.0f);
+        if (unitId == "orks_nob") return glm::vec4(0.08f, 0.40f, 0.08f, 1.0f);
+        return glm::vec4(0.75f, 0.75f, 0.78f, 1.0f);
+    }
+
+    // Crea un manichino per ogni voce "training_dummies" della mappa: scheletro dell'unita' in T-pose,
+    // salute/robustezza/armatura dal blueprint (stessa formula di danno dei nemici veri, copertura
+    // dell'armatura al 100% per avere numeri ripetibili), collider per non attraversarlo.
+    void GameLayer::SpawnTrainingDummies() {
+        if (m_CurrentMapData.trainingDummies.empty()) return;
+        auto& reg = m_Scene.GetRegistry();
+        const std::string skeletonsDir = FindValidDir("Skeletons");
+        int spawned = 0;
+
+        for (const auto& spawn : m_CurrentMapData.trainingDummies) {
+            auto skeleton = SkeletonLoader::LoadFromFile(skeletonsDir + spawn.unitId + ".json");
+            if (!skeleton) {
+                SUN_CORE_WARN("Campo da tiro: scheletro '{0}' non trovato, manichino saltato", spawn.unitId);
+                continue;
+            }
+            const auto* bp = BlueprintManager::Get().GetUnit(spawn.unitId);
+
+            const entt::entity e = m_Scene.CreateEntity();
+            auto& t = reg.emplace<TransformComponent>(e);
+            t.Position = spawn.position;
+            t.Rotation = glm::vec3(0.0f, spawn.yawDegrees, 0.0f);
+            t.Scale = glm::vec3(1.0f);
+            t.AimYaw = spawn.yawDegrees;
+
+            // T-pose: braccia orizzontali, aperte verso l'esterno
+            auto& skel = reg.emplace<SkeletonComponent>(e);
+            skel.data = *skeleton;
+            skel.scale = 1.0f;
+            for (auto& block : skel.data.blocks) {
+                if (block.name == "Arm_L") block.jointRotation = glm::vec3(0.0f, 0.0f, -90.0f);
+                else if (block.name == "Arm_R") block.jointRotation = glm::vec3(0.0f, 0.0f, 90.0f);
+                else block.jointRotation = glm::vec3(0.0f);
+            }
+            skel.blockFlashTimers.assign(skel.data.blocks.size(), 0.0f);
+
+            reg.emplace<MeshComponent>(e, 0u);
+            auto& color = reg.emplace<ColorComponent>(e);
+            color.Color = TrainingDummyColor(spawn.unitId);
+            color.BaseColor = color.Color;
+
+            const float maxHp = (bp && bp->health > 1.0f) ? bp->health : 100.0f;
+            reg.emplace<HealthComponent>(e, maxHp, maxHp);
+
+            auto& stats = reg.emplace<UnitStatsComponent>(e);
+            stats.maxHealth = maxHp;
+            stats.currentHealth = maxHp;
+            if (bp) stats.toughness = bp->toughness;
+            const int armorRating = bp ? bp->armor_rating : 0;
+            for (ArmorPiece* piece : { &stats.armorSet.head, &stats.armorSet.torso, &stats.armorSet.leftArm,
+                                       &stats.armorSet.rightArm, &stats.armorSet.leftLeg, &stats.armorSet.rightLeg }) {
+                piece->armorRating = armorRating;
+                piece->coverage = 1.0f;                 // numeri ripetibili: l'armatura protegge sempre
+                piece->maxDurability = 100000.0f;       // non si consuma durante i test
+                piece->currentDurability = piece->maxDurability;
+            }
+
+            // Collider (solo per non attraversare il manichino): ingombro della posa in T
+            const auto mats = skel.data.ComputeWorldTransforms(glm::vec3(0.0f), glm::vec3(0.0f, spawn.yawDegrees, 0.0f), 1.0f);
+            glm::vec3 mn(1e9f), mx(-1e9f);
+            for (const auto& M : mats)
+                for (int c = 0; c < 8; ++c) {
+                    const glm::vec3 p(M * glm::vec4((c & 1) ? 0.5f : -0.5f, (c & 2) ? 0.5f : -0.5f, (c & 4) ? 0.5f : -0.5f, 1.0f));
+                    mn = glm::min(mn, p); mx = glm::max(mx, p);
+                }
+            t.Position.y = spawn.position.y - mn.y;   // piedi a terra (alcuni scheletri scendono sotto l'origine)
+            auto& col = reg.emplace<ColliderComponent>(e);
+            col.halfExtents = glm::max((mx - mn) * 0.5f, glm::vec3(0.05f));
+            col.localCenterOffset = glm::vec3(0.0f, (mn.y + mx.y) * 0.5f, 0.0f);
+
+            auto& dummy = reg.emplace<TrainingDummyComponent>(e);
+            dummy.unitId = spawn.unitId;
+            dummy.displayName = (bp && !bp->displayName.empty()) ? bp->displayName : spawn.unitId;
+            dummy.prevHealth = maxHp;
+            ++spawned;
+        }
+        SUN_CORE_INFO("Campo da tiro: {0} manichini creati", spawned);
+    }
+
+    // Registra il danno ricevuto (differenza di salute: vale per armi e mischia) e ripristina la salute
+    // dopo una pausa senza colpi.
+    void GameLayer::UpdateTrainingDummies(float deltaTime) {
+        constexpr float kResetAfter = 3.0f;       // secondi senza colpi -> salute piena e totali azzerati
+        constexpr float kLethalShowTime = 1.2f;   // a salute zero: mostra "LETALE" e poi ripristina
+        auto& reg = m_Scene.GetRegistry();
+        auto view = reg.view<TrainingDummyComponent, HealthComponent>();
+        for (auto e : view) {
+            auto& d = view.get<TrainingDummyComponent>(e);
+            auto& h = view.get<HealthComponent>(e);
+
+            if (h.currentHealth < d.prevHealth - 0.001f) {
+                const float dmg = d.prevHealth - h.currentHealth;
+                if (d.sinceHit > 0.0f) { d.lastDamage = dmg; ++d.hits; }
+                else { d.lastDamage += dmg; }   // piu' colpi nello stesso frame (pallettoni) = un colpo
+                d.totalDamage += dmg;
+                d.sinceHit = 0.0f;
+                if (h.currentHealth <= 0.0f) d.lethal = true;
+            }
+            else {
+                d.sinceHit += deltaTime;
+            }
+
+            const bool resetLethal = d.lethal && d.sinceHit >= kLethalShowTime;
+            const bool resetIdle = d.sinceHit >= kResetAfter && (d.hits > 0 || h.currentHealth < h.maxHealth);
+            if (resetLethal || resetIdle) {
+                h.currentHealth = h.maxHealth;
+                d.totalDamage = 0.0f;
+                d.hits = 0;
+                d.lethal = false;
+            }
+            d.prevHealth = h.currentHealth;
+        }
+    }
+
+    void GameLayer::RenderTrainingDummyLabels() {
+        auto& reg = m_Scene.GetRegistry();
+        auto view = reg.view<TrainingDummyComponent, HealthComponent, TransformComponent>();
+        if (view.begin() == view.end()) return;
+
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        glm::vec3 camRef(0.0f);
+        if (const auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) camRef = pt->Position;
+
+        for (auto e : view) {
+            const auto& d = view.get<TrainingDummyComponent>(e);
+            const auto& h = view.get<HealthComponent>(e);
+            const auto& t = view.get<TransformComponent>(e);
+            if (glm::distance(camRef, t.Position) > 70.0f) continue;
+
+            float topY = 2.0f;
+            if (const auto* col = reg.try_get<ColliderComponent>(e)) topY = col->localCenterOffset.y + col->halfExtents.y;
+            const glm::vec3 anchor = t.Position + glm::vec3(0.0f, topY + 0.35f, 0.0f);
+            const glm::vec4 clip = vp * glm::vec4(anchor, 1.0f);
+            if (clip.w <= 0.05f) continue;
+            const glm::vec2 sp = WorldToScreen(anchor, vp, m_WindowWidth, m_WindowHeight);
+
+            char line1[96], line2[96], line3[96];
+            std::snprintf(line1, sizeof(line1), "%s", d.displayName.c_str());
+            if (d.hits > 0) {
+                std::snprintf(line2, sizeof(line2), "Ultimo: %.1f  (%s)", d.lastDamage, HitLocationName(d.lastLocation));
+                std::snprintf(line3, sizeof(line3), "Totale: %.1f  /  %d colpi", d.totalDamage, d.hits);
+            }
+            else {
+                std::snprintf(line2, sizeof(line2), "Salute %.0f", h.maxHealth);
+                line3[0] = '\0';
+            }
+
+            const float barW = 130.0f, barH = 8.0f;
+            const float w = (std::max)({ barW, ImGui::CalcTextSize(line1).x, ImGui::CalcTextSize(line2).x, ImGui::CalcTextSize(line3).x }) + 12.0f;
+            const float lineH = ImGui::GetTextLineHeight();
+            const float hBox = 6.0f + lineH + 4.0f + barH + 4.0f + lineH + (line3[0] ? lineH : 0.0f) + 6.0f;
+            ImVec2 p0(sp.x - w * 0.5f, sp.y - hBox);
+            dl->AddRectFilled(p0, ImVec2(p0.x + w, p0.y + hBox), IM_COL32(10, 12, 16, 170), 4.0f);
+
+            float y = p0.y + 6.0f;
+            dl->AddText(ImVec2(p0.x + 6.0f, y), IM_COL32(235, 235, 240, 255), line1);
+            y += lineH + 4.0f;
+
+            const float frac = std::clamp(h.currentHealth / (h.maxHealth > 0.0f ? h.maxHealth : 1.0f), 0.0f, 1.0f);
+            const glm::vec3 hc = HitEffectivenessColor(h.maxHealth - h.currentHealth, h.maxHealth * 4.0f, d.lethal);
+            dl->AddRectFilled(ImVec2(p0.x + 6.0f, y), ImVec2(p0.x + 6.0f + barW, y + barH), IM_COL32(50, 50, 55, 255), 2.0f);
+            dl->AddRectFilled(ImVec2(p0.x + 6.0f, y), ImVec2(p0.x + 6.0f + barW * frac, y + barH),
+                ImGui::GetColorU32(ImVec4(hc.r, hc.g, hc.b, 1.0f)), 2.0f);
+            if (d.lethal) dl->AddText(ImVec2(p0.x + 12.0f + barW, y - 3.0f), IM_COL32(255, 60, 50, 255), "LETALE");
+            y += barH + 4.0f;
+
+            dl->AddText(ImVec2(p0.x + 6.0f, y), IM_COL32(200, 205, 215, 255), line2);
+            y += lineH;
+            if (line3[0]) dl->AddText(ImVec2(p0.x + 6.0f, y), IM_COL32(170, 175, 185, 255), line3);
+        }
+    }
+
+    // ===================== FEEDBACK DI COLPO =====================
+    // Invecchia i marcatori di colpo (e li distrugge a fine vita) e spegne il flash dei blocchi colpiti.
+    void GameLayer::UpdateHitFeedback(float deltaTime) {
+        auto& reg = m_Scene.GetRegistry();
+
+        std::vector<entt::entity> expired;
+        auto markers = reg.view<HitMarkerComponent>();
+        for (auto e : markers) {
+            auto& m = markers.get<HitMarkerComponent>(e);
+            m.age += deltaTime;
+            if (reg.valid(m.target)) {
+                if (const auto* t = reg.try_get<TransformComponent>(m.target)) m.worldPoint = t->Position + m.localOffset;
+            }
+            if (m.age >= m_HitMarkerLife) expired.push_back(e);
+        }
+        for (auto e : expired) if (reg.valid(e)) m_Scene.DestroyEntity(e);
+
+        auto skels = reg.view<SkeletonComponent>();
+        for (auto e : skels) {
+            for (float& timer : skels.get<SkeletonComponent>(e).blockFlashTimers) {
+                if (timer > 0.0f) timer = (std::max)(0.0f, timer - deltaTime);
+            }
+        }
+    }
+
+    // Cerchio sul punto colpito, grande quanto m_HitMarkerWorldRadius sul corpo del bersaglio.
+    // Colore = efficacia del colpo (verde poco danno -> rosso colpo pesante); uccisione = croce rossa.
+    void GameLayer::RenderHitMarkers() {
+        auto& reg = m_Scene.GetRegistry();
+        auto markers = reg.view<HitMarkerComponent>();
+        if (markers.begin() == markers.end()) return;
+
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        const float screenW = m_WindowWidth, screenH = m_WindowHeight;
+        const float tanHalfFov = std::tan(glm::radians(m_Camera.GetFovDegrees()) * 0.5f);
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+
+        for (auto e : markers) {
+            const auto& m = markers.get<HitMarkerComponent>(e);
+            const glm::vec4 clip = vp * glm::vec4(m.worldPoint, 1.0f);
+            if (clip.w <= 0.05f) continue;   // dietro la camera
+            const glm::vec2 sp = WorldToScreen(m.worldPoint, vp, screenW, screenH);
+
+            // Raggio in pixel di un cerchio di m_HitMarkerWorldRadius metri alla distanza del colpo
+            float radius = m_HitMarkerWorldRadius * screenH / (2.0f * tanHalfFov * clip.w);
+            radius = std::clamp(radius, 6.0f, 48.0f);
+
+            const float life = std::clamp(m.age / m_HitMarkerLife, 0.0f, 1.0f);
+            const float alpha = 1.0f - life * life;               // svanisce verso la fine
+            const float grow = 1.0f + 0.35f * life;               // si allarga leggermente
+            const glm::vec3 c = HitEffectivenessColor(m.damage, m.targetMaxHealth, m.killed);
+            const ImU32 col = ImGui::GetColorU32(ImVec4(c.r, c.g, c.b, alpha));
+            const ImU32 fill = ImGui::GetColorU32(ImVec4(c.r, c.g, c.b, 0.25f * alpha));
+            const ImVec2 center(sp.x, sp.y);
+
+            dl->AddCircleFilled(center, radius * grow, fill, 24);
+            dl->AddCircle(center, radius * grow, col, 24, 2.5f);
+            dl->AddCircleFilled(center, 2.5f, col, 8);
+            if (m.killed) {
+                const float s = radius * grow * 0.7f;
+                dl->AddLine(ImVec2(center.x - s, center.y - s), ImVec2(center.x + s, center.y + s), col, 2.5f);
+                dl->AddLine(ImVec2(center.x - s, center.y + s), ImVec2(center.x + s, center.y - s), col, 2.5f);
+            }
         }
     }
 
@@ -2074,6 +2327,8 @@ namespace SunEngine {
             m_PhysicsSystem.Update(m_Scene, deltaTime);
             // FIX #2: despawn dei cadaveri dopo maxLifetime (ragdoll Jolt + entity)
             CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
+            UpdateHitFeedback(deltaTime);
+            UpdateTrainingDummies(deltaTime);
             m_WeightSystem.Update(m_Scene, deltaTime);
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
@@ -2086,17 +2341,8 @@ namespace SunEngine {
                 m_F2WasDown = f2;
             }
 
-            // Comandi reali del giocatore -> animazioni (pilota il modello animato e il dummy di test)
+            // Comandi reali del giocatore -> animazioni del personaggio animato
             UpdateAnimatedPlayer(deltaTime, BuildPlayerAnimInput(isAiming, deltaTime));
-            if (m_RifleAnimLoaded) {
-                if (m_SkinnedModelLoaded && m_Scene.GetRegistry().valid(m_TestSkinnedEntity)) {
-                    if (auto* inst = m_Scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(m_TestSkinnedEntity)) {
-                        if (m_RifleAnimLoaded) {
-                            inst->boneMatrices = &m_RifleAnimController.GetFinalBoneMatrices();
-                        }
-                    }
-                }
-            }
 
             CheckUnitDeaths();
 
@@ -2550,7 +2796,7 @@ namespace SunEngine {
                     g_WaaaghTimer = 0.0f;
 
                     auto livingEnemyView = m_Scene.GetRegistry().view<HealthComponent>(
-                        entt::exclude<PlayerTag, CorpseComponent>
+                        entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent>
                     );
                     size_t activeEnemyCount = static_cast<size_t>(std::distance(livingEnemyView.begin(), livingEnemyView.end()));
                     constexpr size_t MAX_ACTIVE_ENEMIES = 60;
@@ -2630,6 +2876,8 @@ namespace SunEngine {
             m_PhysicsSystem.Update(m_Scene, deltaTime);
             // FIX #2: i cadaveri nemici devono scadere anche mentre il player e' morto
             CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
+            UpdateHitFeedback(deltaTime);
+            UpdateTrainingDummies(deltaTime);
         }
         // FIX #16: le particelle non avanzano in pausa
         if (!m_IsPaused) {
@@ -2786,55 +3034,7 @@ namespace SunEngine {
             m_RenderSystem.Render(m_Scene);
         }
         m_ParticleSystem.Render(m_Scene);
-        glm::vec3 debugAnchorPos(0.0f);
-        if (m_Scene.GetRegistry().valid(m_PlayerEntity) &&
-            m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
-            debugAnchorPos = m_Scene.GetRegistry().get<TransformComponent>(m_PlayerEntity).Position;
-        }
-
-        if (m_TestModelLoaded) {
-            m_StaticShader.Bind();
-
-            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), debugAnchorPos + glm::vec3(2.0f, 0.0f, 0.0f));
-            modelMat = glm::scale(modelMat, glm::vec3(0.01f));
-            glUniformMatrix4fv(glGetUniformLocation(m_StaticShader.ID, "u_Model"), 1, GL_FALSE, glm::value_ptr(modelMat));
-            glUniformMatrix4fv(glGetUniformLocation(m_StaticShader.ID, "u_ViewProjection"), 1, GL_FALSE, glm::value_ptr(m_Camera.GetViewProjection()));
-            glUniform4f(glGetUniformLocation(m_StaticShader.ID, "u_Color"), 0.65f, 0.50f, 0.35f, 1.0f);
-
-            m_TestModel.Draw(m_StaticShader.ID);
-
-            m_StaticShader.Unbind();
-        }
-
-        if (m_SkinnedModelLoaded) {
-            m_SkinnedShader.Bind();
-
-            glm::mat4 modelMat = glm::translate(glm::mat4(1.0f), debugAnchorPos + glm::vec3(4.0f, 0.0f, 0.0f));
-            modelMat = glm::scale(modelMat, glm::vec3(0.01f));
-
-            static std::vector<glm::mat4> s_IdentityBones;
-            const std::vector<glm::mat4>* boneMatrices;
-            if (m_RifleAnimLoaded) {
-                boneMatrices = &m_RifleAnimController.GetFinalBoneMatrices();
-                if (boneMatrices->empty()) {
-                    if (s_IdentityBones.empty()) s_IdentityBones.assign(m_SkinnedTestModel.boneInfoMap.size(), glm::mat4(1.0f));
-                    boneMatrices = &s_IdentityBones;
-                }
-            }
-            else {
-                if (s_IdentityBones.empty()) s_IdentityBones.assign(m_SkinnedTestModel.boneInfoMap.size(), glm::mat4(1.0f));
-                boneMatrices = &s_IdentityBones;
-            }
-
-            glUniformMatrix4fv(glGetUniformLocation(m_SkinnedShader.ID, "u_Model"), 1, GL_FALSE, glm::value_ptr(modelMat));
-            glUniformMatrix4fv(glGetUniformLocation(m_SkinnedShader.ID, "u_ViewProjection"), 1, GL_FALSE, glm::value_ptr(m_Camera.GetViewProjection()));
-            glUniform4f(glGetUniformLocation(m_SkinnedShader.ID, "u_Color"), 0.55f, 0.55f, 0.60f, 1.0f);
-            glUniformMatrix4fv(glGetUniformLocation(m_SkinnedShader.ID, "u_BoneMatrices"), (GLsizei)boneMatrices->size(), GL_FALSE, glm::value_ptr((*boneMatrices)[0]));
-
-            m_SkinnedTestModel.Draw();
-
-            m_SkinnedShader.Unbind();
-        }
+        // (rimossi i due modelli di prova disegnati accanto al giocatore)
 
         if (m_GameState == GameState::Gameplay) {
             glm::vec2 screen = glm::vec2(m_WindowWidth, m_WindowHeight);
@@ -3002,6 +3202,8 @@ namespace SunEngine {
             bool isPlayerDead = playerHealth && (playerHealth->currentHealth <= 0.0f);
 
             if (!isPlayerDead && !m_IsPaused) {
+                RenderTrainingDummyLabels();
+                RenderHitMarkers();
                 ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f));
                 ImGui::Begin("KillCounterOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
                 ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
@@ -4067,13 +4269,19 @@ namespace SunEngine {
 
         ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "1. SELEZIONA MAPPA TARGET");
 
+        // id del file mappa (non cambiarli: il profilo salva l'id) e nome mostrato
         const char* defaultMaps[] = { "warzone_sector4", "vaulting_test" };
-        static int selectedMapComboIdx = 0;
+        const char* defaultMapLabels[] = { "Settore 4 - Complesso Militare", "Testing Lobby (vault + campo da tiro)" };
+        static int selectedMapComboIdx = -1;
+        if (selectedMapComboIdx < 0) {   // prima apertura: allinea alla mappa salvata nel profilo
+            selectedMapComboIdx = 0;
+            for (int i = 0; i < 2; ++i) if (m_SelectedMapId == defaultMaps[i]) selectedMapComboIdx = i;
+        }
 
-        if (ImGui::BeginCombo("Mappa Predefinita", defaultMaps[selectedMapComboIdx])) {
+        if (ImGui::BeginCombo("Mappa Predefinita", defaultMapLabels[selectedMapComboIdx])) {
             for (int i = 0; i < 2; ++i) {
                 bool isSelected = (selectedMapComboIdx == i);
-                if (ImGui::Selectable(defaultMaps[i], isSelected)) {
+                if (ImGui::Selectable(defaultMapLabels[i], isSelected)) {
                     selectedMapComboIdx = i;
                     m_SelectedMapId = defaultMaps[i];
                 }

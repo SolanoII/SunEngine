@@ -84,7 +84,16 @@ namespace SunEngine {
                         auto worldTransforms = skel.data.ComputeWorldTransforms(
                             transform.Position, transform.Rotation, skel.scale);
                         for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
-                            deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
+                            // Blocco colpito da poco: si illumina col colore di efficacia del colpo
+                            float flash = (i < skel.blockFlashTimers.size()) ? skel.blockFlashTimers[i] : 0.0f;
+                            if (flash > 0.0f && i < skel.blockFlashColors.size()) {
+                                const float k = flash / 0.18f;   // 1 appena colpito -> 0
+                                const glm::vec4 col = glm::mix(baseColor, glm::vec4(skel.blockFlashColors[i], baseColor.a), 0.75f * k);
+                                deferred.DrawCube(worldTransforms[i], col, 0.7f, 0.1f, k);   // emissivo: canale 0..1 del GBuffer
+                            }
+                            else {
+                                deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
+                            }
                         }
                     }
                 }

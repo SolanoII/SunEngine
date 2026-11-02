@@ -9,11 +9,19 @@ class dtNavMesh; // Forward declaration per Recast/Detour
 
 namespace SunEngine {
 
+    // Manichino del campo da tiro: scheletro (= id unita') in T-pose, posizione della BASE e direzione.
+    struct TrainingDummySpawn {
+        std::string unitId;
+        glm::vec3 position{ 0.0f };
+        float yawDegrees = 0.0f;
+    };
+
     struct MapData {
         std::string id;
         std::string name;
         std::vector<glm::vec3> playerSpawnPoints;
         std::vector<glm::vec3> enemySpawnPoints;
+        std::vector<TrainingDummySpawn> trainingDummies;   // opzionale: "training_dummies" nel JSON
         // Ownership esclusiva: quando MapData muore, la mesh viene liberata
         NavMeshPtr navMesh;
     };

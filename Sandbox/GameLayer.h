@@ -172,6 +172,13 @@ namespace SunEngine {
         void ApplyUnitVisuals(const TrainedUnit& unit);
         int CalculateSquadPoints() const;
         void CheckUnitDeaths();
+        void UpdateHitFeedback(float deltaTime);   // invecchia marcatori di colpo e flash dei blocchi
+        void RenderHitMarkers();                   // cerchi sul punto colpito (HUD)
+
+        // --- Campo da tiro (Testing Lobby): manichini in T-pose con tutti gli scheletri ---
+        void SpawnTrainingDummies();               // dai "training_dummies" della mappa caricata
+        void UpdateTrainingDummies(float deltaTime);
+        void RenderTrainingDummyLabels();          // nome, salute e danno sopra ogni manichino
 
         // --- Profilo locale (impostazioni, valute, exp, roster) ---
         void LoadProfile();                    // legge il file e applica le impostazioni
@@ -278,6 +285,8 @@ namespace SunEngine {
         glm::vec3 m_HandWeaponRotation = glm::vec3(0.0f);              // correzione in gradi
         float m_WeaponPitchFactor = 1.0f;
         BlockModelLibrary m_BlockModels;
+        float m_HitMarkerLife = 0.6f;          // durata del cerchio di colpo (s)
+        float m_HitMarkerWorldRadius = 0.12f;  // raggio del cerchio sul corpo (m)
         float m_WeaponHandAlign = 0.0f;   // 0 = arma dritta lungo la mira, 1 = segue la linea tra le mani
         glm::vec3 m_WeaponModelGripOffset = glm::vec3(0.0f);   // spostamento dell'arma (spazio arma: dx, su, indietro)
         glm::vec3 m_WeaponModelRotation = glm::vec3(0.0f);     // correzione di rotazione (gradi)

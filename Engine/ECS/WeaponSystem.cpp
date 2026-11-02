@@ -16,17 +16,141 @@
 
 namespace SunEngine {
 
+    // ---------- Hitbox per blocco dello scheletro ----------
+    // Margine (metri, per lato) aggiunto a ogni blocco: rende i colpi al bordo meno "fortunati"
+    static constexpr float kHitboxPadding = 0.03f;
+
+    // Intersezione raggio / blocco orientato. blockWorld = matrice del blocco (cubo unitario [-0.5,0.5]^3
+    // scalato, ruotato, posizionato): il raggio va nello spazio del cubo, dove il parametro t resta lo stesso.
+    // Un raggio che parte DENTRO il blocco conta come colpo a t = 0.
+    static bool IntersectSkeletonBlock(const glm::mat4& blockWorld, const glm::vec3& origin, const glm::vec3& dir,
+        float maxDist, float& outT) {
+        const glm::vec3 sx = glm::vec3(blockWorld[0]), sy = glm::vec3(blockWorld[1]), sz = glm::vec3(blockWorld[2]);
+        const glm::vec3 worldSize(glm::length(sx), glm::length(sy), glm::length(sz));
+        if (worldSize.x < 1e-5f || worldSize.y < 1e-5f || worldSize.z < 1e-5f) return false;
+        const glm::vec3 half = glm::vec3(0.5f) + glm::vec3(kHitboxPadding) / worldSize;   // margine in spazio cubo
+
+        const glm::mat4 inv = glm::inverse(blockWorld);
+        const glm::vec3 lo = glm::vec3(inv * glm::vec4(origin, 1.0f));
+        const glm::vec3 ld = glm::vec3(inv * glm::vec4(dir, 0.0f));
+
+        float tMin = 0.0f, tMax = maxDist;
+        for (int a = 0; a < 3; ++a) {
+            if (std::abs(ld[a]) < 1e-8f) {
+                if (lo[a] < -half[a] || lo[a] > half[a]) return false;
+            }
+            else {
+                float t0 = (-half[a] - lo[a]) / ld[a];
+                float t1 = (half[a] - lo[a]) / ld[a];
+                if (t0 > t1) std::swap(t0, t1);
+                tMin = (std::max)(tMin, t0);
+                tMax = (std::min)(tMax, t1);
+                if (tMax < tMin) return false;
+            }
+        }
+        outT = tMin;
+        return true;
+    }
+
+    static HitboxLocation LocationFromBlockName(const std::string& name) {
+        if (name == "Head") return HitboxLocation::Head;
+        if (name == "Arm_L") return HitboxLocation::LeftArm;
+        if (name == "Arm_R") return HitboxLocation::RightArm;
+        if (name == "Leg_L") return HitboxLocation::LeftLeg;
+        if (name == "Leg_R") return HitboxLocation::RightLeg;
+        return HitboxLocation::Torso;
+    }
+
+    // ---------- Feedback di colpo ----------
+    // Durata di un marcatore e finestra in cui colpi sullo stesso bersaglio si sommano (pallettoni,
+    // raffiche, raggio continuo), cosi' il colore riflette il danno della raffica e non del singolo frame.
+    static constexpr float kHitMarkerMergeWindow = 0.12f;
+
+    static int FindHitBlock(const SkeletonData& data, HitboxLocation loc) {
+        const char* name = "Torso";
+        switch (loc) {
+        case HitboxLocation::Head:     name = "Head"; break;
+        case HitboxLocation::LeftArm:  name = "Arm_L"; break;
+        case HitboxLocation::RightArm: name = "Arm_R"; break;
+        case HitboxLocation::LeftLeg:  name = "Leg_L"; break;
+        case HitboxLocation::RightLeg: name = "Leg_R"; break;
+        default: break;
+        }
+        for (size_t i = 0; i < data.blocks.size(); ++i) if (data.blocks[i].name == name) return static_cast<int>(i);
+        return -1;
+    }
+
+    // Registra un colpo andato a segno: marcatore nell'HUD + flash del blocco colpito.
+    // Solo per i colpi del giocatore (il feedback e' per chi spara).
+    static void EmitHitFeedback(Scene& scene, entt::entity shooter, entt::entity target,
+        const glm::vec3& hitPoint, HitboxLocation location, float healthBefore) {
+        auto& reg = scene.GetRegistry();
+        if (!reg.valid(shooter) || !reg.all_of<PlayerTag>(shooter)) return;
+        if (!reg.valid(target)) return;
+        const auto* health = reg.try_get<HealthComponent>(target);
+        const auto* tTrans = reg.try_get<TransformComponent>(target);
+        if (!health || !tTrans) return;
+
+        const float dealt = (std::max)(0.0f, healthBefore - health->currentHealth);
+        const bool killed = health->currentHealth <= 0.0f && healthBefore > 0.0f;
+
+        // Somma ai colpi recenti sullo stesso bersaglio
+        HitMarkerComponent* marker = nullptr;
+        auto view = reg.view<HitMarkerComponent>();
+        for (auto e : view) {
+            auto& m = view.get<HitMarkerComponent>(e);
+            if (m.target == target && m.age < kHitMarkerMergeWindow) { marker = &m; break; }
+        }
+        if (!marker) {
+            entt::entity e = scene.CreateEntity();
+            marker = &reg.emplace<HitMarkerComponent>(e);
+            marker->target = target;
+            marker->targetMaxHealth = (health->maxHealth > 1.0f) ? health->maxHealth : 100.0f;
+        }
+        marker->damage += dealt;
+        marker->killed = marker->killed || killed;
+        marker->localOffset = hitPoint - tTrans->Position;
+        marker->worldPoint = hitPoint;
+
+        if (auto* dummy = reg.try_get<TrainingDummyComponent>(target)) {
+            dummy->lastLocation = static_cast<int>(location);
+        }
+
+        // Flash del blocco colpito (scheletro a cubi del bersaglio)
+        if (auto* skel = reg.try_get<SkeletonComponent>(target)) {
+            const int idx = FindHitBlock(skel->data, location);
+            if (idx >= 0) {
+                if (skel->blockFlashTimers.size() < skel->data.blocks.size()) skel->blockFlashTimers.resize(skel->data.blocks.size(), 0.0f);
+                if (skel->blockFlashColors.size() < skel->data.blocks.size()) skel->blockFlashColors.resize(skel->data.blocks.size(), glm::vec3(1.0f));
+                skel->blockFlashTimers[idx] = 0.18f;
+                skel->blockFlashColors[idx] = HitEffectivenessColor(marker->damage, marker->targetMaxHealth, marker->killed);
+            }
+        }
+    }
+
     // Se GameLayer ha pubblicato la bocca reale dell'arma (modello a blocchi), il colpo parte da li'.
-    static void ApplyMuzzleOverride(Scene& scene, entt::entity shooter, glm::vec3& barrelOrigin) {
+    // Ritorna di quanti metri il raggio di COLPO va arretrato lungo la direzione di tiro (vedi sotto).
+    //
+    // La bocca sta ~1 m davanti al corpo: un nemico in mischia la "ingloba" nel suo box e IntersectAABB
+    // ignora un raggio che parte dentro un box (e attraverserebbe anche un muro in cui la canna e' infilata).
+    // Per questo il raggio che decide il colpo resta sulla linea della canna ma parte all'altezza del corpo
+    // del tiratore; il tracciante/raggio visibile continua a partire dalla bocca.
+    static float ApplyMuzzleOverride(Scene& scene, entt::entity shooter, glm::vec3& barrelOrigin,
+        const glm::vec3& bodyPos, const glm::vec3& shootDir) {
         auto& reg = scene.GetRegistry();
         const auto* muzzle = reg.try_get<MuzzleComponent>(shooter);
-        if (!muzzle) return;
+        if (!muzzle) return 0.0f;
         bool leftHand = false;
         if (const auto* inv = reg.try_get<InventoryComponent>(shooter)) {
             leftHand = (inv->GetEquipStance() == EquipStance::HybridRangedMelee);   // pistola nella mano sinistra
         }
-        if (leftHand) { if (muzzle->hasLeft) barrelOrigin = muzzle->left; }
+        if (leftHand) { if (muzzle->hasLeft) barrelOrigin = muzzle->left; else return 0.0f; }
         else if (muzzle->hasRight) { barrelOrigin = muzzle->right; }
+        else return 0.0f;
+
+        // Distanza (lungo la direzione di tiro) tra il corpo e la bocca, misurata alla stessa altezza
+        const glm::vec3 bodyAtMuzzleHeight(bodyPos.x, barrelOrigin.y, bodyPos.z);
+        return (std::max)(0.0f, glm::dot(barrelOrigin - bodyAtMuzzleHeight, shootDir));
     }
 
     
@@ -362,9 +486,11 @@ namespace SunEngine {
                 barrelOrigin = weaponPos + barrelWorldOffset;
             }
         }
-        ApplyMuzzleOverride(scene, shooter, barrelOrigin);
+        const float rayPullBack = ApplyMuzzleOverride(scene, shooter, barrelOrigin, trans.Position, baseDir);
         float maxRange = (wpBP.range_effective > 1.0f) ? wpBP.range_effective : 12.0f;
-        RaycastResult hit = RaycastAll(scene, barrelOrigin, baseDir, maxRange, shooter);
+        // Raggio di colpo: stessa linea della canna, ma parte dal corpo (rayPullBack metri piu' indietro)
+        RaycastResult hit = RaycastAll(scene, barrelOrigin - baseDir * rayPullBack, baseDir, maxRange + rayPullBack, shooter);
+        if (hit.hit) hit.distance = (std::max)(0.0f, hit.distance - rayPullBack);   // distanza dalla bocca
 
         glm::vec3 hitPoint = hit.hit ? hit.point : (barrelOrigin + baseDir * maxRange);
 
@@ -385,7 +511,9 @@ namespace SunEngine {
                 effectiveAP += 20;
             }
 
+            const float healthBefore = targetHealth.currentHealth;
             DamageResolver::ResolveHit(frameDamage, effectiveAP, hit.location, targetStats, targetHealth);
+            EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore);
         }
 
         entt::entity meltaBeamEntity = scene.CreateEntity();
@@ -460,9 +588,10 @@ namespace SunEngine {
             }
         }
 
-        ApplyMuzzleOverride(scene, shooter, barrelOrigin);
+        const float rayPullBack = ApplyMuzzleOverride(scene, shooter, barrelOrigin, trans.Position, baseDir);
         if (wpBP.projectile_type == ProjectileType::Flamer) {
-            FireFlamer(scene, shooter, wpBP, barrelOrigin, baseDir);
+            // Il cono del lanciafiamme parte dal corpo (stessa ragione del raggio di colpo sotto)
+            FireFlamer(scene, shooter, wpBP, barrelOrigin - baseDir * rayPullBack, baseDir);
 
             entt::entity flamerTrailEntity = scene.CreateEntity();
             auto& flamerTrail = scene.GetRegistry().emplace<TrailRequestComponent>(flamerTrailEntity);
@@ -505,7 +634,10 @@ namespace SunEngine {
                 glm::vec3 pelletOffset = (rightDir * std::cos(theta) + upDir * std::sin(theta)) * r;
                 shootDir = glm::normalize(baseDir + pelletOffset);
             }
-            RaycastResult hit = RaycastAll(scene, barrelOrigin, shootDir, wpBP.range_effective, shooter);
+            // Raggio di colpo: stessa linea della canna, ma parte dal corpo (rayPullBack metri piu' indietro)
+            RaycastResult hit = RaycastAll(scene, barrelOrigin - shootDir * rayPullBack, shootDir,
+                wpBP.range_effective + rayPullBack, shooter);
+            if (hit.hit) hit.distance = (std::max)(0.0f, hit.distance - rayPullBack);   // distanza dalla bocca
 
             glm::vec3 hitPoint = hit.hit
                 ? hit.point
@@ -519,6 +651,7 @@ namespace SunEngine {
 
                 float finalDamage = isUnderbarrelShotgun ? 15.0f : wpBP.base_damage;
                 int effectiveAP = isUnderbarrelShotgun ? 5 : wpBP.armor_penetration;
+                const float healthBefore = targetHealth.currentHealth;
 
                 finalDamage = CalculateDamageWithFalloff(finalDamage, hit.distance,
                     wpBP.damage_falloff_start,
@@ -538,6 +671,7 @@ namespace SunEngine {
                     DamageResolver::ResolveHit(finalDamage, effectiveAP, hit.location,
                         targetStats, targetHealth);
                 }
+                EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore);
             }
             if (skipTrail) continue;
             entt::entity bulletTrailEntity = scene.CreateEntity();
@@ -594,8 +728,10 @@ namespace SunEngine {
             auto& targetHealth = view.get<HealthComponent>(entity);
 
             float flamerDamage = wpBP.base_damage * 0.2f;
+            const float healthBefore = targetHealth.currentHealth;
             DamageResolver::ResolveHit(flamerDamage, wpBP.armor_penetration,
                 HitboxLocation::Torso, targetStats, targetHealth);
+            EmitHitFeedback(scene, shooter, entity, targetCenter, HitboxLocation::Torso, healthBefore);
         }
     }
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,
@@ -613,6 +749,33 @@ namespace SunEngine {
         for (auto e : unitView) {
             if (e == shooter) continue;
             const auto& trans = unitView.get<TransformComponent>(e);
+
+            // Unita' con scheletro a cubi: il colpo si testa sui SINGOLI blocchi (testa, torso, braccia,
+            // gambe) nella posa attuale. Prima si usava il collider di movimento, che per gli orchi e'
+            // 0.7 x 1.3 m contro uno scheletro largo 1.85 m e alto 1.8 m: testa e braccia non erano colpibili,
+            // e la zona colpita era solo stimata dall'altezza.
+            if (const auto* skel = reg.try_get<SkeletonComponent>(e); skel && !skel->data.blocks.empty()) {
+                // Scarto veloce: unita' troppo lontana dalla linea di tiro
+                const glm::vec3 toUnit = trans.Position + glm::vec3(0.0f, 1.0f, 0.0f) - rayOrigin;
+                const float along = glm::dot(toUnit, rayDir);
+                if (along < -3.0f || along > closest + 3.0f) continue;
+                if (glm::length(toUnit - rayDir * along) > 4.0f) continue;
+
+                const auto blockMats = skel->data.ComputeWorldTransforms(trans.Position, trans.Rotation, skel->scale);
+                for (size_t b = 0; b < blockMats.size() && b < skel->data.blocks.size(); ++b) {
+                    float t;
+                    if (IntersectSkeletonBlock(blockMats[b], rayOrigin, rayDir, closest, t) && t < closest) {
+                        closest = t;
+                        result.hit = true;
+                        result.hitUnit = true;
+                        result.entity = e;
+                        result.distance = t;
+                        result.point = rayOrigin + rayDir * t;
+                        result.location = LocationFromBlockName(skel->data.blocks[b].name);
+                    }
+                }
+                continue;
+            }
 
             // FIX #1: centro = Position + localCenterOffset. Prima il box andava da Position a
             // Position+2*half su TUTTI gli assi: in X/Z era spostato di +half (colpi a sinistra/dietro
