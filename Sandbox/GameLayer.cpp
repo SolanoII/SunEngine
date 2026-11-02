@@ -1687,7 +1687,8 @@ namespace SunEngine {
             if (!leftWeaponId.empty()) {
                 const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
                 if (wBPL) {
-                    const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL);
+                    const BlockModel* leftModel = m_BlockModels.Find(leftWeaponId);
+                    const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL, leftModel);
                     if (placedOnHandL) {
                         glm::vec3 scale = wBPL->weapon_scale;
                         if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
@@ -1721,6 +1722,12 @@ namespace SunEngine {
                             }
                             wTransL.Scale = scale;
                         }
+                    }
+
+                    SetWeaponBlockModel(m_LeftWeaponEntity, leftWeaponId);
+                    if (const BlockModel* mm = m_BlockModels.Find(leftWeaponId); mm && mm->hasMuzzle) {
+                        muzzleComp.left = glm::vec3(wTransL.GetTransform() * glm::vec4(mm->muzzle, 1.0f));
+                        muzzleComp.hasLeft = true;
                     }
 
                     if (m_Scene.GetRegistry().all_of<ColorComponent>(m_LeftWeaponEntity)) {
