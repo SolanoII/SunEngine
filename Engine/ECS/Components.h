@@ -85,7 +85,9 @@ namespace SunEngine {
         float stateTimer = 0.0f;
         float parryWindowTimer = 0.0f;
         bool hasHyperArmor = false;
-        bool isShieldEquipped = false;
+        bool isShieldEquipped = false;      // scudo: la parata (Q) ferma anche i colpi a distanza
+        bool parryBlocksRanged = false;     // abilita'/effetti ("perfect deflect"): come sopra, senza scudo
+        float parrySuccessTimer = 0.0f;     // >0 subito dopo una parata riuscita (lampo dell'anello di parata)
         bool hasHitInThisAttack = false;
 
         float stunTimer = 0.0f;

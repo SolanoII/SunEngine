@@ -236,6 +236,8 @@
     { "unit": "spacemarines_neophyte", "position": [ 50.0, 0.0, 0.0 ], "yaw": 90.0 },
     { "unit": "spacemarines_battle_brother", "position": [ 50.0, 0.0, 6.5 ], "yaw": 90.0 },
     { "unit": "orks_boy", "position": [ 50.0, 0.0, 13.0 ], "yaw": 90.0 },
-    { "unit": "orks_nob", "position": [ 50.0, 0.0, 19.5 ], "yaw": 90.0 }
+    { "unit": "orks_nob", "position": [ 50.0, 0.0, 19.5 ], "yaw": 90.0 },
+    { "unit": "orks_yoof", "position": [ 50.0, 0.0, 26.0 ], "yaw": 90.0 },
+    { "unit": "orks_gretchin", "position": [ 50.0, 0.0, 32.5 ], "yaw": 90.0 }
   ]
 }

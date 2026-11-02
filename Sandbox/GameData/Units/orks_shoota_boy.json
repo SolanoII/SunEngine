@@ -1,6 +1,8 @@
 {
   "id": "orks_shoota_boy",
   "displayName": "Shoota Boy",
+  "skeleton": "orks_boy",
+  "animated_body": "ork",
   "point_cost": 16,
   "stamina": 160.0,
   "stamina_regen": 12.0,

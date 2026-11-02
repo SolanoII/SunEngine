@@ -1,6 +1,8 @@
 {
   "id": "spacemarines_scout",
   "displayName": "Space Marine Scout",
+  "skeleton": "spacemarines_neophyte",
+  "animated_body": "neophyte",
   "point_cost": 25,
   "stamina": 160.0,
   "stamina_regen": 12.0,

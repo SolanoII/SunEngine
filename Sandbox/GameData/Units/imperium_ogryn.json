@@ -1,6 +1,7 @@
 {
   "id": "imperium_ogryn",
   "displayName": "Ogryn Bruiser",
+  "animated_body": "ogryn",
   "point_cost": 30,
   "stamina": 220.0,
   "stamina_regen": 12.0,

@@ -94,6 +94,8 @@ namespace SunEngine {
         std::string default_melee_type = "Normal";
         float default_melee_damage = 20.0f;
         std::string special_ability = "none";
+        bool parry_blocks_ranged = false;   // la parata con quest'arma ferma anche i colpi a distanza (perfect deflect)
+        float melee_reach = 1.85f;          // portata del colpo in mischia (metri, dal centro dell'attaccante)
         bool hasMoveset = false;
         MeleeMoveset moveset;
 
@@ -144,6 +146,13 @@ namespace SunEngine {
     struct UnitBlueprint {
         std::string id;
         std::string displayName;
+        // Corpo: scheletro a cubi (Skeletons/<skeleton_id>.json, vuoto = id dell'unita'), sua scala, modello
+        // animato ("human", "ork", "ogryn", "gretchin", "neophyte", "astartes"; vuoto = dedotto dall'id) e scala
+        // del modello. Es. lo yoof usa lo scheletro e il modello del boy, piu' piccoli (0.85).
+        std::string skeleton_id;
+        float skeleton_scale = 1.0f;
+        std::string animated_body;
+        float model_scale = 1.0f;
         int point_cost = 10;
         float base_speed = 0.0f;
         float stamina = 0.0f;

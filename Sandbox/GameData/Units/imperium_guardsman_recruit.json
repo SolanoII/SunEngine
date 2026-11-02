@@ -1,6 +1,7 @@
 {
 	"id": "imperium_guardsman_recruit",
 	"displayName": "Guardsman Recruit",
+	"animated_body": "human",
 	"base_speed": 3.5,
 	"stamina": 100.0,
 	"stamina_regen": 10.0,

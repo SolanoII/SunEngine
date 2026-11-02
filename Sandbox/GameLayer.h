@@ -172,7 +172,8 @@ namespace SunEngine {
         void ApplyUnitVisuals(const TrainedUnit& unit);
         int CalculateSquadPoints() const;
         void CheckUnitDeaths();
-        void UpdateHitFeedback(float deltaTime);   // invecchia marcatori di colpo e flash dei blocchi
+        void UpdateHitFeedback(float deltaTime);
+        void RenderParryRings(bool deferred);      // anello giallo sotto i piedi durante la parata (Q)   // invecchia marcatori di colpo e flash dei blocchi
         void RenderHitMarkers();                   // cerchi sul punto colpito (HUD)
 
         // --- Campo da tiro (Testing Lobby): manichini in T-pose con tutti gli scheletri ---
@@ -200,7 +201,7 @@ namespace SunEngine {
         void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
         bool IsAnimatedPlayerActive();
         // Corpo animato da usare per l'unita' del giocatore (umano, ork, ogryn) e relativi accessori
-        enum class AnimatedBodyKind { Human = 0, Ork, Ogryn, Neophyte, Astartes, Count };
+        enum class AnimatedBodyKind { Human = 0, Ork, Ogryn, Neophyte, Astartes, Gretchin, Count };
         AnimatedBodyKind CurrentAnimatedBodyKind();
         bool AnimatedBodyReady(AnimatedBodyKind kind) const;
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
@@ -243,6 +244,7 @@ namespace SunEngine {
         //   ogryn    -> Characters/ogryn_master.fbx    + Animations/Ogryn/
         //   neofiti  -> Characters/neophyte_master.fbx + Animations/Neophyte/  (neofita, scout)
         //   astartes -> Characters/astartes_master.fbx + Animations/Astartes/  (battle brother, phobos, gravis)
+        //   gretchin -> Characters/gretchin_master.fbx + Animations/Gretchin/
         // Se manca la cartella delle animazioni si usano quelle Human, adattate dal retarget.
         struct AnimatedBody {
             SkinnedModel model;

@@ -9,6 +9,7 @@
 #include "Engine/Core/Logger/Log.h"
 #include "Engine/ECS/Components.h"
 #include "Engine/ECS/Tags.h"
+#include "Engine/ECS/DamageResolver.h"
 #include "Engine/AssetManager/BlueprintManager.h"
 #include "Engine/Physics/SkeletonLoader.h"
 #include "Engine/Scene/MapLoader.h"
@@ -736,6 +737,20 @@ namespace SunEngine {
         }
     }
 
+    // Scheletro a cubi (hitbox) di un'unita': quello indicato nel blueprint ("skeleton", es. lo yoof usa
+    // orks_boy) con la sua scala, altrimenti Skeletons/<id>.json. Se il file non esiste si usa quello del
+    // guardsman, cosi' l'unita' non si tiene lo scheletro della precedente.
+    static std::optional<SkeletonData> LoadUnitSkeleton(const std::string& unitId, float& outScale) {
+        const auto* bp = BlueprintManager::Get().GetUnit(unitId);
+        const std::string skeletonsDir = FindValidDir("Skeletons");
+        const std::string skelId = (bp && !bp->skeleton_id.empty()) ? bp->skeleton_id : unitId;
+        outScale = (bp && bp->skeleton_scale > 0.05f) ? bp->skeleton_scale : 1.0f;
+        if (auto data = SkeletonLoader::LoadFromFile(skeletonsDir + skelId + ".json")) return data;
+        SUN_CORE_WARN("Scheletro '{0}' per l'unita' '{1}' non trovato: uso quello del guardsman", skelId, unitId);
+        outScale = 1.0f;
+        return SkeletonLoader::LoadFromFile(skeletonsDir + "imperium_guardsman_recruit.json");
+    }
+
     static void SwapPlayerUnit(Scene& scene, entt::entity playerEntity, const std::string& newUnitId) {
         const auto* bp = BlueprintManager::Get().GetUnit(newUnitId);
         if (!bp) return;
@@ -758,13 +773,12 @@ namespace SunEngine {
         stats.visionRange = bp->vision_range;
         stats.fovDegrees = bp->fov_degrees;
         stats.weightCapacity = bp->weight_capacity;
-        std::string skeletonsDir = FindValidDir("Skeletons");
-        std::string skelPath = skeletonsDir + newUnitId + ".json";
-        auto skeletonData = SkeletonLoader::LoadFromFile(skelPath);
+        float skeletonScale = 1.0f;
+        auto skeletonData = LoadUnitSkeleton(newUnitId, skeletonScale);
         if (skeletonData) {
             auto& skelComp = scene.GetRegistry().emplace_or_replace<SkeletonComponent>(playerEntity);
             skelComp.data = *skeletonData;
-            skelComp.scale = 1.0f;
+            skelComp.scale = skeletonScale;
             skelComp.blockFlashTimers.assign(skelComp.data.blocks.size(), 0.0f);
 
             auto worldTransforms = skelComp.data.ComputeWorldTransforms(
@@ -1076,6 +1090,7 @@ namespace SunEngine {
             LoadAnimatedBody(Body(AnimatedBodyKind::Ogryn), modelsDir, "ogryn_master.fbx", "Ogryn", "ogryn");
             LoadAnimatedBody(Body(AnimatedBodyKind::Neophyte), modelsDir, "neophyte_master.fbx", "Neophyte", "neofita");
             LoadAnimatedBody(Body(AnimatedBodyKind::Astartes), modelsDir, "astartes_master.fbx", "Astartes", "astartes");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Gretchin), modelsDir, "gretchin_master.fbx", "Gretchin", "gretchin");
         }
 
         GLFWwindow* window = glfwGetCurrentContext();
@@ -1401,6 +1416,8 @@ namespace SunEngine {
         if (unitId == "spacemarines_battle_brother") return glm::vec4(0.05f, 0.25f, 0.75f, 1.0f);
         if (unitId == "orks_boy") return glm::vec4(0.15f, 0.60f, 0.15f, 1.0f);
         if (unitId == "orks_nob") return glm::vec4(0.08f, 0.40f, 0.08f, 1.0f);
+        if (unitId == "orks_yoof") return glm::vec4(0.30f, 0.68f, 0.25f, 1.0f);
+        if (unitId == "orks_gretchin") return glm::vec4(0.45f, 0.62f, 0.28f, 1.0f);
         return glm::vec4(0.75f, 0.75f, 0.78f, 1.0f);
     }
 
@@ -1414,7 +1431,8 @@ namespace SunEngine {
         int spawned = 0;
 
         for (const auto& spawn : m_CurrentMapData.trainingDummies) {
-            auto skeleton = SkeletonLoader::LoadFromFile(skeletonsDir + spawn.unitId + ".json");
+            float skeletonScale = 1.0f;
+            auto skeleton = LoadUnitSkeleton(spawn.unitId, skeletonScale);
             if (!skeleton) {
                 SUN_CORE_WARN("Campo da tiro: scheletro '{0}' non trovato, manichino saltato", spawn.unitId);
                 continue;
@@ -1431,7 +1449,7 @@ namespace SunEngine {
             // T-pose: braccia orizzontali, aperte verso l'esterno
             auto& skel = reg.emplace<SkeletonComponent>(e);
             skel.data = *skeleton;
-            skel.scale = 1.0f;
+            skel.scale = skeletonScale;
             for (auto& block : skel.data.blocks) {
                 if (block.name == "Arm_L") block.jointRotation = glm::vec3(0.0f, 0.0f, -90.0f);
                 else if (block.name == "Arm_R") block.jointRotation = glm::vec3(0.0f, 0.0f, 90.0f);
@@ -1461,7 +1479,7 @@ namespace SunEngine {
             }
 
             // Collider (solo per non attraversare il manichino): ingombro della posa in T
-            const auto mats = skel.data.ComputeWorldTransforms(glm::vec3(0.0f), glm::vec3(0.0f, spawn.yawDegrees, 0.0f), 1.0f);
+            const auto mats = skel.data.ComputeWorldTransforms(glm::vec3(0.0f), glm::vec3(0.0f, spawn.yawDegrees, 0.0f), skel.scale);
             glm::vec3 mn(1e9f), mx(-1e9f);
             for (const auto& M : mats)
                 for (int c = 0; c < 8; ++c) {
@@ -1514,6 +1532,75 @@ namespace SunEngine {
                 d.lethal = false;
             }
             d.prevHealth = h.currentHealth;
+        }
+    }
+
+    // Anello di parata sotto i piedi di chi para (Q), per tutta la durata della parata:
+    //   windup   -> l'anello si allarga e si accende
+    //   attiva   -> giallo pieno (finestra in cui la parata ferma i colpi)
+    //   recovery -> si spegne e si stringe
+    // Una parata riuscita lo fa lampeggiare quasi bianco. Fatto di piccoli blocchi emissivi piatti, disegnati
+    // nel geometry pass: hanno profondita' (le gambe lo coprono) e prendono il bloom.
+    void GameLayer::RenderParryRings(bool deferred) {
+        auto& reg = m_Scene.GetRegistry();
+        auto view = reg.view<MeleeStateComponent, TransformComponent>(entt::exclude<CorpseComponent>);
+        constexpr float kWindupEnd = 0.08f;
+        constexpr float kActiveEnd = DamageResolver::kParryWindowEnd;
+        constexpr float kParryEnd = 0.48f;
+        constexpr int kSegments = 40;
+
+        for (auto e : view) {
+            const auto& melee = view.get<MeleeStateComponent>(e);
+            const bool parrying = melee.currentAttack == MeleeAttackType::Parry
+                && melee.currentPhase != MeleePhase::None && melee.currentPhase != MeleePhase::Stunned;
+            if (!parrying && melee.parrySuccessTimer <= 0.0f) continue;
+            const auto& t = view.get<TransformComponent>(e);
+
+            // Raggio dall'ingombro dell'unita' (collider), con un minimo per le unita' piccole
+            // e quota dei piedi dal fondo del collider (Position non e' sempre ai piedi)
+            float baseRadius = 0.65f;
+            float footY = t.Position.y;
+            if (const auto* col = reg.try_get<ColliderComponent>(e)) {
+                baseRadius = std::clamp(std::min(col->halfExtents.x * t.Scale.x, col->halfExtents.z * t.Scale.z) + 0.35f, 0.55f, 1.4f);
+                footY = t.Position.y + (col->localCenterOffset.y - col->halfExtents.y) * t.Scale.y;
+            }
+
+            float grow = 1.0f, intensity = 1.0f;
+            const float st = melee.stateTimer;
+            if (parrying) {
+                if (st < kWindupEnd) { grow = 0.70f + 0.30f * (st / kWindupEnd); intensity = 0.6f + 0.4f * (st / kWindupEnd); }
+                else if (st <= kActiveEnd) { grow = 1.0f; intensity = 1.0f; }
+                else { const float k = std::clamp((st - kActiveEnd) / (kParryEnd - kActiveEnd), 0.0f, 1.0f); grow = 1.0f - 0.25f * k; intensity = 1.0f - 0.85f * k; }
+            }
+            else {
+                intensity = 0.0f;
+            }
+            const float flash = std::clamp(melee.parrySuccessTimer / 0.25f, 0.0f, 1.0f);
+            intensity = std::max(intensity, flash);
+            if (intensity <= 0.02f) continue;
+
+            const glm::vec3 yellow(1.0f, 0.82f, 0.10f);
+            const glm::vec3 col3 = glm::mix(yellow, glm::vec3(1.0f, 0.97f, 0.85f), flash * 0.8f);
+            const glm::vec4 color(col3 * (0.35f + 0.65f * intensity), 1.0f);
+            const float radius = baseRadius * grow * (1.0f + 0.15f * flash);
+            const float thickness = 0.035f + 0.045f * intensity + 0.04f * flash;   // larghezza della fascia
+            const float y = footY + 0.015f;                                        // appena sopra il terreno
+
+            // Due anelli concentrici: quello esterno pieno, uno interno sottile
+            for (int ring = 0; ring < 2; ++ring) {
+                const float r = (ring == 0) ? radius : radius * 0.82f;
+                const float w = (ring == 0) ? thickness : thickness * 0.45f;
+                const float segLen = 2.0f * glm::pi<float>() * r / kSegments * 1.08f;   // leggera sovrapposizione
+                for (int i = 0; i < kSegments; ++i) {
+                    const float a = 2.0f * glm::pi<float>() * (i + 0.5f) / kSegments;
+                    const glm::vec3 p(t.Position.x + std::cos(a) * r, y, t.Position.z + std::sin(a) * r);
+                    glm::mat4 m = glm::translate(glm::mat4(1.0f), p);
+                    m = glm::rotate(m, -a, glm::vec3(0.0f, 1.0f, 0.0f));   // lato lungo tangente al cerchio
+                    m = glm::scale(m, glm::vec3(w, 0.012f, segLen));
+                    if (deferred) m_DeferredRenderer.DrawCube(m, color, 0.4f, 0.0f, intensity * (ring == 0 ? 1.0f : 0.7f));
+                    else Renderer::DrawCube(m, color);
+                }
+            }
         }
     }
 
@@ -1717,9 +1804,21 @@ namespace SunEngine {
     GameLayer::AnimatedBodyKind GameLayer::CurrentAnimatedBodyKind() {
         const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(m_PlayerEntity);
         AnimatedBodyKind kind = AnimatedBodyKind::Human;
-        if (uid) {
+        const auto* bp = uid ? BlueprintManager::Get().GetUnit(uid->id) : nullptr;
+        if (bp && !bp->animated_body.empty()) {
+            // Indicato nel blueprint dell'unita' ("animated_body")
+            const std::string& b = bp->animated_body;
+            if (b == "ork") kind = AnimatedBodyKind::Ork;
+            else if (b == "ogryn") kind = AnimatedBodyKind::Ogryn;
+            else if (b == "gretchin") kind = AnimatedBodyKind::Gretchin;
+            else if (b == "neophyte") kind = AnimatedBodyKind::Neophyte;
+            else if (b == "astartes") kind = AnimatedBodyKind::Astartes;
+        }
+        else if (uid) {
+            // Senza indicazione: dedotto dall'id
             const std::string& id = uid->id;
-            if (id.rfind("orks_", 0) == 0) kind = AnimatedBodyKind::Ork;
+            if (id == "orks_gretchin") kind = AnimatedBodyKind::Gretchin;
+            else if (id.rfind("orks_", 0) == 0) kind = AnimatedBodyKind::Ork;
             else if (id.rfind("imperium_ogryn", 0) == 0) kind = AnimatedBodyKind::Ogryn;
             else if (id == "spacemarines_neophyte" || id == "spacemarines_scout") kind = AnimatedBodyKind::Neophyte;
             else if (id.rfind("spacemarines_", 0) == 0) kind = AnimatedBodyKind::Astartes;
@@ -1806,10 +1905,13 @@ namespace SunEngine {
         auto& vt = reg.get<TransformComponent>(m_AnimatedPlayerEntity);
         vt.Position = pt.Position;   // Position del player = piedi, come l'origine del modello
         vt.Rotation = glm::vec3(0.0f, pt.Rotation.y + m_AnimatedYawOffset, 0.0f);
-        // Il nob e' lo stesso modello dell'ork boy, piu' grande del 20%. Gli altri corpi hanno gia' la loro altezza
-        // nel file: neofita ~1,95 m, astartes ~2,2 m, ogryn ~2,75 m.
+        // Scala del modello dal blueprint ("model_scale"): il nob e' il modello dell'ork boy a 1.2, lo yoof a 0.85.
+        // Gli altri corpi hanno gia' la loro altezza nel file: gretchin ~0,9 m, neofita ~1,95 m, astartes ~2,2 m,
+        // ogryn ~2,75 m.
         float unitScale = 1.0f;
-        if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity); uid && uid->id == "orks_nob") unitScale = 1.2f;
+        if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity)) {
+            if (const auto* ubp = BlueprintManager::Get().GetUnit(uid->id); ubp && ubp->model_scale > 0.05f) unitScale = ubp->model_scale;
+        }
         vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
 
         // Colore armatura scelto nel garage come albedo del modello
@@ -2313,11 +2415,8 @@ namespace SunEngine {
                     wState.isScopeActive = false;
                 }
 
-                std::string meleeWeaponId = inv.meleeWeaponId;
-                if (meleeWeaponId.empty() || meleeWeaponId == "none") {
-                    meleeWeaponId = "standard_chainsword_1h";
-                }
-                const auto* meleeBP = BlueprintManager::Get().GetWeapon(meleeWeaponId);
+                // Stessa arma da mischia usata da MeleeCombatSystem e dal calcolo del danno
+                const auto* meleeBP = DamageResolver::ResolveMeleeWeapon(m_Scene.GetRegistry(), m_PlayerEntity);
 
                 auto triggerMeleeNode = [&](const std::string& inputKey, const std::string& defaultNode, MeleeAttackType atkType) {
                     melee.bufferedInput = inputKey;
@@ -3107,11 +3206,13 @@ namespace SunEngine {
             // ===== FINE SHADOW PASS =====
             m_DeferredRenderer.BeginGeometryPass(m_Camera);
             m_RenderSystem.RenderDeferred(m_Scene, m_DeferredRenderer);
+            RenderParryRings(true);
             m_DeferredRenderer.EndGeometryPassAndPresent(m_Camera);
         }
         else {
             // Fallback al vecchio renderer (solo se DeferredRenderer non è init)
             m_RenderSystem.Render(m_Scene);
+            RenderParryRings(false);
         }
         m_ParticleSystem.Render(m_Scene);
         // (rimossi i due modelli di prova disegnati accanto al giocatore)

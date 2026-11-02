@@ -1,6 +1,7 @@
 {
   "id": "imperium_kasrkin",
   "displayName": "Kasrkin Elite",
+  "animated_body": "human",
   "base_speed": 4.0,
   "stamina": 140.0,
   "stamina_regen": 15.0,

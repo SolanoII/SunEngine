@@ -1,6 +1,7 @@
 {
 	"id": "spacemarines_neophyte",
 	"displayName": "Space Marine Neophyte",
+	"animated_body": "neophyte",
 	"base_speed": 4.5,
 	"stamina": 200.0,
 	"stamina_regen": 18.0,

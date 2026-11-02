@@ -1,6 +1,7 @@
 {
   "id": "spacemarines_battle_brother",
   "displayName": "Space Marine Battle-Brother (Power Armor)",
+  "animated_body": "astartes",
   "base_speed": 4.6,
   "stamina": 400.0,
   "stamina_regen": 30.0,

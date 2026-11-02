@@ -97,6 +97,8 @@ namespace SunEngine {
                 bp.default_melee_type = j.value("default_melee_type", "Normal");
                 bp.default_melee_damage = j.value("default_melee_damage", j.value("base_damage", 20.0f));
                 bp.special_ability = j.value("special_ability", "none");
+                bp.parry_blocks_ranged = j.value("parry_blocks_ranged", false);
+                bp.melee_reach = j.value("melee_reach", 1.85f);
 
                 bp.weight_kg = j.value("weight_kg", 0.0f);
                 bp.point_cost = j.value("point_cost", 5);
@@ -257,6 +259,10 @@ namespace SunEngine {
                 UnitBlueprint bp;
                 bp.id = j.value("id", entry.path().stem().string());
                 bp.displayName = j.value("displayName", j.value("id", "Unita Ignota"));
+                bp.skeleton_id = j.value("skeleton", std::string());
+                bp.skeleton_scale = j.value("skeleton_scale", 1.0f);
+                bp.animated_body = j.value("animated_body", std::string());
+                bp.model_scale = j.value("model_scale", 1.0f);
                 bp.point_cost = j.value("point_cost", 15);
                 bp.base_speed = j.value("base_speed", 5.0f);
                 bp.stamina = j.value("stamina", 100.0f);

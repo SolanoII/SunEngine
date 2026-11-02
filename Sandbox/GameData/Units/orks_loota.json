@@ -1,6 +1,8 @@
 {
   "id": "orks_loota",
   "displayName": "Loota",
+  "skeleton": "orks_boy",
+  "animated_body": "ork",
   "point_cost": 22,
   "stamina": 160.0,
   "stamina_regen": 12.0,

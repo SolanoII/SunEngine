@@ -1,6 +1,7 @@
 {
   "id": "orks_gretchin",
   "displayName": "Gretchin",
+  "animated_body": "gretchin",
   "point_cost": 3,
   "stamina": 160.0,
   "stamina_regen": 12.0,

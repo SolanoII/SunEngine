@@ -1,6 +1,8 @@
 {
   "id": "spacemarines_phobos",
   "displayName": "Phobos Battle-Brother",
+  "skeleton": "spacemarines_battle_brother",
+  "animated_body": "astartes",
   "point_cost": 60,
   "stamina": 160.0,
   "stamina_regen": 12.0,

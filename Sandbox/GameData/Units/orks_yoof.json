@@ -1,6 +1,10 @@
 {
   "id": "orks_yoof",
   "displayName": "Ork Yoof",
+  "skeleton": "orks_boy",
+  "skeleton_scale": 0.85,
+  "animated_body": "ork",
+  "model_scale": 0.85,
   "point_cost": 8,
   "stamina": 160.0,
   "stamina_regen": 12.0,

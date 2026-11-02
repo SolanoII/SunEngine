@@ -1,6 +1,8 @@
 {
   "id": "orks_nob",
   "displayName": "Ork Nob",
+  "animated_body": "ork",
+  "model_scale": 1.2,
   "base_speed": 3.8,
   "stamina": 250.0,
   "stamina_regen": 18.0,

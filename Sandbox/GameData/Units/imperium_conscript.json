@@ -1,6 +1,8 @@
 {
   "id": "imperium_conscript",
   "displayName": "Conscript",
+  "skeleton": "imperium_guardsman_recruit",
+  "animated_body": "human",
   "point_cost": 3,
   "stamina": 160.0,
   "stamina_regen": 12.0,
