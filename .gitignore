@@ -10,3 +10,7 @@ ExportedMaps/
 *.user
 *.suo
 *.pdb
+# Patch di lavoro (restano solo in locale)
+*.patch
+*.rej
+*.orig
