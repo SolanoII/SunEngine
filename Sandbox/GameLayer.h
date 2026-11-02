@@ -199,7 +199,12 @@ namespace SunEngine {
         RifleAnimInput BuildPlayerAnimInput(bool isAiming, float deltaTime);
         void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
         bool IsAnimatedPlayerActive();
-        bool UseOrkAnimatedModel();                         // il giocatore e' un ork e il modello ork e' caricato
+        // Corpo animato da usare per l'unita' del giocatore (umano, ork, ogryn) e relativi accessori
+        enum class AnimatedBodyKind { Human = 0, Ork, Ogryn, Neophyte, Astartes, Count };
+        AnimatedBodyKind CurrentAnimatedBodyKind();
+        bool AnimatedBodyReady(AnimatedBodyKind kind) const;
+        SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
+        RifleAnimationController& AnimatedBodyController(AnimatedBodyKind kind);
         RifleAnimationController& ActiveAnimController();   // controller del modello animato in uso
         bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model = nullptr);
 
@@ -233,13 +238,25 @@ namespace SunEngine {
         RifleAnimationController m_RifleAnimController;
         bool m_RifleAnimLoaded = false;
 
-        // Modello animato degli orchi (Characters/ork_master.fbx, stesso rig Mixamo del guardsman) con le
-        // animazioni di Animations/Orks/ (se manca la cartella: quelle di Human, adattate dal retarget).
-        SkinnedModel m_OrkSkinnedModel;
-        bool m_OrkModelLoaded = false;
-        RifleAnimationController m_OrkAnimController;
-        bool m_OrkAnimLoaded = false;
-        bool m_AnimatedIsOrk = false;      // quale modello usa ora l'entity animata
+        // Corpi animati alternativi al guardsman, con lo stesso rig Mixamo (52 ossa, stessi nomi):
+        //   orchi    -> Characters/ork_master.fbx      + Animations/Orks/
+        //   ogryn    -> Characters/ogryn_master.fbx    + Animations/Ogryn/
+        //   neofiti  -> Characters/neophyte_master.fbx + Animations/Neophyte/  (neofita, scout)
+        //   astartes -> Characters/astartes_master.fbx + Animations/Astartes/  (battle brother, phobos, gravis)
+        // Se manca la cartella delle animazioni si usano quelle Human, adattate dal retarget.
+        struct AnimatedBody {
+            SkinnedModel model;
+            RifleAnimationController controller;
+            bool modelLoaded = false;
+            bool animLoaded = false;
+        };
+        AnimatedBody m_AnimatedBodies[static_cast<int>(AnimatedBodyKind::Count)];   // [Human] inutilizzato
+        AnimatedBody& Body(AnimatedBodyKind kind) { return m_AnimatedBodies[static_cast<int>(kind)]; }
+        const AnimatedBody& Body(AnimatedBodyKind kind) const { return m_AnimatedBodies[static_cast<int>(kind)]; }
+        AnimatedBodyKind m_AnimatedBodyInUse = AnimatedBodyKind::Human;   // modello assegnato ora all'entity animata
+        bool m_AnimatedBodyAssigned = false;
+        void LoadAnimatedBody(AnimatedBody& body, const std::string& modelsDir, const char* fbxName,
+                              const char* animFolder, const char* label);
 
         ma_engine m_AudioEngine;
         ma_sound_group m_SFXGroup;      // o "m_FootstepGroup"

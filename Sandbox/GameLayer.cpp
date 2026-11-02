@@ -1071,23 +1071,11 @@ namespace SunEngine {
                 }
             }
 
-            // Modello animato degli orchi (boy e nob: il nob e' lo stesso modello scalato)
-            const std::string orkPath = modelsDir + "Characters/ork_master.fbx";
-            std::error_code orkEc;
-            if (std::filesystem::exists(orkPath, orkEc)) {
-                m_OrkModelLoaded = m_OrkSkinnedModel.LoadModel(orkPath);
-                std::string animsDir = FindValidDir("Animations");
-                if (m_OrkModelLoaded && !animsDir.empty()) {
-                    // Cartella Orks se presente, altrimenti le clip Human: il retarget le adatta al rig ork
-                    const bool hasOrkClips = std::filesystem::is_directory(animsDir + "Orks/", orkEc);
-                    m_OrkAnimLoaded = m_OrkAnimController.LoadClips(animsDir + (hasOrkClips ? "Orks/" : "Human/"),
-                        orkPath, &m_OrkSkinnedModel);
-                    SUN_CORE_INFO("Modello ork animato caricato (animazioni: {0})", hasOrkClips ? "Orks" : "Human");
-                }
-            }
-            else {
-                SUN_CORE_WARN("Modello ork non trovato ({0}): gli orchi useranno il modello umano", orkPath);
-            }
+            // Corpi animati delle altre unita' (stesso rig del guardsman)
+            LoadAnimatedBody(Body(AnimatedBodyKind::Ork), modelsDir, "ork_master.fbx", "Orks", "ork");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Ogryn), modelsDir, "ogryn_master.fbx", "Ogryn", "ogryn");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Neophyte), modelsDir, "neophyte_master.fbx", "Neophyte", "neofita");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Astartes), modelsDir, "astartes_master.fbx", "Astartes", "astartes");
         }
 
         GLFWwindow* window = glfwGetCurrentContext();
@@ -1700,20 +1688,68 @@ namespace SunEngine {
         return in;
     }
 
-    bool GameLayer::UseOrkAnimatedModel() {
-        if (!m_OrkModelLoaded || !m_OrkAnimLoaded) return false;
+    // Carica un corpo animato alternativo (Characters/<fbxName>) e le sue clip: Animations/<animFolder>/ se
+    // la cartella esiste, altrimenti quelle Human (il retarget le adatta alle proporzioni del rig).
+    void GameLayer::LoadAnimatedBody(AnimatedBody& body, const std::string& modelsDir, const char* fbxName,
+                                     const char* animFolder, const char* label) {
+        const std::string path = modelsDir + "Characters/" + fbxName;
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec)) {
+            SUN_CORE_WARN("Modello {0} non trovato ({1}): usera' il modello umano", label, path);
+            return;
+        }
+        body.modelLoaded = body.model.LoadModel(path);
+        const std::string animsDir = FindValidDir("Animations");
+        if (!body.modelLoaded || animsDir.empty()) return;
+        const std::string ownDir = animsDir + animFolder + "/";
+        const bool hasOwnClips = std::filesystem::is_directory(ownDir, ec);
+        body.animLoaded = body.controller.LoadClips(hasOwnClips ? ownDir : animsDir + "Human/", path, &body.model);
+        SUN_CORE_INFO("Modello {0} animato caricato (animazioni: {1})", label, hasOwnClips ? animFolder : "Human");
+    }
+
+    // Quale corpo animato usa l'unita' del giocatore:
+    //   orks_*                              -> ork (boy e nob)
+    //   imperium_ogryn*                     -> ogryn
+    //   spacemarines_neophyte / _scout      -> neofita (gli scout sono neofiti)
+    //   altri spacemarines_*                -> astartes (battle brother, phobos, gravis)
+    //   tutto il resto                      -> guardsman
+    // Se il modello dedicato non e' caricato si ricade sul guardsman.
+    GameLayer::AnimatedBodyKind GameLayer::CurrentAnimatedBodyKind() {
         const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(m_PlayerEntity);
-        return uid && uid->id.rfind("orks_", 0) == 0;
+        AnimatedBodyKind kind = AnimatedBodyKind::Human;
+        if (uid) {
+            const std::string& id = uid->id;
+            if (id.rfind("orks_", 0) == 0) kind = AnimatedBodyKind::Ork;
+            else if (id.rfind("imperium_ogryn", 0) == 0) kind = AnimatedBodyKind::Ogryn;
+            else if (id == "spacemarines_neophyte" || id == "spacemarines_scout") kind = AnimatedBodyKind::Neophyte;
+            else if (id.rfind("spacemarines_", 0) == 0) kind = AnimatedBodyKind::Astartes;
+        }
+        return AnimatedBodyReady(kind) ? kind : AnimatedBodyKind::Human;
+    }
+
+    bool GameLayer::AnimatedBodyReady(AnimatedBodyKind kind) const {
+        if (kind == AnimatedBodyKind::Human || kind == AnimatedBodyKind::Count) return m_SkinnedModelLoaded && m_RifleAnimLoaded;
+        const AnimatedBody& b = Body(kind);
+        return b.modelLoaded && b.animLoaded;
+    }
+
+    SkinnedModel& GameLayer::AnimatedBodyModel(AnimatedBodyKind kind) {
+        if (kind == AnimatedBodyKind::Human || kind == AnimatedBodyKind::Count) return m_SkinnedTestModel;
+        return Body(kind).model;
+    }
+
+    RifleAnimationController& GameLayer::AnimatedBodyController(AnimatedBodyKind kind) {
+        if (kind == AnimatedBodyKind::Human || kind == AnimatedBodyKind::Count) return m_RifleAnimController;
+        return Body(kind).controller;
     }
 
     RifleAnimationController& GameLayer::ActiveAnimController() {
-        return UseOrkAnimatedModel() ? m_OrkAnimController : m_RifleAnimController;
+        return AnimatedBodyController(CurrentAnimatedBodyKind());
     }
 
     bool GameLayer::IsAnimatedPlayerActive() {
         auto& reg = m_Scene.GetRegistry();
-        const bool modelReady = UseOrkAnimatedModel() || (m_RifleAnimLoaded && m_SkinnedModelLoaded);
-        return m_UseAnimatedPlayer && modelReady
+        return m_UseAnimatedPlayer && AnimatedBodyReady(CurrentAnimatedBodyKind())
             && reg.valid(m_AnimatedPlayerEntity) && reg.valid(m_PlayerEntity)
             && !reg.all_of<CorpseComponent>(m_PlayerEntity);
     }
@@ -1723,10 +1759,10 @@ namespace SunEngine {
     void GameLayer::UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input) {
         auto& reg = m_Scene.GetRegistry();
 
-        // Ork (boy/nob) -> modello e animazioni ork; tutti gli altri -> modello umano
-        const bool useOrk = UseOrkAnimatedModel();
-        const bool modelReady = useOrk || (m_RifleAnimLoaded && m_SkinnedModelLoaded);
-        RifleAnimationController& controller = useOrk ? m_OrkAnimController : m_RifleAnimController;
+        // Corpo dell'unita' corrente: guardsman, ork (boy/nob) oppure ogryn
+        const AnimatedBodyKind kind = CurrentAnimatedBodyKind();
+        const bool modelReady = AnimatedBodyReady(kind);
+        RifleAnimationController& controller = AnimatedBodyController(kind);
         if (modelReady) {
             controller.Update(deltaTime, input);
         }
@@ -1752,14 +1788,15 @@ namespace SunEngine {
             reg.emplace<TransformComponent>(m_AnimatedPlayerEntity);
             reg.emplace<ColorComponent>(m_AnimatedPlayerEntity);   // richiesto dal render deferred
             reg.emplace<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
-            m_AnimatedIsOrk = !useOrk;   // forza l'assegnazione del modello qui sotto
+            m_AnimatedBodyAssigned = false;   // forza l'assegnazione del modello qui sotto
         }
-        if (m_AnimatedIsOrk != useOrk) {
-            // Cambio di unita' (es. guardsman -> ork nel garage): stesso entity, altro modello
+        if (!m_AnimatedBodyAssigned || m_AnimatedBodyInUse != kind) {
+            // Cambio di unita' (es. guardsman -> ogryn nel garage): stessa entity, altro modello
             auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
-            inst.sourceModel = useOrk ? &m_OrkSkinnedModel : &m_SkinnedTestModel;
+            inst.sourceModel = &AnimatedBodyModel(kind);
             inst.boneMatrices = &controller.GetFinalBoneMatrices();
-            m_AnimatedIsOrk = useOrk;
+            m_AnimatedBodyInUse = kind;
+            m_AnimatedBodyAssigned = true;
         }
         if (!reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
             reg.emplace<HideProceduralVisualTag>(m_PlayerEntity);
@@ -1769,7 +1806,9 @@ namespace SunEngine {
         auto& vt = reg.get<TransformComponent>(m_AnimatedPlayerEntity);
         vt.Position = pt.Position;   // Position del player = piedi, come l'origine del modello
         vt.Rotation = glm::vec3(0.0f, pt.Rotation.y + m_AnimatedYawOffset, 0.0f);
-        float unitScale = 1.0f;   // il nob e' lo stesso modello dell'ork boy, piu' grande del 20%
+        // Il nob e' lo stesso modello dell'ork boy, piu' grande del 20%. Gli altri corpi hanno gia' la loro altezza
+        // nel file: neofita ~1,95 m, astartes ~2,2 m, ogryn ~2,75 m.
+        float unitScale = 1.0f;
         if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity); uid && uid->id == "orks_nob") unitScale = 1.2f;
         vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
 
@@ -4704,7 +4743,9 @@ namespace SunEngine {
                     ImGui::Text("Modello del giocatore:");
                     if (ImGui::RadioButton("Cuboni (hitbox)", !m_UseAnimatedPlayer)) m_UseAnimatedPlayer = false;
                     ImGui::SameLine();
-                    const bool animAvailable = (m_RifleAnimLoaded && m_SkinnedModelLoaded) || (m_OrkModelLoaded && m_OrkAnimLoaded);
+                    bool animAvailable = false;
+                    for (int k = 0; k < static_cast<int>(AnimatedBodyKind::Count); ++k)
+                        animAvailable |= AnimatedBodyReady(static_cast<AnimatedBodyKind>(k));
                     if (ImGui::RadioButton("Animato (FBX)", m_UseAnimatedPlayer) && animAvailable) m_UseAnimatedPlayer = true;
                     ImGui::TextDisabled("In partita: F2 per passare dall'uno all'altro.");
                     if (!animAvailable) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Modello/animazioni non caricati.");
