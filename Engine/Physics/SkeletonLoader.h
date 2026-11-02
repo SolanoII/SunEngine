@@ -40,6 +40,12 @@ namespace SunEngine {
                     auto size = item["size"];
                     block.size = glm::vec3(size[0].get<float>(), size[1].get<float>(), size[2].get<float>());
 
+                    // Opzionale: rotazione di riposo (gradi) - postura fissa, es. torso ingobbito
+                    if (item.contains("rotation")) {
+                        auto rot = item["rotation"];
+                        block.restRotation = glm::vec3(rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>());
+                    }
+
                     skeleton.blocks.push_back(block);
                 }
 

@@ -17,7 +17,17 @@ namespace SunEngine {
         glm::vec3 pivotOffset{ 0.0f };  // Shift del blocco rispetto allo snodo (es. braccio scende dalla spalla)
         glm::vec3 size{ 1.0f };         // Dimensioni del blocco (X, Y, Z)
         glm::vec3 jointRotation{ 0.0f };// Rotazione autonoma dell'articolazione
+        // Rotazione di RIPOSO (gradi, campo "rotation" del JSON): postura fissa del blocco, es. il torso
+        // ingobbito degli orchi. Si applica PRIMA di jointRotation, che resta libera per le animazioni.
+        glm::vec3 restRotation{ 0.0f };
     };
+
+    // Rotazione euleriana in gradi, ordine Y, X, Z (lo stesso usato per jointRotation)
+    inline glm::mat4 RotateEulerYXZ(const glm::mat4& m, const glm::vec3& deg) {
+        glm::mat4 r = glm::rotate(m, glm::radians(deg.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        r = glm::rotate(r, glm::radians(deg.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        return glm::rotate(r, glm::radians(deg.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    }
 
     struct BlockPhysicsTransform {
         glm::vec3 blockCenterPos{ 0.0f };
@@ -48,9 +58,8 @@ namespace SunEngine {
                     : rootEntityMatrix;
 
                 glm::mat4 currentJointMat = glm::translate(parentJointMat, block.localOffset * entityScale);
-                currentJointMat = glm::rotate(currentJointMat, glm::radians(block.jointRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-                currentJointMat = glm::rotate(currentJointMat, glm::radians(block.jointRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-                currentJointMat = glm::rotate(currentJointMat, glm::radians(block.jointRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                currentJointMat = RotateEulerYXZ(currentJointMat, block.restRotation);    // postura di riposo
+                currentJointMat = RotateEulerYXZ(currentJointMat, block.jointRotation);   // animazione
 
                 jointWorldMatrices[i] = currentJointMat;
 
@@ -79,9 +88,8 @@ namespace SunEngine {
                     : rootEntityMatrix;
 
                 glm::mat4 currentJointMat = glm::translate(parentJointMat, block.localOffset * entityScale);
-                currentJointMat = glm::rotate(currentJointMat, glm::radians(block.jointRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-                currentJointMat = glm::rotate(currentJointMat, glm::radians(block.jointRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-                currentJointMat = glm::rotate(currentJointMat, glm::radians(block.jointRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                currentJointMat = RotateEulerYXZ(currentJointMat, block.restRotation);    // postura di riposo
+                currentJointMat = RotateEulerYXZ(currentJointMat, block.jointRotation);   // animazione
 
                 jointWorldMatrices[i] = currentJointMat;
 

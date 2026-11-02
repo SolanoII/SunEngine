@@ -52,10 +52,12 @@ namespace SunEngine {
         return true;
     }
 
+    // Zona colpita dal nome del blocco. Blocchi aggiuntivi (es. scheletro degli orchi): la mascella conta
+    // come testa, spalle e pugni come il braccio del loro lato, la gobba (e ogni altro blocco) come torso.
     static HitboxLocation LocationFromBlockName(const std::string& name) {
-        if (name == "Head") return HitboxLocation::Head;
-        if (name == "Arm_L") return HitboxLocation::LeftArm;
-        if (name == "Arm_R") return HitboxLocation::RightArm;
+        if (name == "Head" || name == "Jaw") return HitboxLocation::Head;
+        if (name == "Arm_L" || name == "Shoulder_L" || name == "Fist_L") return HitboxLocation::LeftArm;
+        if (name == "Arm_R" || name == "Shoulder_R" || name == "Fist_R") return HitboxLocation::RightArm;
         if (name == "Leg_L") return HitboxLocation::LeftLeg;
         if (name == "Leg_R") return HitboxLocation::RightLeg;
         return HitboxLocation::Torso;

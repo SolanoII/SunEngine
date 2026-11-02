@@ -1,48 +1,97 @@
 {
   "id": "orks_boy",
   "race": "Ork",
+  "comment": "Ork boy: postura ingobbita (torso inclinato in avanti, campo rotation), testa bassa che esce dal petto con mascella, spalle e pugni massicci, braccia lunghe, gambe corte. Gli stessi nomi di blocco dell'umano base + blocchi extra (Hump, Jaw, Shoulder, Fist).",
   "blocks": [
     {
       "name": "Torso",
       "parentIndex": -1,
-      "offset": [ 0.00, 1.10, 0.00 ],
+      "offset": [ 0.00, 1.00, 0.00 ],
+      "pivotOffset": [ 0.00, 0.02, 0.02 ],
+      "size": [ 0.92, 0.74, 0.62 ],
+      "rotation": [ -22.00, 0.00, 0.00 ]
+    },
+    {
+      "name": "Hump",
+      "parentIndex": 0,
+      "offset": [ 0.00, 0.36, 0.10 ],
       "pivotOffset": [ 0.00, 0.00, 0.00 ],
-      "size": [ 1.10, 0.80, 0.70 ]
+      "size": [ 0.80, 0.30, 0.50 ]
     },
     {
       "name": "Head",
       "parentIndex": 0,
-      "offset": [ 0.00, 0.25, -0.35 ],
-      "pivotOffset": [ 0.00, 0.15, 0.00 ],
-      "size": [ 0.45, 0.45, 0.45 ]
+      "offset": [ 0.00, 0.30, -0.42 ],
+      "pivotOffset": [ 0.00, 0.02, -0.06 ],
+      "size": [ 0.40, 0.36, 0.40 ],
+      "rotation": [ 24.00, 0.00, 0.00 ]
+    },
+    {
+      "name": "Jaw",
+      "parentIndex": 2,
+      "offset": [ 0.00, -0.15, -0.08 ],
+      "pivotOffset": [ 0.00, 0.00, -0.04 ],
+      "size": [ 0.46, 0.16, 0.34 ]
     },
     {
       "name": "Arm_L",
       "parentIndex": 0,
-      "offset": [ -0.70, 0.25, -0.10 ],
-      "pivotOffset": [ 0.00, -0.35, 0.00 ],
-      "size": [ 0.45, 0.85, 0.45 ]
+      "offset": [ -0.60, 0.22, -0.02 ],
+      "pivotOffset": [ 0.00, -0.40, 0.00 ],
+      "size": [ 0.34, 0.82, 0.34 ],
+      "rotation": [ 27.00, 0.00, -6.00 ]
     },
     {
       "name": "Arm_R",
       "parentIndex": 0,
-      "offset": [ 0.70, 0.25, -0.10 ],
-      "pivotOffset": [ 0.00, -0.35, 0.00 ],
-      "size": [ 0.45, 0.85, 0.45 ]
+      "offset": [ 0.60, 0.22, -0.02 ],
+      "pivotOffset": [ 0.00, -0.40, 0.00 ],
+      "size": [ 0.34, 0.82, 0.34 ],
+      "rotation": [ 27.00, 0.00, 6.00 ]
+    },
+    {
+      "name": "Shoulder_L",
+      "parentIndex": 4,
+      "offset": [ 0.00, 0.00, 0.00 ],
+      "pivotOffset": [ -0.06, 0.06, 0.00 ],
+      "size": [ 0.52, 0.40, 0.52 ]
+    },
+    {
+      "name": "Shoulder_R",
+      "parentIndex": 5,
+      "offset": [ 0.00, 0.00, 0.00 ],
+      "pivotOffset": [ 0.06, 0.06, 0.00 ],
+      "size": [ 0.52, 0.40, 0.52 ]
+    },
+    {
+      "name": "Fist_L",
+      "parentIndex": 4,
+      "offset": [ 0.00, -0.80, 0.00 ],
+      "pivotOffset": [ 0.00, -0.08, -0.02 ],
+      "size": [ 0.32, 0.28, 0.34 ]
+    },
+    {
+      "name": "Fist_R",
+      "parentIndex": 5,
+      "offset": [ 0.00, -0.80, 0.00 ],
+      "pivotOffset": [ 0.00, -0.08, -0.02 ],
+      "size": [ 0.32, 0.28, 0.34 ]
     },
     {
       "name": "Leg_L",
       "parentIndex": 0,
-      "offset": [ -0.35, -0.40, 0.05 ],
-      "pivotOffset": [ 0.00, -0.38, 0.00 ],
-      "size": [ 0.40, 0.80, 0.40 ]
+      "offset": [ -0.25, -0.36, 0.06 ],
+      "pivotOffset": [ 0.00, -0.33, 0.00 ],
+      "size": [ 0.34, 0.70, 0.38 ],
+      "rotation": [ 22.00, 0.00, -3.00 ]
     },
     {
       "name": "Leg_R",
       "parentIndex": 0,
-      "offset": [ 0.35, -0.40, 0.05 ],
-      "pivotOffset": [ 0.00, -0.38, 0.00 ],
-      "size": [ 0.40, 0.80, 0.40 ]
+      "offset": [ 0.25, -0.36, 0.06 ],
+      "pivotOffset": [ 0.00, -0.33, 0.00 ],
+      "size": [ 0.34, 0.70, 0.38 ],
+      "rotation": [ 22.00, 0.00, 3.00 ]
     }
   ]
 }

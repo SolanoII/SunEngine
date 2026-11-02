@@ -199,6 +199,8 @@ namespace SunEngine {
         RifleAnimInput BuildPlayerAnimInput(bool isAiming, float deltaTime);
         void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
         bool IsAnimatedPlayerActive();
+        bool UseOrkAnimatedModel();                         // il giocatore e' un ork e il modello ork e' caricato
+        RifleAnimationController& ActiveAnimController();   // controller del modello animato in uso
         bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model = nullptr);
 
         // --- Modelli a blocchi delle armi (GameData/BlockModels/<id arma>.json) ---
@@ -230,6 +232,14 @@ namespace SunEngine {
         bool m_TestModelLoaded = false;
         RifleAnimationController m_RifleAnimController;
         bool m_RifleAnimLoaded = false;
+
+        // Modello animato degli orchi (Characters/ork_master.fbx, stesso rig Mixamo del guardsman) con le
+        // animazioni di Animations/Orks/ (se manca la cartella: quelle di Human, adattate dal retarget).
+        SkinnedModel m_OrkSkinnedModel;
+        bool m_OrkModelLoaded = false;
+        RifleAnimationController m_OrkAnimController;
+        bool m_OrkAnimLoaded = false;
+        bool m_AnimatedIsOrk = false;      // quale modello usa ora l'entity animata
 
         ma_engine m_AudioEngine;
         ma_sound_group m_SFXGroup;      // o "m_FootstepGroup"

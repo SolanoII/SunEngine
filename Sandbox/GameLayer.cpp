@@ -1070,6 +1070,24 @@ namespace SunEngine {
                     m_RifleAnimLoaded = m_RifleAnimController.LoadClips(animsDir + "Human/", fbxPath, &m_SkinnedTestModel);
                 }
             }
+
+            // Modello animato degli orchi (boy e nob: il nob e' lo stesso modello scalato)
+            const std::string orkPath = modelsDir + "Characters/ork_master.fbx";
+            std::error_code orkEc;
+            if (std::filesystem::exists(orkPath, orkEc)) {
+                m_OrkModelLoaded = m_OrkSkinnedModel.LoadModel(orkPath);
+                std::string animsDir = FindValidDir("Animations");
+                if (m_OrkModelLoaded && !animsDir.empty()) {
+                    // Cartella Orks se presente, altrimenti le clip Human: il retarget le adatta al rig ork
+                    const bool hasOrkClips = std::filesystem::is_directory(animsDir + "Orks/", orkEc);
+                    m_OrkAnimLoaded = m_OrkAnimController.LoadClips(animsDir + (hasOrkClips ? "Orks/" : "Human/"),
+                        orkPath, &m_OrkSkinnedModel);
+                    SUN_CORE_INFO("Modello ork animato caricato (animazioni: {0})", hasOrkClips ? "Orks" : "Human");
+                }
+            }
+            else {
+                SUN_CORE_WARN("Modello ork non trovato ({0}): gli orchi useranno il modello umano", orkPath);
+            }
         }
 
         GLFWwindow* window = glfwGetCurrentContext();
@@ -1682,9 +1700,20 @@ namespace SunEngine {
         return in;
     }
 
+    bool GameLayer::UseOrkAnimatedModel() {
+        if (!m_OrkModelLoaded || !m_OrkAnimLoaded) return false;
+        const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(m_PlayerEntity);
+        return uid && uid->id.rfind("orks_", 0) == 0;
+    }
+
+    RifleAnimationController& GameLayer::ActiveAnimController() {
+        return UseOrkAnimatedModel() ? m_OrkAnimController : m_RifleAnimController;
+    }
+
     bool GameLayer::IsAnimatedPlayerActive() {
         auto& reg = m_Scene.GetRegistry();
-        return m_UseAnimatedPlayer && m_RifleAnimLoaded && m_SkinnedModelLoaded
+        const bool modelReady = UseOrkAnimatedModel() || (m_RifleAnimLoaded && m_SkinnedModelLoaded);
+        return m_UseAnimatedPlayer && modelReady
             && reg.valid(m_AnimatedPlayerEntity) && reg.valid(m_PlayerEntity)
             && !reg.all_of<CorpseComponent>(m_PlayerEntity);
     }
@@ -1694,12 +1723,16 @@ namespace SunEngine {
     void GameLayer::UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input) {
         auto& reg = m_Scene.GetRegistry();
 
-        if (m_RifleAnimLoaded) {
-            m_RifleAnimController.Update(deltaTime, input);
+        // Ork (boy/nob) -> modello e animazioni ork; tutti gli altri -> modello umano
+        const bool useOrk = UseOrkAnimatedModel();
+        const bool modelReady = useOrk || (m_RifleAnimLoaded && m_SkinnedModelLoaded);
+        RifleAnimationController& controller = useOrk ? m_OrkAnimController : m_RifleAnimController;
+        if (modelReady) {
+            controller.Update(deltaTime, input);
         }
 
         const bool playerOk = reg.valid(m_PlayerEntity) && reg.all_of<TransformComponent>(m_PlayerEntity);
-        const bool wantAnimated = m_UseAnimatedPlayer && m_RifleAnimLoaded && m_SkinnedModelLoaded
+        const bool wantAnimated = m_UseAnimatedPlayer && modelReady
             && playerOk && !reg.all_of<CorpseComponent>(m_PlayerEntity);
 
         if (!wantAnimated) {
@@ -1718,9 +1751,15 @@ namespace SunEngine {
             m_AnimatedPlayerEntity = m_Scene.CreateEntity();
             reg.emplace<TransformComponent>(m_AnimatedPlayerEntity);
             reg.emplace<ColorComponent>(m_AnimatedPlayerEntity);   // richiesto dal render deferred
-            auto& inst = reg.emplace<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
-            inst.sourceModel = &m_SkinnedTestModel;
-            inst.boneMatrices = &m_RifleAnimController.GetFinalBoneMatrices();
+            reg.emplace<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+            m_AnimatedIsOrk = !useOrk;   // forza l'assegnazione del modello qui sotto
+        }
+        if (m_AnimatedIsOrk != useOrk) {
+            // Cambio di unita' (es. guardsman -> ork nel garage): stesso entity, altro modello
+            auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+            inst.sourceModel = useOrk ? &m_OrkSkinnedModel : &m_SkinnedTestModel;
+            inst.boneMatrices = &controller.GetFinalBoneMatrices();
+            m_AnimatedIsOrk = useOrk;
         }
         if (!reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
             reg.emplace<HideProceduralVisualTag>(m_PlayerEntity);
@@ -1730,7 +1769,9 @@ namespace SunEngine {
         auto& vt = reg.get<TransformComponent>(m_AnimatedPlayerEntity);
         vt.Position = pt.Position;   // Position del player = piedi, come l'origine del modello
         vt.Rotation = glm::vec3(0.0f, pt.Rotation.y + m_AnimatedYawOffset, 0.0f);
-        vt.Scale = glm::vec3(m_AnimatedModelScale);
+        float unitScale = 1.0f;   // il nob e' lo stesso modello dell'ork boy, piu' grande del 20%
+        if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity); uid && uid->id == "orks_nob") unitScale = 1.2f;
+        vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
 
         // Colore armatura scelto nel garage come albedo del modello
         if (auto* pc = reg.try_get<ColorComponent>(m_PlayerEntity)) {
@@ -1745,7 +1786,7 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         glm::mat4 bone(1.0f);
         const char* boneName = leftHand ? "mixamorig1:LeftHand" : "mixamorig1:RightHand";
-        if (!m_RifleAnimController.GetBoneModelTransform(boneName, bone)) return false;
+        if (!ActiveAnimController().GetBoneModelTransform(boneName, bone)) return false;
 
         auto* vt = reg.try_get<TransformComponent>(m_AnimatedPlayerEntity);
         auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity);
@@ -1773,7 +1814,7 @@ namespace SunEngine {
             glm::vec3 anchorLocal = model->gripRight;
             glm::vec3 barrelDir = aimDir;
             glm::mat4 boneL(1.0f);
-            if (!leftHand && model->hasGripLeft && m_RifleAnimController.GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
+            if (!leftHand && model->hasGripLeft && ActiveAnimController().GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
                 const glm::vec3 leftPos = glm::vec3((vt->GetTransform() * boneL)[3]);
                 const glm::vec3 handLine = leftPos - handPos;
                 if (glm::length(handLine) > 1e-4f && m_WeaponHandAlign > 0.0f) {
@@ -4663,7 +4704,7 @@ namespace SunEngine {
                     ImGui::Text("Modello del giocatore:");
                     if (ImGui::RadioButton("Cuboni (hitbox)", !m_UseAnimatedPlayer)) m_UseAnimatedPlayer = false;
                     ImGui::SameLine();
-                    const bool animAvailable = m_RifleAnimLoaded && m_SkinnedModelLoaded;
+                    const bool animAvailable = (m_RifleAnimLoaded && m_SkinnedModelLoaded) || (m_OrkModelLoaded && m_OrkAnimLoaded);
                     if (ImGui::RadioButton("Animato (FBX)", m_UseAnimatedPlayer) && animAvailable) m_UseAnimatedPlayer = true;
                     ImGui::TextDisabled("In partita: F2 per passare dall'uno all'altro.");
                     if (!animAvailable) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Modello/animazioni non caricati.");
