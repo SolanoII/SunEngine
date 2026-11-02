@@ -1,0 +1,19 @@
+{
+  "id": "orks_yoof",
+  "displayName": "Ork Yoof",
+  "point_cost": 8,
+  "stamina": 160.0,
+  "stamina_regen": 12.0,
+  "toughness": 30,
+  "armor_rating": 1,
+  "strength": 30,
+  "accuracy_skill": 18,
+  "melee_skill": 45,
+  "morale": 50,
+  "suppression_threshold": 60,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 150.0,
+  "base_speed": 4.5,
+  "health": 120.0
+}

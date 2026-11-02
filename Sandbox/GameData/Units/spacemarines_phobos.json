@@ -1,0 +1,19 @@
+{
+  "id": "spacemarines_phobos",
+  "displayName": "Phobos Battle-Brother",
+  "point_cost": 60,
+  "stamina": 160.0,
+  "stamina_regen": 12.0,
+  "toughness": 45,
+  "armor_rating": 7,
+  "strength": 50,
+  "accuracy_skill": 95,
+  "melee_skill": 60,
+  "morale": 90,
+  "suppression_threshold": 60,
+  "vision_range": 150,
+  "fov_degrees": 85,
+  "weight_capacity": 1500.0,
+  "base_speed": 4.8,
+  "health": 380.0
+}

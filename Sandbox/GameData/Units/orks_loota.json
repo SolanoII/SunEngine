@@ -1,0 +1,19 @@
+{
+  "id": "orks_loota",
+  "displayName": "Loota",
+  "point_cost": 22,
+  "stamina": 160.0,
+  "stamina_regen": 12.0,
+  "toughness": 44,
+  "armor_rating": 3,
+  "strength": 42,
+  "accuracy_skill": 55,
+  "melee_skill": 35,
+  "morale": 65,
+  "suppression_threshold": 60,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 500.0,
+  "base_speed": 3.9,
+  "health": 210.0
+}

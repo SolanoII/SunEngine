@@ -1,0 +1,19 @@
+{
+  "id": "orks_shoota_boy",
+  "displayName": "Shoota Boy",
+  "point_cost": 16,
+  "stamina": 160.0,
+  "stamina_regen": 12.0,
+  "toughness": 40,
+  "armor_rating": 2,
+  "strength": 36,
+  "accuracy_skill": 45,
+  "melee_skill": 40,
+  "morale": 65,
+  "suppression_threshold": 60,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 250.0,
+  "base_speed": 4.2,
+  "health": 170.0
+}

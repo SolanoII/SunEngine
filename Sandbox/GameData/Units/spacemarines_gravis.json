@@ -1,0 +1,19 @@
+{
+  "id": "spacemarines_gravis",
+  "displayName": "Gravis Battle-Brother",
+  "point_cost": 85,
+  "stamina": 200.0,
+  "stamina_regen": 12.0,
+  "toughness": 60,
+  "armor_rating": 11,
+  "strength": 75,
+  "accuracy_skill": 80,
+  "melee_skill": 80,
+  "morale": 95,
+  "suppression_threshold": 60,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 4000.0,
+  "base_speed": 3.7,
+  "health": 650.0
+}

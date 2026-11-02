@@ -4,6 +4,8 @@
 #include "../Renderer/Renderer.h"
 #include "../Renderer/Pipeline/DeferredRenderer.h"
 #include "Components.h"
+#include "Tags.h"
+#include "BlockModel.h"
 
 namespace SunEngine {
 
@@ -75,16 +77,31 @@ namespace SunEngine {
                 }
                 // 2. SKELETON PROCEDURALE (cubi corpo)
                 else if (scene.GetRegistry().all_of<SkeletonComponent>(entity)) {
-                    auto& skel = scene.GetRegistry().get<SkeletonComponent>(entity);
-                    auto worldTransforms = skel.data.ComputeWorldTransforms(
-                        transform.Position, transform.Rotation, skel.scale);
-                    for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
-                        deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
+                    // Con HideProceduralVisualTag i cubi restano come hitbox ma non vengono disegnati
+                    // (il giocatore e' mostrato col modello animato).
+                    if (!scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) {
+                        auto& skel = scene.GetRegistry().get<SkeletonComponent>(entity);
+                        auto worldTransforms = skel.data.ComputeWorldTransforms(
+                            transform.Position, transform.Rotation, skel.scale);
+                        for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
+                            deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
+                        }
                     }
                 }
                 // 3. MESH/CUBO STANDARD
                 else if (scene.GetRegistry().all_of<MeshComponent>(entity)) {
-                    deferred.DrawCube(transform.GetTransform(), baseColor, 0.9f, 0.0f, 0.0f);
+                    // Modello a blocchi (es. arma): disegna i singoli blocchi coi loro materiali
+                    const auto* blockModel = scene.GetRegistry().try_get<BlockModelComponent>(entity);
+                    if (blockModel && blockModel->model) {
+                        const glm::mat4 entityMat = transform.GetTransform();
+                        for (const auto& part : blockModel->model->parts) {
+                            deferred.DrawCube(BlockPartMatrix(entityMat, part), part.color,
+                                part.roughness, part.metallic, part.emissive);
+                        }
+                    }
+                    else {
+                        deferred.DrawCube(transform.GetTransform(), baseColor, 0.9f, 0.0f, 0.0f);
+                    }
                 }
             }
         }

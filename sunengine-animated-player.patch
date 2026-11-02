@@ -1,0 +1,634 @@
+diff --git a/Engine/ECS/RenderSystem.h b/Engine/ECS/RenderSystem.h
+index a23773c..f98eceb 100644
+--- a/Engine/ECS/RenderSystem.h
++++ b/Engine/ECS/RenderSystem.h
+@@ -4,6 +4,7 @@
+ #include "../Renderer/Renderer.h"
+ #include "../Renderer/Pipeline/DeferredRenderer.h"
+ #include "Components.h"
++#include "Tags.h"
+ 
+ namespace SunEngine {
+ 
+@@ -75,11 +76,15 @@ namespace SunEngine {
+                 }
+                 // 2. SKELETON PROCEDURALE (cubi corpo)
+                 else if (scene.GetRegistry().all_of<SkeletonComponent>(entity)) {
+-                    auto& skel = scene.GetRegistry().get<SkeletonComponent>(entity);
+-                    auto worldTransforms = skel.data.ComputeWorldTransforms(
+-                        transform.Position, transform.Rotation, skel.scale);
+-                    for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
+-                        deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
++                    // Con HideProceduralVisualTag i cubi restano come hitbox ma non vengono disegnati
++                    // (il giocatore e' mostrato col modello animato).
++                    if (!scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) {
++                        auto& skel = scene.GetRegistry().get<SkeletonComponent>(entity);
++                        auto worldTransforms = skel.data.ComputeWorldTransforms(
++                            transform.Position, transform.Rotation, skel.scale);
++                        for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
++                            deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
++                        }
+                     }
+                 }
+                 // 3. MESH/CUBO STANDARD
+diff --git a/Engine/ECS/Tags.h b/Engine/ECS/Tags.h
+index a45a71d..fb34fbb 100644
+--- a/Engine/ECS/Tags.h
++++ b/Engine/ECS/Tags.h
+@@ -2,4 +2,8 @@
+ 
+ namespace SunEngine {
+     struct PlayerTag {};
++
++    // Nasconde il disegno dei cubi procedurali (SkeletonComponent) di un'entity, lasciandoli come
++    // hitbox invisibili. Usato quando il giocatore e' mostrato col modello animato FBX.
++    struct HideProceduralVisualTag {};
+ }
+diff --git a/Engine/Renderer/Animation.h b/Engine/Renderer/Animation.h
+index 396d330..efb8255 100644
+--- a/Engine/Renderer/Animation.h
++++ b/Engine/Renderer/Animation.h
+@@ -60,6 +60,16 @@ namespace SunEngine {
+         // quindi l'idle (letta dal file del modello) non cambia. Con rig diversi (armature ruotata,
+         // unita' cm/m, Hips con altro bind) evita che una rotazione costante capovolga il corpo.
+         void Update(float animationTime, const glm::mat4& modelBindLocal) {
++            glm::vec3 pos, scale;
++            glm::quat rot;
++            Evaluate(animationTime, modelBindLocal, pos, rot, scale);
++            m_LocalTransform = glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), scale);
++        }
++
++        // Valuta la posa dell'osso al tempo dato restituendo posizione/rotazione/scala separate: serve al
++        // crossfade tra due clip (si mescolano i componenti TRS, non le matrici).
++        void Evaluate(float animationTime, const glm::mat4& modelBindLocal,
++            glm::vec3& outPos, glm::quat& outRot, glm::vec3& outScale) const {
+             glm::vec3 mPos, mScale;
+             glm::quat mRot;
+             DecomposeLocalBind(modelBindLocal, mPos, mRot, mScale);
+@@ -68,15 +78,13 @@ namespace SunEngine {
+             float ratio = 1.0f;
+             float lm = glm::length(mPos), la = glm::length(m_AnimBindPos);
+             if (lm > 1e-4f && la > 1e-4f) ratio = std::clamp(lm / la, 1e-3f, 1e3f);
+-            glm::vec3 pos = mPos + (keyPos - m_AnimBindPos) * ratio;
++            outPos = mPos + (keyPos - m_AnimBindPos) * ratio;
+ 
+             glm::quat keyRot = SampleRotation(animationTime);
+-            glm::quat rot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
++            outRot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
+ 
+             glm::vec3 keyScale = SampleScale(animationTime);
+-            glm::vec3 scale = mScale * (keyScale / m_AnimBindScale);
+-
+-            m_LocalTransform = glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), scale);
++            outScale = mScale * (keyScale / m_AnimBindScale);
+         }
+ 
+         glm::mat4 GetLocalTransform() const { return m_LocalTransform; }
+diff --git a/Engine/Renderer/Animator.h b/Engine/Renderer/Animator.h
+index ca2d94e..198fa37 100644
+--- a/Engine/Renderer/Animator.h
++++ b/Engine/Renderer/Animator.h
+@@ -1,5 +1,8 @@
+ #pragma once
+ #include "Animation.h"
++#include <unordered_map>
++#include <string>
++#include <cmath>
+ 
+ namespace SunEngine {
+ 
+@@ -7,10 +10,25 @@ namespace SunEngine {
+ 
+     class Animator {
+     public:
+-        void PlayAnimation(Animation* animation) {
++        // blendDuration > 0: crossfade dalla clip corrente alla nuova (si mescolano posizione/rotazione/
++        // scala di ogni osso, non le matrici). 0 = cambio secco come prima.
++        void PlayAnimation(Animation* animation, float blendDuration = 0.0f) {
++            if (m_CurrentAnimation && animation != m_CurrentAnimation && blendDuration > 0.0f) {
++                m_PrevAnimation = m_CurrentAnimation;
++                m_PrevTime = m_CurrentTime;
++                m_BlendDuration = blendDuration;
++                m_BlendElapsed = 0.0f;
++            }
++            else {
++                m_PrevAnimation = nullptr;
++                m_BlendDuration = 0.0f;
++                m_BlendElapsed = 0.0f;
++            }
+             m_CurrentAnimation = animation;
+             m_CurrentTime = 0.0f;
+-            m_FinalBoneMatrices.assign(ANIMATOR_MAX_BONES, glm::mat4(1.0f));
++            if (m_FinalBoneMatrices.size() != static_cast<size_t>(ANIMATOR_MAX_BONES)) {
++                m_FinalBoneMatrices.assign(ANIMATOR_MAX_BONES, glm::mat4(1.0f));
++            }
+         }
+ 
+         void UpdateAnimation(float deltaTime) {
+@@ -19,22 +37,64 @@ namespace SunEngine {
+             m_CurrentTime += m_CurrentAnimation->GetTicksPerSecond() * deltaTime;
+             m_CurrentTime = std::fmod(m_CurrentTime, m_CurrentAnimation->GetDuration());
+ 
++            if (m_PrevAnimation) {
++                m_PrevTime += m_PrevAnimation->GetTicksPerSecond() * deltaTime;
++                m_PrevTime = std::fmod(m_PrevTime, m_PrevAnimation->GetDuration());
++                m_BlendElapsed += deltaTime;
++                if (m_BlendElapsed >= m_BlendDuration) m_PrevAnimation = nullptr;
++            }
++
+             CalculateBoneTransform(m_CurrentAnimation->GetRootNode(), glm::mat4(1.0f));
+         }
+ 
+         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_FinalBoneMatrices; }
+ 
++        // Trasformazione di un osso nello spazio del MODELLO (stesso spazio dei vertici, prima della
++        // matrice del mondo dell'entity). Serve ad agganciare oggetti (armi) alle ossa.
++        bool GetBoneModelTransform(const std::string& boneName, glm::mat4& out) const {
++            auto it = m_ModelTransforms.find(boneName);
++            if (it == m_ModelTransforms.end()) return false;
++            out = it->second;
++            return true;
++        }
++
+     private:
++        static void EvalNode(Animation* anim, const AssimpNodeData& node, float time,
++            glm::vec3& p, glm::quat& r, glm::vec3& s) {
++            Bone* bone = anim ? anim->FindBone(node.name) : nullptr;
++            if (bone) {
++                bone->Evaluate(time, node.transformation, p, r, s);
++            }
++            else {
++                DecomposeLocalBind(node.transformation, p, r, s);
++            }
++        }
++
+         void CalculateBoneTransform(const AssimpNodeData& node, glm::mat4 parentTransform) {
+             glm::mat4 nodeTransform = node.transformation;
+ 
+             Bone* bone = m_CurrentAnimation->FindBone(node.name);
+-            if (bone) {
++            if (m_PrevAnimation) {
++                // crossfade: mescola la posa della clip precedente con quella corrente
++                if (bone || m_PrevAnimation->FindBone(node.name)) {
++                    glm::vec3 p1, s1, p0, s0;
++                    glm::quat r1, r0;
++                    EvalNode(m_CurrentAnimation, node, m_CurrentTime, p1, r1, s1);
++                    EvalNode(m_PrevAnimation, node, m_PrevTime, p0, r0, s0);
++                    float a = m_BlendDuration > 0.0001f ? std::clamp(m_BlendElapsed / m_BlendDuration, 0.0f, 1.0f) : 1.0f;
++                    glm::vec3 p = glm::mix(p0, p1, a);
++                    glm::vec3 s = glm::mix(s0, s1, a);
++                    glm::quat r = glm::normalize(glm::slerp(r0, r1, a));
++                    nodeTransform = glm::translate(glm::mat4(1.0f), p) * glm::mat4_cast(r) * glm::scale(glm::mat4(1.0f), s);
++                }
++            }
++            else if (bone) {
+                 bone->Update(m_CurrentTime, node.transformation);
+                 nodeTransform = bone->GetLocalTransform();
+             }
+ 
+             glm::mat4 globalTransform = parentTransform * nodeTransform;
++            m_ModelTransforms[node.name] = m_CurrentAnimation->GetGlobalInverseTransform() * globalTransform;
+ 
+             const auto& boneInfoMap = m_CurrentAnimation->GetBoneIDMap();
+             auto it = boneInfoMap.find(node.name);
+@@ -48,7 +108,13 @@ namespace SunEngine {
+         }
+ 
+         std::vector<glm::mat4> m_FinalBoneMatrices;
++        std::unordered_map<std::string, glm::mat4> m_ModelTransforms;
+         Animation* m_CurrentAnimation = nullptr;
+         float m_CurrentTime = 0.0f;
++
++        Animation* m_PrevAnimation = nullptr;
++        float m_PrevTime = 0.0f;
++        float m_BlendDuration = 0.0f;
++        float m_BlendElapsed = 0.0f;
+     };
+ }
+diff --git a/Engine/Renderer/RifleAnimationController.h b/Engine/Renderer/RifleAnimationController.h
+index 1473846..69fcd22 100644
+--- a/Engine/Renderer/RifleAnimationController.h
++++ b/Engine/Renderer/RifleAnimationController.h
+@@ -6,6 +6,16 @@
+ 
+ namespace SunEngine {
+ 
++    // Stato dei comandi del giocatore che pilota le animazioni.
++    struct RifleAnimInput {
++        bool isMoving = false;
++        bool forward = false, backward = false, left = false, right = false;
++        bool sprinting = false;
++        bool aiming = false;
++        bool firing = false;     // sta sparando (grilletto / cooldown colpo attivo)
++        bool vaulting = false;   // scavalcamento ostacolo in corso
++    };
++
+     class RifleAnimationController {
+     public:
+         bool LoadClips(const std::string& animsDir, const std::string& modelPath, SkinnedModel* model) {
+@@ -35,16 +45,24 @@ namespace SunEngine {
+             return allOk;
+         }
+ 
++        // Compatibilita': vecchia firma (senza fuoco/vault).
+         void Update(float deltaTime, bool isMoving, bool movingForward, bool movingBackward,
+             bool strafingLeft, bool strafingRight, bool isSprinting, bool isAiming) {
++            RifleAnimInput in;
++            in.isMoving = isMoving; in.forward = movingForward; in.backward = movingBackward;
++            in.left = strafingLeft; in.right = strafingRight; in.sprinting = isSprinting; in.aiming = isAiming;
++            Update(deltaTime, in);
++        }
+ 
+-            RifleAnimState desired = DetermineState(isMoving, movingForward, movingBackward,
+-                strafingLeft, strafingRight, isSprinting, isAiming);
++        void Update(float deltaTime, const RifleAnimInput& in) {
++            RifleAnimState desired = DetermineState(in);
+ 
+             if (desired != m_CurrentState) {
+                 auto it = m_Clips.find(desired);
+                 if (it != m_Clips.end()) {
+-                    m_Animator.PlayAnimation(&it->second);
++                    // crossfade breve: niente "scatti" tra una clip e l'altra
++                    float blend = (desired == RifleAnimState::Firing) ? 0.06f : 0.18f;
++                    m_Animator.PlayAnimation(&it->second, blend);
+                     m_CurrentState = desired;
+                 }
+             }
+@@ -52,6 +70,10 @@ namespace SunEngine {
+             m_Animator.UpdateAnimation(deltaTime);
+         }
+ 
++        bool GetBoneModelTransform(const std::string& boneName, glm::mat4& out) const {
++            return m_Animator.GetBoneModelTransform(boneName, out);
++        }
++
+         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_Animator.GetFinalBoneMatrices(); }
+         RifleAnimState GetCurrentState() const { return m_CurrentState; }
+ 
+@@ -66,17 +88,24 @@ namespace SunEngine {
+             return true;
+         }
+ 
+-        RifleAnimState DetermineState(bool isMoving, bool fwd, bool back, bool left, bool right,
+-            bool sprint, bool aiming) const {
++        RifleAnimState DetermineState(const RifleAnimInput& in) const {
++            // Scavalcamento: clip di salto in avanti (o indietro se si arretra)
++            if (in.vaulting) {
++                return (in.backward && !in.forward) ? RifleAnimState::JumpBackward : RifleAnimState::JumpForward;
++            }
+ 
+-            if (!isMoving) return RifleAnimState::AimIdle;
++            if (!in.isMoving) {
++                // Fermo che spara: clip di fuoco. Se si muove e spara si continua la locomozione
++                // (nessun layer solo-busto per ora: andrebbe aggiunta una maschera sulle ossa).
++                return in.firing ? RifleAnimState::Firing : RifleAnimState::AimIdle;
++            }
+ 
+-            if (sprint && fwd) return RifleAnimState::Sprint;
++            if (in.sprinting && in.forward) return RifleAnimState::Sprint;
+ 
+-            if (back) return RifleAnimState::WalkBack;
+-            if (left) return RifleAnimState::StrafeLeft;
+-            if (right) return RifleAnimState::StrafeRight;
+-            if (fwd) return RifleAnimState::Walk;
++            if (in.backward) return RifleAnimState::WalkBack;
++            if (in.left) return RifleAnimState::StrafeLeft;
++            if (in.right) return RifleAnimState::StrafeRight;
++            if (in.forward) return RifleAnimState::Walk;
+ 
+             return RifleAnimState::AimIdle;
+         }
+diff --git a/Sandbox/GameLayer.cpp b/Sandbox/GameLayer.cpp
+index de1ca1a..aea40e9 100644
+--- a/Sandbox/GameLayer.cpp
++++ b/Sandbox/GameLayer.cpp
+@@ -22,6 +22,7 @@
+ #include <glm/gtc/type_ptr.hpp>
+ #include <glm/gtc/matrix_transform.hpp>
+ #include <glm/gtx/quaternion.hpp>
++#include <glm/gtx/euler_angles.hpp>
+ #include <algorithm>
+ #include <cmath>
+ #include <vector>
+@@ -1208,6 +1209,7 @@ namespace SunEngine {
+         m_VolumeSFX = m_Profile.volumeSFX;
+         m_VolumeVoice = m_Profile.volumeVoice;
+         m_VolumeMusic = m_Profile.volumeMusic;
++        m_UseAnimatedPlayer = m_Profile.animatedPlayer;
+         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
+         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 3);
+     }
+@@ -1275,6 +1277,7 @@ namespace SunEngine {
+         m_Profile.volumeSFX = m_VolumeSFX;
+         m_Profile.volumeVoice = m_VolumeVoice;
+         m_Profile.volumeMusic = m_VolumeMusic;
++        m_Profile.animatedPlayer = m_UseAnimatedPlayer;
+         m_Profile.squadIndices = m_SelectedSquadIndices;
+         m_Profile.selectedMapId = m_SelectedMapId;
+         m_Profile.selectedEventIndex = m_SelectedEventIndex;
+@@ -1376,6 +1379,132 @@ namespace SunEngine {
+         }
+     }
+ 
++    // ===================== PERSONAGGIO ANIMATO =====================
++    // Stato dei comandi che pilota le animazioni (stessi tasti usati dal movimento).
++    RifleAnimInput GameLayer::BuildPlayerAnimInput(bool isAiming) {
++        RifleAnimInput in;
++        in.forward = Input::IsKeyPressed(GLFW_KEY_W);
++        in.backward = Input::IsKeyPressed(GLFW_KEY_S);
++        in.left = Input::IsKeyPressed(GLFW_KEY_A);
++        in.right = Input::IsKeyPressed(GLFW_KEY_D);
++        in.isMoving = in.forward || in.backward || in.left || in.right;
++        in.sprinting = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
++        in.aiming = isAiming;
++
++        auto& reg = m_Scene.GetRegistry();
++        if (reg.valid(m_PlayerEntity)) {
++            if (auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity)) {
++                in.vaulting = vault->isVaulting;
++            }
++            // Fuoco: solo armi a distanza, grilletto premuto, non in ricarica e con munizioni
++            if (auto* wState = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {
++                bool isMelee = false;
++                if (auto* wbp = reg.try_get<WeaponBlueprintId>(m_PlayerEntity)) {
++                    if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) isMelee = bp->is_melee;
++                }
++                in.firing = !isMelee && Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)
++                    && !wState->isReloading && wState->currentAmmo > 0;
++            }
++        }
++        return in;
++    }
++
++    bool GameLayer::IsAnimatedPlayerActive() {
++        auto& reg = m_Scene.GetRegistry();
++        return m_UseAnimatedPlayer && m_RifleAnimLoaded && m_SkinnedModelLoaded
++            && reg.valid(m_AnimatedPlayerEntity) && reg.valid(m_PlayerEntity)
++            && !reg.all_of<CorpseComponent>(m_PlayerEntity);
++    }
++
++    // Aggiorna il controller delle animazioni e, se scelto il modello animato, la sua entity visiva:
++    // segue il player (posizione + direzione del corpo), nasconde i cubi (che restano hitbox).
++    void GameLayer::UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input) {
++        auto& reg = m_Scene.GetRegistry();
++
++        if (m_RifleAnimLoaded) {
++            m_RifleAnimController.Update(deltaTime, input);
++        }
++
++        const bool playerOk = reg.valid(m_PlayerEntity) && reg.all_of<TransformComponent>(m_PlayerEntity);
++        const bool wantAnimated = m_UseAnimatedPlayer && m_RifleAnimLoaded && m_SkinnedModelLoaded
++            && playerOk && !reg.all_of<CorpseComponent>(m_PlayerEntity);
++
++        if (!wantAnimated) {
++            // Modalita' cuboni (o giocatore morto: ragdoll a cubi): niente modello animato
++            if (reg.valid(m_AnimatedPlayerEntity)) {
++                m_Scene.DestroyEntity(m_AnimatedPlayerEntity);
++                m_AnimatedPlayerEntity = entt::null;
++            }
++            if (playerOk && reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
++                reg.remove<HideProceduralVisualTag>(m_PlayerEntity);
++            }
++            return;
++        }
++
++        if (!reg.valid(m_AnimatedPlayerEntity)) {
++            m_AnimatedPlayerEntity = m_Scene.CreateEntity();
++            reg.emplace<TransformComponent>(m_AnimatedPlayerEntity);
++            reg.emplace<ColorComponent>(m_AnimatedPlayerEntity);   // richiesto dal render deferred
++            auto& inst = reg.emplace<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
++            inst.sourceModel = &m_SkinnedTestModel;
++            inst.boneMatrices = &m_RifleAnimController.GetFinalBoneMatrices();
++        }
++        if (!reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
++            reg.emplace<HideProceduralVisualTag>(m_PlayerEntity);
++        }
++
++        const auto& pt = reg.get<TransformComponent>(m_PlayerEntity);
++        auto& vt = reg.get<TransformComponent>(m_AnimatedPlayerEntity);
++        vt.Position = pt.Position;   // Position del player = piedi, come l'origine del modello
++        vt.Rotation = glm::vec3(0.0f, pt.Rotation.y + m_AnimatedYawOffset, 0.0f);
++        vt.Scale = glm::vec3(m_AnimatedModelScale);
++
++        // Colore armatura scelto nel garage come albedo del modello
++        if (auto* pc = reg.try_get<ColorComponent>(m_PlayerEntity)) {
++            reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity).albedo = pc->BaseColor;
++        }
++    }
++
++    // Posiziona un'arma (cubo) sulla mano destra/sinistra del modello animato. Posizione = osso della
++    // mano + offset (destra/su/avanti rispetto al corpo); orientamento = direzione del corpo con
++    // inclinazione di mira, oppure quello della mano (m_WeaponFollowsHand). Tutto tarabile dalle Opzioni.
++    bool GameLayer::PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform) {
++        auto& reg = m_Scene.GetRegistry();
++        glm::mat4 bone(1.0f);
++        const char* boneName = leftHand ? "mixamorig1:LeftHand" : "mixamorig1:RightHand";
++        if (!m_RifleAnimController.GetBoneModelTransform(boneName, bone)) return false;
++
++        auto* vt = reg.try_get<TransformComponent>(m_AnimatedPlayerEntity);
++        auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity);
++        if (!vt || !pt) return false;
++
++        const glm::mat4 handWorld = vt->GetTransform() * bone;
++        const glm::vec3 handPos = glm::vec3(handWorld[3]);
++
++        const float yawRad = glm::radians(pt->Rotation.y);
++        const glm::vec3 right(std::cos(yawRad), 0.0f, -std::sin(yawRad));
++        const glm::vec3 fwd(-std::sin(yawRad), 0.0f, -std::cos(yawRad));
++        glm::vec3 off = m_HandWeaponOffset;
++        if (leftHand) off.x = -off.x;   // specchio per la mano sinistra
++        weaponTransform.Position = handPos + right * off.x + glm::vec3(0.0f, 1.0f, 0.0f) * off.y + fwd * off.z;
++
++        glm::vec3 rot;
++        if (m_WeaponFollowsHand) {
++            glm::mat4 R(1.0f);
++            R[0] = glm::vec4(glm::normalize(glm::vec3(handWorld[0])), 0.0f);
++            R[1] = glm::vec4(glm::normalize(glm::vec3(handWorld[1])), 0.0f);
++            R[2] = glm::vec4(glm::normalize(glm::vec3(handWorld[2])), 0.0f);
++            float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
++            glm::extractEulerAngleYXZ(R, yaw, pitch, roll);   // stesso ordine di TransformComponent::GetTransform
++            rot = glm::degrees(glm::vec3(pitch, yaw, roll));
++        }
++        else {
++            rot = glm::vec3(pt->AimPitch * m_WeaponPitchFactor, pt->Rotation.y, 0.0f);
++        }
++        weaponTransform.Rotation = rot + m_HandWeaponRotation;
++        return true;
++    }
++
+     // FIX #8: logica di aggancio arma->scheletro estratta da OnUpdate. Chiamata sia nel ramo Gameplay
+     // sia nel MainMenu (garage): prima in garage l'arma restava all'origine perche' la sync stava
+     // DOPO i return di MapEditor/MainMenu.
+@@ -1429,7 +1558,16 @@ namespace SunEngine {
+                 const auto* wBPR = BlueprintManager::Get().GetWeapon(rightWeaponId);
+ 
+                 if (wBPR) {
+-                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
++                    // Modello animato: arma sull'osso della mano destra (i cubi del corpo restano hitbox)
++                    const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR);
++                    if (placedOnHand) {
++                        glm::vec3 scale = wBPR->weapon_scale;
++                        if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
++                            scale = wBPR->is_melee ? glm::vec3(0.14f, 0.32f, 1.10f) : glm::vec3(0.08f, 0.18f, 0.80f);
++                        }
++                        wTransR.Scale = scale;
++                    }
++                    else if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
+                         auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
+                         auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
+ 
+@@ -1468,7 +1606,15 @@ namespace SunEngine {
+             if (!leftWeaponId.empty()) {
+                 const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
+                 if (wBPL) {
+-                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
++                    const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL);
++                    if (placedOnHandL) {
++                        glm::vec3 scale = wBPL->weapon_scale;
++                        if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
++                            scale = glm::vec3(0.06f, 0.14f, 0.30f);
++                        }
++                        wTransL.Scale = scale;
++                    }
++                    else if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
+                         auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
+                         auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
+ 
+@@ -1584,6 +1730,9 @@ namespace SunEngine {
+ 
+             Renderer::SetViewProjection(m_Camera.GetViewProjection());
+ 
++            // Modello animato anche nel garage (idle), poi arma sulla mano
++            UpdateAnimatedPlayer(deltaTime, RifleAnimInput{});
++
+             // FIX #8: arma visibile nel garage (stessa logica del ramo Gameplay)
+             SyncWeaponAttachment();
+             return;
+@@ -1842,15 +1991,16 @@ namespace SunEngine {
+             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
+             m_MeleeCombat.Update(m_Scene, deltaTime);
+ 
++            // F2: cambia al volo tra personaggio a cuboni e personaggio animato
++            {
++                const bool f2 = Input::IsKeyPressed(GLFW_KEY_F2);
++                if (f2 && !m_F2WasDown) m_UseAnimatedPlayer = !m_UseAnimatedPlayer;
++                m_F2WasDown = f2;
++            }
++
++            // Comandi reali del giocatore -> animazioni (pilota il modello animato e il dummy di test)
++            UpdateAnimatedPlayer(deltaTime, BuildPlayerAnimInput(isAiming));
+             if (m_RifleAnimLoaded) {
+-                bool fwd = Input::IsKeyPressed(GLFW_KEY_W);
+-                bool back = Input::IsKeyPressed(GLFW_KEY_S);
+-                bool left = Input::IsKeyPressed(GLFW_KEY_A);
+-                bool right = Input::IsKeyPressed(GLFW_KEY_D);
+-                bool moving = fwd || back || left || right;
+-                bool sprint = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
+-
+-                m_RifleAnimController.Update(deltaTime, moving, fwd, back, left, right, sprint, isAiming);
+                 if (m_SkinnedModelLoaded && m_Scene.GetRegistry().valid(m_TestSkinnedEntity)) {
+                     if (auto* inst = m_Scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(m_TestSkinnedEntity)) {
+                         if (m_RifleAnimLoaded) {
+@@ -2489,6 +2639,8 @@ namespace SunEngine {
+                 // Disegna TUTTI i cubi della scena (per ora solo i cubi, in futuro le mesh)
+                 auto view = m_Scene.GetRegistry().view<TransformComponent, MeshComponent, ColorComponent>();
+                 for (auto entity : view) {
++                    // Il giocatore col modello animato non proietta l'ombra del suo cubo hitbox
++                    if (m_Scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) continue;
+                     auto& t = view.get<TransformComponent>(entity);
+                     m_DeferredRenderer.RenderShadowPassCube(t.GetTransform(), c);
+                 }
+@@ -3904,6 +4056,27 @@ namespace SunEngine {
+                     ImGui::EndTabItem();
+                 }
+ 
++                if (ImGui::BeginTabItem("Personaggio")) {
++                    ImGui::Spacing();
++                    ImGui::Text("Modello del giocatore:");
++                    if (ImGui::RadioButton("Cuboni (hitbox)", !m_UseAnimatedPlayer)) m_UseAnimatedPlayer = false;
++                    ImGui::SameLine();
++                    const bool animAvailable = m_RifleAnimLoaded && m_SkinnedModelLoaded;
++                    if (ImGui::RadioButton("Animato (FBX)", m_UseAnimatedPlayer) && animAvailable) m_UseAnimatedPlayer = true;
++                    ImGui::TextDisabled("In partita: F2 per passare dall'uno all'altro.");
++                    if (!animAvailable) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Modello/animazioni non caricati.");
++
++                    ImGui::Spacing();
++                    ImGui::Text("Taratura armi sul modello animato:");
++                    ImGui::BeginChild("##WeaponTune", ImVec2(0, 120), true);
++                    ImGui::DragFloat3("Offset (dx,su,avanti) m", &m_HandWeaponOffset.x, 0.005f, -1.0f, 1.0f, "%.3f");
++                    ImGui::DragFloat3("Rotazione (gradi)", &m_HandWeaponRotation.x, 0.5f, -180.0f, 180.0f, "%.1f");
++                    ImGui::DragFloat("Fattore inclinazione mira", &m_WeaponPitchFactor, 0.01f, -2.0f, 2.0f, "%.2f");
++                    ImGui::Checkbox("Segui rotazione della mano", &m_WeaponFollowsHand);
++                    ImGui::EndChild();
++                    ImGui::EndTabItem();
++                }
++
+                 ImGui::EndTabBar();
+             }
+ 
+diff --git a/Sandbox/GameLayer.h b/Sandbox/GameLayer.h
+index 43071fe..597023e 100644
+--- a/Sandbox/GameLayer.h
++++ b/Sandbox/GameLayer.h
+@@ -176,6 +176,12 @@ namespace SunEngine {
+         void AwardKill();                      // +1 kill, +1 energia, +1 exp unita' e arma
+         std::string WeaponLabel(const std::string& name, const std::string& weaponId) const;
+         void SyncWeaponAttachment();    // FIX #8/#10: arma del player agganciata allo scheletro
++
++        // --- Personaggio animato (selettore cuboni / FBX) ---
++        RifleAnimInput BuildPlayerAnimInput(bool isAiming);
++        void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
++        bool IsAnimatedPlayerActive();
++        bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform);
+         void ClearPlayerDeathState();   // FIX #4: toglie ragdoll + CorpseComponent dal player
+ 
+     private:
+@@ -242,6 +248,18 @@ namespace SunEngine {
+         bool m_PlayerDeathHandled = false;
+         int m_KillCount = 0;
+ 
++        // Personaggio animato: m_UseAnimatedPlayer e' l'impostazione scelta dal giocatore (salvata nel profilo)
++        bool m_UseAnimatedPlayer = false;
++        entt::entity m_AnimatedPlayerEntity = entt::null;   // entity solo-visiva col modello skinnato
++        float m_AnimatedYawOffset = 180.0f;                 // il modello Mixamo guarda +Z, il motore -Z
++        float m_AnimatedModelScale = 0.01f;                 // il modello e' in centimetri
++        bool m_F2WasDown = false;
++        // Aggancio armi (cubi) alle mani del modello animato: tarabili in gioco dalle Opzioni
++        glm::vec3 m_HandWeaponOffset = glm::vec3(0.0f, 0.0f, 0.20f);   // (destra, su, avanti) in metri
++        glm::vec3 m_HandWeaponRotation = glm::vec3(0.0f);              // correzione in gradi
++        float m_WeaponPitchFactor = 1.0f;
++        bool m_WeaponFollowsHand = false;
++
+         PlayerProfile m_Profile;
+         std::string m_LastSavedProfile;
+         float m_ProfileSaveTimer = 0.0f;
+diff --git a/Sandbox/PlayerProfile.h b/Sandbox/PlayerProfile.h
+index 8ea81d7..5e23218 100644
+--- a/Sandbox/PlayerProfile.h
++++ b/Sandbox/PlayerProfile.h
+@@ -28,6 +28,7 @@ namespace SunEngine {
+         float volumeSFX = 0.8f;
+         float volumeVoice = 0.8f;
+         float volumeMusic = 0.8f;
++        bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
+ 
+         // --- Valute ---
+         int64_t energy = 0;       // valuta principale (1 per ogni orco ucciso)
+@@ -62,7 +63,8 @@ namespace SunEngine {
+             nlohmann::json j;
+             j["version"] = kVersion;
+             j["settings"] = { {"resolutionIdx", resolutionIdx}, {"fullscreen", fullscreen},
+-                              {"volumeSFX", volumeSFX}, {"volumeVoice", volumeVoice}, {"volumeMusic", volumeMusic} };
++                              {"volumeSFX", volumeSFX}, {"volumeVoice", volumeVoice}, {"volumeMusic", volumeMusic},
++                              {"animatedPlayer", animatedPlayer} };
+             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
+             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
+             nlohmann::json w = nlohmann::json::object();
+@@ -89,6 +91,7 @@ namespace SunEngine {
+                 p.volumeSFX = clamp01(s.value("volumeSFX", 0.8f));
+                 p.volumeVoice = clamp01(s.value("volumeVoice", 0.8f));
+                 p.volumeMusic = clamp01(s.value("volumeMusic", 0.8f));
++                p.animatedPlayer = s.value("animatedPlayer", false);
+             }
+             if (j.contains("currency") && j["currency"].is_object()) {
+                 p.energy = std::max<int64_t>(0, j["currency"].value("energy", 0));

@@ -1,0 +1,362 @@
+diff --git a/Engine/Renderer/Animation.h b/Engine/Renderer/Animation.h
+index efb8255..bc93a59 100644
+--- a/Engine/Renderer/Animation.h
++++ b/Engine/Renderer/Animation.h
+@@ -32,8 +32,13 @@ namespace SunEngine {
+     class Bone {
+     public:
+         // animBindLocal = trasformazione locale del nodo nel file dell'ANIMAZIONE (la sua posa di riposo).
+-        Bone(const std::string& name, int id, const aiNodeAnim* channel, const glm::mat4& animBindLocal)
+-            : m_Name(name), m_ID(id) {
++        // lockHorizontal = true: ignora lo spostamento orizzontale (X/Z) delle chiavi di posizione, come
++        // l'opzione "In Place" di Mixamo. Serve per l'osso radice (Hips): nelle clip di locomozione il
++        // bacino viaggia davvero (fino a ~3 m per ciclo) e al loop "scatta" indietro; il movimento vero
++        // lo decide il motore, l'animazione deve restare sul posto.
++        Bone(const std::string& name, int id, const aiNodeAnim* channel, const glm::mat4& animBindLocal,
++            bool lockHorizontal = false)
++            : m_Name(name), m_ID(id), m_LockHorizontal(lockHorizontal) {
+             DecomposeLocalBind(animBindLocal, m_AnimBindPos, m_AnimBindRot, m_AnimBindScale);
+             if (channel) {
+                 for (unsigned int i = 0; i < channel->mNumPositionKeys; i++) {
+@@ -75,6 +80,10 @@ namespace SunEngine {
+             DecomposeLocalBind(modelBindLocal, mPos, mRot, mScale);
+ 
+             glm::vec3 keyPos = SamplePosition(animationTime);
++            if (m_LockHorizontal && !m_Positions.empty()) {
++                keyPos.x = m_Positions.front().position.x;
++                keyPos.z = m_Positions.front().position.z;
++            }
+             float ratio = 1.0f;
+             float lm = glm::length(mPos), la = glm::length(m_AnimBindPos);
+             if (lm > 1e-4f && la > 1e-4f) ratio = std::clamp(lm / la, 1e-3f, 1e3f);
+@@ -90,6 +99,13 @@ namespace SunEngine {
+         glm::mat4 GetLocalTransform() const { return m_LocalTransform; }
+         const std::string& GetBoneName() const { return m_Name; }
+         bool HasPositionKeys() const { return !m_Positions.empty(); }
++        // Distanza orizzontale percorsa dalla radice tra primo e ultimo fotogramma (unita' del modello)
++        float HorizontalTravel() const {
++            if (m_Positions.size() < 2) return 0.0f;
++            const glm::vec3& a = m_Positions.front().position;
++            const glm::vec3& b = m_Positions.back().position;
++            return glm::length(glm::vec2(b.x - a.x, b.z - a.z));
++        }
+         const glm::quat& GetAnimBindRot() const { return m_AnimBindRot; }
+         const glm::vec3& GetAnimBindPos() const { return m_AnimBindPos; }
+ 
+@@ -149,6 +165,7 @@ namespace SunEngine {
+         glm::vec3 m_AnimBindPos{ 0.0f };
+         glm::quat m_AnimBindRot{ 1.0f, 0.0f, 0.0f, 0.0f };
+         glm::vec3 m_AnimBindScale{ 1.0f };
++        bool m_LockHorizontal = false;
+     };
+ 
+     class Animation {
+@@ -202,6 +219,11 @@ namespace SunEngine {
+         const std::unordered_map<std::string, BoneInfo>& GetBoneIDMap() const { return m_BoneInfoMap; }
+         const glm::mat4& GetGlobalInverseTransform() const { return m_GlobalInverseTransform; }
+ 
++        // Velocita' di avanzamento "incisa" nella clip (cm/s nelle unita' del modello), prima del blocco
++        // in-place. Serve ad adattare la velocita' di riproduzione a quella reale del personaggio.
++        float GetRootTravelSpeed() const { return m_RootTravelSpeed; }
++        void SetRootBoneName(const std::string& name) { m_RootBoneName = name; }
++
+     private:
+         static std::string Describe(const glm::mat4& m) {
+             glm::vec3 p, s;
+@@ -250,7 +272,11 @@ namespace SunEngine {
+                 auto bit = m_BoneInfoMap.find(boneName);
+                 if (bit != m_BoneInfoMap.end()) id = bit->second.id;
+ 
+-                m_Bones.push_back(Bone(boneName, id, channel, ab));
++                const bool isRoot = (boneName == m_RootBoneName);
++                m_Bones.push_back(Bone(boneName, id, channel, ab, isRoot));
++                if (isRoot && m_TicksPerSecond > 0.0f && m_Duration > 0.0f) {
++                    m_RootTravelSpeed = m_Bones.back().HorizontalTravel() / (m_Duration / m_TicksPerSecond);
++                }
+             }
+ 
+             if (dropped > 0) {
+@@ -291,6 +317,8 @@ namespace SunEngine {
+ 
+         float m_Duration = 0.0f;
+         float m_TicksPerSecond = 25.0f;
++        std::string m_RootBoneName = "mixamorig1:Hips";   // osso radice (rig Mixamo)
++        float m_RootTravelSpeed = 0.0f;
+         std::vector<Bone> m_Bones;
+         AssimpNodeData m_RootNode;
+         std::unordered_map<std::string, BoneInfo> m_BoneInfoMap;
+diff --git a/Engine/Renderer/Animator.h b/Engine/Renderer/Animator.h
+index 198fa37..86a9cb2 100644
+--- a/Engine/Renderer/Animator.h
++++ b/Engine/Renderer/Animator.h
+@@ -12,8 +12,12 @@ namespace SunEngine {
+     public:
+         // blendDuration > 0: crossfade dalla clip corrente alla nuova (si mescolano posizione/rotazione/
+         // scala di ogni osso, non le matrici). 0 = cambio secco come prima.
+-        void PlayAnimation(Animation* animation, float blendDuration = 0.0f) {
+-            if (m_CurrentAnimation && animation != m_CurrentAnimation && blendDuration > 0.0f) {
++        // loop = false: la clip viene riprodotta una volta e poi tiene l'ultimo fotogramma (IsFinished()).
++        // Si puo' rilanciare la stessa clip (es. un nuovo colpo di rinculo): il blend parte dalla posa attuale.
++        void PlayAnimation(Animation* animation, float blendDuration = 0.0f, bool loop = true) {
++            m_Loop = loop;
++            m_Finished = false;
++            if (m_CurrentAnimation && blendDuration > 0.0f) {
+                 m_PrevAnimation = m_CurrentAnimation;
+                 m_PrevTime = m_CurrentTime;
+                 m_BlendDuration = blendDuration;
+@@ -34,8 +38,14 @@ namespace SunEngine {
+         void UpdateAnimation(float deltaTime) {
+             if (!m_CurrentAnimation) return;
+ 
+-            m_CurrentTime += m_CurrentAnimation->GetTicksPerSecond() * deltaTime;
+-            m_CurrentTime = std::fmod(m_CurrentTime, m_CurrentAnimation->GetDuration());
++            m_CurrentTime += m_CurrentAnimation->GetTicksPerSecond() * deltaTime * m_PlaybackRate;
++            if (m_Loop) {
++                m_CurrentTime = std::fmod(m_CurrentTime, m_CurrentAnimation->GetDuration());
++            }
++            else if (m_CurrentTime >= m_CurrentAnimation->GetDuration()) {
++                m_CurrentTime = m_CurrentAnimation->GetDuration() - 0.001f;   // tiene l'ultimo fotogramma
++                m_Finished = true;
++            }
+ 
+             if (m_PrevAnimation) {
+                 m_PrevTime += m_PrevAnimation->GetTicksPerSecond() * deltaTime;
+@@ -49,6 +59,9 @@ namespace SunEngine {
+ 
+         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_FinalBoneMatrices; }
+ 
++        bool IsFinished() const { return m_Finished; }
++        void SetPlaybackRate(float rate) { m_PlaybackRate = rate; }
++
+         // Trasformazione di un osso nello spazio del MODELLO (stesso spazio dei vertici, prima della
+         // matrice del mondo dell'entity). Serve ad agganciare oggetti (armi) alle ossa.
+         bool GetBoneModelTransform(const std::string& boneName, glm::mat4& out) const {
+@@ -116,5 +129,9 @@ namespace SunEngine {
+         float m_PrevTime = 0.0f;
+         float m_BlendDuration = 0.0f;
+         float m_BlendElapsed = 0.0f;
++
++        bool m_Loop = true;
++        bool m_Finished = false;
++        float m_PlaybackRate = 1.0f;
+     };
+ }
+diff --git a/Engine/Renderer/RifleAnimationController.h b/Engine/Renderer/RifleAnimationController.h
+index 69fcd22..dddc393 100644
+--- a/Engine/Renderer/RifleAnimationController.h
++++ b/Engine/Renderer/RifleAnimationController.h
+@@ -1,4 +1,5 @@
+ #pragma once
++#include <filesystem>
+ #include "Animation.h"
+ #include "Animator.h"
+ #include "../ECS/RifleLocomotionState.h"
+@@ -14,6 +15,9 @@ namespace SunEngine {
+         bool aiming = false;
+         bool firing = false;     // sta sparando (grilletto / cooldown colpo attivo)
+         bool vaulting = false;   // scavalcamento ostacolo in corso
++        bool shotFired = false;  // un colpo e' partito in QUESTO frame (fronte di salita del cooldown)
++        float groundSpeed = 0.0f;     // velocita' orizzontale reale del personaggio (m/s); <=0 = ignora
++        float vaultDuration = 0.0f;   // durata dello scavalcamento in corso (s); adatta la clip di salto
+     };
+ 
+     class RifleAnimationController {
+@@ -21,8 +25,20 @@ namespace SunEngine {
+         bool LoadClips(const std::string& animsDir, const std::string& modelPath, SkinnedModel* model) {
+             bool allOk = true;
+ 
+-            // Carica la Idle integrata nel file master
+-            allOk &= LoadClip(RifleAnimState::AimIdle, modelPath, model);
++            // Idle: "rifle aiming idle.fbx" (fucile alzato, stesso set delle altre clip). La idle integrata
++            // nel file master ha il fucile abbassato: usata come idle faceva "abbassare e rialzare" il
++            // fucile a ogni sparo. Resta come ripiego se il file non c'e'.
++            {
++                const std::string aimIdlePath = animsDir + "rifle aiming idle.fbx";
++                std::error_code ec;
++                if (std::filesystem::exists(aimIdlePath, ec)) {
++                    allOk &= LoadClip(RifleAnimState::AimIdle, aimIdlePath, model);
++                }
++                else {
++                    SUN_CORE_WARN("RifleAnimationController: manca '{0}', uso la idle integrata nel modello (fucile abbassato)", aimIdlePath);
++                    allOk &= LoadClip(RifleAnimState::AimIdle, modelPath, model);
++                }
++            }
+ 
+             allOk &= LoadClip(RifleAnimState::WalkStart, animsDir + "start walking.fbx", model);
+             allOk &= LoadClip(RifleAnimState::Walk, animsDir + "walking.fbx", model);
+@@ -57,19 +73,38 @@ namespace SunEngine {
+         void Update(float deltaTime, const RifleAnimInput& in) {
+             RifleAnimState desired = DetermineState(in);
+ 
+-            if (desired != m_CurrentState) {
++            // Fuoco: la clip e' UN colpo di rinculo che parte e torna all'idle. Va rilanciata a ogni
++            // colpo (non messa in loop, altrimenti si vede "abbassa il fucile / rialza" tra due spari).
++            const bool restartFiring = in.shotFired && !in.isMoving && !in.vaulting
++                && m_Clips.find(RifleAnimState::Firing) != m_Clips.end();
++            if (restartFiring) {
++                desired = RifleAnimState::Firing;
++            }
++            else if (m_CurrentState == RifleAnimState::Firing && !in.isMoving && !in.vaulting
++                && !m_Animator.IsFinished()) {
++                desired = RifleAnimState::Firing;   // lascia finire il rinculo in corso
++            }
++
++            if (desired != m_CurrentState || restartFiring) {
+                 auto it = m_Clips.find(desired);
+                 if (it != m_Clips.end()) {
+                     // crossfade breve: niente "scatti" tra una clip e l'altra
+-                    float blend = (desired == RifleAnimState::Firing) ? 0.06f : 0.18f;
+-                    m_Animator.PlayAnimation(&it->second, blend);
++                    float blend = (desired == RifleAnimState::Firing) ? 0.04f : 0.18f;
++                    const bool loop = !(desired == RifleAnimState::Firing
++                        || desired == RifleAnimState::JumpForward || desired == RifleAnimState::JumpBackward);
++                    m_Animator.PlayAnimation(&it->second, blend, loop);
+                     m_CurrentState = desired;
+                 }
+             }
+ 
++            m_Animator.SetPlaybackRate(ComputePlaybackRate(in));
+             m_Animator.UpdateAnimation(deltaTime);
+         }
+ 
++        // Scala usata per convertire la velocita' incisa nelle clip (cm) in m/s
++        void SetModelScale(float scale) { m_ModelScale = scale; }
++        void SetPlaybackRateLimits(float minRate, float maxRate) { m_MinRate = minRate; m_MaxRate = maxRate; }
++
+         bool GetBoneModelTransform(const std::string& boneName, glm::mat4& out) const {
+             return m_Animator.GetBoneModelTransform(boneName, out);
+         }
+@@ -88,17 +123,41 @@ namespace SunEngine {
+             return true;
+         }
+ 
++        // Velocita' di riproduzione: locomozione agganciata alla velocita' reale (meno "pattinamento" dei
++        // piedi); scavalcamento adattato alla durata del vault; il resto a velocita' normale.
++        float ComputePlaybackRate(const RifleAnimInput& in) const {
++            auto it = m_Clips.find(m_CurrentState);
++            if (it == m_Clips.end()) return 1.0f;
++            const Animation& clip = it->second;
++
++            if (m_CurrentState == RifleAnimState::JumpForward || m_CurrentState == RifleAnimState::JumpBackward) {
++                if (in.vaultDuration > 0.05f && clip.GetTicksPerSecond() > 0.0f) {
++                    float clipSeconds = clip.GetDuration() / clip.GetTicksPerSecond();
++                    return std::clamp(clipSeconds / in.vaultDuration, 0.5f, 3.0f);
++                }
++                return 1.0f;
++            }
++
++            const bool locomotion = (m_CurrentState == RifleAnimState::Walk || m_CurrentState == RifleAnimState::WalkBack
++                || m_CurrentState == RifleAnimState::StrafeLeft || m_CurrentState == RifleAnimState::StrafeRight
++                || m_CurrentState == RifleAnimState::Sprint);
++            if (!locomotion || in.groundSpeed < 0.2f) return 1.0f;
++
++            float clipSpeed = clip.GetRootTravelSpeed() * m_ModelScale;   // m/s inciti nella clip
++            if (clipSpeed < 0.2f) return 1.0f;
++            return std::clamp(in.groundSpeed / clipSpeed, m_MinRate, m_MaxRate);
++        }
++
+         RifleAnimState DetermineState(const RifleAnimInput& in) const {
+             // Scavalcamento: clip di salto in avanti (o indietro se si arretra)
+             if (in.vaulting) {
+                 return (in.backward && !in.forward) ? RifleAnimState::JumpBackward : RifleAnimState::JumpForward;
+             }
+ 
+-            if (!in.isMoving) {
+-                // Fermo che spara: clip di fuoco. Se si muove e spara si continua la locomozione
+-                // (nessun layer solo-busto per ora: andrebbe aggiunta una maschera sulle ossa).
+-                return in.firing ? RifleAnimState::Firing : RifleAnimState::AimIdle;
+-            }
++            // Fermo: idle. Il rinculo di fuoco e' un one-shot gestito in Update (vedi restartFiring); se si
++            // muove e spara continua la locomozione (nessun layer solo-busto per ora: servirebbe una
++            // maschera sulle ossa).
++            if (!in.isMoving) return RifleAnimState::AimIdle;
+ 
+             if (in.sprinting && in.forward) return RifleAnimState::Sprint;
+ 
+@@ -113,5 +172,8 @@ namespace SunEngine {
+         std::unordered_map<RifleAnimState, Animation> m_Clips;
+         Animator m_Animator;
+         RifleAnimState m_CurrentState = RifleAnimState::AimIdle;
++        float m_ModelScale = 0.01f;   // modello in centimetri
++        float m_MinRate = 0.7f;
++        float m_MaxRate = 1.8f;
+     };
+ }
+diff --git a/Sandbox/GameLayer.cpp b/Sandbox/GameLayer.cpp
+index aea40e9..89f4ee2 100644
+--- a/Sandbox/GameLayer.cpp
++++ b/Sandbox/GameLayer.cpp
+@@ -1381,7 +1381,7 @@ namespace SunEngine {
+ 
+     // ===================== PERSONAGGIO ANIMATO =====================
+     // Stato dei comandi che pilota le animazioni (stessi tasti usati dal movimento).
+-    RifleAnimInput GameLayer::BuildPlayerAnimInput(bool isAiming) {
++    RifleAnimInput GameLayer::BuildPlayerAnimInput(bool isAiming, float deltaTime) {
+         RifleAnimInput in;
+         in.forward = Input::IsKeyPressed(GLFW_KEY_W);
+         in.backward = Input::IsKeyPressed(GLFW_KEY_S);
+@@ -1393,8 +1393,21 @@ namespace SunEngine {
+ 
+         auto& reg = m_Scene.GetRegistry();
+         if (reg.valid(m_PlayerEntity)) {
++            // Velocita' orizzontale reale (m/s), leggermente filtrata: adatta il passo delle animazioni
++            if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
++                if (m_HasPrevAnimPlayerPos && deltaTime > 0.0001f) {
++                    glm::vec2 d(pt->Position.x - m_PrevAnimPlayerPos.x, pt->Position.z - m_PrevAnimPlayerPos.z);
++                    float raw = glm::length(d) / deltaTime;
++                    if (raw > 30.0f) raw = 0.0f;   // teletrasporto/respawn: non e' una velocita'
++                    m_SmoothedGroundSpeed += (raw - m_SmoothedGroundSpeed) * (1.0f - std::exp(-12.0f * deltaTime));
++                }
++                m_PrevAnimPlayerPos = pt->Position;
++                m_HasPrevAnimPlayerPos = true;
++                in.groundSpeed = m_SmoothedGroundSpeed;
++            }
+             if (auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity)) {
+                 in.vaulting = vault->isVaulting;
++                in.vaultDuration = vault->vaultDuration;
+             }
+             // Fuoco: solo armi a distanza, grilletto premuto, non in ricarica e con munizioni
+             if (auto* wState = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {
+@@ -1404,6 +1417,9 @@ namespace SunEngine {
+                 }
+                 in.firing = !isMelee && Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)
+                     && !wState->isReloading && wState->currentAmmo > 0;
++                // Colpo partito = il cooldown di fuoco e' appena risalito: lancia il rinculo una volta per colpo
++                in.shotFired = !isMelee && wState->fireCooldown > m_PrevFireCooldown + 0.0001f;
++                m_PrevFireCooldown = wState->fireCooldown;
+             }
+         }
+         return in;
+@@ -1999,7 +2015,7 @@ namespace SunEngine {
+             }
+ 
+             // Comandi reali del giocatore -> animazioni (pilota il modello animato e il dummy di test)
+-            UpdateAnimatedPlayer(deltaTime, BuildPlayerAnimInput(isAiming));
++            UpdateAnimatedPlayer(deltaTime, BuildPlayerAnimInput(isAiming, deltaTime));
+             if (m_RifleAnimLoaded) {
+                 if (m_SkinnedModelLoaded && m_Scene.GetRegistry().valid(m_TestSkinnedEntity)) {
+                     if (auto* inst = m_Scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(m_TestSkinnedEntity)) {
+diff --git a/Sandbox/GameLayer.h b/Sandbox/GameLayer.h
+index 597023e..144e81a 100644
+--- a/Sandbox/GameLayer.h
++++ b/Sandbox/GameLayer.h
+@@ -178,7 +178,7 @@ namespace SunEngine {
+         void SyncWeaponAttachment();    // FIX #8/#10: arma del player agganciata allo scheletro
+ 
+         // --- Personaggio animato (selettore cuboni / FBX) ---
+-        RifleAnimInput BuildPlayerAnimInput(bool isAiming);
++        RifleAnimInput BuildPlayerAnimInput(bool isAiming, float deltaTime);
+         void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
+         bool IsAnimatedPlayerActive();
+         bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform);
+@@ -254,6 +254,10 @@ namespace SunEngine {
+         float m_AnimatedYawOffset = 180.0f;                 // il modello Mixamo guarda +Z, il motore -Z
+         float m_AnimatedModelScale = 0.01f;                 // il modello e' in centimetri
+         bool m_F2WasDown = false;
++        float m_PrevFireCooldown = 0.0f;                 // per riconoscere il momento in cui parte un colpo
++        glm::vec3 m_PrevAnimPlayerPos = glm::vec3(0.0f);
++        bool m_HasPrevAnimPlayerPos = false;
++        float m_SmoothedGroundSpeed = 0.0f;              // m/s, per adattare la velocita' delle animazioni
+         // Aggancio armi (cubi) alle mani del modello animato: tarabili in gioco dalle Opzioni
+         glm::vec3 m_HandWeaponOffset = glm::vec3(0.0f, 0.0f, 0.20f);   // (destra, su, avanti) in metri
+         glm::vec3 m_HandWeaponRotation = glm::vec3(0.0f);              // correzione in gradi

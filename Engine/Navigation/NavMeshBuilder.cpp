@@ -148,6 +148,17 @@ namespace SunEngine {
         rcPolyMesh* pmesh = rcAllocPolyMesh();
         rcBuildPolyMesh(&ctx, *cset, cfg.maxVertsPerPoly, *pmesh);
 
+        // FIX pathfinding: Recast alloca l'array dei flag dei poligoni ma lo lascia TUTTO A ZERO
+        // ("the user is responsible to fill it"). NavMeshQuery usa un filtro con includeFlags = 0xFFFF,
+        // quindi con flag 0 nessun poligono lo supera: findNearestPoly ritorna sempre 0 e FindPath
+        // restituisce sempre un percorso vuoto (orchi fermi che "camminano" sul posto).
+        // Ogni poligono calpestabile riceve il flag WALK (1).
+        for (int i = 0; i < pmesh->npolys; ++i) {
+            if (pmesh->areas[i] == RC_WALKABLE_AREA) {
+                pmesh->flags[i] = 1;   // WALK
+            }
+        }
+
         // 6. Mesh di Dettaglio
         rcPolyMeshDetail* dmesh = rcAllocPolyMeshDetail();
         rcBuildPolyMeshDetail(&ctx, *pmesh, *chf, cfg.detailSampleDist, cfg.detailSampleMaxError, *dmesh);

@@ -11,6 +11,8 @@
 #include "Engine/ECS/ParticleSystem.h"
 #include "Engine/ECS/CorpseSystem.h"
 #include "PlayerProfile.h"
+#include "ResearchTree.h"
+#include "Engine/ECS/BlockModel.h"
 #include "Engine/ECS/RenderSystem.h"
 #include "Engine/ECS/WeaponSystem.h"
 #include "Engine/Scene/MapLoader.h"
@@ -40,7 +42,9 @@ namespace SunEngine {
 
     enum class MenuTab {
         StasisVault,
-        Deployment
+        Deployment,
+        Research,   // albero di ricerca delle unita'
+        Shop        // negozio (Pietra Nera): per ora WIP
     };
 
     enum class EditorGizmoMode {
@@ -176,6 +180,23 @@ namespace SunEngine {
         void AwardKill();                      // +1 kill, +1 energia, +1 exp unita' e arma
         std::string WeaponLabel(const std::string& name, const std::string& weaponId) const;
         void SyncWeaponAttachment();    // FIX #8/#10: arma del player agganciata allo scheletro
+
+        // --- Ricerca unita' (punti studio -> sblocco, energia -> acquisto) e negozio ---
+        void LoadResearchTree();
+        void RenderResearchUI();
+        void DrawResearchFactionTree(const ResearchFaction& faction);
+        void RenderShopUI();
+        bool PurchaseResearchedUnit(const ResearchNode& node);
+
+        // --- Personaggio animato (selettore cuboni / FBX) ---
+        RifleAnimInput BuildPlayerAnimInput(bool isAiming, float deltaTime);
+        void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
+        bool IsAnimatedPlayerActive();
+        bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model = nullptr);
+
+        // --- Modelli a blocchi delle armi (GameData/BlockModels/<id arma>.json) ---
+        void LoadBlockModels();
+        void SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId);
         void ClearPlayerDeathState();   // FIX #4: toglie ragdoll + CorpseComponent dal player
 
     private:
@@ -242,7 +263,35 @@ namespace SunEngine {
         bool m_PlayerDeathHandled = false;
         int m_KillCount = 0;
 
+        // Personaggio animato: m_UseAnimatedPlayer e' l'impostazione scelta dal giocatore (salvata nel profilo)
+        bool m_UseAnimatedPlayer = false;
+        entt::entity m_AnimatedPlayerEntity = entt::null;   // entity solo-visiva col modello skinnato
+        float m_AnimatedYawOffset = 180.0f;                 // il modello Mixamo guarda +Z, il motore -Z
+        float m_AnimatedModelScale = 0.01f;                 // il modello e' in centimetri
+        bool m_F2WasDown = false;
+        float m_PrevFireCooldown = 0.0f;                 // per riconoscere il momento in cui parte un colpo
+        glm::vec3 m_PrevAnimPlayerPos = glm::vec3(0.0f);
+        bool m_HasPrevAnimPlayerPos = false;
+        float m_SmoothedGroundSpeed = 0.0f;              // m/s, per adattare la velocita' delle animazioni
+        // Aggancio armi (cubi) alle mani del modello animato: tarabili in gioco dalle Opzioni
+        glm::vec3 m_HandWeaponOffset = glm::vec3(0.0f, 0.0f, 0.20f);   // (destra, su, avanti) in metri
+        glm::vec3 m_HandWeaponRotation = glm::vec3(0.0f);              // correzione in gradi
+        float m_WeaponPitchFactor = 1.0f;
+        BlockModelLibrary m_BlockModels;
+        float m_WeaponHandAlign = 0.0f;   // 0 = arma dritta lungo la mira, 1 = segue la linea tra le mani
+        glm::vec3 m_WeaponModelGripOffset = glm::vec3(0.0f);   // spostamento dell'arma (spazio arma: dx, su, indietro)
+        glm::vec3 m_WeaponModelRotation = glm::vec3(0.0f);     // correzione di rotazione (gradi)
+        // Arma degli orchi (modello a blocchi): punto di presa sul blocco del braccio (in unita' del blocco,
+        // come il vecchio cubo) e rotazione che porta l'asse della lama (-Z del modello) lungo il braccio.
+        glm::vec3 m_OrkWeaponHoldOffset = glm::vec3(0.0f, 0.05f, 0.0f);       // metri, dal fondo del braccio (= la mano)
+        glm::vec3 m_OrkWeaponModelRotation = glm::vec3(-30.0f, 0.0f, 0.0f);   // gradi: 0 = lama in avanti dal pugno
+        bool m_WeaponFollowsHand = false;
+
         PlayerProfile m_Profile;
+        ResearchTree m_ResearchTree;
+        std::string m_ResearchSelectedNode;      // id del nodo selezionato nell'albero
+        std::string m_ResearchMessage;           // esito dell'ultima azione (ricerca/acquisto)
+        float m_ResearchMessageTimer = 0.0f;
         std::string m_LastSavedProfile;
         float m_ProfileSaveTimer = 0.0f;
 

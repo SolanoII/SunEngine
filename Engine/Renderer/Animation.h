@@ -32,8 +32,13 @@ namespace SunEngine {
     class Bone {
     public:
         // animBindLocal = trasformazione locale del nodo nel file dell'ANIMAZIONE (la sua posa di riposo).
-        Bone(const std::string& name, int id, const aiNodeAnim* channel, const glm::mat4& animBindLocal)
-            : m_Name(name), m_ID(id) {
+        // lockHorizontal = true: ignora lo spostamento orizzontale (X/Z) delle chiavi di posizione, come
+        // l'opzione "In Place" di Mixamo. Serve per l'osso radice (Hips): nelle clip di locomozione il
+        // bacino viaggia davvero (fino a ~3 m per ciclo) e al loop "scatta" indietro; il movimento vero
+        // lo decide il motore, l'animazione deve restare sul posto.
+        Bone(const std::string& name, int id, const aiNodeAnim* channel, const glm::mat4& animBindLocal,
+            bool lockHorizontal = false)
+            : m_Name(name), m_ID(id), m_LockHorizontal(lockHorizontal) {
             DecomposeLocalBind(animBindLocal, m_AnimBindPos, m_AnimBindRot, m_AnimBindScale);
             if (channel) {
                 for (unsigned int i = 0; i < channel->mNumPositionKeys; i++) {
@@ -60,28 +65,47 @@ namespace SunEngine {
         // quindi l'idle (letta dal file del modello) non cambia. Con rig diversi (armature ruotata,
         // unita' cm/m, Hips con altro bind) evita che una rotazione costante capovolga il corpo.
         void Update(float animationTime, const glm::mat4& modelBindLocal) {
+            glm::vec3 pos, scale;
+            glm::quat rot;
+            Evaluate(animationTime, modelBindLocal, pos, rot, scale);
+            m_LocalTransform = glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), scale);
+        }
+
+        // Valuta la posa dell'osso al tempo dato restituendo posizione/rotazione/scala separate: serve al
+        // crossfade tra due clip (si mescolano i componenti TRS, non le matrici).
+        void Evaluate(float animationTime, const glm::mat4& modelBindLocal,
+            glm::vec3& outPos, glm::quat& outRot, glm::vec3& outScale) const {
             glm::vec3 mPos, mScale;
             glm::quat mRot;
             DecomposeLocalBind(modelBindLocal, mPos, mRot, mScale);
 
             glm::vec3 keyPos = SamplePosition(animationTime);
+            if (m_LockHorizontal && !m_Positions.empty()) {
+                keyPos.x = m_Positions.front().position.x;
+                keyPos.z = m_Positions.front().position.z;
+            }
             float ratio = 1.0f;
             float lm = glm::length(mPos), la = glm::length(m_AnimBindPos);
             if (lm > 1e-4f && la > 1e-4f) ratio = std::clamp(lm / la, 1e-3f, 1e3f);
-            glm::vec3 pos = mPos + (keyPos - m_AnimBindPos) * ratio;
+            outPos = mPos + (keyPos - m_AnimBindPos) * ratio;
 
             glm::quat keyRot = SampleRotation(animationTime);
-            glm::quat rot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
+            outRot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
 
             glm::vec3 keyScale = SampleScale(animationTime);
-            glm::vec3 scale = mScale * (keyScale / m_AnimBindScale);
-
-            m_LocalTransform = glm::translate(glm::mat4(1.0f), pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4(1.0f), scale);
+            outScale = mScale * (keyScale / m_AnimBindScale);
         }
 
         glm::mat4 GetLocalTransform() const { return m_LocalTransform; }
         const std::string& GetBoneName() const { return m_Name; }
         bool HasPositionKeys() const { return !m_Positions.empty(); }
+        // Distanza orizzontale percorsa dalla radice tra primo e ultimo fotogramma (unita' del modello)
+        float HorizontalTravel() const {
+            if (m_Positions.size() < 2) return 0.0f;
+            const glm::vec3& a = m_Positions.front().position;
+            const glm::vec3& b = m_Positions.back().position;
+            return glm::length(glm::vec2(b.x - a.x, b.z - a.z));
+        }
         const glm::quat& GetAnimBindRot() const { return m_AnimBindRot; }
         const glm::vec3& GetAnimBindPos() const { return m_AnimBindPos; }
 
@@ -141,6 +165,7 @@ namespace SunEngine {
         glm::vec3 m_AnimBindPos{ 0.0f };
         glm::quat m_AnimBindRot{ 1.0f, 0.0f, 0.0f, 0.0f };
         glm::vec3 m_AnimBindScale{ 1.0f };
+        bool m_LockHorizontal = false;
     };
 
     class Animation {
@@ -194,6 +219,11 @@ namespace SunEngine {
         const std::unordered_map<std::string, BoneInfo>& GetBoneIDMap() const { return m_BoneInfoMap; }
         const glm::mat4& GetGlobalInverseTransform() const { return m_GlobalInverseTransform; }
 
+        // Velocita' di avanzamento "incisa" nella clip (cm/s nelle unita' del modello), prima del blocco
+        // in-place. Serve ad adattare la velocita' di riproduzione a quella reale del personaggio.
+        float GetRootTravelSpeed() const { return m_RootTravelSpeed; }
+        void SetRootBoneName(const std::string& name) { m_RootBoneName = name; }
+
     private:
         static std::string Describe(const glm::mat4& m) {
             glm::vec3 p, s;
@@ -242,7 +272,11 @@ namespace SunEngine {
                 auto bit = m_BoneInfoMap.find(boneName);
                 if (bit != m_BoneInfoMap.end()) id = bit->second.id;
 
-                m_Bones.push_back(Bone(boneName, id, channel, ab));
+                const bool isRoot = (boneName == m_RootBoneName);
+                m_Bones.push_back(Bone(boneName, id, channel, ab, isRoot));
+                if (isRoot && m_TicksPerSecond > 0.0f && m_Duration > 0.0f) {
+                    m_RootTravelSpeed = m_Bones.back().HorizontalTravel() / (m_Duration / m_TicksPerSecond);
+                }
             }
 
             if (dropped > 0) {
@@ -283,6 +317,8 @@ namespace SunEngine {
 
         float m_Duration = 0.0f;
         float m_TicksPerSecond = 25.0f;
+        std::string m_RootBoneName = "mixamorig1:Hips";   // osso radice (rig Mixamo)
+        float m_RootTravelSpeed = 0.0f;
         std::vector<Bone> m_Bones;
         AssimpNodeData m_RootNode;
         std::unordered_map<std::string, BoneInfo> m_BoneInfoMap;

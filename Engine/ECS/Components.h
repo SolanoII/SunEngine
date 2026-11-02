@@ -379,6 +379,16 @@ namespace SunEngine {
         bool isEmitting = false;
     };
 
+    // Posizione MONDO della bocca della canna dell'arma in mano (per mano), aggiornata ogni frame da
+    // GameLayer dal modello a blocchi dell'arma. WeaponSystem la usa come origine del colpo/tracciante:
+    // cosi' il colpo parte dalla punta dell'arma che si vede, non da un offset fisso calcolato sui cubi.
+    struct MuzzleComponent {
+        glm::vec3 right{ 0.0f };
+        glm::vec3 left{ 0.0f };
+        bool hasRight = false;
+        bool hasLeft = false;
+    };
+
     struct VaultComponent {
         bool isVaulting = false;
         float vaultTimer = 0.0f;

@@ -1,0 +1,19 @@
+{
+  "id": "imperium_whiteshield",
+  "displayName": "Whiteshield",
+  "point_cost": 4,
+  "stamina": 160.0,
+  "stamina_regen": 12.0,
+  "toughness": 12,
+  "armor_rating": 2,
+  "strength": 18,
+  "accuracy_skill": 25,
+  "melee_skill": 20,
+  "morale": 50,
+  "suppression_threshold": 60,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 80.0,
+  "base_speed": 3.4,
+  "health": 85.0
+}

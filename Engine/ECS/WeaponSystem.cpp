@@ -348,6 +348,7 @@ namespace SunEngine {
                 barrelOrigin = weaponPos + barrelWorldOffset;
             }
         }
+        ApplyMuzzleOverride(scene, shooter, barrelOrigin);
         float maxRange = (wpBP.range_effective > 1.0f) ? wpBP.range_effective : 12.0f;
         RaycastResult hit = RaycastAll(scene, barrelOrigin, baseDir, maxRange, shooter);
 
@@ -445,6 +446,7 @@ namespace SunEngine {
             }
         }
 
+        ApplyMuzzleOverride(scene, shooter, barrelOrigin);
         if (wpBP.projectile_type == ProjectileType::Flamer) {
             FireFlamer(scene, shooter, wpBP, barrelOrigin, baseDir);
 
@@ -582,6 +584,19 @@ namespace SunEngine {
                 HitboxLocation::Torso, targetStats, targetHealth);
         }
     }
+    // Se GameLayer ha pubblicato la bocca reale dell'arma (modello a blocchi), il colpo parte da li'.
+    static void ApplyMuzzleOverride(Scene& scene, entt::entity shooter, glm::vec3& barrelOrigin) {
+        auto& reg = scene.GetRegistry();
+        const auto* muzzle = reg.try_get<MuzzleComponent>(shooter);
+        if (!muzzle) return;
+        bool leftHand = false;
+        if (const auto* inv = reg.try_get<InventoryComponent>(shooter)) {
+            leftHand = (inv->GetEquipStance() == EquipStance::HybridRangedMelee);   // pistola nella mano sinistra
+        }
+        if (leftHand) { if (muzzle->hasLeft) barrelOrigin = muzzle->left; }
+        else if (muzzle->hasRight) { barrelOrigin = muzzle->right; }
+    }
+
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,
         const glm::vec3& rayDir, float maxDist,
         entt::entity shooter) {

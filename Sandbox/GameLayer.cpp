@@ -22,6 +22,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/euler_angles.hpp>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -1180,6 +1181,8 @@ namespace SunEngine {
 
         // PROFILO: se esiste un salvataggio sostituisce il roster di default e la squadra selezionata
         LoadRosterFromProfile();
+        LoadResearchTree();   // dopo il roster: le unita' gia' possedute risultano sbloccate
+        LoadBlockModels();
         if (m_SelectedSquadIndices.empty()) m_SelectedSquadIndices.push_back(0);
         ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
 
@@ -1208,6 +1211,7 @@ namespace SunEngine {
         m_VolumeSFX = m_Profile.volumeSFX;
         m_VolumeVoice = m_Profile.volumeVoice;
         m_VolumeMusic = m_Profile.volumeMusic;
+        m_UseAnimatedPlayer = m_Profile.animatedPlayer;
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 3);
     }
@@ -1275,6 +1279,7 @@ namespace SunEngine {
         m_Profile.volumeSFX = m_VolumeSFX;
         m_Profile.volumeVoice = m_VolumeVoice;
         m_Profile.volumeMusic = m_VolumeMusic;
+        m_Profile.animatedPlayer = m_UseAnimatedPlayer;
         m_Profile.squadIndices = m_SelectedSquadIndices;
         m_Profile.selectedMapId = m_SelectedMapId;
         m_Profile.selectedEventIndex = m_SelectedEventIndex;
@@ -1324,6 +1329,8 @@ namespace SunEngine {
             int rosterIdx = m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex;
             if (rosterIdx >= 0 && rosterIdx < static_cast<int>(m_PlayerRoster.size())) {
                 m_PlayerRoster[rosterIdx].exp += 1;
+                // Punti studio del TIPO di unita' in campo: servono a sbloccare la ricerca dei suoi figli
+                m_Profile.studyPoints[m_PlayerRoster[rosterIdx].blueprintId] += 1;
             }
         }
         if (auto* wbp = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(m_PlayerEntity)) {
@@ -1376,6 +1383,195 @@ namespace SunEngine {
         }
     }
 
+    // ===================== PERSONAGGIO ANIMATO =====================
+    // Stato dei comandi che pilota le animazioni (stessi tasti usati dal movimento).
+    RifleAnimInput GameLayer::BuildPlayerAnimInput(bool isAiming, float deltaTime) {
+        RifleAnimInput in;
+        in.forward = Input::IsKeyPressed(GLFW_KEY_W);
+        in.backward = Input::IsKeyPressed(GLFW_KEY_S);
+        in.left = Input::IsKeyPressed(GLFW_KEY_A);
+        in.right = Input::IsKeyPressed(GLFW_KEY_D);
+        in.isMoving = in.forward || in.backward || in.left || in.right;
+        in.sprinting = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
+        in.aiming = isAiming;
+
+        auto& reg = m_Scene.GetRegistry();
+        if (reg.valid(m_PlayerEntity)) {
+            // Velocita' orizzontale reale (m/s), leggermente filtrata: adatta il passo delle animazioni
+            if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
+                if (m_HasPrevAnimPlayerPos && deltaTime > 0.0001f) {
+                    glm::vec2 d(pt->Position.x - m_PrevAnimPlayerPos.x, pt->Position.z - m_PrevAnimPlayerPos.z);
+                    float raw = glm::length(d) / deltaTime;
+                    if (raw > 30.0f) raw = 0.0f;   // teletrasporto/respawn: non e' una velocita'
+                    m_SmoothedGroundSpeed += (raw - m_SmoothedGroundSpeed) * (1.0f - std::exp(-12.0f * deltaTime));
+                }
+                m_PrevAnimPlayerPos = pt->Position;
+                m_HasPrevAnimPlayerPos = true;
+                in.groundSpeed = m_SmoothedGroundSpeed;
+            }
+            if (auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity)) {
+                in.vaulting = vault->isVaulting;
+                in.vaultDuration = vault->vaultDuration;
+            }
+            // Fuoco: solo armi a distanza, grilletto premuto, non in ricarica e con munizioni
+            if (auto* wState = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {
+                bool isMelee = false;
+                if (auto* wbp = reg.try_get<WeaponBlueprintId>(m_PlayerEntity)) {
+                    if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) isMelee = bp->is_melee;
+                }
+                in.firing = !isMelee && Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)
+                    && !wState->isReloading && wState->currentAmmo > 0;
+                // Colpo partito = il cooldown di fuoco e' appena risalito: lancia il rinculo una volta per colpo
+                in.shotFired = !isMelee && wState->fireCooldown > m_PrevFireCooldown + 0.0001f;
+                m_PrevFireCooldown = wState->fireCooldown;
+            }
+        }
+        return in;
+    }
+
+    bool GameLayer::IsAnimatedPlayerActive() {
+        auto& reg = m_Scene.GetRegistry();
+        return m_UseAnimatedPlayer && m_RifleAnimLoaded && m_SkinnedModelLoaded
+            && reg.valid(m_AnimatedPlayerEntity) && reg.valid(m_PlayerEntity)
+            && !reg.all_of<CorpseComponent>(m_PlayerEntity);
+    }
+
+    // Aggiorna il controller delle animazioni e, se scelto il modello animato, la sua entity visiva:
+    // segue il player (posizione + direzione del corpo), nasconde i cubi (che restano hitbox).
+    void GameLayer::UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input) {
+        auto& reg = m_Scene.GetRegistry();
+
+        if (m_RifleAnimLoaded) {
+            m_RifleAnimController.Update(deltaTime, input);
+        }
+
+        const bool playerOk = reg.valid(m_PlayerEntity) && reg.all_of<TransformComponent>(m_PlayerEntity);
+        const bool wantAnimated = m_UseAnimatedPlayer && m_RifleAnimLoaded && m_SkinnedModelLoaded
+            && playerOk && !reg.all_of<CorpseComponent>(m_PlayerEntity);
+
+        if (!wantAnimated) {
+            // Modalita' cuboni (o giocatore morto: ragdoll a cubi): niente modello animato
+            if (reg.valid(m_AnimatedPlayerEntity)) {
+                m_Scene.DestroyEntity(m_AnimatedPlayerEntity);
+                m_AnimatedPlayerEntity = entt::null;
+            }
+            if (playerOk && reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
+                reg.remove<HideProceduralVisualTag>(m_PlayerEntity);
+            }
+            return;
+        }
+
+        if (!reg.valid(m_AnimatedPlayerEntity)) {
+            m_AnimatedPlayerEntity = m_Scene.CreateEntity();
+            reg.emplace<TransformComponent>(m_AnimatedPlayerEntity);
+            reg.emplace<ColorComponent>(m_AnimatedPlayerEntity);   // richiesto dal render deferred
+            auto& inst = reg.emplace<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+            inst.sourceModel = &m_SkinnedTestModel;
+            inst.boneMatrices = &m_RifleAnimController.GetFinalBoneMatrices();
+        }
+        if (!reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
+            reg.emplace<HideProceduralVisualTag>(m_PlayerEntity);
+        }
+
+        const auto& pt = reg.get<TransformComponent>(m_PlayerEntity);
+        auto& vt = reg.get<TransformComponent>(m_AnimatedPlayerEntity);
+        vt.Position = pt.Position;   // Position del player = piedi, come l'origine del modello
+        vt.Rotation = glm::vec3(0.0f, pt.Rotation.y + m_AnimatedYawOffset, 0.0f);
+        vt.Scale = glm::vec3(m_AnimatedModelScale);
+
+        // Colore armatura scelto nel garage come albedo del modello
+        if (auto* pc = reg.try_get<ColorComponent>(m_PlayerEntity)) {
+            reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity).albedo = pc->BaseColor;
+        }
+    }
+
+    // Posiziona un'arma (cubo) sulla mano destra/sinistra del modello animato. Posizione = osso della
+    // mano + offset (destra/su/avanti rispetto al corpo); orientamento = direzione del corpo con
+    // inclinazione di mira, oppure quello della mano (m_WeaponFollowsHand). Tutto tarabile dalle Opzioni.
+    bool GameLayer::PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model) {
+        auto& reg = m_Scene.GetRegistry();
+        glm::mat4 bone(1.0f);
+        const char* boneName = leftHand ? "mixamorig1:LeftHand" : "mixamorig1:RightHand";
+        if (!m_RifleAnimController.GetBoneModelTransform(boneName, bone)) return false;
+
+        auto* vt = reg.try_get<TransformComponent>(m_AnimatedPlayerEntity);
+        auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity);
+        if (!vt || !pt) return false;
+
+        const glm::mat4 handWorld = vt->GetTransform() * bone;
+        const glm::vec3 handPos = glm::vec3(handWorld[3]);
+
+        const float yawRad = glm::radians(pt->Rotation.y);
+        const glm::vec3 right(std::cos(yawRad), 0.0f, -std::sin(yawRad));
+        const glm::vec3 fwd(-std::sin(yawRad), 0.0f, -std::cos(yawRad));
+        // Modello a blocchi con impugnatura: l'arma si orienta lungo la linea mano destra -> mano sinistra
+        // (impugnatura e guardamano), cosi' "sta in braccio" al soldato com'e' nell'animazione. Se il
+        // modello non ha l'appoggio sinistro, o l'arma e' a una mano, segue il corpo (direzione + mira).
+        if (model && model->hasGripRight) {
+            // Direzione di mira = la stessa che WeaponSystem usa per il colpo (AimYaw / AimPitch)
+            glm::mat4 aimRot = glm::rotate(glm::mat4(1.0f), glm::radians(pt->AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
+            aimRot = glm::rotate(aimRot, glm::radians(pt->AimPitch * m_WeaponPitchFactor), glm::vec3(1.0f, 0.0f, 0.0f));
+            const glm::vec3 aimDir = glm::normalize(glm::vec3(aimRot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+
+            // L'arma e' DRITTA lungo la mira (prima seguiva la linea mano dx -> mano sx, che nelle clip
+            // Mixamo e' inclinata di ~25 gradi verso il centro: per questo il fucile risultava storto).
+            // Per le armi a due mani il punto medio delle due prese cade tra le due mani.
+            glm::vec3 anchorWorld = handPos;
+            glm::vec3 anchorLocal = model->gripRight;
+            glm::vec3 barrelDir = aimDir;
+            glm::mat4 boneL(1.0f);
+            if (!leftHand && model->hasGripLeft && m_RifleAnimController.GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
+                const glm::vec3 leftPos = glm::vec3((vt->GetTransform() * boneL)[3]);
+                const glm::vec3 handLine = leftPos - handPos;
+                if (glm::length(handLine) > 1e-4f && m_WeaponHandAlign > 0.0f) {
+                    barrelDir = glm::normalize(glm::mix(aimDir, glm::normalize(handLine), m_WeaponHandAlign));
+                }
+                anchorWorld = (handPos + leftPos) * 0.5f;
+                anchorLocal = (model->gripRight + model->gripLeft) * 0.5f;
+            }
+
+            // Base ortonormale: il modello ha la canna verso -Z, +Y alto, +X destra
+            const glm::vec3 zAxis = -barrelDir;
+            glm::vec3 xAxis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), zAxis);
+            if (glm::length(xAxis) < 1e-3f) xAxis = right;
+            xAxis = glm::normalize(xAxis);
+            const glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+
+            glm::mat4 basis(1.0f);
+            basis[0] = glm::vec4(xAxis, 0.0f);
+            basis[1] = glm::vec4(yAxis, 0.0f);
+            basis[2] = glm::vec4(zAxis, 0.0f);
+            basis = basis * glm::eulerAngleYXZ(glm::radians(m_WeaponModelRotation.y),
+                glm::radians(m_WeaponModelRotation.x), glm::radians(m_WeaponModelRotation.z));
+
+            weaponTransform.Position = anchorWorld - glm::vec3(basis * glm::vec4(anchorLocal + m_WeaponModelGripOffset, 0.0f));
+            float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+            glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);   // stesso ordine di TransformComponent::GetTransform
+            weaponTransform.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+            return true;
+        }
+
+        glm::vec3 off = m_HandWeaponOffset;
+        if (leftHand) off.x = -off.x;   // specchio per la mano sinistra
+        weaponTransform.Position = handPos + right * off.x + glm::vec3(0.0f, 1.0f, 0.0f) * off.y + fwd * off.z;
+
+        glm::vec3 rot;
+        if (m_WeaponFollowsHand) {
+            glm::mat4 R(1.0f);
+            R[0] = glm::vec4(glm::normalize(glm::vec3(handWorld[0])), 0.0f);
+            R[1] = glm::vec4(glm::normalize(glm::vec3(handWorld[1])), 0.0f);
+            R[2] = glm::vec4(glm::normalize(glm::vec3(handWorld[2])), 0.0f);
+            float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+            glm::extractEulerAngleYXZ(R, yaw, pitch, roll);   // stesso ordine di TransformComponent::GetTransform
+            rot = glm::degrees(glm::vec3(pitch, yaw, roll));
+        }
+        else {
+            rot = glm::vec3(pt->AimPitch * m_WeaponPitchFactor, pt->Rotation.y, 0.0f);
+        }
+        weaponTransform.Rotation = rot + m_HandWeaponRotation;
+        return true;
+    }
+
     // FIX #8: logica di aggancio arma->scheletro estratta da OnUpdate. Chiamata sia nel ramo Gameplay
     // sia nel MainMenu (garage): prima in garage l'arma restava all'origine perche' la sync stava
     // DOPO i return di MapEditor/MainMenu.
@@ -1385,6 +1581,12 @@ namespace SunEngine {
         auto* playerTransform = m_Scene.GetRegistry().try_get<TransformComponent>(m_PlayerEntity);
         if (!playerTransform || !m_Scene.GetRegistry().all_of<InventoryComponent>(m_PlayerEntity)) return;
         auto& transform = *playerTransform;
+        // Bocca della canna reale (la riempiono i rami sotto): WeaponSystem la usa come origine del colpo
+        if (!m_Scene.GetRegistry().all_of<MuzzleComponent>(m_PlayerEntity)) {
+            m_Scene.GetRegistry().emplace<MuzzleComponent>(m_PlayerEntity);
+        }
+        auto& muzzleComp = m_Scene.GetRegistry().get<MuzzleComponent>(m_PlayerEntity);
+        muzzleComp = MuzzleComponent{};
 
         if (m_Scene.GetRegistry().valid(m_PlayerEntity)) {
             if (!m_Scene.GetRegistry().valid(m_LeftWeaponEntity)) {
@@ -1429,7 +1631,17 @@ namespace SunEngine {
                 const auto* wBPR = BlueprintManager::Get().GetWeapon(rightWeaponId);
 
                 if (wBPR) {
-                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
+                    // Modello animato: arma sull'osso della mano destra (i cubi del corpo restano hitbox)
+                    const BlockModel* rightModel = m_BlockModels.Find(rightWeaponId);
+                    const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR, rightModel);
+                    if (placedOnHand) {
+                        glm::vec3 scale = wBPR->weapon_scale;
+                        if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
+                            scale = wBPR->is_melee ? glm::vec3(0.14f, 0.32f, 1.10f) : glm::vec3(0.08f, 0.18f, 0.80f);
+                        }
+                        wTransR.Scale = scale;
+                    }
+                    else if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
                         auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
                         auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
 
@@ -1454,6 +1666,13 @@ namespace SunEngine {
                         }
                     }
 
+                    // Modello a blocchi dell'arma (se esiste): sostituisce il cubo, scala 1 = metri reali
+                    SetWeaponBlockModel(m_WeaponEntity, rightWeaponId);
+                    if (const BlockModel* mm = m_BlockModels.Find(rightWeaponId); mm && mm->hasMuzzle) {
+                        muzzleComp.right = glm::vec3(wTransR.GetTransform() * glm::vec4(mm->muzzle, 1.0f));
+                        muzzleComp.hasRight = true;
+                    }
+
                     if (m_Scene.GetRegistry().all_of<ColorComponent>(m_WeaponEntity)) {
                         auto& wColor = m_Scene.GetRegistry().get<ColorComponent>(m_WeaponEntity);
                         glm::vec4 col = wBPR->primary_color;
@@ -1468,7 +1687,15 @@ namespace SunEngine {
             if (!leftWeaponId.empty()) {
                 const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
                 if (wBPL) {
-                    if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
+                    const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL);
+                    if (placedOnHandL) {
+                        glm::vec3 scale = wBPL->weapon_scale;
+                        if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
+                            scale = glm::vec3(0.06f, 0.14f, 0.30f);
+                        }
+                        wTransL.Scale = scale;
+                    }
+                    else if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
                         auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
                         auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
 
@@ -1583,6 +1810,9 @@ namespace SunEngine {
             m_Camera.Update(glm::vec3(0.0f), 1.0f);
 
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
+
+            // Modello animato anche nel garage (idle), poi arma sulla mano
+            UpdateAnimatedPlayer(deltaTime, RifleAnimInput{});
 
             // FIX #8: arma visibile nel garage (stessa logica del ramo Gameplay)
             SyncWeaponAttachment();
@@ -1842,15 +2072,16 @@ namespace SunEngine {
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
             m_MeleeCombat.Update(m_Scene, deltaTime);
 
-            if (m_RifleAnimLoaded) {
-                bool fwd = Input::IsKeyPressed(GLFW_KEY_W);
-                bool back = Input::IsKeyPressed(GLFW_KEY_S);
-                bool left = Input::IsKeyPressed(GLFW_KEY_A);
-                bool right = Input::IsKeyPressed(GLFW_KEY_D);
-                bool moving = fwd || back || left || right;
-                bool sprint = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
+            // F2: cambia al volo tra personaggio a cuboni e personaggio animato
+            {
+                const bool f2 = Input::IsKeyPressed(GLFW_KEY_F2);
+                if (f2 && !m_F2WasDown) m_UseAnimatedPlayer = !m_UseAnimatedPlayer;
+                m_F2WasDown = f2;
+            }
 
-                m_RifleAnimController.Update(deltaTime, moving, fwd, back, left, right, sprint, isAiming);
+            // Comandi reali del giocatore -> animazioni (pilota il modello animato e il dummy di test)
+            UpdateAnimatedPlayer(deltaTime, BuildPlayerAnimInput(isAiming, deltaTime));
+            if (m_RifleAnimLoaded) {
                 if (m_SkinnedModelLoaded && m_Scene.GetRegistry().valid(m_TestSkinnedEntity)) {
                     if (auto* inst = m_Scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(m_TestSkinnedEntity)) {
                         if (m_RifleAnimLoaded) {
@@ -2433,12 +2664,43 @@ namespace SunEngine {
 
                     if (armRIndex >= 0 && armRIndex < static_cast<int>(worldTransforms.size())) {
                         glm::mat4 armWorldMat = worldTransforms[armRIndex];
-                        glm::mat4 weaponWorldMat = glm::translate(armWorldMat, glm::vec3(0.0f, -0.15f, 0.45f));
 
-                        wTrans.Position = glm::vec3(weaponWorldMat[3]);
-                        glm::quat armQuat = glm::quat_cast(weaponWorldMat);
-                        wTrans.Rotation = glm::degrees(glm::eulerAngles(armQuat));
-                        wTrans.Scale = glm::vec3(0.10f, 0.55f, 0.35f);
+                        // Modello a blocchi dell'arma dell'ork (es. la choppa): sostituisce il cubo
+                        std::string orkWeaponId = "ork_choppa_1h";
+                        if (const auto* wid = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(orkEnt)) {
+                            if (!wid->id.empty()) orkWeaponId = wid->id;
+                        }
+                        if (m_BlockModels.Find(orkWeaponId)) {
+                            // La matrice del braccio include la scala del blocco: separo rotazione e dimensioni,
+                            // cosi' il modello (in metri reali) non viene deformato.
+                            glm::mat4 armRot(1.0f);
+                            for (int i = 0; i < 3; ++i) armRot[i] = glm::vec4(glm::normalize(glm::vec3(armWorldMat[i])), 0.0f);
+                            const glm::vec3 armSize = skel.data.blocks[armRIndex].size * skel.scale;
+                            const glm::mat4 corr = glm::eulerAngleYXZ(glm::radians(m_OrkWeaponModelRotation.y),
+                                glm::radians(m_OrkWeaponModelRotation.x), glm::radians(m_OrkWeaponModelRotation.z));
+                            const glm::mat4 weaponRot = armRot * corr;
+
+                            // Il pugno e' il fondo del blocco braccio: l'impugnatura della choppa (ancora del
+                            // modello) cade li', e la lama esce dal pugno in avanti (rotazione tarabile).
+                            const BlockModel* orkModel = m_BlockModels.Find(orkWeaponId);
+                            const glm::vec3 handLocal = glm::vec3(0.0f, -armSize.y * 0.5f, 0.0f) + m_OrkWeaponHoldOffset;
+                            const glm::vec3 handWorld = glm::vec3(armWorldMat[3]) + glm::vec3(armRot * glm::vec4(handLocal, 0.0f));
+                            const glm::vec3 gripLocal = orkModel->hasGripRight ? orkModel->gripRight : glm::vec3(0.0f);
+
+                            wTrans.Position = handWorld - glm::vec3(weaponRot * glm::vec4(gripLocal, 0.0f));
+                            float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+                            glm::extractEulerAngleYXZ(weaponRot, yaw, pitch, roll);
+                            wTrans.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+                            SetWeaponBlockModel(horde.weaponEntity, orkWeaponId);   // scala 1 = metri reali
+                        }
+                        else {
+                            glm::mat4 weaponWorldMat = glm::translate(armWorldMat, glm::vec3(0.0f, -0.15f, 0.45f));
+
+                            wTrans.Position = glm::vec3(weaponWorldMat[3]);
+                            glm::quat armQuat = glm::quat_cast(weaponWorldMat);
+                            wTrans.Rotation = glm::degrees(glm::eulerAngles(armQuat));
+                            wTrans.Scale = glm::vec3(0.10f, 0.55f, 0.35f);
+                        }
                     }
                 }
             }
@@ -2489,7 +2751,17 @@ namespace SunEngine {
                 // Disegna TUTTI i cubi della scena (per ora solo i cubi, in futuro le mesh)
                 auto view = m_Scene.GetRegistry().view<TransformComponent, MeshComponent, ColorComponent>();
                 for (auto entity : view) {
+                    // Il giocatore col modello animato non proietta l'ombra del suo cubo hitbox
+                    if (m_Scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) continue;
                     auto& t = view.get<TransformComponent>(entity);
+                    const auto* blockModel = m_Scene.GetRegistry().try_get<BlockModelComponent>(entity);
+                    if (blockModel && blockModel->model) {
+                        const glm::mat4 entityMat = t.GetTransform();
+                        for (const auto& part : blockModel->model->parts) {
+                            m_DeferredRenderer.RenderShadowPassCube(BlockPartMatrix(entityMat, part), c);
+                        }
+                        continue;
+                    }
                     m_DeferredRenderer.RenderShadowPassCube(t.GetTransform(), c);
                 }
 
@@ -2701,6 +2973,12 @@ namespace SunEngine {
             else if (m_CurrentTab == MenuTab::Deployment) {
                 RenderDeploymentUI();
             }
+            else if (m_CurrentTab == MenuTab::Research) {
+                RenderResearchUI();
+            }
+            else if (m_CurrentTab == MenuTab::Shop) {
+                RenderShopUI();
+            }
 
             RenderRecruitModal();
             RenderOptionsMenu();
@@ -2793,48 +3071,48 @@ namespace SunEngine {
         ImGui::SetCursorPos(ImVec2(20, 15));
         ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "PROJECT TRAZYN");
 
-        ImGui::SetCursorPos(ImVec2(io.DisplaySize.x * 0.5f - 340.0f, 10));
+        ImGui::SetCursorPos(ImVec2(std::max(190.0f, io.DisplaySize.x * 0.5f - 345.0f), 10));
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
 
-        if (m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::StasisVault)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
-        else
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.1f, 0.15f, 1.0f));
+        // Pulsante di navigazione: evidenziato se attivo. Ritorna true al click.
+        auto navButton = [&](const char* label, float width, bool active, const ImVec4& activeColor) {
+            ImGui::PushStyleColor(ImGuiCol_Button, active ? activeColor : ImVec4(0.1f, 0.1f, 0.15f, 1.0f));
+            bool clicked = ImGui::Button(label, ImVec2(width, 40));
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+            return clicked;
+        };
+        const ImVec4 activeBlue(0.2f, 0.5f, 0.8f, 1.0f);
+        const bool inMenu = (m_GameState == GameState::MainMenu);
 
-        if (ImGui::Button("CRIPTA DI STASI (GARAGE)", ImVec2(190, 40))) {
+        if (navButton("GARAGE", 120, inMenu && m_CurrentTab == MenuTab::StasisVault, activeBlue)) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::StasisVault;
             if (!m_PlayerRoster.empty() && m_SelectedVaultIndex < static_cast<int>(m_PlayerRoster.size())) {
                 ApplyUnitVisuals(m_PlayerRoster[m_SelectedVaultIndex]);
             }
         }
-        ImGui::PopStyleColor();
 
-        ImGui::SameLine();
-
-        if (m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Deployment)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 1.0f));
-        else
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.1f, 0.15f, 1.0f));
-
-        if (ImGui::Button("SCHIERAMENTO SQUADRA", ImVec2(190, 40))) {
+        if (navButton("SCHIERAMENTO", 150, inMenu && m_CurrentTab == MenuTab::Deployment, activeBlue)) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Deployment;
             if (!m_SelectedSquadIndices.empty() && m_SelectedSquadIndices[0] < static_cast<int>(m_PlayerRoster.size())) {
                 ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
             }
         }
-        ImGui::PopStyleColor();
 
-        ImGui::SameLine();
+        if (navButton("RICERCA", 100, inMenu && m_CurrentTab == MenuTab::Research, activeBlue)) {
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Research;
+        }
 
-        if (m_GameState == GameState::MapEditor)
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
-        else
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.20f, 1.0f));
+        if (navButton("NEGOZIO", 100, inMenu && m_CurrentTab == MenuTab::Shop, ImVec4(0.55f, 0.30f, 0.80f, 1.0f))) {
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Shop;
+        }
 
-        if (ImGui::Button("EDITOR MAPPE", ImVec2(150, 40))) {
+        if (navButton("EDITOR", 90, m_GameState == GameState::MapEditor, ImVec4(0.8f, 0.4f, 0.0f, 1.0f))) {
             m_GameState = GameState::MapEditor;
             if (m_EditorMap.structures.empty()) {
                 m_EditorMap.playerSpawns.push_back(glm::vec3(0.0f, 0.5f, 10.0f));
@@ -2842,15 +3120,10 @@ namespace SunEngine {
             }
             SyncEditorEntitiesWithScene();
         }
-        ImGui::PopStyleColor();
 
-        ImGui::SameLine();
-
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.20f, 1.0f));
-        if (ImGui::Button("OPZIONI", ImVec2(110, 40))) {
+        if (navButton("OPZIONI", 90, false, activeBlue)) {
             m_ShowOptionsMenu = true;
         }
-        ImGui::PopStyleColor();
 
         // Valute del profilo, allineate a destra
         {
@@ -2866,6 +3139,273 @@ namespace SunEngine {
         }
 
         ImGui::PopStyleVar();
+        ImGui::End();
+    }
+
+    // ===================== MODELLI A BLOCCHI DELLE ARME =====================
+    void GameLayer::LoadBlockModels() {
+        const std::string dir = FindValidDir("BlockModels");
+        std::vector<std::string> errors;
+        const int n = m_BlockModels.LoadDirectory(dir, &errors);
+        for (const auto& e : errors) SUN_CORE_WARN("BlockModels: {0}", e);
+        SUN_CORE_INFO("Modelli a blocchi caricati: {0} (cartella: {1})", n, dir);
+    }
+
+    // Associa all'entity dell'arma il modello a blocchi corrispondente (se esiste), altrimenti torna al cubo.
+    void GameLayer::SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId) {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(weaponEntity)) return;
+        const BlockModel* model = m_BlockModels.Find(weaponId);
+        if (model) {
+            if (auto* c = reg.try_get<BlockModelComponent>(weaponEntity)) c->model = model;
+            else reg.emplace<BlockModelComponent>(weaponEntity, BlockModelComponent{ model });
+            reg.get<TransformComponent>(weaponEntity).Scale = glm::vec3(1.0f);   // il modello e' gia' in metri
+        }
+        else if (reg.all_of<BlockModelComponent>(weaponEntity)) {
+            reg.remove<BlockModelComponent>(weaponEntity);
+        }
+    }
+
+    // ===================== RICERCA UNITA' =====================
+    void GameLayer::LoadResearchTree() {
+        const std::string dir = FindValidDir("Research");
+        const std::filesystem::path file = std::filesystem::path(dir) / "research_tree.json";
+        std::string error;
+        if (!m_ResearchTree.Load(file, &error)) {
+            SUN_CORE_WARN("Albero di ricerca non caricato ({0}): {1}", file.string(), error);
+            return;
+        }
+        m_ResearchTree.EnsureRootsResearched(m_Profile);
+        std::vector<std::string> owned;
+        for (const auto& u : m_PlayerRoster) owned.push_back(u.blueprintId);
+        m_ResearchTree.GrandfatherUnits(m_Profile, owned);   // chi ha gia' un garage non perde nulla
+        SUN_CORE_INFO("Albero di ricerca caricato: {0} fazioni", m_ResearchTree.GetFactions().size());
+    }
+
+    // Addebita l'energia e aggiunge una nuova unita' al garage.
+    bool GameLayer::PurchaseResearchedUnit(const ResearchNode& node) {
+        if (static_cast<int>(m_PlayerRoster.size()) >= MAX_ROSTER_SIZE) return false;
+        if (!BlueprintManager::Get().GetUnit(node.unitId)) return false;
+        if (!m_ResearchTree.Pay(m_Profile, node)) return false;
+
+        int sameCount = 0;
+        for (const auto& u : m_PlayerRoster) if (u.blueprintId == node.unitId) ++sameCount;
+        std::string name = node.defaultName;
+        if (sameCount > 0) name += " " + std::to_string(sameCount + 1);
+
+        TrainedUnit newUnit{ name, node.unitId, glm::vec4(node.color[0], node.color[1], node.color[2], node.color[3]) };
+        m_PlayerRoster.push_back(newUnit);
+        m_SelectedVaultIndex = static_cast<int>(m_PlayerRoster.size()) - 1;
+        return true;
+    }
+
+    void GameLayer::RenderResearchUI() {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(20.0f, 70.0f));
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x - 40.0f, io.DisplaySize.y - 90.0f));
+        ImGui::SetNextWindowBgAlpha(1.0f);
+        ImGui::Begin("RICERCA", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+
+        if (!m_ResearchTree.IsLoaded()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Albero di ricerca non caricato.");
+            ImGui::TextDisabled("Manca GameData/Research/research_tree.json (controlla anche la copia nella cartella di build).");
+            ImGui::End();
+            return;
+        }
+
+        if (m_ResearchMessageTimer > 0.0f) m_ResearchMessageTimer -= io.DeltaTime;
+
+        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "ENERGIA: %lld", static_cast<long long>(m_Profile.energy));
+        ImGui::SameLine(0.0f, 24.0f);
+        ImGui::TextDisabled("I punti studio si guadagnano giocando con un'unita' e si spendono per sbloccare le unita' successive.");
+        ImGui::Spacing();
+
+        if (ImGui::BeginTabBar("##ResearchFactions")) {
+            for (const auto& faction : m_ResearchTree.GetFactions()) {
+                if (ImGui::BeginTabItem(faction.name.c_str())) {
+                    DrawResearchFactionTree(faction);
+                    ImGui::EndTabItem();
+                }
+            }
+            ImGui::EndTabBar();
+        }
+        ImGui::End();
+    }
+
+    void GameLayer::DrawResearchFactionTree(const ResearchFaction& faction) {
+        ImGuiIO& io = ImGui::GetIO();
+        const float nodeW = 210.0f, nodeH = 88.0f, gapX = 90.0f, gapY = 26.0f, pad = 24.0f;
+
+        float maxCol = 0.0f, maxRow = 0.0f;
+        for (const auto& n : faction.nodes) { maxCol = std::max(maxCol, n.col); maxRow = std::max(maxRow, n.row); }
+        const float totalW = pad * 2.0f + (maxCol + 1.0f) * nodeW + maxCol * gapX;
+        const float totalH = pad * 2.0f + (maxRow + 1.0f) * nodeH + maxRow * gapY;
+
+        auto col32 = [](float r, float g, float b, float a = 1.0f) { return ImGui::GetColorU32(ImVec4(r, g, b, a)); };
+
+        // Selezione valida solo se appartiene a questa fazione
+        const ResearchNode* selected = nullptr;
+        for (const auto& n : faction.nodes) if (n.id == m_ResearchSelectedNode) selected = &n;
+        if (!selected && !faction.nodes.empty()) selected = &faction.nodes.front();
+
+        // ---------- Albero (da sinistra a destra) ----------
+        ImGui::BeginChild(("##tree_" + faction.id).c_str(), ImVec2(0, io.DisplaySize.y * 0.48f), true,
+            ImGuiWindowFlags_HorizontalScrollbar);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 origin = ImGui::GetCursorScreenPos();
+        auto nodePos = [&](const ResearchNode& n) {
+            return ImVec2(origin.x + pad + n.col * (nodeW + gapX), origin.y + pad + n.row * (nodeH + gapY));
+        };
+
+        // Connettori padre -> figlio (linee a gomito)
+        for (const auto& n : faction.nodes) {
+            const ResearchNode* parent = m_ResearchTree.FindParent(n);
+            if (!parent) continue;
+            const ImVec2 pp = nodePos(*parent), cp = nodePos(n);
+            const ImVec2 a(pp.x + nodeW, pp.y + nodeH * 0.5f), b(cp.x, cp.y + nodeH * 0.5f);
+            const float midX = (a.x + b.x) * 0.5f;
+            const bool unlocked = m_ResearchTree.IsResearched(m_Profile, n);
+            const ImU32 lc = unlocked ? col32(faction.accent[0], faction.accent[1], faction.accent[2]) : col32(0.35f, 0.35f, 0.40f);
+            dl->AddLine(a, ImVec2(midX, a.y), lc, 2.0f);
+            dl->AddLine(ImVec2(midX, a.y), ImVec2(midX, b.y), lc, 2.0f);
+            dl->AddLine(ImVec2(midX, b.y), b, lc, 2.0f);
+        }
+
+        // Nodi
+        for (const auto& n : faction.nodes) {
+            const ImVec2 p = nodePos(n);
+            const ImVec2 p2(p.x + nodeW, p.y + nodeH);
+            const ResearchStatus st = m_ResearchTree.GetStatus(m_Profile, n);
+            const bool hasBp = BlueprintManager::Get().GetUnit(n.unitId) != nullptr;
+            int owned = 0;
+            for (const auto& u : m_PlayerRoster) if (u.blueprintId == n.unitId) ++owned;
+
+            ImVec4 border(0.40f, 0.40f, 0.45f, 1.0f);                       // bloccato
+            if (st == ResearchStatus::Researched) border = ImVec4(0.30f, 0.85f, 0.40f, 1.0f);
+            else if (st == ResearchStatus::Researchable) border = ImVec4(1.0f, 0.80f, 0.20f, 1.0f);
+
+            ImGui::SetCursorScreenPos(p);
+            ImGui::InvisibleButton(("##node_" + n.id).c_str(), ImVec2(nodeW, nodeH));
+            const bool hovered = ImGui::IsItemHovered();
+            if (ImGui::IsItemClicked()) m_ResearchSelectedNode = n.id;
+            const bool isSel = (selected && selected->id == n.id);
+
+            dl->AddRectFilled(p, p2, col32(0.10f, 0.11f, 0.14f), 6.0f);
+            dl->AddRectFilled(p, ImVec2(p.x + 7.0f, p2.y), col32(n.color[0], n.color[1], n.color[2]), 6.0f);   // banda colore unita'
+            dl->AddRect(p, p2, ImGui::GetColorU32(border), 6.0f, 0, isSel ? 3.0f : (hovered ? 2.5f : 1.5f));
+
+            dl->PushClipRect(p, p2, true);
+            const float tx = p.x + 16.0f;
+            dl->AddText(ImVec2(tx, p.y + 8.0f), col32(0.95f, 0.95f, 0.95f), n.name.c_str());
+            char line2[96];
+            std::snprintf(line2, sizeof(line2), "T%d   PS: %lld", n.tier, static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
+            dl->AddText(ImVec2(tx, p.y + 30.0f), col32(0.65f, 0.80f, 1.0f), line2);
+            char line3[96];
+            if (!hasBp) std::snprintf(line3, sizeof(line3), "BLUEPRINT MANCANTE");
+            else if (st == ResearchStatus::Researched) std::snprintf(line3, sizeof(line3), "SBLOCCATA   in garage: %d", owned);
+            else if (st == ResearchStatus::Researchable) std::snprintf(line3, sizeof(line3), "RICERCA: %lld PS", static_cast<long long>(n.researchCost));
+            else if (st == ResearchStatus::LockedPoints) std::snprintf(line3, sizeof(line3), "servono %lld PS", static_cast<long long>(n.researchCost));
+            else std::snprintf(line3, sizeof(line3), "BLOCCATA");
+            dl->AddText(ImVec2(tx, p.y + 54.0f), ImGui::GetColorU32(border), line3);
+            dl->PopClipRect();
+        }
+
+        ImGui::SetCursorScreenPos(origin);
+        ImGui::Dummy(ImVec2(totalW, totalH));   // estende l'area scorrevole fino ai nodi piu' lontani
+        ImGui::EndChild();
+
+        // ---------- Dettaglio del nodo selezionato ----------
+        ImGui::BeginChild(("##detail_" + faction.id).c_str(), ImVec2(0, 0), true);
+        if (selected) {
+            const ResearchNode& n = *selected;
+            const ResearchNode* parent = m_ResearchTree.FindParent(n);
+            const ResearchStatus st = m_ResearchTree.GetStatus(m_Profile, n);
+            const auto* bp = BlueprintManager::Get().GetUnit(n.unitId);
+
+            ImGui::TextColored(ImVec4(faction.accent[0], faction.accent[1], faction.accent[2], 1.0f), "%s   (Tier %d)", n.name.c_str(), n.tier);
+            ImGui::SameLine(0.0f, 20.0f);
+            ImGui::TextDisabled("%s", n.unitId.c_str());
+            ImGui::Separator();
+
+            ImGui::Columns(2, "##detailcols", false);
+            if (bp) {
+                ImGui::Text("Salute: %.0f   Velocita': %.1f   Armatura: %d", bp->health, bp->base_speed, bp->armor_rating);
+                ImGui::Text("Forza: %.0f   Mischia: %.0f   Mira: %.0f", bp->strength, bp->melee_skill, bp->accuracy_skill);
+                ImGui::Text("Costo in punti squadra: %d", bp->point_cost);
+            }
+            else {
+                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Blueprint '%s' non trovato in GameData/Units.", n.unitId.c_str());
+            }
+            ImGui::Text("Punti studio di questa unita': %lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
+            ImGui::NextColumn();
+
+            auto actionButton = [&](const char* label, bool enabled) {
+                if (!enabled) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.40f);
+                const bool clicked = ImGui::Button(label, ImVec2(320, 36));
+                if (!enabled) ImGui::PopStyleVar();
+                return clicked && enabled;
+            };
+            auto setMessage = [&](const std::string& msg) { m_ResearchMessage = msg; m_ResearchMessageTimer = 4.0f; };
+
+            if (st != ResearchStatus::Researched) {
+                // Fase 1: ricerca con i punti studio del PADRE
+                if (parent) {
+                    ImGui::Text("Punti studio di %s: %lld / %lld", parent->name.c_str(),
+                        static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, parent->unitId)),
+                        static_cast<long long>(n.researchCost));
+                }
+                if (st == ResearchStatus::LockedParent && parent) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Sblocca prima: %s", parent->name.c_str());
+                }
+                char label[96];
+                std::snprintf(label, sizeof(label), "RICERCA  (-%lld PS)", static_cast<long long>(n.researchCost));
+                if (actionButton(label, st == ResearchStatus::Researchable)) {
+                    if (m_ResearchTree.Research(m_Profile, n)) setMessage("Ricerca completata: " + n.name);
+                }
+            }
+            else {
+                // Fase 2: acquisto con energia -> nuova unita' nel garage
+                ImGui::Text("Unita' in garage: %d / %d", static_cast<int>(m_PlayerRoster.size()), MAX_ROSTER_SIZE);
+                char label[96];
+                std::snprintf(label, sizeof(label), "ACQUISTA UNITA  (%lld ENERGIA)", static_cast<long long>(n.purchaseCost));
+                const bool roomLeft = static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE;
+                const bool canPay = m_Profile.energy >= n.purchaseCost;
+                if (actionButton(label, bp != nullptr && roomLeft && canPay)) {
+                    if (PurchaseResearchedUnit(n)) setMessage("Aggiunta al garage: " + n.name);
+                }
+                if (!roomLeft) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Garage pieno.");
+                else if (!canPay) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Energia insufficiente.");
+            }
+            ImGui::Columns(1);
+
+            if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "%s", m_ResearchMessage.c_str());
+            }
+        }
+        ImGui::EndChild();
+    }
+
+    // ===================== NEGOZIO =====================
+    void GameLayer::RenderShopUI() {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(20.0f, 70.0f));
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x - 40.0f, io.DisplaySize.y - 90.0f));
+        ImGui::SetNextWindowBgAlpha(1.0f);
+        ImGui::Begin("NEGOZIO", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+
+        ImGui::TextColored(ImVec4(0.7f, 0.4f, 1.0f, 1.0f), "PIETRA NERA: %lld", static_cast<long long>(m_Profile.blackStone));
+        ImGui::Separator();
+
+        const char* msg = "NEGOZIO - WORK IN PROGRESS";
+        const ImVec2 sz = ImGui::CalcTextSize(msg);
+        ImGui::SetCursorPos(ImVec2((io.DisplaySize.x - 40.0f - sz.x) * 0.5f, (io.DisplaySize.y - 90.0f) * 0.4f));
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.75f, 1.0f), "%s", msg);
+        const char* sub = "Qui si usera' solo la valuta premium (Pietra Nera).";
+        const ImVec2 sz2 = ImGui::CalcTextSize(sub);
+        ImGui::SetCursorPosX((io.DisplaySize.x - 40.0f - sz2.x) * 0.5f);
+        ImGui::TextDisabled("%s", sub);
+
         ImGui::End();
     }
 
@@ -2897,10 +3437,9 @@ namespace SunEngine {
 
         if (static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE) {
             ImGui::Spacing();
-            if (ImGui::Button("+ ADDESTRA NUOVA UNITA", ImVec2(-1, 40))) {
-                m_ShowRecruitModal = true;
-                m_RecruitStep = 0;
-                m_SelectedFaction = "";
+            // Le nuove unita' non si reclutano piu' liberamente: si sbloccano e si acquistano nella Ricerca
+            if (ImGui::Button("+ NUOVA UNITA (RICERCA)", ImVec2(-1, 40))) {
+                m_CurrentTab = MenuTab::Research;
             }
         }
         ImGui::End();
@@ -3901,6 +4440,36 @@ namespace SunEngine {
                     ImGui::SliderFloat("##VolumeMusic", &m_VolumeMusic, 0.0f, 1.0f, "%.2f");
 
                     ImGui::Spacing();
+                    ImGui::EndTabItem();
+                }
+
+                if (ImGui::BeginTabItem("Personaggio")) {
+                    ImGui::Spacing();
+                    ImGui::Text("Modello del giocatore:");
+                    if (ImGui::RadioButton("Cuboni (hitbox)", !m_UseAnimatedPlayer)) m_UseAnimatedPlayer = false;
+                    ImGui::SameLine();
+                    const bool animAvailable = m_RifleAnimLoaded && m_SkinnedModelLoaded;
+                    if (ImGui::RadioButton("Animato (FBX)", m_UseAnimatedPlayer) && animAvailable) m_UseAnimatedPlayer = true;
+                    ImGui::TextDisabled("In partita: F2 per passare dall'uno all'altro.");
+                    if (!animAvailable) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Modello/animazioni non caricati.");
+
+                    ImGui::Spacing();
+                    ImGui::Text("Taratura armi sul modello animato:");
+                    ImGui::BeginChild("##WeaponTune", ImVec2(0, 275), true);
+                    ImGui::DragFloat3("Offset (dx,su,avanti) m", &m_HandWeaponOffset.x, 0.005f, -1.0f, 1.0f, "%.3f");
+                    ImGui::DragFloat3("Rotazione (gradi)", &m_HandWeaponRotation.x, 0.5f, -180.0f, 180.0f, "%.1f");
+                    ImGui::DragFloat("Fattore inclinazione mira", &m_WeaponPitchFactor, 0.01f, -2.0f, 2.0f, "%.2f");
+                    ImGui::Checkbox("Segui rotazione della mano", &m_WeaponFollowsHand);
+                    ImGui::Separator();
+                    ImGui::TextDisabled("Armi con modello a blocchi (es. lasgun):");
+                    ImGui::SliderFloat("Allineamento alle mani (0 = dritta)", &m_WeaponHandAlign, 0.0f, 1.0f, "%.2f");
+                    ImGui::DragFloat3("Spostamento (dx,su,indietro) m", &m_WeaponModelGripOffset.x, 0.002f, -0.5f, 0.5f, "%.3f");
+                    ImGui::DragFloat3("Correzione rotazione (gradi)", &m_WeaponModelRotation.x, 0.5f, -180.0f, 180.0f, "%.1f");
+                    ImGui::Separator();
+                    ImGui::TextDisabled("Arma degli orchi (choppa):");
+                    ImGui::DragFloat3("Pugno sul braccio (m, dal fondo)", &m_OrkWeaponHoldOffset.x, 0.01f, -1.0f, 1.0f, "%.2f");
+                    ImGui::DragFloat3("Rotazione lama (gradi)", &m_OrkWeaponModelRotation.x, 1.0f, -180.0f, 180.0f, "%.0f");
+                    ImGui::EndChild();
                     ImGui::EndTabItem();
                 }
 

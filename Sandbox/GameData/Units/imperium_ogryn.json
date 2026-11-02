@@ -1,0 +1,19 @@
+{
+  "id": "imperium_ogryn",
+  "displayName": "Ogryn Bruiser",
+  "point_cost": 30,
+  "stamina": 220.0,
+  "stamina_regen": 12.0,
+  "toughness": 45,
+  "armor_rating": 4,
+  "strength": 75,
+  "accuracy_skill": 25,
+  "melee_skill": 60,
+  "morale": 70,
+  "suppression_threshold": 60,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 400.0,
+  "base_speed": 3.2,
+  "health": 420.0
+}

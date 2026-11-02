@@ -1,0 +1,48 @@
+{
+	"id": "imperium_ogryn",
+	"race": "Ogryn",
+	"blocks": [
+		{
+			"name": "Torso",
+			"parentIndex": -1,
+			"offset": [ 0.00, 1.75, 0.00 ],
+			"pivotOffset": [ 0.00, 0.00, 0.00 ],
+			"size": [ 1.15, 1.20, 0.78 ]
+		},
+		{
+			"name": "Head",
+			"parentIndex": 0,
+			"offset": [ 0.00, 0.60, -0.15 ],
+			"pivotOffset": [ 0.00, 0.18, 0.00 ],
+			"size": [ 0.52, 0.50, 0.50 ]
+		},
+		{
+			"name": "Arm_L",
+			"parentIndex": 0,
+			"offset": [ -0.90, 0.30, -0.10 ],
+			"pivotOffset": [ 0.00, -0.62, 0.00 ],
+			"size": [ 0.55, 1.35, 0.55 ]
+		},
+		{
+			"name": "Arm_R",
+			"parentIndex": 0,
+			"offset": [ 0.90, 0.30, -0.10 ],
+			"pivotOffset": [ 0.00, -0.62, 0.00 ],
+			"size": [ 0.55, 1.35, 0.55 ]
+		},
+		{
+			"name": "Leg_L",
+			"parentIndex": 0,
+			"offset": [ -0.40, -0.60, 0.00 ],
+			"pivotOffset": [ 0.00, -0.57, 0.00 ],
+			"size": [ 0.62, 1.15, 0.62 ]
+		},
+		{
+			"name": "Leg_R",
+			"parentIndex": 0,
+			"offset": [ 0.40, -0.60, 0.00 ],
+			"pivotOffset": [ 0.00, -0.57, 0.00 ],
+			"size": [ 0.62, 1.15, 0.62 ]
+		}
+	]
+}

@@ -1,0 +1,308 @@
+{
+  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Valori di costo provvisori.",
+  "factions": [
+    {
+      "id": "imperium",
+      "name": "GUARDIA IMPERIALE",
+      "accent": [
+        0.85,
+        0.65,
+        0.25
+      ],
+      "nodes": [
+        {
+          "id": "ig_conscript",
+          "unit": "imperium_conscript",
+          "name": "Conscripts",
+          "tier": 1,
+          "col": 0,
+          "row": 1,
+          "parent": "",
+          "research_cost": 0,
+          "purchase_cost": 20,
+          "default_name": "Coscritto",
+          "color": [
+            0.55,
+            0.45,
+            0.3,
+            1
+          ]
+        },
+        {
+          "id": "ig_whiteshield",
+          "unit": "imperium_whiteshield",
+          "name": "Whiteshields",
+          "tier": 2,
+          "col": 1,
+          "row": 1,
+          "parent": "ig_conscript",
+          "research_cost": 15,
+          "purchase_cost": 45,
+          "default_name": "Scudo Bianco",
+          "color": [
+            0.78,
+            0.74,
+            0.66,
+            1
+          ]
+        },
+        {
+          "id": "ig_guardsman",
+          "unit": "imperium_guardsman_recruit",
+          "name": "Guardsman",
+          "tier": 3,
+          "col": 2,
+          "row": 0,
+          "parent": "ig_whiteshield",
+          "research_cost": 30,
+          "purchase_cost": 90,
+          "default_name": "Recluta Vance",
+          "color": [
+            0.65,
+            0.5,
+            0.35,
+            1
+          ]
+        },
+        {
+          "id": "ig_ogryn",
+          "unit": "imperium_ogryn",
+          "name": "Ogryn",
+          "tier": 3,
+          "col": 2,
+          "row": 1,
+          "parent": "ig_whiteshield",
+          "research_cost": 40,
+          "purchase_cost": 140,
+          "default_name": "Ogryn Bruto",
+          "color": [
+            0.6,
+            0.45,
+            0.3,
+            1
+          ]
+        },
+        {
+          "id": "ig_tempestus",
+          "unit": "imperium_kasrkin",
+          "name": "Tempestus Scion",
+          "tier": 3,
+          "col": 2,
+          "row": 2,
+          "parent": "ig_whiteshield",
+          "research_cost": 45,
+          "purchase_cost": 160,
+          "default_name": "Scion Thorne",
+          "color": [
+            0.35,
+            0.25,
+            0.18,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spacemarines",
+      "name": "SPACE MARINES",
+      "accent": [
+        0.25,
+        0.55,
+        0.95
+      ],
+      "nodes": [
+        {
+          "id": "sm_neophyte",
+          "unit": "spacemarines_neophyte",
+          "name": "Neophyte",
+          "tier": 1,
+          "col": 0,
+          "row": 1,
+          "parent": "",
+          "research_cost": 0,
+          "purchase_cost": 60,
+          "default_name": "Neofita Corvo",
+          "color": [
+            0.92,
+            0.72,
+            0.68,
+            1
+          ]
+        },
+        {
+          "id": "sm_scout",
+          "unit": "spacemarines_scout",
+          "name": "Scout",
+          "tier": 2,
+          "col": 1,
+          "row": 1,
+          "parent": "sm_neophyte",
+          "research_cost": 20,
+          "purchase_cost": 100,
+          "default_name": "Scout Ilex",
+          "color": [
+            0.45,
+            0.52,
+            0.4,
+            1
+          ]
+        },
+        {
+          "id": "sm_tacticus",
+          "unit": "spacemarines_battle_brother",
+          "name": "Tacticus",
+          "tier": 3,
+          "col": 2,
+          "row": 0,
+          "parent": "sm_scout",
+          "research_cost": 40,
+          "purchase_cost": 220,
+          "default_name": "Fratello Titus",
+          "color": [
+            0.05,
+            0.25,
+            0.75,
+            1
+          ]
+        },
+        {
+          "id": "sm_phobos",
+          "unit": "spacemarines_phobos",
+          "name": "Phobos",
+          "tier": 3,
+          "col": 2,
+          "row": 1,
+          "parent": "sm_scout",
+          "research_cost": 50,
+          "purchase_cost": 240,
+          "default_name": "Fratello Vael",
+          "color": [
+            0.1,
+            0.22,
+            0.55,
+            1
+          ]
+        },
+        {
+          "id": "sm_gravis",
+          "unit": "spacemarines_gravis",
+          "name": "Gravis",
+          "tier": 3,
+          "col": 2,
+          "row": 2,
+          "parent": "sm_scout",
+          "research_cost": 60,
+          "purchase_cost": 300,
+          "default_name": "Fratello Garran",
+          "color": [
+            0.05,
+            0.18,
+            0.6,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "id": "orks",
+      "name": "ORKS",
+      "accent": [
+        0.25,
+        0.75,
+        0.25
+      ],
+      "nodes": [
+        {
+          "id": "ork_gretchin",
+          "unit": "orks_gretchin",
+          "name": "Gretchin",
+          "tier": 1,
+          "col": 0,
+          "row": 1,
+          "parent": "",
+          "research_cost": 0,
+          "purchase_cost": 15,
+          "default_name": "Snik",
+          "color": [
+            0.3,
+            0.55,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof",
+          "unit": "orks_yoof",
+          "name": "Yoofs",
+          "tier": 2,
+          "col": 1,
+          "row": 1,
+          "parent": "ork_gretchin",
+          "research_cost": 15,
+          "purchase_cost": 35,
+          "default_name": "Grotz",
+          "color": [
+            0.2,
+            0.6,
+            0.2,
+            1
+          ]
+        },
+        {
+          "id": "ork_slugga",
+          "unit": "orks_boy",
+          "name": "Slugga Boy",
+          "tier": 3,
+          "col": 2,
+          "row": 0,
+          "parent": "ork_yoof",
+          "research_cost": 30,
+          "purchase_cost": 80,
+          "default_name": "Gor-Gath",
+          "color": [
+            0.15,
+            0.6,
+            0.15,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota",
+          "unit": "orks_shoota_boy",
+          "name": "Shoota Boy",
+          "tier": 3,
+          "col": 2,
+          "row": 1,
+          "parent": "ork_yoof",
+          "research_cost": 30,
+          "purchase_cost": 90,
+          "default_name": "Zogga",
+          "color": [
+            0.18,
+            0.55,
+            0.18,
+            1
+          ]
+        },
+        {
+          "id": "ork_loota",
+          "unit": "orks_loota",
+          "name": "Loota",
+          "tier": 3,
+          "col": 2,
+          "row": 2,
+          "parent": "ork_yoof",
+          "research_cost": 40,
+          "purchase_cost": 110,
+          "default_name": "Mekk",
+          "color": [
+            0.12,
+            0.45,
+            0.12,
+            1
+          ]
+        }
+      ]
+    }
+  ]
+}
