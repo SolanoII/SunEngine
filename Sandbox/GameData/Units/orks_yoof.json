@@ -1,12 +1,13 @@
 {
   "id": "orks_yoof",
   "displayName": "Ork Yoof",
+  "ai_role": "melee",
   "skeleton": "orks_boy",
   "skeleton_scale": 0.85,
   "animated_body": "ork",
   "model_scale": 0.85,
-  "point_cost": 8,
-  "stamina": 160.0,
+  "point_cost": 11,
+  "stamina": 140.0,
   "stamina_regen": 12.0,
   "toughness": 30,
   "armor_rating": 1,
@@ -14,10 +15,10 @@
   "accuracy_skill": 18,
   "melee_skill": 45,
   "morale": 50,
-  "suppression_threshold": 60,
+  "suppression_threshold": 50,
   "vision_range": 100,
   "fov_degrees": 85,
-  "weight_capacity": 150.0,
+  "weight_capacity": 90.0,
   "base_speed": 4.5,
-  "health": 120.0
+  "health": 110.0
 }

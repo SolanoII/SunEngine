@@ -1,19 +1,21 @@
 {
   "id": "orks_boy",
   "displayName": "Ork Boy",
+  "ai_role": "melee",
+  "point_cost": 18,
   "animated_body": "ork",
   "base_speed": 4.2,
-  "stamina": 160.0,
-  "stamina_regen": 12.0,
-  "health": 180.0,
-  "toughness": 42,
+  "stamina": 170.0,
+  "stamina_regen": 14.0,
+  "health": 160.0,
+  "toughness": 40,
   "armor_rating": 2,
   "strength": 40,
   "accuracy_skill": 20,
   "melee_skill": 60,
   "morale": 65,
-  "suppression_threshold": 80,
+  "suppression_threshold": 70,
   "vision_range": 110,
   "fov_degrees": 85,
-  "weight_capacity": 250.0
+  "weight_capacity": 120.0
 }

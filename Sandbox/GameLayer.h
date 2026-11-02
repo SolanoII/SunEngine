@@ -8,6 +8,8 @@
 #include "Engine/ECS/WeightSystem.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
+#include "Engine/ECS/BotAISystem.h"
+#include "VsBotMatchmaker.h"
 #include "Engine/ECS/ParticleSystem.h"
 #include "Engine/ECS/CorpseSystem.h"
 #include "PlayerProfile.h"
@@ -30,6 +32,7 @@
 #include <miniaudio.h>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace SunEngine {
 
@@ -60,7 +63,7 @@ namespace SunEngine {
         int facePreset = 0;
 
         std::string primaryWeaponId = "lasgun_standard";
-        std::string secondaryWeaponId = "laspistol_m-g";
+        std::string secondaryWeaponId = "laspistol_standard";
         std::string meleeWeaponId = "";
         std::string equipmentSlots[3] = { "", "", "" };
 
@@ -73,10 +76,14 @@ namespace SunEngine {
 
         int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni orco ucciso)
 
+        // Costo in punti squadra: unita' + armi (primaria, secondaria, mischia) + pezzi di armatura
         int CalculateTotalPoints() const {
             int points = 0;
             const auto* unitBp = BlueprintManager::Get().GetUnit(blueprintId);
             if (unitBp) points += unitBp->point_cost;
+            for (const std::string* wId : { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId }) {
+                if (const auto* wBp = BlueprintManager::Get().GetWeapon(*wId)) points += wBp->point_cost;
+            }
 
             std::string ids[6] = { armorHeadId, armorTorsoId, armorLeftArmId, armorRightArmId, armorLeftLegId, armorRightLegId };
             for (const auto& aId : ids) {
@@ -93,6 +100,9 @@ namespace SunEngine {
 
             const auto* w2 = BlueprintManager::Get().GetWeapon(secondaryWeaponId);
             if (w2) weight += w2->weight_kg;
+
+            const auto* w3 = BlueprintManager::Get().GetWeapon(meleeWeaponId);
+            if (w3) weight += w3->weight_kg;
 
             std::string ids[6] = { armorHeadId, armorTorsoId, armorLeftArmId, armorRightArmId, armorLeftLegId, armorRightLegId };
             for (const auto& aId : ids) {
@@ -173,6 +183,20 @@ namespace SunEngine {
         int CalculateSquadPoints() const;
         void CheckUnitDeaths();
         void UpdateHitFeedback(float deltaTime);
+
+        // --- Modalita' Vs Bot: 5 contro 5 contro l'IA, tre code a punteggio ---
+        void RenderVsBotQueues();                          // i 3 bottoni delle code con l'idoneita' della squadra
+        bool StartVsBotMatch(int tierIdx);
+        TrainedUnit MakeBotUnit(const std::string& unitId, int number) const;
+        entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex);
+        void UpdateVsBot(float deltaTime);                 // fine partita (eliminazione o tempo scaduto)
+        void UpdateBotVisuals();                           // arma in mano e posa delle braccia dei bot
+        void RenderVsBotHUD();
+        void RenderVsBotDeathUI();                         // giocatore caduto: prende il controllo di un alleato
+        void RenderVsBotResults();
+        void TakeOverBot(entt::entity bot);
+        void EndVsBotMatch(int result, const char* reason);
+        void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
         void RenderParryRings(bool deferred);      // anello giallo sotto i piedi durante la parata (Q)   // invecchia marcatori di colpo e flash dei blocchi
         void RenderHitMarkers();                   // cerchi sul punto colpito (HUD)
 
@@ -191,6 +215,7 @@ namespace SunEngine {
 
         // --- Ricerca unita' (punti studio -> sblocco, energia -> acquisto) e negozio ---
         void LoadResearchTree();
+        void BuildStarterRoster();   // profilo nuovo: un'unita' iniziale per ramo dell'albero di ricerca
         void RenderResearchUI();
         void DrawResearchFactionTree(const ResearchFaction& faction);
         void RenderShopUI();
@@ -224,6 +249,7 @@ namespace SunEngine {
         MovementSystem m_MovementSystem;
         WeightSystem m_WeightSystem;
         HordeAISystem m_HordeAI;
+        BotAISystem m_BotAI;
         MeleeCombatSystem m_MeleeCombat;
         WeaponSystem m_WeaponSystem;
         ParticleSystem m_ParticleSystem;
@@ -290,7 +316,10 @@ namespace SunEngine {
         std::string m_SelectedFaction = "";
 
         std::vector<int> m_SelectedSquadIndices;
-        const int MAX_SQUAD_POINTS = 150;
+        // Punti battaglia della squadra = somma dei costi delle UNITA' (l'equipaggiamento non conta, come il tier
+        // dei carri in WoT). Massimo 5 unita' e 300 punti, cioe' il cap della coda piu' alta della modalita' Vs Bot.
+        const int MAX_SQUAD_POINTS = 300;
+        const int MAX_SQUAD_SIZE = 5;
         int m_SelectedEventIndex = 0;
         std::string m_SelectedMapId = "warzone_sector4";
 
@@ -356,6 +385,18 @@ namespace SunEngine {
         bool m_IsDraggingGizmo = false;
 
         DeferredRenderer m_DeferredRenderer;
+
+        // Stato della partita Vs Bot
+        bool m_VsBotActive = false;
+        int m_VsBotTier = 0;
+        float m_VsBotTime = 0.0f;
+        const float m_VsBotTimeLimit = 600.0f;     // 10 minuti
+        int m_VsBotResult = 0;                     // 0 in corso, 1 vittoria, 2 sconfitta, 3 pareggio
+        std::string m_VsBotEndReason;
+        int m_VsBotReward = 0;
+        int m_VsBotEnemyKills = 0;
+        std::string m_VsBotMessage;                // esito dell'ultimo tentativo di avvio (es. squadra nemica impossibile)
+        std::unordered_map<entt::entity, TrainedUnit> m_VsBotUnits;   // unita' dei bot (per prendere il controllo degli alleati)
     };
 
 }

@@ -7,7 +7,7 @@
   "hand_type": "TwoHanded",
   "slot_type": "Melee",
   "weight_kg": 8.5,
-  "point_cost": 15,
+  "point_cost": 10,
   "base_damage": 80.0,
   "default_melee_type": "Heavy",
   "weapon_scale": [ 0.10, 0.22, 1.45 ],

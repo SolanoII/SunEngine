@@ -10,6 +10,7 @@
 #include "Engine/ECS/Components.h"
 #include "Engine/ECS/Tags.h"
 #include "Engine/ECS/DamageResolver.h"
+#include "Engine/ECS/RaycastUtils.h"
 #include "Engine/AssetManager/BlueprintManager.h"
 #include "Engine/Physics/SkeletonLoader.h"
 #include "Engine/Scene/MapLoader.h"
@@ -56,6 +57,13 @@ namespace SunEngine {
         if (weapon != entt::null && weapon != enemy && reg.valid(weapon)) {
             reg.destroy(weapon);
         }
+    }
+
+    // Bot della modalita' Vs Bot: anche la loro arma visibile sparisce con loro
+    static void OnBotDestroyed(entt::registry& reg, entt::entity bot) {
+        if (!reg.all_of<BotBrainComponent>(bot)) return;
+        entt::entity weapon = reg.get<BotBrainComponent>(bot).weaponEntity;
+        if (weapon != entt::null && weapon != bot && reg.valid(weapon)) reg.destroy(weapon);
     }
 
     static glm::vec2 WorldToScreen(const glm::vec3& worldPos, const glm::mat4& viewProj, float screenWidth, float screenHeight) {
@@ -761,9 +769,14 @@ namespace SunEngine {
         auto& stats = scene.GetRegistry().get_or_emplace<UnitStatsComponent>(playerEntity);
         stats.baseSpeed = bp->base_speed;
         stats.stamina = bp->stamina;
+        stats.maxStamina = bp->stamina;   // prima restava 100: la stamina recuperava solo fino a 100
         stats.staminaRegen = bp->stamina_regen;
         stats.maxHealth = bp->health;
         stats.currentHealth = bp->health;
+        // La salute vera e' l'HealthComponent: prima restava 100 per qualsiasi unita' (un ogryn aveva 100 PV)
+        auto& unitHealth = scene.GetRegistry().get_or_emplace<HealthComponent>(playerEntity);
+        unitHealth.maxHealth = bp->health;
+        unitHealth.currentHealth = bp->health;
         stats.toughness = bp->toughness;
         stats.strength = bp->strength;
         stats.accuracySkill = bp->accuracy_skill;
@@ -930,8 +943,8 @@ namespace SunEngine {
         int total = 0;
         for (int rosterIdx : m_SelectedSquadIndices) {
             if (rosterIdx >= 0 && rosterIdx < static_cast<int>(m_PlayerRoster.size())) {
-                const auto* bp = BlueprintManager::Get().GetUnit(m_PlayerRoster[rosterIdx].blueprintId);
-                if (bp) total += bp->point_cost;
+                // Punti battaglia: solo il costo dell'unita' (l'equipaggiamento non conta nelle code)
+                if (const auto* bp = BlueprintManager::Get().GetUnit(m_PlayerRoster[rosterIdx].blueprintId)) total += bp->point_cost;
             }
         }
         return total;
@@ -1020,10 +1033,28 @@ namespace SunEngine {
                 horde->weaponEntity = entt::null;
             }
 
+            // Bot: l'arma visibile sparisce alla morte. Le uccisioni contano solo se il caduto e' un avversario
+            // (o un'unita' senza squadra, come l'orda): un alleato morto non da' energia.
+            bool countsAsKill = true;
+            if (auto* bot = reg.try_get<BotBrainComponent>(entity)) {
+                if (bot->weaponEntity != entt::null && reg.valid(bot->weaponEntity)) reg.destroy(bot->weaponEntity);
+                bot->weaponEntity = entt::null;
+            }
+            if (const auto* team = reg.try_get<TeamComponent>(entity)) {
+                countsAsKill = team->team != 0;
+                if (countsAsKill) ++m_VsBotEnemyKills;
+            }
+
             glm::vec3 deathImpulse(0.0f, 1.5f, -3.5f);
             m_PhysicsSystem.KillUnit(m_Scene, entity, deathImpulse);
 
-            if (reg.all_of<CorpseComponent>(entity)) {
+            if (!countsAsKill) {
+                if (!reg.all_of<CorpseComponent>(entity)) {
+                    m_PhysicsSystem.DestroyJoltBody(m_Scene, entity);
+                    m_Scene.DestroyEntity(entity);
+                }
+            }
+            else if (reg.all_of<CorpseComponent>(entity)) {
                 // FIX #4/#19: la kill si conta QUI, nell'unico punto in cui un'unita' non-player muore
                 // (la view esclude PlayerTag). Niente piu' scansione per-frame dei cadaveri ne'
                 // ProcessedCorpseTag: il cadavere del player non puo' piu' essere contato per errore.
@@ -1059,6 +1090,7 @@ namespace SunEngine {
         m_PhysicsSystem.Init(m_Scene);
         // FIX #3: pulizia automatica dell'arma nemica alla distruzione dell'ork
         m_Scene.GetRegistry().on_destroy<HordeAgentComponent>().connect<&OnHordeAgentDestroyed>();
+        m_Scene.GetRegistry().on_destroy<BotBrainComponent>().connect<&OnBotDestroyed>();
         {
             // FIX #6: size iniziale = framebuffer reale (non 1280x720 hardcoded)
             int initW = 1280, initH = 720;
@@ -1182,17 +1214,11 @@ namespace SunEngine {
         }
         m_Scene.GetRegistry().emplace<ParticleEmitterComponent>(m_PlayerEntity);
 
-        TrainedUnit unit1{ "Sgt. Kael", "imperium_kasrkin", glm::vec4(0.35f, 0.45f, 0.25f, 1.0f) };
-        TrainedUnit unit2{ "Recluta Vance", "imperium_guardsman_recruit", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f) };
-        TrainedUnit unit3{ "Gor-Gath", "orks_boy", glm::vec4(0.15f, 0.60f, 0.15f, 1.0f) };
-
-        m_PlayerRoster.push_back(unit1);
-        m_PlayerRoster.push_back(unit2);
-        m_PlayerRoster.push_back(unit3);
-
-        // PROFILO: se esiste un salvataggio sostituisce il roster di default e la squadra selezionata
+        // PROFILO: se esiste un salvataggio carica il roster e la squadra selezionata. Profilo nuovo (o roster
+        // vuoto): LoadResearchTree crea il garage iniziale con la sola unita' radice di ogni ramo.
         LoadRosterFromProfile();
         LoadResearchTree();   // dopo il roster: le unita' gia' possedute risultano sbloccate
+        if (m_PlayerRoster.empty()) BuildStarterRoster();   // albero di ricerca non leggibile: unita' di riserva
         LoadBlockModels();
         if (m_SelectedSquadIndices.empty()) m_SelectedSquadIndices.push_back(0);
         ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
@@ -1224,7 +1250,7 @@ namespace SunEngine {
         m_VolumeMusic = m_Profile.volumeMusic;
         m_UseAnimatedPlayer = m_Profile.animatedPlayer;
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
-        m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 3);
+        m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 4);
     }
 
     void GameLayer::LoadRosterFromProfile() {
@@ -1249,9 +1275,14 @@ namespace SunEngine {
                                              u["armorColor"][2].get<float>(), u["armorColor"][3].get<float>());
                 }
                 t.facePreset = u.value("facePreset", 0);
-                t.primaryWeaponId = u.value("primaryWeaponId", t.primaryWeaponId);
-                t.secondaryWeaponId = u.value("secondaryWeaponId", t.secondaryWeaponId);
-                t.meleeWeaponId = u.value("meleeWeaponId", t.meleeWeaponId);
+                // Armi non piu' presenti nei blueprint (es. "laspistol_m-g", mai esistita): torno al default
+                auto weaponOr = [&](const char* key, const std::string& def) {
+                    std::string id = u.value(key, def);
+                    return (id.empty() || BlueprintManager::Get().GetWeapon(id)) ? id : def;
+                };
+                t.primaryWeaponId = weaponOr("primaryWeaponId", t.primaryWeaponId);
+                t.secondaryWeaponId = weaponOr("secondaryWeaponId", t.secondaryWeaponId);
+                t.meleeWeaponId = weaponOr("meleeWeaponId", t.meleeWeaponId);
                 if (u.contains("equipmentSlots") && u["equipmentSlots"].is_array()) {
                     for (size_t i = 0; i < 3 && i < u["equipmentSlots"].size(); ++i)
                         t.equipmentSlots[i] = u["equipmentSlots"][i].get<std::string>();
@@ -2196,7 +2227,7 @@ namespace SunEngine {
         static bool escPressedLastFrame = false;
         bool escPressed = Input::IsKeyPressed(GLFW_KEY_ESCAPE);
         if (escPressed && !escPressedLastFrame) {
-            if (m_GameState == GameState::Gameplay) {
+            if (m_GameState == GameState::Gameplay && !(m_VsBotActive && m_VsBotResult != 0)) {
                 m_IsPaused = !m_IsPaused;
                 if (window) {
                     glfwSetInputMode(window, GLFW_CURSOR, m_IsPaused ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
@@ -2511,6 +2542,7 @@ namespace SunEngine {
             m_WeightSystem.Update(m_Scene, deltaTime);
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
+            if (m_VsBotActive) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
             m_MeleeCombat.Update(m_Scene, deltaTime);
 
             // F2: cambia al volo tra personaggio a cuboni e personaggio animato
@@ -2966,6 +2998,16 @@ namespace SunEngine {
             m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight, extraFov);
             m_Camera.Update(shakeOffset, 1.0f);
 
+            // Raggio del mirino (centro dello schermo) per far convergere i colpi del giocatore
+            {
+                auto& aim = m_Scene.GetRegistry().get_or_emplace<AimRayComponent>(m_PlayerEntity);
+                const glm::mat4 invView = glm::inverse(m_Camera.GetView());
+                aim.origin = glm::vec3(invView[3]);
+                aim.dir = -glm::normalize(glm::vec3(invView[2]));
+                aim.recoilPitch = recoilPitch;
+                aim.valid = true;
+            }
+
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
 
             if (g_WaaaghActive) {
@@ -3035,14 +3077,18 @@ namespace SunEngine {
                     auto* mState = m_Scene.GetRegistry().try_get<MeleeStateComponent>(enemyEntity);
                     auto* hordeComp = m_Scene.GetRegistry().try_get<HordeAgentComponent>(enemyEntity);
 
+                    const auto* botBrain = m_Scene.GetRegistry().try_get<BotBrainComponent>(enemyEntity);
                     bool isAttacking = mState && (mState->currentPhase != MeleePhase::None);
-                    bool isMoving = hordeComp && (hordeComp->state != HordeState::Waiting);
+                    bool isMoving = (hordeComp && (hordeComp->state != HordeState::Waiting)) || (botBrain && botBrain->isMoving);
+                    const bool botAiming = botBrain && botBrain->isAiming && !isAttacking;
 
                     float animSpeed = isAttacking ? 4.0f : 10.0f;
                     float legAngle = isAttacking ? 5.0f : (isMoving ? std::sin(totalTime * animSpeed) * 35.0f : 0.0f);
                     for (auto& block : skel.data.blocks) {
                         if (block.name == "Leg_L") block.jointRotation.x = legAngle;
                         else if (block.name == "Leg_R") block.jointRotation.x = -legAngle;
+                        else if (botAiming && (block.name == "Arm_R" || block.name == "Arm_L"))
+                            block.jointRotation.x = 78.0f + enemyTrans.AimPitch * 0.65f;   // bot che mira: braccia in avanti
                         else if (block.name == "Arm_R" && !isAttacking) block.jointRotation.x = 25.0f + legAngle * 0.4f;
                         else if (block.name == "Arm_L" && !isAttacking) block.jointRotation.x = 25.0f - legAngle * 0.4f;
                     }
@@ -3077,6 +3123,10 @@ namespace SunEngine {
         }
 
         SyncWeaponAttachment();
+        if (m_VsBotActive) {
+            UpdateBotVisuals();
+            UpdateVsBot(deltaTime);
+        }
 
         auto orkWeaponView = m_Scene.GetRegistry().view<HordeAgentComponent, TransformComponent, SkeletonComponent>();
         for (auto orkEnt : orkWeaponView) {
@@ -3385,13 +3435,22 @@ namespace SunEngine {
             if (!isPlayerDead && !m_IsPaused) {
                 RenderTrainingDummyLabels();
                 RenderHitMarkers();
-                ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f));
-                ImGui::Begin("KillCounterOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
-                ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
-                ImGui::End();
+                if (m_VsBotActive) RenderVsBotHUD();
+                else {
+                    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f));
+                    ImGui::Begin("KillCounterOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
+                    ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
+                    ImGui::End();
+                }
             }
 
-            if (isPlayerDead) {
+            if (m_VsBotActive && m_VsBotResult != 0) {
+                RenderVsBotResults();
+            }
+            else if (isPlayerDead && m_VsBotActive) {
+                RenderVsBotDeathUI();
+            }
+            else if (isPlayerDead) {
                 RenderRespawnUI();
             }
             else if (m_IsPaused) {
@@ -3416,7 +3475,12 @@ namespace SunEngine {
 
                 ImGui::Spacing();
 
-                if (ImGui::Button("Torna al Menu Principale", ImVec2(-1, 40))) {
+                bool backToMenu = ImGui::Button("Torna al Menu Principale", ImVec2(-1, 40));
+                if (backToMenu && m_VsBotActive) {
+                    LeaveVsBotMatch();   // abbandono della partita Vs Bot: nessuna ricompensa
+                    backToMenu = false;
+                }
+                if (backToMenu) {
                     m_GameState = GameState::MainMenu;
                     m_IsPaused = false;
                     m_PlayerDeathHandled = false;
@@ -3566,10 +3630,37 @@ namespace SunEngine {
             return;
         }
         m_ResearchTree.EnsureRootsResearched(m_Profile);
+        if (m_PlayerRoster.empty()) BuildStarterRoster();
         std::vector<std::string> owned;
         for (const auto& u : m_PlayerRoster) owned.push_back(u.blueprintId);
         m_ResearchTree.GrandfatherUnits(m_Profile, owned);   // chi ha gia' un garage non perde nulla
         SUN_CORE_INFO("Albero di ricerca caricato: {0} fazioni", m_ResearchTree.GetFactions().size());
+    }
+
+    // Garage di un profilo nuovo: solo l'unita' iniziale (nodo radice) di ciascun ramo dell'albero di ricerca,
+    // col suo nome e colore predefiniti: oggi coscritto, neofita e gretchin. Se l'albero non e' leggibile si
+    // usano direttamente quelle tre unita'.
+    void GameLayer::BuildStarterRoster() {
+        m_PlayerRoster.clear();
+        if (m_ResearchTree.IsLoaded()) {
+            for (const auto& faction : m_ResearchTree.GetFactions()) {
+                for (const auto& n : faction.nodes) {
+                    if (!n.parentId.empty() || !BlueprintManager::Get().GetUnit(n.unitId)) continue;
+                    if (static_cast<int>(m_PlayerRoster.size()) >= MAX_ROSTER_SIZE) break;
+                    m_PlayerRoster.push_back(TrainedUnit{ n.defaultName, n.unitId,
+                        glm::vec4(n.color[0], n.color[1], n.color[2], n.color[3]) });
+                }
+            }
+        }
+        if (m_PlayerRoster.empty()) {
+            m_PlayerRoster.push_back(TrainedUnit{ "Coscritto", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Neofita Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(0.45f, 0.62f, 0.28f, 1.0f) });
+        }
+        m_SelectedVaultIndex = 0;
+        m_SelectedSquadIndices.clear();
+        m_SelectedSquadIndices.push_back(0);
+        SUN_CORE_INFO("Profilo nuovo: garage iniziale con {0} unita' (una per ramo)", m_PlayerRoster.size());
     }
 
     // Addebita l'energia e aggiunge una nuova unita' al garage.
@@ -3721,7 +3812,7 @@ namespace SunEngine {
             if (bp) {
                 ImGui::Text("Salute: %.0f   Velocita': %.1f   Armatura: %d", bp->health, bp->base_speed, bp->armor_rating);
                 ImGui::Text("Forza: %.0f   Mischia: %.0f   Mira: %.0f", bp->strength, bp->melee_skill, bp->accuracy_skill);
-                ImGui::Text("Costo in punti squadra: %d", bp->point_cost);
+                ImGui::Text("Costo in punti squadra: %d (+ equipaggiamento)", bp->point_cost);
             }
             else {
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Blueprint '%s' non trovato in GameData/Units.", n.unitId.c_str());
@@ -4488,10 +4579,11 @@ namespace SunEngine {
             "Difesa del Settore (Ondata Orki)",
             "Recupero Dati (Tyranidi)",
             "Incursione Profonda",
-            "SANDBOX (Esplorazione Libera)"
+            "SANDBOX (Esplorazione Libera)",
+            "VS BOT (5 contro 5)"
         };
 
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 5; ++i) {
             bool isSelected = (m_SelectedEventIndex == i);
             if (isSelected) ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
 
@@ -4507,7 +4599,13 @@ namespace SunEngine {
 
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-        if (m_SelectedEventIndex == 3) {
+        if (m_SelectedEventIndex == 4) {
+            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "[VS BOT - 5 CONTRO 5]");
+            ImGui::TextWrapped("La tua squadra (fino a 5 unita', completata da alleati IA) contro 5 bot su 'Trincee di "
+                "Solemnace'. Vince chi elimina la squadra avversaria; dopo 10 minuti vince chi ha piu' punti in campo. "
+                "Se cadi prendi il controllo di un alleato vivo. Scegli la coda nel pannello di destra.");
+        }
+        else if (m_SelectedEventIndex == 3) {
             ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.3f, 1.0f), "[MODALITA' SANDBOX]");
             ImGui::TextWrapped("Entrerai nella mappa '%s' senza nemici o eventi temporizzati. Ideale per testare il movimento, il vaulting, le armi e l'architettura.", m_SelectedMapId.c_str());
         }
@@ -4522,7 +4620,8 @@ namespace SunEngine {
         ImGui::Begin("SELEZIONE COMPONENTI SQUADRA", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
         int squadPoints = CalculateSquadPoints();
-        ImGui::Text("Punti Squadra: %d / %d", squadPoints, MAX_SQUAD_POINTS);
+        ImGui::Text("Punti Battaglia: %d / %d   (unita': %d / %d)", squadPoints, MAX_SQUAD_POINTS,
+            static_cast<int>(m_SelectedSquadIndices.size()), MAX_SQUAD_SIZE);
         ImGui::ProgressBar(static_cast<float>(squadPoints) / static_cast<float>(MAX_SQUAD_POINTS), ImVec2(-1, 15), "");
         ImGui::Separator(); ImGui::Spacing();
 
@@ -4530,8 +4629,8 @@ namespace SunEngine {
             auto it = std::find(m_SelectedSquadIndices.begin(), m_SelectedSquadIndices.end(), i);
             bool isInSquad = (it != m_SelectedSquadIndices.end());
 
-            const auto* bp = BlueprintManager::Get().GetUnit(m_PlayerRoster[i].blueprintId);
-            int cost = bp ? bp->point_cost : 10;
+            const auto* unitBpForCost = BlueprintManager::Get().GetUnit(m_PlayerRoster[i].blueprintId);
+            const int cost = unitBpForCost ? unitBpForCost->point_cost : 0;   // punti battaglia (solo l'unita')
 
             std::string label = m_PlayerRoster[i].customName + " [" + std::to_string(cost) + " Pti]";
 
@@ -4546,7 +4645,10 @@ namespace SunEngine {
                     }
                 }
                 else {
-                    if (squadPoints + cost <= MAX_SQUAD_POINTS) {
+                    if (static_cast<int>(m_SelectedSquadIndices.size()) >= MAX_SQUAD_SIZE) {
+                        SUN_CORE_WARN("Squadra al completo: massimo {0} unita'", MAX_SQUAD_SIZE);
+                    }
+                    else if (squadPoints + cost <= MAX_SQUAD_POINTS) {
                         m_SelectedSquadIndices.push_back(i);
                     }
                     else {
@@ -4559,8 +4661,9 @@ namespace SunEngine {
                 }
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%s\nBlueprint: %s | Costo Punti: %d",
-                    m_PlayerRoster[i].customName.c_str(), m_PlayerRoster[i].blueprintId.c_str(), cost);
+                const int withGear = m_PlayerRoster[i].CalculateTotalPoints();
+                ImGui::SetTooltip("%s\nBlueprint: %s\nPunti battaglia: %d (valore con equipaggiamento: %d, non conta nelle code)",
+                    m_PlayerRoster[i].customName.c_str(), m_PlayerRoster[i].blueprintId.c_str(), cost, withGear);
             }
             ImGui::PopStyleColor();
         }
@@ -4590,6 +4693,12 @@ namespace SunEngine {
         }
 
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+
+        if (m_SelectedEventIndex == 4) {
+            RenderVsBotQueues();
+            ImGui::End();
+            return;
+        }
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.25f, 0.10f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.00f, 0.35f, 0.15f, 1.0f));
@@ -4883,6 +4992,466 @@ namespace SunEngine {
 
             ImGui::EndPopup();
         }
+    }
+
+    // ===================== MODALITA' VS BOT (5 contro 5) =====================
+
+    // I tre bottoni delle code: cap, idoneita' della squadra attuale e motivo se non idonea.
+    void GameLayer::RenderVsBotQueues() {
+        const int pts = CalculateSquadPoints();
+        const int n = static_cast<int>(m_SelectedSquadIndices.size());
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "VS BOT - SCEGLI LA CODA");
+        ImGui::Text("La tua squadra: %d punti battaglia, %d unita'", pts, n);
+        ImGui::TextWrapped("Conta solo il costo delle unita'. I posti liberi fino a 5 li occupano alleati IA, scelti "
+            "senza superare il cap della coda; anche la squadra avversaria si avvicina al cap senza mai superarlo.");
+        ImGui::Spacing();
+
+        for (int i = 0; i < 3; ++i) {
+            const auto& tier = kVsBotTiers[i];
+            const bool ok = VsBotEligible(pts, n, tier);
+            char label[96];
+            if (tier.minExclusive <= 0) std::snprintf(label, sizeof(label), "%s\nfino a %d punti", tier.name, tier.cap);
+            else std::snprintf(label, sizeof(label), "%s\nda %d a %d punti", tier.name, tier.minExclusive + 1, tier.cap);
+
+            char status[128];
+            if (ok) std::snprintf(status, sizeof(status), "IDONEA: la tua squadra vale %d / %d", pts, tier.cap);
+            else if (n < 1) std::snprintf(status, sizeof(status), "Seleziona almeno un'unita'");
+            else if (n > kVsBotTeamSize) std::snprintf(status, sizeof(status), "Massimo %d unita'", kVsBotTeamSize);
+            else if (pts > tier.cap) std::snprintf(status, sizeof(status), "NON IDONEA: squadra troppo forte (%d > %d)", pts, tier.cap);
+            else std::snprintf(status, sizeof(status), "NON IDONEA: servono piu' di %d punti (hai %d)", tier.minExclusive, pts);
+
+            ImGui::PushStyleColor(ImGuiCol_Button, ok ? ImVec4(0.15f, 0.55f, 0.20f, 1.0f) : ImVec4(0.35f, 0.12f, 0.12f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ok ? ImVec4(0.20f, 0.70f, 0.28f, 1.0f) : ImVec4(0.35f, 0.12f, 0.12f, 1.0f));
+            ImGui::BeginDisabled(!ok);
+            if (ImGui::Button(label, ImVec2(-1, 58))) {
+                StartVsBotMatch(i);
+            }
+            ImGui::EndDisabled();
+            ImGui::PopStyleColor(2);
+            ImGui::TextColored(ok ? ImVec4(0.4f, 1.0f, 0.5f, 1.0f) : ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", status);
+            ImGui::Spacing();
+        }
+        if (!m_VsBotMessage.empty()) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", m_VsBotMessage.c_str());
+    }
+
+    // Unita' generata per un bot: nome e colore dall'albero di ricerca, armi in base alla fazione.
+    TrainedUnit GameLayer::MakeBotUnit(const std::string& unitId, int number) const {
+        const auto* bp = BlueprintManager::Get().GetUnit(unitId);
+        std::string name = bp ? bp->displayName : unitId;
+        glm::vec4 color = TrainingDummyColor(unitId);
+        if (const ResearchNode* node = m_ResearchTree.FindNodeByUnit(unitId)) {
+            name = node->defaultName;
+            color = glm::vec4(node->color[0], node->color[1], node->color[2], node->color[3]);
+        }
+        if (number > 1) name += " " + std::to_string(number);
+        TrainedUnit u{ name, unitId, color };
+        const std::string faction = VsBotFactionOf(unitId);
+        u.primaryWeaponId = "lasgun_standard";
+        u.secondaryWeaponId = "laspistol_standard";
+        if (faction == "orks") u.meleeWeaponId = "ork_choppa_1h";
+        else if (faction == "spacemarines") u.meleeWeaponId = "standard_chainsword_1h";
+        else if (unitId == "imperium_ogryn") u.meleeWeaponId = "entrenching_shovel_1h";
+        else u.meleeWeaponId = "combat_knife_1h";
+        return u;
+    }
+
+    // Crea un'unita' controllata dall'IA: stesse statistiche, scheletro, armatura e armi del giocatore.
+    entt::entity GameLayer::SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex) {
+        auto& reg = m_Scene.GetRegistry();
+        const auto* bp = BlueprintManager::Get().GetUnit(unit.blueprintId);
+        if (!bp) return entt::null;
+
+        const entt::entity e = m_Scene.CreateEntity();
+        auto& t = reg.emplace<TransformComponent>(e);
+        t.Position = spawnPos;
+        t.Scale = glm::vec3(1.0f);
+        t.Rotation = glm::vec3(0.0f, yawDeg, 0.0f);
+        t.AimYaw = yawDeg;
+
+        SwapPlayerUnit(m_Scene, e, unit.blueprintId);   // statistiche, salute, scheletro, collider, colore
+
+        // Piedi a terra: il collider avvolge lo scheletro, che puo' scendere sotto l'origine
+        if (const auto* col = reg.try_get<ColliderComponent>(e)) t.Position.y = spawnPos.y - (col->localCenterOffset.y - col->halfExtents.y);
+        reg.emplace<RigidBodyComponent>(e, glm::vec3(0.0f), 0.0f, false);
+
+        auto& color = reg.get_or_emplace<ColorComponent>(e);
+        glm::vec4 c = unit.armorColor;
+        if (team == 1) c = glm::mix(c, glm::vec4(0.75f, 0.12f, 0.10f, 1.0f), 0.25f);   // avversari leggermente rossastri
+        color.Color = c; color.BaseColor = c;
+
+        auto& stats = reg.get<UnitStatsComponent>(e);
+        stats.maxStamina = bp->stamina;
+        auto applyPiece = [](const std::string& pieceId, ArmorPiece& piece) {
+            if (const auto* abp = BlueprintManager::Get().GetArmorPiece(pieceId)) {
+                piece.id = abp->id; piece.name = abp->displayName; piece.armorRating = abp->armorRating;
+                piece.coverage = abp->coverage; piece.maxDurability = abp->maxDurability;
+                piece.currentDurability = abp->maxDurability; piece.weight = abp->weight; piece.pointCost = abp->pointCost;
+            }
+            else piece = {};
+        };
+        applyPiece(unit.armorHeadId, stats.armorSet.head);
+        applyPiece(unit.armorTorsoId, stats.armorSet.torso);
+        applyPiece(unit.armorLeftArmId, stats.armorSet.leftArm);
+        applyPiece(unit.armorRightArmId, stats.armorSet.rightArm);
+        applyPiece(unit.armorLeftLegId, stats.armorSet.leftLeg);
+        applyPiece(unit.armorRightLegId, stats.armorSet.rightLeg);
+        stats.currentWeight = unit.CalculateTotalWeight();
+
+        auto& inv = reg.emplace<InventoryComponent>(e);
+        inv.primaryWeaponId = unit.primaryWeaponId;
+        inv.secondaryWeaponId = unit.secondaryWeaponId;
+        inv.meleeWeaponId = unit.meleeWeaponId;
+        inv.currentSlot = 0;
+        reg.emplace<WeaponBlueprintId>(e, unit.primaryWeaponId);
+        auto& ws = reg.emplace<WeaponStateComponent>(e);
+        if (const auto* wbp = BlueprintManager::Get().GetWeapon(unit.primaryWeaponId)) ws.currentAmmo = wbp->magazine_size;
+        reg.emplace<CameraRecoilComponent>(e);
+        reg.emplace<MeleeStateComponent>(e);
+        reg.emplace<WeaponTriggerComponent>(e);
+        reg.emplace<TeamComponent>(e, TeamComponent{ team });
+
+        auto& brain = reg.emplace<BotBrainComponent>(e);
+        brain.role = bp->ai_role == "ranged" ? BotRole::Ranged : (bp->ai_role == "melee" ? BotRole::Melee : BotRole::Versatile);
+        brain.displayName = unit.customName;
+        brain.rosterIndex = rosterIndex;
+        brain.healthLastThink = bp->health;
+        brain.thinkTimer = Random::Range(0.0f, 0.4f);
+        brain.advanceSide = Random::Range(-1.0f, 1.0f);
+        brain.lastPos = t.Position;
+
+        // Arma visibile in mano (modello a blocchi se esiste, altrimenti un cubo)
+        brain.weaponEntity = m_Scene.CreateEntity();
+        reg.emplace<TransformComponent>(brain.weaponEntity).Scale = glm::vec3(0.08f, 0.10f, 0.70f);
+        reg.emplace<MeshComponent>(brain.weaponEntity, 0u);
+        auto& wc = reg.emplace<ColorComponent>(brain.weaponEntity);
+        wc.Color = glm::vec4(0.2f, 0.2f, 0.24f, 1.0f); wc.BaseColor = wc.Color;
+
+        m_VsBotUnits[e] = unit;
+        return e;
+    }
+
+    bool GameLayer::StartVsBotMatch(int tierIdx) {
+        m_VsBotMessage.clear();
+        if (tierIdx < 0 || tierIdx > 2 || m_SelectedSquadIndices.empty()) return false;
+        const VsBotQueueTier& tier = kVsBotTiers[tierIdx];
+        const int squadPoints = CalculateSquadPoints();
+        const int squadSize = static_cast<int>(m_SelectedSquadIndices.size());
+        if (!VsBotEligible(squadPoints, squadSize, tier)) return false;
+
+        // Squadre: alleati IA fino a 5 (stessa fazione del capo squadra se possibile) e avversari casuali,
+        // entrambi vicini al cap della coda ma mai oltre.
+        std::vector<VsBotCandidate> all;
+        for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) all.push_back({ id, bp.point_cost, VsBotFactionOf(id) });
+        std::sort(all.begin(), all.end(), [](const VsBotCandidate& a, const VsBotCandidate& b) { return a.unitId < b.unitId; });
+        std::mt19937 rng(std::random_device{}());
+        const TrainedUnit& leader = m_PlayerRoster[m_SelectedSquadIndices[0]];
+        const auto allyIds = VsBotBuildAllies(all, VsBotFactionOf(leader.blueprintId), squadPoints, squadSize, tier, rng);
+        const auto enemyIds = VsBotBuildEnemyTeam(all, tier, rng);
+        if (enemyIds.empty()) {
+            m_VsBotMessage = "Impossibile formare una squadra avversaria per questa coda.";
+            return false;
+        }
+
+        // Scena pulita e mappa 5v5
+        auto view = m_Scene.GetRegistry().view<ColliderComponent>(entt::exclude<PlayerTag>);
+        for (auto e : view) { m_PhysicsSystem.DestroyJoltBody(m_Scene, e); m_Scene.DestroyEntity(e); }
+        m_VsBotUnits.clear();
+        if (!ReloadMap("vsbot_trincee")) SUN_CORE_WARN("Vs Bot: mappa caricata senza navmesh, i bot non potranno muoversi");
+        const auto& spawn0 = m_CurrentMapData.playerSpawnPoints;
+        const auto& spawn1 = m_CurrentMapData.enemySpawnPoints;
+        auto spawnAt = [](const std::vector<glm::vec3>& pts, size_t i) {
+            if (pts.empty()) return glm::vec3(static_cast<float>(i) * 1.5f, 0.0f, 0.0f);
+            return pts[i % pts.size()] + glm::vec3(0.0f, 0.0f, static_cast<float>(i / pts.size()) * 1.5f);
+        };
+        glm::vec3 base0(0.0f), base1(0.0f);
+        for (const auto& p : spawn0) base0 += p;
+        for (const auto& p : spawn1) base1 += p;
+        if (!spawn0.empty()) base0 /= static_cast<float>(spawn0.size());
+        if (!spawn1.empty()) base1 /= static_cast<float>(spawn1.size());
+        m_BotAI.SetTeamBases(base0, base1);
+        const float yaw0 = glm::degrees(std::atan2(-(base1 - base0).x, -(base1 - base0).z));   // squadra 0 guarda verso i nemici
+        const float yaw1 = yaw0 + 180.0f;
+
+        // Giocatore = capo squadra
+        m_ActiveSquad.clear();
+        for (int rosterIdx : m_SelectedSquadIndices) m_ActiveSquad.push_back(ActiveSquadMember{ rosterIdx, true, 100.0f });
+        m_CurrentSquadMemberIdx = 0;
+        m_KillCount = 0;
+        m_PlayerDeathHandled = false;
+        ClearPlayerDeathState();
+        ApplyUnitVisuals(leader);
+        auto& reg = m_Scene.GetRegistry();
+        reg.emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 });
+        if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
+            pt->Position = spawnAt(spawn0, 0);
+            pt->AimYaw = yaw0; pt->Rotation.y = yaw0; pt->AimPitch = 0.0f;
+            m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, pt->Position);
+        }
+        if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = hp->maxHealth;
+
+        // Resto della squadra del giocatore (IA) + alleati generati + avversari
+        size_t slot = 1;
+        for (size_t i = 1; i < m_SelectedSquadIndices.size(); ++i, ++slot) {
+            const int rosterIdx = m_SelectedSquadIndices[i];
+            SpawnBot(m_PlayerRoster[rosterIdx], 0, spawnAt(spawn0, slot), yaw0, rosterIdx);
+        }
+        std::unordered_map<std::string, int> counts;
+        for (const auto& id : allyIds) SpawnBot(MakeBotUnit(id, ++counts[id]), 0, spawnAt(spawn0, slot++), yaw0, -1);
+        counts.clear();
+        for (size_t i = 0; i < enemyIds.size(); ++i) SpawnBot(MakeBotUnit(enemyIds[i], ++counts[enemyIds[i]]), 1, spawnAt(spawn1, i), yaw1, -1);
+        m_PhysicsSystem.RefreshBodies(m_Scene);
+
+        int enemyPts = 0, allyPts = squadPoints;
+        for (const auto& id : enemyIds) if (const auto* bp = BlueprintManager::Get().GetUnit(id)) enemyPts += bp->point_cost;
+        for (const auto& id : allyIds) if (const auto* bp = BlueprintManager::Get().GetUnit(id)) allyPts += bp->point_cost;
+        SUN_CORE_INFO("Vs Bot {0}: squadra {1} pti ({2} unita'), avversari {3} pti ({4} unita')",
+            tier.name, allyPts, squadSize + allyIds.size(), enemyPts, enemyIds.size());
+
+        g_WaaaghActive = false;
+        m_VsBotActive = true;
+        m_VsBotTier = tierIdx;
+        m_VsBotTime = 0.0f;
+        m_VsBotResult = 0;
+        m_VsBotReward = 0;
+        m_VsBotEnemyKills = 0;
+        m_VsBotEndReason.clear();
+        m_IsPaused = false;
+        m_GameState = GameState::Gameplay;
+        if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        return true;
+    }
+
+    // Fine partita: squadra eliminata, oppure allo scadere vince chi ha piu' punti battaglia ancora in campo.
+    void GameLayer::UpdateVsBot(float deltaTime) {
+        if (!m_VsBotActive || m_VsBotResult != 0) return;
+        if (!m_IsPaused) m_VsBotTime += deltaTime;
+        auto& reg = m_Scene.GetRegistry();
+        int alive[2] = { 0, 0 }, points[2] = { 0, 0 };
+        auto view = reg.view<TeamComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+        for (auto e : view) {
+            if (view.get<HealthComponent>(e).currentHealth <= 0.0f) continue;
+            const int team = view.get<TeamComponent>(e).team == 1 ? 1 : 0;
+            ++alive[team];
+            if (const auto* uid = reg.try_get<UnitBlueprintId>(e))
+                if (const auto* bp = BlueprintManager::Get().GetUnit(uid->id)) points[team] += bp->point_cost;
+        }
+        if (alive[1] == 0) EndVsBotMatch(1, "Squadra avversaria eliminata");
+        else if (alive[0] == 0) EndVsBotMatch(2, "La tua squadra e' stata eliminata");
+        else if (m_VsBotTime >= m_VsBotTimeLimit) {
+            if (points[0] > points[1]) EndVsBotMatch(1, "Tempo scaduto: hai piu' punti in campo");
+            else if (points[0] < points[1]) EndVsBotMatch(2, "Tempo scaduto: gli avversari hanno piu' punti in campo");
+            else EndVsBotMatch(3, "Tempo scaduto: parita' di punti in campo");
+        }
+    }
+
+    void GameLayer::EndVsBotMatch(int result, const char* reason) {
+        m_VsBotResult = result;
+        m_VsBotEndReason = reason;
+        static const int kWin[3] = { 10, 25, 50 }, kDraw[3] = { 6, 15, 30 }, kLoss[3] = { 3, 8, 15 };
+        const int t = std::clamp(m_VsBotTier, 0, 2);
+        m_VsBotReward = result == 1 ? kWin[t] : (result == 3 ? kDraw[t] : kLoss[t]);
+        m_Profile.energy += m_VsBotReward;
+        m_IsPaused = true;   // la simulazione si ferma sotto la schermata dei risultati
+        if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        SUN_CORE_INFO("Vs Bot terminata: {0} (+{1} energia)", reason, m_VsBotReward);
+    }
+
+    void GameLayer::LeaveVsBotMatch() {
+        auto& reg = m_Scene.GetRegistry();
+        std::vector<entt::entity> toDestroy;
+        auto view = reg.view<HealthComponent>(entt::exclude<PlayerTag>);
+        for (auto e : view) toDestroy.push_back(e);
+        for (auto e : toDestroy) {
+            if (!reg.valid(e)) continue;
+            m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
+            m_Scene.DestroyEntity(e);   // l'observer dei bot elimina anche l'arma
+        }
+        m_VsBotUnits.clear();
+        if (reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
+        m_VsBotActive = false;
+        m_VsBotResult = 0;
+        m_IsPaused = false;
+        m_PlayerDeathHandled = false;
+        ClearPlayerDeathState();
+        if (!m_SelectedSquadIndices.empty() && m_SelectedSquadIndices[0] < static_cast<int>(m_PlayerRoster.size()))
+            ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
+        if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = hp->maxHealth;
+        m_GameState = GameState::MainMenu;
+        if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    // Il giocatore caduto prende il posto di un alleato vivo (posizione, salute e unita' dell'alleato).
+    void GameLayer::TakeOverBot(entt::entity bot) {
+        auto& reg = m_Scene.GetRegistry();
+        auto it = m_VsBotUnits.find(bot);
+        if (it == m_VsBotUnits.end() || !reg.valid(bot)) return;
+        const TrainedUnit unit = it->second;
+        const auto bt = reg.get<TransformComponent>(bot);
+        const float hpNow = reg.get<HealthComponent>(bot).currentHealth;
+        const int rosterIdx = reg.get<BotBrainComponent>(bot).rosterIndex;
+        m_VsBotUnits.erase(it);
+        m_PhysicsSystem.DestroyJoltBody(m_Scene, bot);
+        m_Scene.DestroyEntity(bot);
+
+        ClearPlayerDeathState();
+        ApplyUnitVisuals(unit);
+        if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
+            pt->Position = bt.Position;
+            pt->AimYaw = bt.AimYaw; pt->Rotation.y = bt.AimYaw; pt->AimPitch = 0.0f;
+            m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, pt->Position);
+        }
+        if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = std::min(hpNow, hp->maxHealth);
+        if (auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
+            melee->currentPhase = MeleePhase::None; melee->currentAttack = MeleeAttackType::None;
+            melee->currentAttackNode = ""; melee->stateTimer = 0.0f; melee->bufferedInput = "";
+            melee->inputBufferTimer = 0.0f; melee->hasHitInThisAttack = false;
+        }
+        if (auto* ws = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {
+            ws->isReloading = false; ws->reloadTimer = 0.0f; ws->fireCooldown = 0.0f; ws->currentHeat = 0.0f; ws->isOverheating = false;
+            if (auto* wbp = reg.try_get<WeaponBlueprintId>(m_PlayerEntity))
+                if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) ws->currentAmmo = bp->magazine_size;
+        }
+        m_CurrentSquadMemberIdx = -1;   // alleato generato: niente esperienza a un'unita' del garage
+        for (size_t i = 0; i < m_ActiveSquad.size(); ++i) if (m_ActiveSquad[i].rosterIndex == rosterIdx && rosterIdx >= 0) m_CurrentSquadMemberIdx = static_cast<int>(i);
+        m_PlayerDeathHandled = false;
+        if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+
+    // Arma in mano ai bot: modello a blocchi dell'arma attiva (o un cubo) sul fondo del braccio destro,
+    // orientata lungo la mira.
+    void GameLayer::UpdateBotVisuals() {
+        auto& reg = m_Scene.GetRegistry();
+        auto view = reg.view<BotBrainComponent, TransformComponent, SkeletonComponent>(entt::exclude<CorpseComponent>);
+        for (auto e : view) {
+            auto& brain = view.get<BotBrainComponent>(e);
+            if (!reg.valid(brain.weaponEntity)) continue;
+            const auto& t = view.get<TransformComponent>(e);
+            const auto& skel = view.get<SkeletonComponent>(e);
+            int armR = -1;
+            for (size_t i = 0; i < skel.data.blocks.size(); ++i) if (skel.data.blocks[i].name == "Arm_R") { armR = static_cast<int>(i); break; }
+            if (armR < 0) continue;
+            const auto mats = skel.data.ComputeWorldTransforms(t.Position, t.Rotation, skel.scale);
+            if (armR >= static_cast<int>(mats.size())) continue;
+            const glm::mat4& arm = mats[armR];
+            glm::mat4 armRot(1.0f);
+            for (int i = 0; i < 3; ++i) armRot[i] = glm::vec4(glm::normalize(glm::vec3(arm[i])), 0.0f);
+            const glm::vec3 armSize = skel.data.blocks[armR].size * skel.scale;
+            const glm::vec3 hand = glm::vec3(arm[3]) + glm::vec3(armRot * glm::vec4(0.0f, -armSize.y * 0.5f, 0.0f, 0.0f));
+
+            std::string weaponId;
+            if (const auto* wid = reg.try_get<WeaponBlueprintId>(e)) weaponId = wid->id;
+            const glm::mat4 weaponRot = glm::eulerAngleYXZ(glm::radians(t.AimYaw), glm::radians(t.AimPitch), 0.0f);
+            auto& wt = reg.get<TransformComponent>(brain.weaponEntity);
+            const BlockModel* model = m_BlockModels.Find(weaponId);
+            if (model) {
+                const glm::vec3 grip = model->hasGripRight ? model->gripRight : glm::vec3(0.0f);
+                wt.Position = hand - glm::vec3(weaponRot * glm::vec4(grip, 0.0f));
+                SetWeaponBlockModel(brain.weaponEntity, weaponId);
+            }
+            else {
+                if (reg.all_of<BlockModelComponent>(brain.weaponEntity)) reg.remove<BlockModelComponent>(brain.weaponEntity);
+                wt.Scale = glm::vec3(0.08f, 0.10f, 0.70f);
+                wt.Position = hand + glm::vec3(weaponRot * glm::vec4(0.0f, 0.0f, -0.30f, 0.0f));
+            }
+            float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+            glm::extractEulerAngleYXZ(weaponRot, yaw, pitch, roll);
+            wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+        }
+    }
+
+    // HUD della partita: squadre in vita, tempo, nomi sopra le unita' (alleati sempre, avversari solo se visibili).
+    void GameLayer::RenderVsBotHUD() {
+        auto& reg = m_Scene.GetRegistry();
+        int alive[2] = { 0, 0 };
+        auto teams = reg.view<TeamComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+        for (auto e : teams) if (teams.get<HealthComponent>(e).currentHealth > 0.0f) ++alive[teams.get<TeamComponent>(e).team == 1 ? 1 : 0];
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 12.0f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+        ImGui::Begin("VsBotHUD", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs);
+        const int left = std::max(0, static_cast<int>(m_VsBotTimeLimit - m_VsBotTime));
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "%s", kVsBotTiers[std::clamp(m_VsBotTier, 0, 2)].name);
+        ImGui::SameLine(); ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "  ALLEATI %d/5", alive[0]);
+        ImGui::SameLine(); ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.35f, 1.0f), "  NEMICI %d/5", alive[1]);
+        ImGui::SameLine(); ImGui::Text("   %02d:%02d   eliminati: %d", left / 60, left % 60, m_VsBotEnemyKills);
+        ImGui::End();
+
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        const glm::vec3 camPos = m_Camera.GetPosition();
+        auto bots = reg.view<BotBrainComponent, TeamComponent, HealthComponent, TransformComponent>(entt::exclude<CorpseComponent>);
+        for (auto e : bots) {
+            const auto& h = bots.get<HealthComponent>(e);
+            if (h.currentHealth <= 0.0f) continue;
+            const bool ally = bots.get<TeamComponent>(e).team == 0;
+            const auto& t = bots.get<TransformComponent>(e);
+            if (glm::distance(camPos, t.Position) > (ally ? 120.0f : 80.0f)) continue;
+            float topY = 2.0f;
+            if (const auto* col = reg.try_get<ColliderComponent>(e)) topY = col->localCenterOffset.y + col->halfExtents.y;
+            const glm::vec3 anchor = t.Position + glm::vec3(0.0f, topY + 0.3f, 0.0f);
+            if (!ally && !HasLineOfSight(m_Scene, camPos, anchor - glm::vec3(0.0f, 0.5f, 0.0f), m_PlayerEntity)) continue;
+            const glm::vec4 clip = vp * glm::vec4(anchor, 1.0f);
+            if (clip.w <= 0.05f) continue;
+            const glm::vec2 sp = WorldToScreen(anchor, vp, m_WindowWidth, m_WindowHeight);
+            const auto& brain = bots.get<BotBrainComponent>(e);
+            const ImU32 col = ally ? IM_COL32(110, 210, 255, 255) : IM_COL32(255, 95, 80, 255);
+            const ImVec2 ts = ImGui::CalcTextSize(brain.displayName.c_str());
+            dl->AddText(ImVec2(sp.x - ts.x * 0.5f, sp.y - ts.y - 8.0f), col, brain.displayName.c_str());
+            const float frac = std::clamp(h.currentHealth / std::max(1.0f, h.maxHealth), 0.0f, 1.0f);
+            dl->AddRectFilled(ImVec2(sp.x - 30.0f, sp.y - 5.0f), ImVec2(sp.x + 30.0f, sp.y), IM_COL32(40, 40, 45, 220), 2.0f);
+            dl->AddRectFilled(ImVec2(sp.x - 30.0f, sp.y - 5.0f), ImVec2(sp.x - 30.0f + 60.0f * frac, sp.y), col, 2.0f);
+        }
+    }
+
+    void GameLayer::RenderVsBotDeathUI() {
+        auto& reg = m_Scene.GetRegistry();
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(440, 0));
+        ImGui::Begin("SEI CADUTO", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f), "Prendi il controllo di un alleato ancora vivo:");
+        ImGui::Separator(); ImGui::Spacing();
+        std::vector<entt::entity> allies;
+        auto view = reg.view<BotBrainComponent, TeamComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+        for (auto e : view) if (view.get<TeamComponent>(e).team == 0 && view.get<HealthComponent>(e).currentHealth > 0.0f) allies.push_back(e);
+        entt::entity chosen = entt::null;
+        for (auto e : allies) {
+            const auto& h = reg.get<HealthComponent>(e);
+            const auto* uid = reg.try_get<UnitBlueprintId>(e);
+            const auto* bp = uid ? BlueprintManager::Get().GetUnit(uid->id) : nullptr;
+            char label[160];
+            std::snprintf(label, sizeof(label), "%s  (%s)  PV %.0f / %.0f##%u", reg.get<BotBrainComponent>(e).displayName.c_str(),
+                bp ? bp->displayName.c_str() : "?", h.currentHealth, h.maxHealth, static_cast<unsigned>(e));
+            if (ImGui::Button(label, ImVec2(-1, 42))) chosen = e;
+        }
+        if (allies.empty()) ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Nessun alleato in vita.");
+        ImGui::Spacing(); ImGui::Separator();
+        const bool leave = ImGui::Button("Abbandona la partita", ImVec2(-1, 34));
+        ImGui::End();
+        if (chosen != entt::null) TakeOverBot(chosen);
+        else if (leave) LeaveVsBotMatch();
+    }
+
+    void GameLayer::RenderVsBotResults() {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(420, 0));
+        ImGui::Begin("FINE PARTITA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+        const char* title = m_VsBotResult == 1 ? "VITTORIA" : (m_VsBotResult == 2 ? "SCONFITTA" : "PAREGGIO");
+        const ImVec4 col = m_VsBotResult == 1 ? ImVec4(0.3f, 1.0f, 0.4f, 1.0f) : (m_VsBotResult == 2 ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f) : ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
+        ImGui::TextColored(col, "%s", title);
+        ImGui::Text("%s", m_VsBotEndReason.c_str());
+        ImGui::Separator(); ImGui::Spacing();
+        const int secs = static_cast<int>(m_VsBotTime);
+        ImGui::Text("Coda: %s", kVsBotTiers[std::clamp(m_VsBotTier, 0, 2)].name);
+        ImGui::Text("Durata: %02d:%02d", secs / 60, secs % 60);
+        ImGui::Text("Avversari eliminati dalla squadra: %d", m_VsBotEnemyKills);
+        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "Energia ottenuta: +%d (piu' 1 per ogni avversario eliminato)", m_VsBotReward);
+        ImGui::Spacing();
+        const bool back = ImGui::Button("Torna al garage", ImVec2(-1, 44));
+        ImGui::End();
+        if (back) LeaveVsBotMatch();
     }
 
 } // namespace SunEngine

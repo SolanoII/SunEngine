@@ -80,6 +80,11 @@ namespace SunEngine {
         RaycastResult RaycastAll(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
             float maxDist, entt::entity shooter);
 
+        // Direzione di tiro dalla bocca verso il punto inquadrato dal mirino (AimRayComponent). Senza raggio
+        // del mirino (nemici) ritorna baseDir.
+        glm::vec3 AimAtCrosshair(Scene& scene, entt::entity shooter, const glm::vec3& muzzle,
+            const glm::vec3& baseDir, float range, float currentRecoilPitch);
+
         bool RaycastHitbox(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
             float maxDist, entt::entity shooter, entt::entity& outHitEntity,
             HitboxLocation& outLocation, float& outHitDist);

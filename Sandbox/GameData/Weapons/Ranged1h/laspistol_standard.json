@@ -5,7 +5,7 @@
 	"slot_type": "secondary",
 	"hand_type": "OneHanded",
 	"weight_kg": 1.2,
-	"point_cost": 6,
+	"point_cost": 4,
 	"has_scope": false,
 	"has_underbarrel": false,
 	"is_melee": false,

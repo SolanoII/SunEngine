@@ -263,6 +263,7 @@ namespace SunEngine {
                 bp.skeleton_scale = j.value("skeleton_scale", 1.0f);
                 bp.animated_body = j.value("animated_body", std::string());
                 bp.model_scale = j.value("model_scale", 1.0f);
+                bp.ai_role = j.value("ai_role", std::string());
                 bp.point_cost = j.value("point_cost", 15);
                 bp.base_speed = j.value("base_speed", 5.0f);
                 bp.stamina = j.value("stamina", 100.0f);

@@ -158,6 +158,7 @@ namespace SunEngine {
         auto targetView = reg.view<TransformComponent, HealthComponent, UnitStatsComponent>(entt::exclude<CorpseComponent>);
         for (auto defender : targetView) {
             if (defender == attacker) continue;
+            if (SameTeam(reg, attacker, defender)) continue;   // niente colpi agli alleati
             const auto& defTrans = targetView.get<TransformComponent>(defender);
             const auto& defHealth = targetView.get<HealthComponent>(defender);
             if (defHealth.currentHealth <= 0.0f) continue;

@@ -153,6 +153,8 @@ namespace SunEngine {
         float skeleton_scale = 1.0f;
         std::string animated_body;
         float model_scale = 1.0f;
+        // Comportamento dei bot: "ranged" (tiratore), "versatile", "melee" (vuoto = versatile)
+        std::string ai_role;
         int point_cost = 10;
         float base_speed = 0.0f;
         float stamina = 0.0f;

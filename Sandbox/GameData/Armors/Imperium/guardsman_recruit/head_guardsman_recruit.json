@@ -6,7 +6,7 @@
   "coverage": 0.75,
   "max_durability": 100.0,
   "weight": 2.5,
-  "point_cost": 3,
+  "point_cost": 2,
   "faction": "Imperium",
   "unit_restriction": "imperium_guardsman_recruit"
 }

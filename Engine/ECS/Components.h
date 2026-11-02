@@ -305,6 +305,16 @@ namespace SunEngine {
         float projectileWidth = 0.05f;
     };
 
+    // Raggio del mirino (centro dello schermo) pubblicato ogni frame dalla telecamera di gioco. La telecamera
+    // sta sopra la spalla destra: i colpi del giocatore convergono sul punto inquadrato dal mirino invece di
+    // partire paralleli alla vista dalla canna (che li faceva finire a sinistra del mirino).
+    struct AimRayComponent {
+        glm::vec3 origin{ 0.0f };
+        glm::vec3 dir{ 0.0f, 0.0f, -1.0f };
+        float recoilPitch = 0.0f;   // rinculo verticale gia' compreso nella vista quando il raggio e' stato preso
+        bool valid = false;
+    };
+
     struct CameraRecoilComponent {
         float recoilPitch = 0.0f;
         float recoilYaw = 0.0f;
@@ -498,5 +508,85 @@ namespace SunEngine {
         float emissive = 0.0f;
         // Modello vuoto di default: non renderizzato finché non setti i puntatori
     };                               // ← aggiungi ; 
+
+    // ===================== MODALITA' VS BOT (5 contro 5) =====================
+
+    // Squadra di appartenenza. 0 = giocatore e alleati, 1 = avversari. Le unita' della stessa squadra non si
+    // colpiscono (ne' a distanza ne' in mischia). Le unita' senza squadra (orda, manichini) restano colpibili da tutti.
+    struct TeamComponent {
+        int team = 0;
+    };
+
+    inline bool SameTeam(const entt::registry& reg, entt::entity a, entt::entity b) {
+        const auto* ta = reg.try_get<TeamComponent>(a);
+        const auto* tb = reg.try_get<TeamComponent>(b);
+        return ta && tb && ta->team == tb->team;
+    }
+
+    // Grilletto per le unita' non controllate dal giocatore: lo imposta l'IA, lo legge WeaponSystem al posto
+    // del mouse e del tasto R.
+    struct WeaponTriggerComponent {
+        bool fire = false;
+        bool reload = false;
+    };
+
+    // Ruolo di combattimento dell'IA ("ai_role" nel blueprint dell'unita')
+    enum class BotRole {
+        Ranged,      // tiratore: tiene le distanze, spara ai bersagli facili, si riposiziona se minacciato
+        Versatile,   // valuta se puo' vincere il corpo a corpo, altrimenti combatte a distanza
+        Melee        // carica sempre per arrivare alle mani, anche prendendo colpi
+    };
+
+    enum class BotIntent {
+        Advance,     // nessun nemico noto: avanza verso la zona avversaria
+        Engage,      // spara da fermo (o quasi) al bersaglio
+        Reposition,  // si sposta in una posizione migliore (copertura o distanza giusta)
+        Charge,      // corre verso il bersaglio per la mischia
+        Melee        // a contatto: colpisce
+    };
+
+    struct BotBrainComponent {
+        BotRole role = BotRole::Versatile;
+        BotIntent intent = BotIntent::Advance;
+        std::string displayName;               // nome mostrato sopra l'unita'
+        int rosterIndex = -1;                  // alleati presi dal garage del giocatore (-1 = generato)
+
+        // Percezione
+        entt::entity target = entt::null;
+        glm::vec3 lastKnownTargetPos{ 0.0f };
+        bool targetVisible = false;
+        float memoryTimer = 0.0f;              // secondi da cui non vede il bersaglio
+        float thinkTimer = 0.0f;               // prossima decisione
+        float healthLastThink = 0.0f;
+        float recentDamage = 0.0f;             // danno ricevuto negli ultimi secondi (decade nel tempo)
+        float threat = 0.0f;                   // ultima valutazione della minaccia
+
+        // Movimento
+        glm::vec3 moveGoal{ 0.0f };
+        bool hasMoveGoal = false;
+        std::vector<glm::vec3> path;
+        float pathTimer = 0.0f;
+        float moveSpeedFactor = 1.0f;
+        bool isMoving = false;
+        float stuckTimer = 0.0f;
+        glm::vec3 lastPos{ 0.0f };
+        float advanceSide = 0.0f;              // spostamento laterale preferito quando avanza (-1..1)
+        bool searching = false;                // arrivato alla base nemica senza trovare nessuno: perlustra
+        float stalemateTimer = 0.0f;           // da quanto ingaggia senza fare danni al bersaglio
+        float stalemateTargetHp = -1.0f;
+        entt::entity stalemateTarget = entt::null;
+
+        // Fuoco e mischia
+        float burstTimer = 0.0f;               // raffica in corso (armi automatiche)
+        float pauseTimer = 0.0f;               // pausa fra raffiche / colpi
+        bool triggerToggle = false;            // semi-automatiche: alterna premuto/rilasciato
+        glm::vec2 aimError{ 0.0f };            // errore di mira corrente (gradi), dipende da accuracy_skill
+        float aimErrorTimer = 0.0f;
+        float meleeCooldown = 0.0f;
+        float parryCooldown = 0.0f;
+        bool isAiming = false;
+
+        entt::entity weaponEntity = entt::null; // arma visibile in mano
+    };
 
 }                                    // ← aggiungi chiusura namespace

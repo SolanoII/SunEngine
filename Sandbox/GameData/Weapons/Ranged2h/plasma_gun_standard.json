@@ -5,7 +5,7 @@
   "slot_type": "primary",
   "hand_type": "TwoHanded",
   "weight_kg": 5.5,
-  "point_cost": 35,
+  "point_cost": 26,
   "has_scope": false,
   "has_underbarrel": false,
   "is_melee": false,

@@ -6,7 +6,7 @@
   "coverage": 0.98,
   "max_durability": 450.0,
   "weight": 3.8,
-  "point_cost": 12,
+  "point_cost": 6,
   "faction": "Imperium",
   "unit_restriction": "imperium_kasrkin"
 }

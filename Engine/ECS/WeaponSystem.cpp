@@ -189,7 +189,15 @@ namespace SunEngine {
                 continue;
             }
 
-            bool wantsToFire = Input::IsMouseButtonPressed(0);
+            // Giocatore: mouse e tasto R. Bot: il grilletto lo imposta l'IA (WeaponTriggerComponent).
+            const bool isPlayer = scene.GetRegistry().all_of<PlayerTag>(entity);
+            const auto* trigger = scene.GetRegistry().try_get<WeaponTriggerComponent>(entity);
+            if (!isPlayer && !trigger) {
+                wState.wasFiringLastFrame = false;   // unita' senza controllo (es. nemici dell'orda): non spara
+                continue;
+            }
+            bool wantsToFire = isPlayer ? Input::IsMouseButtonPressed(0) : trigger->fire;
+            const bool wantsReload = isPlayer ? Input::IsKeyPressed(GLFW_KEY_R) : trigger->reload;
 
             // -------- ARMI A RAGGIO CONTINUO (MELTA GUN) --------
             // Restano "auto finché tieni premuto": non ha senso semi/burst su un beam.
@@ -231,16 +239,16 @@ namespace SunEngine {
                     wState.isReloading = false;
                     wState.reloadTimer = 0.0f;
                     wState.currentAmmo = wpBP->magazine_size;
-                    SUN_CORE_INFO("Arma ricaricata! Munizioni: {0}", wState.currentAmmo);
+                    if (isPlayer) SUN_CORE_INFO("Arma ricaricata! Munizioni: {0}", wState.currentAmmo);
                 }
                 wState.wasFiringLastFrame = wantsToFire;
                 continue;
             }
 
-            if (Input::IsKeyPressed(GLFW_KEY_R) && wState.currentAmmo < wpBP->magazine_size && !wState.isReloading) {
+            if (wantsReload && wState.currentAmmo < wpBP->magazine_size && !wState.isReloading) {
                 wState.isReloading = true;
                 wState.reloadTimer = wpBP->reload_time_sec;
-                SUN_CORE_INFO("Ricarica avviata...");
+                if (isPlayer) SUN_CORE_INFO("Ricarica avviata...");
                 wState.wasFiringLastFrame = wantsToFire;
                 continue;
             }
@@ -307,7 +315,7 @@ namespace SunEngine {
                 else if (!wState.isReloading) {
                     wState.isReloading = true;
                     wState.reloadTimer = wpBP->reload_time_sec;
-                    SUN_CORE_WARN("Caricatore vuoto! Ricarica automatica...");
+                    if (isPlayer) SUN_CORE_WARN("Caricatore vuoto! Ricarica automatica...");
                 }
             }
 
@@ -377,8 +385,14 @@ namespace SunEngine {
                 barrelOrigin = weaponPos + barrelWorldOffset;
             }
         }
-        const float rayPullBack = ApplyMuzzleOverride(scene, shooter, barrelOrigin, trans.Position, baseDir);
+        float rayPullBack = ApplyMuzzleOverride(scene, shooter, barrelOrigin, trans.Position, baseDir);
         float maxRange = (wpBP.range_effective > 1.0f) ? wpBP.range_effective : 12.0f;
+        // Il raggio converge sul punto del mirino (telecamera sulla spalla): ricalcolo l'arretramento sulla nuova linea
+        baseDir = AimAtCrosshair(scene, shooter, barrelOrigin, baseDir, maxRange, recoil.recoilPitch);
+        if (rayPullBack > 0.0f) {
+            const glm::vec3 bodyAtMuzzleHeight(trans.Position.x, barrelOrigin.y, trans.Position.z);
+            rayPullBack = (std::max)(0.0f, glm::dot(barrelOrigin - bodyAtMuzzleHeight, baseDir));
+        }
         // Raggio di colpo: stessa linea della canna, ma parte dal corpo (rayPullBack metri piu' indietro)
         RaycastResult hit = RaycastAll(scene, barrelOrigin - baseDir * rayPullBack, baseDir, maxRange + rayPullBack, shooter);
         if (hit.hit) hit.distance = (std::max)(0.0f, hit.distance - rayPullBack);   // distanza dalla bocca
@@ -482,7 +496,14 @@ namespace SunEngine {
             }
         }
 
-        const float rayPullBack = ApplyMuzzleOverride(scene, shooter, barrelOrigin, trans.Position, baseDir);
+        float rayPullBack = ApplyMuzzleOverride(scene, shooter, barrelOrigin, trans.Position, baseDir);
+        // I colpi convergono sul punto del mirino (telecamera sulla spalla): ricalcolo l'arretramento sulla nuova linea
+        baseDir = AimAtCrosshair(scene, shooter, barrelOrigin, baseDir,
+            (wpBP.range_effective > 1.0f) ? wpBP.range_effective : 12.0f, recoil.recoilPitch);
+        if (rayPullBack > 0.0f) {
+            const glm::vec3 bodyAtMuzzleHeight(trans.Position.x, barrelOrigin.y, trans.Position.z);
+            rayPullBack = (std::max)(0.0f, glm::dot(barrelOrigin - bodyAtMuzzleHeight, baseDir));
+        }
         if (wpBP.projectile_type == ProjectileType::Flamer) {
             // Il cono del lanciafiamme parte dal corpo (stessa ragione del raggio di colpo sotto)
             FireFlamer(scene, shooter, wpBP, barrelOrigin - baseDir * rayPullBack, baseDir);
@@ -604,6 +625,7 @@ namespace SunEngine {
 
         for (auto entity : view) {
             if (entity == shooter) continue;
+            if (SameTeam(scene.GetRegistry(), shooter, entity)) continue;   // niente fuoco amico
 
             const auto& targetTrans = view.get<TransformComponent>(entity);
 
@@ -633,6 +655,38 @@ namespace SunEngine {
             EmitHitFeedback(scene, shooter, entity, targetCenter, HitboxLocation::Torso, healthBefore);
         }
     }
+    glm::vec3 WeaponSystem::AimAtCrosshair(Scene& scene, entt::entity shooter, const glm::vec3& muzzle,
+        const glm::vec3& baseDir, float range, float currentRecoilPitch) {
+        const auto* ray = scene.GetRegistry().try_get<AimRayComponent>(shooter);
+        if (!ray || !ray->valid || glm::length(ray->dir) < 1e-4f) return baseDir;
+        const glm::vec3 D = glm::normalize(ray->dir);
+
+        // Punto inquadrato: primo ostacolo o unita' lungo il raggio del mirino, cercato a partire dall'altezza
+        // della bocca (cosi' non contano oggetti fra la telecamera e il personaggio).
+        const float along = (std::max)(0.0f, glm::dot(muzzle - ray->origin, D));
+        const glm::vec3 start = ray->origin + D * along;
+        const RaycastResult hit = RaycastAll(scene, start, D, range, shooter);
+        const glm::vec3 aimPoint = hit.hit ? hit.point : (start + D * range);
+
+        glm::vec3 dir = aimPoint - muzzle;
+        if (glm::length(dir) < 0.3f) return baseDir;   // bersaglio addosso alla canna: tiro dritto
+        dir = glm::normalize(dir);
+        // Bersaglio molto vicino e di lato: niente correzioni esagerate, si spara parallelo al mirino
+        if (glm::dot(dir, D) < std::cos(glm::radians(20.0f))) dir = D;
+
+        // Il rinculo di questo colpo non e' ancora nella vista della telecamera: lo aggiungo alzando la mira
+        const float kick = glm::radians(currentRecoilPitch - ray->recoilPitch);
+        if (std::abs(kick) > 1e-5f) {
+            glm::vec3 right = glm::cross(dir, glm::vec3(0.0f, 1.0f, 0.0f));
+            if (glm::length(right) > 1e-4f) {
+                right = glm::normalize(right);
+                dir = glm::normalize(dir * std::cos(kick) + glm::cross(right, dir) * std::sin(kick)
+                    + right * glm::dot(right, dir) * (1.0f - std::cos(kick)));
+            }
+        }
+        return dir;
+    }
+
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,
         const glm::vec3& rayDir, float maxDist,
         entt::entity shooter) {
@@ -647,6 +701,7 @@ namespace SunEngine {
         );
         for (auto e : unitView) {
             if (e == shooter) continue;
+            if (SameTeam(reg, shooter, e)) continue;   // niente fuoco amico: i colpi attraversano gli alleati
             const auto& trans = unitView.get<TransformComponent>(e);
 
             // Unita' con scheletro a cubi: il colpo si testa sui SINGOLI blocchi (testa, torso, braccia,
