@@ -17,6 +17,9 @@
 #include "Engine/ECS/BlockModel.h"
 #include "Engine/ECS/RenderSystem.h"
 #include "Engine/ECS/WeaponSystem.h"
+#include "Engine/ECS/AmmoSystem.h"
+#include "Engine/ECS/SquigSystem.h"
+#include "Engine/ECS/RepairSystem.h"
 #include "Engine/Scene/MapLoader.h"
 #include "Engine/Navigation/NavMeshQuery.h"
 #include "Engine/AssetManager/BlueprintManager.h"
@@ -66,6 +69,11 @@ namespace SunEngine {
         std::string secondaryWeaponId = "laspistol_standard";
         std::string meleeWeaponId = "";
         std::string equipmentSlots[3] = { "", "", "" };
+        std::vector<std::string> ownedItems;   // oggetti ricercabili comprati per questa unita' (chiave inglese, trombone...)
+        bool OwnsItem(const std::string& id) const {
+            for (const auto& o : ownedItems) if (o == id) return true;
+            return false;
+        }
 
         std::string armorHeadId = "head_guardsman_recruit";
         std::string armorTorsoId = "torso_guardsman_recruit";
@@ -76,12 +84,24 @@ namespace SunEngine {
 
         int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni orco ucciso)
 
-        // Costo in punti squadra: unita' + armi (primaria, secondaria, mischia) + pezzi di armatura
+        // Dotazione base del blueprint ("default_loadout"): armi ed equipaggiamento con cui arriva l'unita'.
+        // Le unita' senza dotazione base (da definire) tengono le armi di sempre.
+        void ApplyDefaultLoadout() {
+            const auto* bp = BlueprintManager::Get().GetUnit(blueprintId);
+            if (!bp || !bp->has_default_loadout) return;
+            primaryWeaponId = bp->default_primary;
+            secondaryWeaponId = bp->default_secondary;
+            meleeWeaponId = bp->default_melee;
+            for (int i = 0; i < 3; ++i) equipmentSlots[i] = bp->default_equipment[i];
+        }
+
+        // Costo in punti squadra: unita' + armi (primaria, secondaria, mischia) + dotazione + pezzi di armatura
         int CalculateTotalPoints() const {
             int points = 0;
             const auto* unitBp = BlueprintManager::Get().GetUnit(blueprintId);
             if (unitBp) points += unitBp->point_cost;
-            for (const std::string* wId : { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId }) {
+            for (const std::string* wId : { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId,
+                                            &equipmentSlots[0], &equipmentSlots[1], &equipmentSlots[2] }) {
                 if (const auto* wBp = BlueprintManager::Get().GetWeapon(*wId)) points += wBp->point_cost;
             }
 
@@ -103,6 +123,9 @@ namespace SunEngine {
 
             const auto* w3 = BlueprintManager::Get().GetWeapon(meleeWeaponId);
             if (w3) weight += w3->weight_kg;
+
+            for (const auto& eId : equipmentSlots)
+                if (const auto* eq = BlueprintManager::Get().GetWeapon(eId)) weight += eq->weight_kg;
 
             std::string ids[6] = { armorHeadId, armorTorsoId, armorLeftArmId, armorRightArmId, armorLeftLegId, armorRightLegId };
             for (const auto& aId : ids) {
@@ -197,6 +220,8 @@ namespace SunEngine {
         void TakeOverBot(entt::entity bot);
         void EndVsBotMatch(int result, const char* reason);
         void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
+        void RenderAmmoHUD();
+        bool DrawItemOption(TrainedUnit& unit, std::string& slotRef, const std::string& wId, const WeaponBlueprint& wBP);                      // caricatore / riserva in basso a destra, dotazione in mano
         void RenderParryRings(bool deferred);      // anello giallo sotto i piedi durante la parata (Q)   // invecchia marcatori di colpo e flash dei blocchi
         void RenderHitMarkers();                   // cerchi sul punto colpito (HUD)
 
@@ -252,6 +277,9 @@ namespace SunEngine {
         BotAISystem m_BotAI;
         MeleeCombatSystem m_MeleeCombat;
         WeaponSystem m_WeaponSystem;
+        EquipmentSystem m_EquipmentSystem;   // scatola di munizioni e altra dotazione tattica
+        SquigSystem m_SquigSystem;           // compagni squig dei gretchin
+        RepairSystem m_RepairSystem;         // chiave inglese: ripara veicoli, strutture, torrette
         ParticleSystem m_ParticleSystem;
         RenderSystem m_RenderSystem;
 

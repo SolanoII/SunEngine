@@ -1,0 +1,31 @@
+{
+  "id": "squig_bomb",
+  "displayName": "Squig Esplosivo",
+  "comment": "Potenziamento dello squig: carica il nemico piu' vicino che vede (o quello a cui spari) ed esplode a contatto. Esplosione: 160 danni al centro, 40% al bordo di 4 metri, abbastanza per un guardsman. Uno solo per partita.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "squig_bomb",
+  "hand_type": "OneHanded",
+  "weight_kg": 0.0,
+  "point_cost": 5,
+  "equipment_uses": 1,
+  "base_damage": 0.0,
+  "armor_penetration": 4,
+  "companion_speed": 8.0,
+  "explosion_radius": 4.0,
+  "explosion_damage": 160.0,
+  "weapon_scale": [
+    0.3,
+    0.3,
+    0.3
+  ],
+  "primary_color": [
+    0.85,
+    0.3,
+    0.12,
+    1.0
+  ]
+}

@@ -1,6 +1,7 @@
 #include "BotAISystem.h"
 #include "DamageResolver.h"
 #include "RaycastUtils.h"
+#include "AmmoSystem.h"
 #include "../Core/MathUtils.h"
 #include "../Core/Random.h"
 #include "../AssetManager/BlueprintManager.h"
@@ -79,10 +80,25 @@ namespace SunEngine {
             const auto* w = DamageResolver::ResolveMeleeWeapon(reg, e);
             return (s ? s->strength * 0.4f : 10.0f) + (w ? w->base_damage : 20.0f);
         }
-        float RangedPower(entt::registry& reg, entt::entity e) {
+        // Arma a distanza da usare: la primaria se ha ancora colpi, altrimenti la secondaria (es. il gretchin
+        // non ha primaria e spara con la Grot Blasta). -1 = nessuna arma da fuoco o munizioni finite.
+        int RangedSlot(entt::registry& reg, entt::entity e) {
             const auto* inv = reg.try_get<InventoryComponent>(e);
-            const auto* w = inv ? BlueprintManager::Get().GetWeapon(inv->primaryWeaponId) : nullptr;
-            if (!w || w->is_melee) return 0.0f;
+            if (!inv) return -1;
+            for (int idx = 0; idx < 2; ++idx)
+                if (Ammo::RangedAt(*inv, idx) && Ammo::HasAmmo(reg, e, idx)) return idx;
+            return -1;
+        }
+
+        const WeaponBlueprint* PrimaryWeapon(entt::registry& reg, entt::entity e) {
+            const int slot = RangedSlot(reg, e);
+            const auto* inv = reg.try_get<InventoryComponent>(e);
+            return (slot < 0 || !inv) ? nullptr : Ammo::RangedAt(*inv, slot);
+        }
+
+        float RangedPower(entt::registry& reg, entt::entity e) {
+            const auto* w = PrimaryWeapon(reg, e);
+            if (!w) return 0.0f;
             const float rof = std::min(w->rate_of_fire > 0.0f ? w->rate_of_fire : 300.0f, 450.0f);
             return w->base_damage * std::max(1, w->pellet_count) * rof / 60.0f;
         }
@@ -101,12 +117,6 @@ namespace SunEngine {
             return n;
         }
 
-        const WeaponBlueprint* PrimaryWeapon(entt::registry& reg, entt::entity e) {
-            const auto* inv = reg.try_get<InventoryComponent>(e);
-            const auto* w = inv ? BlueprintManager::Get().GetWeapon(inv->primaryWeaponId) : nullptr;
-            return (w && !w->is_melee) ? w : nullptr;
-        }
-
         float MeleeReach(entt::registry& reg, entt::entity e) {
             const auto* w = DamageResolver::ResolveMeleeWeapon(reg, e);
             return (w && w->melee_reach > 0.3f) ? w->melee_reach : 1.85f;
@@ -115,8 +125,8 @@ namespace SunEngine {
         void SetActiveSlot(entt::registry& reg, entt::entity e, int slot) {
             auto* inv = reg.try_get<InventoryComponent>(e);
             if (!inv || inv->currentSlot == slot) return;
-            const std::string id = slot == 2 ? inv->meleeWeaponId : inv->primaryWeaponId;
-            if (id.empty() || !BlueprintManager::Get().GetWeapon(id)) return;
+            if (!inv->HasSlotItem(slot)) return;
+            const std::string id = inv->GetSlotItemId(slot);
             inv->currentSlot = slot;
             reg.get_or_emplace<WeaponBlueprintId>(e).id = id;
             if (auto* ws = reg.try_get<WeaponStateComponent>(e)) {
@@ -222,6 +232,7 @@ namespace SunEngine {
                 brain.lastKnownTargetPos = reg.get<TransformComponent>(brain.target).Position;
             }
 
+            Resupply(scene, self, brain, deltaTime);
             TryParry(scene, self, brain);
             Move(scene, navQuery, self, brain, deltaTime);
             AimAndFire(scene, self, brain, deltaTime);
@@ -469,7 +480,8 @@ namespace SunEngine {
                 const float dist = glm::length(dir);
                 if (dist < 0.3f) brain.path.erase(brain.path.begin());
                 else {
-                    const float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * brain.moveSpeedFactor;
+                    float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * brain.moveSpeedFactor;
+                    if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
                     t.Position += dir / dist * std::min(dist, speed * dt);
                     brain.isMoving = true;
                 }
@@ -514,8 +526,11 @@ namespace SunEngine {
         trigger.fire = false;
         trigger.reload = false;
 
-        const bool meleeMode = brain.intent == BotIntent::Charge || brain.intent == BotIntent::Melee || brain.role == BotRole::Melee;
-        SetActiveSlot(reg, self, meleeMode ? 2 : 0);
+        const bool resupplying = brain.resupplySlot >= 0;
+        const int rangedSlot = RangedSlot(reg, self);
+        const bool meleeMode = !resupplying && (brain.intent == BotIntent::Charge || brain.intent == BotIntent::Melee ||
+                                                brain.role == BotRole::Melee || rangedSlot < 0);
+        SetActiveSlot(reg, self, resupplying ? brain.resupplySlot : (meleeMode ? 2 : rangedSlot));
 
         // Errore di mira: dipende da accuracy_skill, aumenta muovendosi e quando si viene colpiti
         brain.aimErrorTimer -= dt;
@@ -547,7 +562,8 @@ namespace SunEngine {
         t.AimYaw = LerpAngle(t.AimYaw, desiredYaw, std::min(1.0f, 9.0f * dt));
         t.AimPitch = glm::mix(t.AimPitch, std::clamp(desiredPitch, -60.0f, 60.0f), std::min(1.0f, 9.0f * dt));
         t.Rotation.y = LerpAngle(t.Rotation.y, t.AimYaw, std::min(1.0f, 7.0f * dt));
-        brain.isAiming = !meleeMode && haveTarget && brain.targetVisible;
+        brain.isAiming = !meleeMode && !resupplying && haveTarget && brain.targetVisible;
+        if (resupplying) return;   // in mano c'e' la scatola di munizioni
 
         // ---------------- FUOCO ----------------
         brain.pauseTimer -= dt;
@@ -585,9 +601,60 @@ namespace SunEngine {
         }
 
         // Ricarica quando ha pochi colpi e non sta sparando a un bersaglio in vista
-        if (ws->currentAmmo <= std::max(1, w->magazine_size / 4) && !ws->isReloading && (!brain.targetVisible || brain.intent == BotIntent::Reposition)) {
+        const auto* ammo = reg.try_get<AmmoComponent>(self);
+        if (ws->currentAmmo <= std::max(1, w->magazine_size / 4) && !ws->isReloading && (!ammo || Ammo::CanReload(*ammo)) &&
+            (!brain.targetVisible || brain.intent == BotIntent::Reposition || ws->currentAmmo == 0)) {
             trigger.reload = true;
         }
+    }
+
+    // Scatola di munizioni: quando non sta combattendo, la prende in mano e rifornisce se' stesso (riserva quasi
+    // finita) o il compagno entro la portata che ne ha piu' bisogno. Appena vede un nemico torna alle armi.
+    void BotAISystem::Resupply(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {
+        auto& reg = scene.GetRegistry();
+        const auto* inv = reg.try_get<InventoryComponent>(self);
+        const auto* ammo = reg.try_get<AmmoComponent>(self);
+        if (!inv || !ammo) { brain.resupplySlot = -1; return; }
+        if (ammo->useTimer > 0.0f) return;   // rifornimento in corso: tiene la scatola in mano
+
+        int boxSlot = -1;
+        float boxRange = 5.0f;
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (bp && bp->is_equipment && bp->equipment_type == "ammo_box" && ammo->equipmentUses[s - 4] > 0) {
+                boxSlot = s; boxRange = bp->equipment_range; break;
+            }
+        }
+        const bool engaged = brain.targetVisible || brain.intent == BotIntent::Charge || brain.intent == BotIntent::Melee;
+        if (boxSlot < 0 || engaged) { brain.resupplySlot = -1; return; }
+
+        brain.resupplyCheck -= dt;
+        if (brain.resupplySlot < 0 && brain.resupplyCheck > 0.0f) return;
+        brain.resupplyCheck = 0.8f;
+
+        const bool selfOut = RangedSlot(reg, self) < 0 && (Ammo::RangedAt(*inv, 0) || Ammo::RangedAt(*inv, 1));
+        const bool selfNeeds = Ammo::Missing(reg, self) > 0 && (selfOut || Ammo::ReserveFraction(reg, self) <= 0.35f);
+
+        entt::entity ally = entt::null;
+        float worst = 0.5f;   // solo compagni sotto meta' riserva
+        if (!selfNeeds) {
+            const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+            auto view = reg.view<AmmoComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+            for (auto o : view) {
+                if (o == self || !SameTeam(reg, self, o) || view.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                if (HorizontalDist(view.get<TransformComponent>(o).Position, me) > boxRange) continue;
+                if (Ammo::Missing(reg, o) <= 0) continue;
+                const float frac = Ammo::ReserveFraction(reg, o);
+                if (frac < worst) { worst = frac; ally = o; }
+            }
+        }
+        if (!selfNeeds && ally == entt::null) { brain.resupplySlot = -1; return; }
+
+        brain.resupplySlot = boxSlot;
+        if (inv->currentSlot != boxSlot) return;   // la prende in mano in AimAndFire, la usa al prossimo giro
+        auto& trigger = reg.get_or_emplace<WeaponTriggerComponent>(self);
+        if (selfNeeds) trigger.useEquipment = true;
+        else { trigger.giveEquipment = true; trigger.giveTarget = ally; }
     }
 
     void BotAISystem::DoMelee(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {

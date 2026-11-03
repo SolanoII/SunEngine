@@ -17,6 +17,7 @@
 #include "Engine/Navigation/NavMeshQuery.h"
 
 #include <cstdlib>
+#include <cfloat>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -46,6 +47,11 @@
 extern std::string FindValidDir(const std::string& targetDirName);
 
 namespace SunEngine {
+
+    // Versione delle dotazioni base salvata nel profilo: le unita' salvate con una versione piu' vecchia
+    // ricevono la dotazione base del loro blueprint (se ne ha una) al caricamento. Alzala quando cambi
+    // le dotazioni base e vuoi che arrivino anche alle unita' gia' nel garage.
+    static constexpr int kLoadoutVersion = 1;
 
     // FIX #3: observer on_destroy di HordeAgentComponent. Quando un'unita' nemica viene distrutta
     // (timeout cadavere, reload mappa, ritorno al garage...) distrugge anche l'arma "figlia"
@@ -895,12 +901,14 @@ namespace SunEngine {
             inv.primaryWeaponId = unit.primaryWeaponId;
             inv.secondaryWeaponId = unit.secondaryWeaponId;
             inv.meleeWeaponId = unit.meleeWeaponId;
+            inv.tool1Id = unit.equipmentSlots[0];
+            inv.tool2Id = unit.equipmentSlots[1];
+            inv.tool3Id = unit.equipmentSlots[2];
 
+            // Slot vuoto (es. il gretchin non ha primaria): si passa al primo slot non vuoto
+            if (!inv.IsSlotSelectable(inv.currentSlot)) inv.currentSlot = inv.FirstUsableSlot();
             std::string activeId = inv.GetActiveWeaponId();
-            if (activeId.empty()) {
-                inv.currentSlot = 0;
-                activeId = inv.primaryWeaponId;
-            }
+            if (inv.GetEquipStance() == EquipStance::HybridRangedMelee) activeId = inv.secondaryWeaponId;
 
             m_Scene.GetRegistry().get_or_emplace<WeaponBlueprintId>(m_PlayerEntity).id = activeId;
 
@@ -914,6 +922,8 @@ namespace SunEngine {
                 wState.burstRemaining = 0;
                 const auto* weaponBP = BlueprintManager::Get().GetWeapon(activeId);
                 if (weaponBP) wState.currentAmmo = weaponBP->magazine_size;
+                // Munizioni limitate: caricatori pieni e riserva iniziale dell'unita'
+                Ammo::Init(m_Scene.GetRegistry(), m_PlayerEntity, unit.blueprintId);
             }
         }
     }
@@ -1287,6 +1297,9 @@ namespace SunEngine {
                     for (size_t i = 0; i < 3 && i < u["equipmentSlots"].size(); ++i)
                         t.equipmentSlots[i] = u["equipmentSlots"][i].get<std::string>();
                 }
+                if (u.contains("ownedItems") && u["ownedItems"].is_array()) {
+                    for (const auto& it : u["ownedItems"]) if (it.is_string()) t.ownedItems.push_back(it.get<std::string>());
+                }
                 t.armorHeadId = u.value("armorHeadId", t.armorHeadId);
                 t.armorTorsoId = u.value("armorTorsoId", t.armorTorsoId);
                 t.armorLeftArmId = u.value("armorLeftArmId", t.armorLeftArmId);
@@ -1294,6 +1307,8 @@ namespace SunEngine {
                 t.armorLeftLegId = u.value("armorLeftLegId", t.armorLeftLegId);
                 t.armorRightLegId = u.value("armorRightLegId", t.armorRightLegId);
                 t.exp = std::max(0, u.value("exp", 0));
+                // Unita' salvata prima delle dotazioni base (es. gretchin col fucile laser): riceve la sua
+                if (u.value("loadoutVersion", 0) < kLoadoutVersion) t.ApplyDefaultLoadout();
                 loaded.push_back(t);
             }
         }
@@ -1337,6 +1352,8 @@ namespace SunEngine {
             u["secondaryWeaponId"] = t.secondaryWeaponId;
             u["meleeWeaponId"] = t.meleeWeaponId;
             u["equipmentSlots"] = { t.equipmentSlots[0], t.equipmentSlots[1], t.equipmentSlots[2] };
+            u["loadoutVersion"] = kLoadoutVersion;
+            u["ownedItems"] = t.ownedItems;
             u["armorHeadId"] = t.armorHeadId;
             u["armorTorsoId"] = t.armorTorsoId;
             u["armorLeftArmId"] = t.armorLeftArmId;
@@ -1635,6 +1652,104 @@ namespace SunEngine {
         }
     }
 
+    // Voce di un combo dell'equipaggiamento nel garage. Gli oggetti con un nodo di ricerca vanno prima ricercati
+    // (voce disattivata) e poi comprati per questa unita' con energia: il primo click compra, poi si equipaggia.
+    // Ritorna true se lo slot e' cambiato.
+    bool GameLayer::DrawItemOption(TrainedUnit& unit, std::string& slotRef, const std::string& wId, const WeaponBlueprint& wBP) {
+        const ResearchNode* node = m_ResearchTree.FindNodeByItem(wId);
+        const bool researched = !node || m_ResearchTree.IsResearched(m_Profile, *node);
+        bool owned = !node || unit.OwnsItem(wId);
+        std::string label = WeaponLabel(wBP.displayName, wId);
+        if (!researched) label += "   [DA RICERCARE]";
+        else if (!owned) label += "   [COMPRA: " + std::to_string(static_cast<long long>(node->purchaseCost)) + " ENERGIA]";
+        bool changed = false;
+        if (ImGui::Selectable(label.c_str(), slotRef == wId, researched ? 0 : ImGuiSelectableFlags_Disabled)) {
+            if (!owned) {
+                if (m_ResearchTree.Pay(m_Profile, *node)) {
+                    unit.ownedItems.push_back(wId);
+                    owned = true;
+                    m_ResearchMessage = "Comprato per " + unit.customName + ": " + wBP.displayName;
+                }
+                else m_ResearchMessage = "Energia insufficiente per " + wBP.displayName;
+                m_ResearchMessageTimer = 4.0f;
+            }
+            if (owned && slotRef != wId) { slotRef = wId; changed = true; }
+        }
+        return changed;
+    }
+
+    // HUD munizioni in basso a destra: nome dell'arma in mano, "caricatore / riserva" e stato.
+    // Con la scatola di munizioni in mano: usi rimasti, comandi e barra del rifornimento in corso.
+    void GameLayer::RenderAmmoHUD() {
+        auto& reg = m_Scene.GetRegistry();
+        const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
+        const auto* ws = reg.try_get<WeaponStateComponent>(m_PlayerEntity);
+        const auto* ammo = reg.try_get<AmmoComponent>(m_PlayerEntity);
+        if (!inv || !ws) return;
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        ImFont* font = ImGui::GetFont();
+        const float baseSize = ImGui::GetFontSize();
+        const float right = io.DisplaySize.x - 30.0f;
+        float y = io.DisplaySize.y - 30.0f;
+
+        // Testo allineato a destra, con ombra per leggerlo su ogni sfondo
+        auto textRight = [&](const std::string& t, float size, ImU32 col) {
+            const ImVec2 sz = font->CalcTextSizeA(size, FLT_MAX, 0.0f, t.c_str());
+            y -= sz.y;
+            const ImVec2 p(right - sz.x, y);
+            dl->AddText(font, size, ImVec2(p.x + 2.0f, p.y + 2.0f), IM_COL32(0, 0, 0, 170), t.c_str());
+            dl->AddText(font, size, p, col, t.c_str());
+            y -= 4.0f;
+        };
+
+        const std::string heldId = inv->GetActiveWeaponId();
+        const auto* held = BlueprintManager::Get().GetWeapon(heldId);
+        const int rangedIdx = Ammo::HeldRangedIndex(*inv);
+        const ImU32 white = IM_COL32(235, 235, 235, 255), grey = IM_COL32(160, 160, 160, 255);
+        const ImU32 red = IM_COL32(255, 80, 60, 255), yellow = IM_COL32(255, 200, 60, 255);
+
+        if (held && held->is_equipment && held->equipment_type == "ammo_box" && ammo) {
+            const int slotIdx = inv->currentSlot - 4;
+            const int uses = (slotIdx >= 0 && slotIdx < 3) ? ammo->equipmentUses[slotIdx] : 0;
+            if (ammo->useTimer > 0.0f && ammo->useDuration > 0.0f) {
+                // Barra del rifornimento in corso
+                const float w = 220.0f, h = 8.0f;
+                const float prog = std::clamp(1.0f - ammo->useTimer / ammo->useDuration, 0.0f, 1.0f);
+                y -= h;
+                dl->AddRectFilled(ImVec2(right - w, y), ImVec2(right, y + h), IM_COL32(20, 20, 20, 190));
+                dl->AddRectFilled(ImVec2(right - w, y), ImVec2(right - w + w * prog, y + h), IM_COL32(255, 200, 60, 255));
+                y -= 6.0f;
+                textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
+            }
+            textRight("Sinistro: rifornisci te   |   Destro: compagno entro " + std::to_string(static_cast<int>(held->equipment_range)) + " m", baseSize, grey);
+            textRight("Usi: " + std::to_string(uses) + " / " + std::to_string(held->equipment_uses), baseSize * 2.0f, uses > 0 ? white : red);
+            textRight(held->displayName, baseSize * 1.15f, grey);
+        }
+        else if (rangedIdx >= 0 && held) {
+            const int mag = ws->currentAmmo;
+            const bool infinite = ammo && ammo->infinite;
+            const int reserve = ammo ? ammo->reserve[rangedIdx] : 0;
+            if (ws->isReloading) textRight("RICARICA...", baseSize, yellow);
+            else if (mag == 0 && reserve == 0 && !infinite) textRight("MUNIZIONI ESAURITE - passa a un'altra arma", baseSize, red);
+            else if (mag == 0) textRight("CARICATORE VUOTO - premi R", baseSize, red);
+            const std::string count = std::to_string(mag) + " / " + (infinite ? std::string("INF") : std::to_string(reserve));
+            const ImU32 col = (mag == 0) ? red : (mag <= std::max(1, held->magazine_size / 4) ? yellow : white);
+            textRight(count, baseSize * 2.2f, col);
+            textRight(held->displayName, baseSize * 1.15f, grey);
+        }
+        else if (held) {
+            textRight(held->displayName, baseSize * 1.15f, grey);   // arma da mischia: solo il nome
+        }
+
+        // Messaggi brevi (scatola usata, munizioni ricevute, esaurite...)
+        if (ammo && ammo->feedbackTimer > 0.0f && !ammo->feedback.empty()) {
+            const int alpha = static_cast<int>(std::clamp(ammo->feedbackTimer / 0.5f, 0.0f, 1.0f) * 255.0f);
+            textRight(ammo->feedback, baseSize, IM_COL32(255, 220, 120, alpha));
+        }
+    }
+
     void GameLayer::RenderTrainingDummyLabels() {
         auto& reg = m_Scene.GetRegistry();
         auto view = reg.view<TrainingDummyComponent, HealthComponent, TransformComponent>();
@@ -1794,7 +1909,7 @@ namespace SunEngine {
             if (auto* wState = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {
                 bool isMelee = false;
                 if (auto* wbp = reg.try_get<WeaponBlueprintId>(m_PlayerEntity)) {
-                    if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) isMelee = bp->is_melee;
+                    if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) isMelee = bp->is_melee || bp->is_equipment;
                 }
                 in.firing = !isMelee && Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)
                     && !wState->isReloading && wState->currentAmmo > 0;
@@ -2236,6 +2351,9 @@ namespace SunEngine {
         }
         escPressedLastFrame = escPressed;
 
+        // Fuori dalla partita niente squig in giro (garage, editor)
+        if (m_GameState != GameState::Gameplay) m_SquigSystem.Clear(m_Scene);
+
         if (m_GameState == GameState::MapEditor) {
             if (Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
                 glm::vec2 mouseDelta = Input::GetMouseDelta();
@@ -2376,14 +2494,15 @@ namespace SunEngine {
                 auto& wState = m_Scene.GetRegistry().get<WeaponStateComponent>(m_PlayerEntity);
                 auto& wBlueprintId = m_Scene.GetRegistry().get<WeaponBlueprintId>(m_PlayerEntity);
 
+                // 1 primaria, 2 secondaria, 3 mischia, 4-5-6 dotazione tattica (slot equipaggiamento 1-3)
                 int requestedSlot = -1;
                 if (Input::IsKeyPressed(GLFW_KEY_1)) requestedSlot = 0;
                 else if (Input::IsKeyPressed(GLFW_KEY_2)) requestedSlot = 1;
                 else if (Input::IsKeyPressed(GLFW_KEY_3)) requestedSlot = 2;
-                else if (Input::IsKeyPressed(GLFW_KEY_4)) requestedSlot = 3;
-                else if (Input::IsKeyPressed(GLFW_KEY_5)) requestedSlot = 4;
-                else if (Input::IsKeyPressed(GLFW_KEY_6)) requestedSlot = 5;
-                else if (Input::IsKeyPressed(GLFW_KEY_7)) requestedSlot = 6;
+                else if (Input::IsKeyPressed(GLFW_KEY_4)) requestedSlot = 4;
+                else if (Input::IsKeyPressed(GLFW_KEY_5)) requestedSlot = 5;
+                else if (Input::IsKeyPressed(GLFW_KEY_6)) requestedSlot = 6;
+                if (requestedSlot != -1 && !inv.IsSlotSelectable(requestedSlot)) requestedSlot = -1;   // slot vuoto o squig
 
                 if (requestedSlot != -1 && requestedSlot != inv.currentSlot) {
                     inv.currentSlot = requestedSlot;
@@ -2405,11 +2524,7 @@ namespace SunEngine {
                         wState.fireCooldown = 0.0f;
                         wState.currentHeat = 0.0f;
                         wState.isOverheating = false;
-
-                        const auto* weaponBP = BlueprintManager::Get().GetWeapon(targetWeaponId);
-                        if (weaponBP) {
-                            wState.currentAmmo = weaponBP->magazine_size;
-                        }
+                        // Il caricatore NON si riempie piu' cambiando arma: lo scambia Ammo::SyncHeld (WeaponSystem)
                     }
                 }
 
@@ -2498,7 +2613,7 @@ namespace SunEngine {
                 }
                 fWasDown = fIsDown;
 
-                if (stance == EquipStance::MeleePure) {
+                if (stance == EquipStance::MeleePure && !inv.IsHoldingEquipment()) {
                     static bool lmbWasDown = false;
                     bool lmbIsDown = Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
                     if (lmbIsDown && !lmbWasDown) {
@@ -2508,7 +2623,7 @@ namespace SunEngine {
 
                     static bool rmbWasDown = false;
                     bool rmbIsDown = Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
-                    if (rmbIsDown && !rmbWasDown) {
+                    if (rmbIsDown && !rmbWasDown && !RepairSystem::HeldRepairTool(inv)) {   // chiave inglese: destro = ripara
                         triggerMeleeNode("RMB", "heavy_1", MeleeAttackType::Heavy);
                     }
                     rmbWasDown = rmbIsDown;
@@ -2533,7 +2648,13 @@ namespace SunEngine {
                 deltaTime,
                 m_VolumeSFX
             );
+            // Campo da tiro (manichini presenti, fuori dal Vs Bot): riserva infinita per provare le armi
+            if (auto* ammo = m_Scene.GetRegistry().try_get<AmmoComponent>(m_PlayerEntity)) {
+                const auto dummies = m_Scene.GetRegistry().view<TrainingDummyComponent>();
+                ammo->infinite = !m_VsBotActive && dummies.begin() != dummies.end();
+            }
             m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
+            m_EquipmentSystem.Update(m_Scene, deltaTime);
             m_PhysicsSystem.Update(m_Scene, deltaTime);
             // FIX #2: despawn dei cadaveri dopo maxLifetime (ragdoll Jolt + entity)
             CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
@@ -2544,6 +2665,9 @@ namespace SunEngine {
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
             if (m_VsBotActive) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
             m_MeleeCombat.Update(m_Scene, deltaTime);
+            // Compagni squig (seguono il padrone e attaccano quello a cui spara) e riparazione con la chiave inglese
+            m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_BlockModels.Find("squig_biter"), m_BlockModels.Find("squig_bomb"));
+            m_RepairSystem.Update(m_Scene, m_PlayerEntity, deltaTime);
 
             // F2: cambia al volo tra personaggio a cuboni e personaggio animato
             {
@@ -3274,16 +3398,20 @@ namespace SunEngine {
             if (m_Scene.GetRegistry().all_of<InventoryComponent>(m_PlayerEntity)) {
                 auto& inv = m_Scene.GetRegistry().get<InventoryComponent>(m_PlayerEntity);
 
+                // Slot in alto: 1 primaria, 2 secondaria, 3 mischia, 4-5-6 dotazione (solo quelli pieni)
+                std::vector<int> shownSlots = { 0, 1, 2 };
+                for (int s = 4; s <= 6; ++s) if (inv.HasSlotItem(s)) shownSlots.push_back(s);
                 float slotSize = 50.0f;
                 float slotSpacing = 10.0f;
-                float startX = (screen.x - (2.0f * slotSize + slotSpacing)) * 0.5f;
+                const float n = static_cast<float>(shownSlots.size());
+                float startX = (screen.x - (n * slotSize + (n - 1.0f) * slotSpacing)) * 0.5f;
                 float startY = 15.0f;
 
-                for (int i = 0; i < 2; ++i) {
-                    glm::vec2 pos = glm::vec2(startX + i * (slotSize + slotSpacing), startY);
+                for (int k = 0; k < static_cast<int>(shownSlots.size()); ++k) {
+                    const int i = shownSlots[k];
+                    glm::vec2 pos = glm::vec2(startX + k * (slotSize + slotSpacing), startY);
                     bool isActive = (i == inv.currentSlot);
-                    std::string wId = (i == 0) ? inv.primaryWeaponId : inv.secondaryWeaponId;
-                    bool hasWeapon = !wId.empty();
+                    bool hasWeapon = inv.HasSlotItem(i);
 
                     glm::vec4 boxColor = isActive ? glm::vec4(0.0f, 0.8f, 1.0f, 0.9f) :
                         hasWeapon ? glm::vec4(0.25f, 0.25f, 0.35f, 0.8f) :
@@ -3435,6 +3563,7 @@ namespace SunEngine {
             if (!isPlayerDead && !m_IsPaused) {
                 RenderTrainingDummyLabels();
                 RenderHitMarkers();
+                RenderAmmoHUD();
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {
                     ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f));
@@ -3649,6 +3778,7 @@ namespace SunEngine {
                     if (static_cast<int>(m_PlayerRoster.size()) >= MAX_ROSTER_SIZE) break;
                     m_PlayerRoster.push_back(TrainedUnit{ n.defaultName, n.unitId,
                         glm::vec4(n.color[0], n.color[1], n.color[2], n.color[3]) });
+                    m_PlayerRoster.back().ApplyDefaultLoadout();
                 }
             }
         }
@@ -3656,6 +3786,7 @@ namespace SunEngine {
             m_PlayerRoster.push_back(TrainedUnit{ "Coscritto", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
             m_PlayerRoster.push_back(TrainedUnit{ "Neofita Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
             m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(0.45f, 0.62f, 0.28f, 1.0f) });
+            for (auto& u : m_PlayerRoster) u.ApplyDefaultLoadout();
         }
         m_SelectedVaultIndex = 0;
         m_SelectedSquadIndices.clear();
@@ -3675,6 +3806,7 @@ namespace SunEngine {
         if (sameCount > 0) name += " " + std::to_string(sameCount + 1);
 
         TrainedUnit newUnit{ name, node.unitId, glm::vec4(node.color[0], node.color[1], node.color[2], node.color[3]) };
+        newUnit.ApplyDefaultLoadout();
         m_PlayerRoster.push_back(newUnit);
         m_SelectedVaultIndex = static_cast<int>(m_PlayerRoster.size()) - 1;
         return true;
@@ -3757,9 +3889,11 @@ namespace SunEngine {
             const ImVec2 p = nodePos(n);
             const ImVec2 p2(p.x + nodeW, p.y + nodeH);
             const ResearchStatus st = m_ResearchTree.GetStatus(m_Profile, n);
-            const bool hasBp = BlueprintManager::Get().GetUnit(n.unitId) != nullptr;
+            const bool isItem = !n.itemId.empty();
+            const bool hasBp = isItem ? BlueprintManager::Get().GetWeapon(n.itemId) != nullptr
+                                      : BlueprintManager::Get().GetUnit(n.unitId) != nullptr;
             int owned = 0;
-            for (const auto& u : m_PlayerRoster) if (u.blueprintId == n.unitId) ++owned;
+            for (const auto& u : m_PlayerRoster) owned += isItem ? (u.OwnsItem(n.itemId) ? 1 : 0) : (u.blueprintId == n.unitId ? 1 : 0);
 
             ImVec4 border(0.40f, 0.40f, 0.45f, 1.0f);                       // bloccato
             if (st == ResearchStatus::Researched) border = ImVec4(0.30f, 0.85f, 0.40f, 1.0f);
@@ -3779,10 +3913,16 @@ namespace SunEngine {
             const float tx = p.x + 16.0f;
             dl->AddText(ImVec2(tx, p.y + 8.0f), col32(0.95f, 0.95f, 0.95f), n.name.c_str());
             char line2[96];
-            std::snprintf(line2, sizeof(line2), "T%d   PS: %lld", n.tier, static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
+            if (isItem) {
+                const ResearchNode* src = m_ResearchTree.FindStudySource(n);
+                std::snprintf(line2, sizeof(line2), "OGGETTO   PS %s: %lld", src ? src->name.c_str() : "-",
+                    static_cast<long long>(src ? ResearchTree::GetStudyPoints(m_Profile, src->unitId) : 0));
+            }
+            else std::snprintf(line2, sizeof(line2), "T%d   PS: %lld", n.tier, static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
             dl->AddText(ImVec2(tx, p.y + 30.0f), col32(0.65f, 0.80f, 1.0f), line2);
             char line3[96];
             if (!hasBp) std::snprintf(line3, sizeof(line3), "BLUEPRINT MANCANTE");
+            else if (st == ResearchStatus::Researched && isItem) std::snprintf(line3, sizeof(line3), "SBLOCCATO   comprato da: %d", owned);
             else if (st == ResearchStatus::Researched) std::snprintf(line3, sizeof(line3), "SBLOCCATA   in garage: %d", owned);
             else if (st == ResearchStatus::Researchable) std::snprintf(line3, sizeof(line3), "RICERCA: %lld PS", static_cast<long long>(n.researchCost));
             else if (st == ResearchStatus::LockedPoints) std::snprintf(line3, sizeof(line3), "servono %lld PS", static_cast<long long>(n.researchCost));
@@ -3802,14 +3942,34 @@ namespace SunEngine {
             const ResearchNode* parent = m_ResearchTree.FindParent(n);
             const ResearchStatus st = m_ResearchTree.GetStatus(m_Profile, n);
             const auto* bp = BlueprintManager::Get().GetUnit(n.unitId);
+            const auto* itemBp = BlueprintManager::Get().GetWeapon(n.itemId);
+            const bool isItem = !n.itemId.empty();
+            const ResearchNode* studySource = m_ResearchTree.FindStudySource(n);
 
             ImGui::TextColored(ImVec4(faction.accent[0], faction.accent[1], faction.accent[2], 1.0f), "%s   (Tier %d)", n.name.c_str(), n.tier);
             ImGui::SameLine(0.0f, 20.0f);
-            ImGui::TextDisabled("%s", n.unitId.c_str());
+            ImGui::TextDisabled("%s", isItem ? n.itemId.c_str() : n.unitId.c_str());
             ImGui::Separator();
 
             ImGui::Columns(2, "##detailcols", false);
-            if (bp) {
+            if (isItem) {
+                if (itemBp) {
+                    if (itemBp->is_equipment) ImGui::Text("Dotazione tattica | Usi: %d | Peso: %.1f kg", itemBp->equipment_uses, itemBp->weight_kg);
+                    else if (itemBp->is_melee) ImGui::Text("Arma da mischia | Danno: %.0f | Peso: %.1f kg", itemBp->base_damage, itemBp->weight_kg);
+                    else ImGui::Text("Arma da fuoco | Danno: %.0f x%d | Colpi: %d + %d caricatori | Ricarica: %.1f s", itemBp->base_damage,
+                        std::max(1, itemBp->pellet_count), itemBp->magazine_size, itemBp->spare_magazines, itemBp->reload_time_sec);
+                    if (!itemBp->allowed_units.empty()) {
+                        std::string who;
+                        for (const auto& u : itemBp->allowed_units) {
+                            const auto* ub = BlueprintManager::Get().GetUnit(u);
+                            who += (who.empty() ? "" : ", ") + (ub ? ub->displayName : u);
+                        }
+                        ImGui::TextWrapped("Per: %s", who.c_str());
+                    }
+                }
+                else ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Blueprint '%s' non trovato in GameData/Weapons.", n.itemId.c_str());
+            }
+            else if (bp) {
                 ImGui::Text("Salute: %.0f   Velocita': %.1f   Armatura: %d", bp->health, bp->base_speed, bp->armor_rating);
                 ImGui::Text("Forza: %.0f   Mischia: %.0f   Mira: %.0f", bp->strength, bp->melee_skill, bp->accuracy_skill);
                 ImGui::Text("Costo in punti squadra: %d (+ equipaggiamento)", bp->point_cost);
@@ -3817,7 +3977,7 @@ namespace SunEngine {
             else {
                 ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Blueprint '%s' non trovato in GameData/Units.", n.unitId.c_str());
             }
-            ImGui::Text("Punti studio di questa unita': %lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
+            if (!isItem) ImGui::Text("Punti studio di questa unita': %lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
             ImGui::NextColumn();
 
             auto actionButton = [&](const char* label, bool enabled) {
@@ -3830,9 +3990,9 @@ namespace SunEngine {
 
             if (st != ResearchStatus::Researched) {
                 // Fase 1: ricerca con i punti studio del PADRE
-                if (parent) {
-                    ImGui::Text("Punti studio di %s: %lld / %lld", parent->name.c_str(),
-                        static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, parent->unitId)),
+                if (studySource) {
+                    ImGui::Text("Punti studio di %s: %lld / %lld", studySource->name.c_str(),
+                        static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, studySource->unitId)),
                         static_cast<long long>(n.researchCost));
                 }
                 if (st == ResearchStatus::LockedParent && parent) {
@@ -3843,6 +4003,12 @@ namespace SunEngine {
                 if (actionButton(label, st == ResearchStatus::Researchable)) {
                     if (m_ResearchTree.Research(m_Profile, n)) setMessage("Ricerca completata: " + n.name);
                 }
+            }
+            else if (isItem) {
+                // Oggetto: si compra nel garage, unita' per unita' (Personalizza -> Equipaggiamento)
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "Ricercato.");
+                ImGui::TextWrapped("Si compra nel garage per ogni unita' che lo deve usare: Personalizza -> Equipaggiamento, "
+                                   "scegli l'oggetto e conferma l'acquisto (%lld energia).", static_cast<long long>(n.purchaseCost));
             }
             else {
                 // Fase 2: acquisto con energia -> nuova unita' nel garage
@@ -4033,6 +4199,7 @@ namespace SunEngine {
 
                 auto recruitAction = [&](const std::string& bpId, const std::string& defaultName, const glm::vec4& defaultColor) {
                     TrainedUnit newUnit{ defaultName, bpId, defaultColor };
+                    newUnit.ApplyDefaultLoadout();
                     m_PlayerRoster.push_back(newUnit);
                     m_SelectedVaultIndex = static_cast<int>(m_PlayerRoster.size()) - 1;
                     ApplyUnitVisuals(m_PlayerRoster.back());
@@ -4154,14 +4321,16 @@ namespace SunEngine {
                         std::string primName = primBP ? primBP->displayName : "Nessuna";
 
                         if (ImGui::BeginCombo("Seleziona Primaria", primName.c_str())) {
+                            if (ImGui::Selectable("[Nessuna]", activeUnit.primaryWeaponId.empty())) {
+                                activeUnit.primaryWeaponId = "";
+                                ApplyUnitVisuals(activeUnit);
+                            }
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
-                                if (wBP.slot_type == WeaponSlotType::Primary) {
-                                    if (ImGui::Selectable(WeaponLabel(wBP.displayName, wId).c_str(), activeUnit.primaryWeaponId == wId)) {
-                                        activeUnit.primaryWeaponId = wId;
-                                        ApplyUnitVisuals(activeUnit);
-                                    }
+                                if (wBP.slot_type == WeaponSlotType::Primary && wBP.AllowedFor(activeUnit.blueprintId)) {
+                                    if (DrawItemOption(activeUnit, activeUnit.primaryWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
                                     if (ImGui::IsItemHovered()) {
-                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f)", wBP.displayName.c_str(), wBP.faction.c_str(), wBP.base_damage);
+                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f | Colpi: %d / %d)", wBP.displayName.c_str(), wBP.faction.c_str(),
+                                            wBP.base_damage, wBP.magazine_size, Ammo::StartingReserve(wBP, activeUnit.blueprintId));
                                     }
                                 }
                             }
@@ -4176,13 +4345,11 @@ namespace SunEngine {
 
                         if (ImGui::BeginCombo("Seleziona Secondaria", secName.c_str())) {
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
-                                if (wBP.slot_type == WeaponSlotType::Secondary) {
-                                    if (ImGui::Selectable(WeaponLabel(wBP.displayName, wId).c_str(), activeUnit.secondaryWeaponId == wId)) {
-                                        activeUnit.secondaryWeaponId = wId;
-                                        ApplyUnitVisuals(activeUnit);
-                                    }
+                                if (wBP.slot_type == WeaponSlotType::Secondary && wBP.AllowedFor(activeUnit.blueprintId)) {
+                                    if (DrawItemOption(activeUnit, activeUnit.secondaryWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
                                     if (ImGui::IsItemHovered()) {
-                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f)", wBP.displayName.c_str(), wBP.faction.c_str(), wBP.base_damage);
+                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f | Colpi: %d / %d)", wBP.displayName.c_str(), wBP.faction.c_str(),
+                                            wBP.base_damage, wBP.magazine_size, Ammo::StartingReserve(wBP, activeUnit.blueprintId));
                                     }
                                 }
                             }
@@ -4203,11 +4370,8 @@ namespace SunEngine {
                             }
 
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
-                                if (wBP.slot_type == WeaponSlotType::Melee || wBP.is_melee) {
-                                    if (ImGui::Selectable(WeaponLabel(wBP.displayName, wId).c_str(), activeUnit.meleeWeaponId == wId)) {
-                                        activeUnit.meleeWeaponId = wId;
-                                        ApplyUnitVisuals(activeUnit);
-                                    }
+                                if ((wBP.slot_type == WeaponSlotType::Melee || wBP.is_melee) && wBP.AllowedFor(activeUnit.blueprintId)) {
+                                    if (DrawItemOption(activeUnit, activeUnit.meleeWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
                                     if (ImGui::IsItemHovered()) {
                                         ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)", wBP.displayName.c_str(), wBP.base_damage, wBP.default_melee_type.c_str());
                                     }
@@ -4221,15 +4385,44 @@ namespace SunEngine {
                     }
                 }
                 else if (m_EquipSubTab == 1) {
-                    ImGui::Text("Filtro Categoria Dotazione:");
-                    if (ImGui::Button("Granate", ImVec2(100, 25))) m_GearCategoryTab = 0; ImGui::SameLine();
-                    if (ImGui::Button("Supporto", ImVec2(100, 25))) m_GearCategoryTab = 1; ImGui::SameLine();
-                    if (ImGui::Button("Curativi", ImVec2(100, 25))) m_GearCategoryTab = 2; ImGui::SameLine();
-                    if (ImGui::Button("Rinforzi", ImVec2(100, 25))) m_GearCategoryTab = 3;
-                    ImGui::Spacing(); ImGui::Spacing();
-
-                    ImGui::TextColored(ImVec4(0.8f, 0.4f, 0.4f, 1.0f), "[SISTEMA IN SVILUPPO]");
-                    ImGui::Text("Le categorie di dotazione sono in via di integrazione con l'inventario.");
+                    // Slot equipaggiamento 1-3 (in partita: tasti 4, 5, 6). Solo la dotazione permessa all'unita'.
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "SLOT EQUIPAGGIAMENTO (tasti 4 - 5 - 6 in partita)");
+                    ImGui::Spacing();
+                    for (int slot = 0; slot < 3; ++slot) {
+                        const auto* eqBP = BlueprintManager::Get().GetWeapon(activeUnit.equipmentSlots[slot]);
+                        const std::string eqName = eqBP ? eqBP->displayName : "[Vuoto]";
+                        const std::string label = "Slot " + std::to_string(slot + 1) + " (tasto " + std::to_string(slot + 4) + ")";
+                        if (ImGui::BeginCombo(label.c_str(), eqName.c_str())) {
+                            if (ImGui::Selectable("[Vuoto]", activeUnit.equipmentSlots[slot].empty())) {
+                                activeUnit.equipmentSlots[slot] = "";
+                                ApplyUnitVisuals(activeUnit);
+                            }
+                            for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
+                                if (!wBP.is_equipment || !wBP.AllowedFor(activeUnit.blueprintId)) continue;
+                                if (DrawItemOption(activeUnit, activeUnit.equipmentSlots[slot], wId, wBP)) ApplyUnitVisuals(activeUnit);
+                                if (ImGui::IsItemHovered()) {
+                                    ImGui::SetTooltip("%s | Usi: %d | Portata: %.0f m | %.1f s per rifornimento", wBP.displayName.c_str(),
+                                        wBP.equipment_uses, wBP.equipment_range, wBP.equipment_use_time);
+                                }
+                            }
+                            ImGui::EndCombo();
+                        }
+                    }
+                    ImGui::Spacing();
+                    if (ImGui::Button("Ripristina dotazione base", ImVec2(220, 28))) {
+                        activeUnit.ApplyDefaultLoadout();
+                        ApplyUnitVisuals(activeUnit);
+                    }
+                    ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Scatola di munizioni in mano: click sinistro rifornisce te,");
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "click destro un compagno entro la portata.");
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Squig: basta averlo in uno slot, ti segue da solo.");
+                }
+                // Esito dell'ultimo acquisto di un oggetto ricercato
+                if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
+                    m_ResearchMessageTimer -= ImGui::GetIO().DeltaTime;
+                    ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "%s", m_ResearchMessage.c_str());
                 }
             }
             else if (m_CustomizeMainTab == 2) {
@@ -5052,6 +5245,7 @@ namespace SunEngine {
         else if (faction == "spacemarines") u.meleeWeaponId = "standard_chainsword_1h";
         else if (unitId == "imperium_ogryn") u.meleeWeaponId = "entrenching_shovel_1h";
         else u.meleeWeaponId = "combat_knife_1h";
+        u.ApplyDefaultLoadout();   // unita' con dotazione base definita (es. gretchin): quella
         return u;
     }
 
@@ -5101,10 +5295,14 @@ namespace SunEngine {
         inv.primaryWeaponId = unit.primaryWeaponId;
         inv.secondaryWeaponId = unit.secondaryWeaponId;
         inv.meleeWeaponId = unit.meleeWeaponId;
-        inv.currentSlot = 0;
-        reg.emplace<WeaponBlueprintId>(e, unit.primaryWeaponId);
+        inv.tool1Id = unit.equipmentSlots[0];
+        inv.tool2Id = unit.equipmentSlots[1];
+        inv.tool3Id = unit.equipmentSlots[2];
+        inv.currentSlot = inv.FirstUsableSlot();   // senza primaria (gretchin) parte dalla secondaria
+        reg.emplace<WeaponBlueprintId>(e, inv.GetActiveWeaponId());
         auto& ws = reg.emplace<WeaponStateComponent>(e);
-        if (const auto* wbp = BlueprintManager::Get().GetWeapon(unit.primaryWeaponId)) ws.currentAmmo = wbp->magazine_size;
+        if (const auto* wbp = BlueprintManager::Get().GetWeapon(inv.GetActiveWeaponId())) ws.currentAmmo = wbp->magazine_size;
+        Ammo::Init(reg, e, unit.blueprintId);   // munizioni limitate anche per i bot
         reg.emplace<CameraRecoilComponent>(e);
         reg.emplace<MeleeStateComponent>(e);
         reg.emplace<WeaponTriggerComponent>(e);
@@ -5289,6 +5487,11 @@ namespace SunEngine {
         const auto bt = reg.get<TransformComponent>(bot);
         const float hpNow = reg.get<HealthComponent>(bot).currentHealth;
         const int rosterIdx = reg.get<BotBrainComponent>(bot).rosterIndex;
+        // Munizioni e arma in mano dell'alleato: il giocatore le eredita (niente caricatori pieni regalati)
+        const AmmoComponent* botAmmoPtr = reg.try_get<AmmoComponent>(bot);
+        const bool hadAmmo = botAmmoPtr != nullptr;
+        AmmoComponent botAmmo = hadAmmo ? *botAmmoPtr : AmmoComponent{};
+        const int botAmmoInHand = reg.all_of<WeaponStateComponent>(bot) ? reg.get<WeaponStateComponent>(bot).currentAmmo : 0;
         m_VsBotUnits.erase(it);
         m_PhysicsSystem.DestroyJoltBody(m_Scene, bot);
         m_Scene.DestroyEntity(bot);
@@ -5310,6 +5513,15 @@ namespace SunEngine {
             ws->isReloading = false; ws->reloadTimer = 0.0f; ws->fireCooldown = 0.0f; ws->currentHeat = 0.0f; ws->isOverheating = false;
             if (auto* wbp = reg.try_get<WeaponBlueprintId>(m_PlayerEntity))
                 if (const auto* bp = BlueprintManager::Get().GetWeapon(wbp->id)) ws->currentAmmo = bp->magazine_size;
+            if (hadAmmo) {
+                // Riporto il caricatore che il bot aveva in mano nel suo slot, poi lo carico per l'arma in mano ora
+                if (botAmmo.activeIndex >= 0) botAmmo.magazine[botAmmo.activeIndex] = botAmmoInHand;
+                botAmmo.useTimer = 0.0f; botAmmo.useSlot = -1; botAmmo.useTarget = entt::null;
+                botAmmo.activeIndex = -1;
+                botAmmo.infinite = false;
+                auto& pa = reg.emplace_or_replace<AmmoComponent>(m_PlayerEntity, botAmmo);
+                if (const auto* pinv = reg.try_get<InventoryComponent>(m_PlayerEntity)) Ammo::SyncHeld(pa, *ws, *pinv);
+            }
         }
         m_CurrentSquadMemberIdx = -1;   // alleato generato: niente esperienza a un'unita' del garage
         for (size_t i = 0; i < m_ActiveSquad.size(); ++i) if (m_ActiveSquad[i].rosterIndex == rosterIdx && rosterIdx >= 0) m_CurrentSquadMemberIdx = static_cast<int>(i);

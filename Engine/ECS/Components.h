@@ -292,6 +292,54 @@ namespace SunEngine {
         int  burstRemaining = 0;
     };
 
+    // Munizioni limitate. Il caricatore dell'arma a distanza in mano vive in WeaponStateComponent::currentAmmo;
+    // quelli delle altre armi restano qui finche' non le riprendi in mano (indice 0 = primaria, 1 = secondaria).
+    // La riserva ("colpi rimasti") si consuma ricaricando e si recupera con la scatola di munizioni.
+    struct AmmoComponent {
+        int magazine[2] = { 0, 0 };
+        int reserve[2] = { 0, 0 };
+        int maxReserve[2] = { 0, 0 };
+        int activeIndex = -1;          // arma il cui caricatore e' in currentAmmo (-1 = nessuna)
+        bool infinite = false;         // campo da tiro: la riserva non cala
+
+        // Dotazione tattica (slot 4-6)
+        int equipmentUses[3] = { 0, 0, 0 };
+        float useTimer = 0.0f;         // >0: rifornimento in corso
+        float useDuration = 0.0f;
+        int useSlot = -1;              // slot equipaggiamento in uso (4-6)
+        entt::entity useTarget = entt::null;   // chi riceve le munizioni (se' stessi o un compagno)
+        float feedbackTimer = 0.0f;    // messaggio a schermo dopo l'uso
+        std::string feedback;
+    };
+
+    // Entita' riparabile con un attrezzo (chiave inglese): veicoli, strutture, torrette, semoventi...
+    // Tag tipici: "Structure", "Construct", "Mechanical". La salute e' quella dell'HealthComponent.
+    struct RepairableComponent {
+        std::vector<std::string> tags;
+        bool HasAnyTag(const std::vector<std::string>& wanted) const {
+            for (const auto& w : wanted) for (const auto& t : tags) if (w == t) return true;
+            return false;
+        }
+    };
+
+    // Compagno squig che segue il padrone e attacca quello a cui il padrone spara.
+    enum class SquigKind { Biter, Bomb };
+    enum class SquigState { Follow, Attack, Charge };
+    struct SquigComponent {
+        entt::entity owner = entt::null;
+        int ownerSlot = 4;                  // slot equipaggiamento del padrone (4-6) da cui viene
+        std::string itemId;                 // blueprint dello squig
+        SquigKind kind = SquigKind::Biter;
+        SquigState state = SquigState::Follow;
+        entt::entity target = entt::null;
+        float targetTimer = 0.0f;           // per quanto insegue ancora l'ordine ricevuto
+        float attackCooldown = 0.0f;
+        float prevOwnerFireCooldown = 0.0f; // per accorgersi che il padrone ha sparato
+        std::vector<glm::vec3> path;
+        float pathTimer = 0.0f;
+        float hopPhase = 0.0f;              // saltello mentre corre
+    };
+
     struct TrailRequestComponent {
         glm::vec3 start = glm::vec3(0.0f);
         glm::vec3 end = glm::vec3(0.0f);
@@ -335,11 +383,53 @@ namespace SunEngine {
         int currentSlot = 0;
 
         std::string GetActiveWeaponId() const {
-            if (currentSlot == 0) return primaryWeaponId;
-            if (currentSlot == 1) return secondaryWeaponId;
-            if (currentSlot == 2) return meleeWeaponId;
-            if (currentSlot == 3) return grenadeId;
-            return "";
+            return GetSlotItemId(currentSlot);
+        }
+
+        // Oggetto in uno slot: 0 primaria, 1 secondaria, 2 mischia, 3 granata, 4-6 equipaggiamento (tasti 4, 5, 6)
+        std::string GetSlotItemId(int slot) const {
+            switch (slot) {
+            case 0: return primaryWeaponId;
+            case 1: return secondaryWeaponId;
+            case 2: return meleeWeaponId;
+            case 3: return grenadeId;
+            case 4: return tool1Id;
+            case 5: return tool2Id;
+            case 6: return tool3Id;
+            default: return "";
+            }
+        }
+
+        bool HasSlotItem(int slot) const {
+            const std::string id = GetSlotItemId(slot);
+            return !id.empty() && id != "none" && BlueprintManager::Get().GetWeapon(id) != nullptr;
+        }
+
+        // Si puo' prendere in mano? (gli squig sono compagni passivi: occupano lo slot ma non si impugnano)
+        bool IsSlotSelectable(int slot) const {
+            if (!HasSlotItem(slot)) return false;
+            const auto* bp = BlueprintManager::Get().GetWeapon(GetSlotItemId(slot));
+            return !(bp->is_equipment && bp->equipment_type.rfind("squig", 0) == 0);
+        }
+
+        // Primo slot con qualcosa dentro (es. il gretchin non ha primaria: parte con la Grot Blasta)
+        int FirstUsableSlot() const {
+            for (int s : { 0, 1, 2, 4, 5, 6 }) if (IsSlotSelectable(s)) return s;
+            return 0;
+        }
+
+        // In mano c'e' un oggetto della dotazione tattica (es. scatola di munizioni)?
+        bool IsHoldingEquipment() const {
+            const auto* bp = BlueprintManager::Get().GetWeapon(GetActiveWeaponId());
+            return bp && bp->is_equipment;
+        }
+
+        // Passiva di velocita' dell'arma da mischia tenuta in mano (es. coltello del gretchin +5%)
+        float HeldSpeedMultiplier() const {
+            const WeaponBlueprint* held = nullptr;
+            if (currentSlot == 2 || GetEquipStance() == EquipStance::HybridRangedMelee)
+                held = BlueprintManager::Get().GetWeapon(meleeWeaponId);
+            return held ? 1.0f + held->wielder_speed_bonus : 1.0f;
         }
 
         EquipStance GetEquipStance() const {
@@ -358,8 +448,8 @@ namespace SunEngine {
 
             if (!activeBP) return EquipStance::MeleePure;
 
-            if (activeBP->slot_type == WeaponSlotType::Melee || activeBP->is_melee) {
-                return EquipStance::MeleePure;
+            if (activeBP->slot_type == WeaponSlotType::Melee || activeBP->is_melee || activeBP->is_equipment) {
+                return EquipStance::MeleePure;   // la dotazione tattica si tiene in una mano, come un'arma bianca
             }
 
             if (activeBP->hand_type == HandType::OneHanded) {
@@ -528,6 +618,9 @@ namespace SunEngine {
     struct WeaponTriggerComponent {
         bool fire = false;
         bool reload = false;
+        bool useEquipment = false;              // dotazione in mano: usa su se' stesso (click sinistro)
+        bool giveEquipment = false;             // dotazione in mano: dalla a un compagno (click destro)
+        entt::entity giveTarget = entt::null;   // compagno scelto dall'IA (null = il piu' vicino)
     };
 
     // Ruolo di combattimento dell'IA ("ai_role" nel blueprint dell'unita')
@@ -587,6 +680,10 @@ namespace SunEngine {
         bool isAiming = false;
 
         entt::entity weaponEntity = entt::null; // arma visibile in mano
+
+        // Dotazione tattica (scatola di munizioni): slot in mano mentre rifornisce se' o un compagno (-1 = no)
+        int resupplySlot = -1;
+        float resupplyCheck = 0.0f;
     };
 
 }                                    // ← aggiungi chiusura namespace

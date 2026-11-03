@@ -1,5 +1,5 @@
 {
-  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Valori di costo provvisori.",
+  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Valori di costo provvisori. Nodi con 'item' al posto di 'unit' = oggetti: si ricercano coi punti studio della prima unita' risalendo l'albero e si comprano nel garage per ogni unita'.",
   "factions": [
     {
       "id": "imperium",
@@ -299,6 +299,74 @@
             0.12,
             0.45,
             0.12,
+            1
+          ]
+        },
+        {
+          "id": "ork_item_wrench",
+          "item": "grot_wrench",
+          "name": "Chiave Inglese",
+          "tier": 1,
+          "col": 1,
+          "row": 3,
+          "parent": "ork_gretchin",
+          "research_cost": 8,
+          "purchase_cost": 20,
+          "color": [
+            0.45,
+            0.43,
+            0.4,
+            1
+          ]
+        },
+        {
+          "id": "ork_item_trombone",
+          "item": "grot_trombone",
+          "name": "Trombone",
+          "tier": 1,
+          "col": 1,
+          "row": 4,
+          "parent": "ork_gretchin",
+          "research_cost": 18,
+          "purchase_cost": 35,
+          "color": [
+            0.7,
+            0.55,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "ork_item_squig",
+          "item": "squig_biter",
+          "name": "Squig da Compagnia",
+          "tier": 1,
+          "col": 1,
+          "row": 5,
+          "parent": "ork_gretchin",
+          "research_cost": 20,
+          "purchase_cost": 40,
+          "color": [
+            0.8,
+            0.22,
+            0.14,
+            1
+          ]
+        },
+        {
+          "id": "ork_item_squig_bomb",
+          "item": "squig_bomb",
+          "name": "Squig Esplosivo",
+          "tier": 1,
+          "col": 2,
+          "row": 5,
+          "parent": "ork_item_squig",
+          "research_cost": 25,
+          "purchase_cost": 50,
+          "color": [
+            0.95,
+            0.45,
+            0.1,
             1
           ]
         }

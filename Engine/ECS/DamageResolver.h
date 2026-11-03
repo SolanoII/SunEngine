@@ -111,6 +111,19 @@ namespace SunEngine {
             return true;
         }
 
+        // L'attaccante e' alle spalle del difensore? (dietro al busto: fuori dai 240 gradi davanti, cioe' nel
+        // cono di 120 gradi alle spalle)
+        inline static bool IsBehind(entt::registry& reg, entt::entity attacker, entt::entity defender) {
+            const auto* ta = reg.try_get<TransformComponent>(attacker);
+            const auto* td = reg.try_get<TransformComponent>(defender);
+            if (!ta || !td) return false;
+            const float yaw = glm::radians(td->Rotation.y);   // orientamento del corpo
+            const glm::vec3 fwd(-std::sin(yaw), 0.0f, -std::cos(yaw));
+            glm::vec3 toAttacker = ta->Position - td->Position; toAttacker.y = 0.0f;
+            if (glm::length(toAttacker) < 1e-4f) return false;
+            return glm::dot(fwd, glm::normalize(toAttacker)) < -0.5f;
+        }
+
         enum class MeleeClashResult { Parried, Countered, Hit };
 
         // Risolve un colpo in mischia gia' andato a segno sulla zona 'location'. Il difensore puo' non avere
@@ -176,6 +189,12 @@ namespace SunEngine {
 
             float rawDamage = (attackerStats.strength * 0.4f) + (weaponBaseDamage * nodeMult);
             int ap = weaponBP ? weaponBP->armor_penetration : 10;
+
+            // Colpo alle spalle: armi con "backstab_multiplier" (es. coltello del gretchin x2)
+            if (weaponBP && weaponBP->backstab_multiplier != 1.0f && IsBehind(reg, attacker, defender)) {
+                rawDamage *= weaponBP->backstab_multiplier;
+                SUN_CORE_INFO("COLPO ALLE SPALLE! Danno x{0}", weaponBP->backstab_multiplier);
+            }
 
             ResolveHit(rawDamage, ap, location, defenderStats, defenderHealth);
             attackerMelee.hasHitInThisAttack = true;

@@ -10,6 +10,7 @@
 #include "DamageResolver.h"
 #include "RaycastUtils.h"          // <-- AGGIUNGI
 #include "HitUtils.h"
+#include "AmmoSystem.h"
 #include "../Core/Random.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -178,10 +179,14 @@ namespace SunEngine {
             auto& inventory = view.get<InventoryComponent>(entity);
             auto& recoil = view.get<CameraRecoilComponent>(entity);
 
+            // Munizioni limitate: ogni arma tiene il suo caricatore, cambiare arma non lo riempie
+            auto* ammo = scene.GetRegistry().try_get<AmmoComponent>(entity);
+            if (ammo) Ammo::SyncHeld(*ammo, wState, inventory);
+
             std::string activeWeaponId = inventory.GetActiveWeaponId();
             const WeaponBlueprint* wpBP = BlueprintManager::Get().GetWeapon(activeWeaponId);
 
-            if (!wpBP || wpBP->is_melee) {
+            if (!wpBP || wpBP->is_melee || wpBP->is_equipment) {
                 // Reset stato trigger: evita di trascinare un fronte di salita
                 // stantio quando si passa arma -> melee -> arma.
                 wState.wasFiringLastFrame = false;
@@ -238,14 +243,15 @@ namespace SunEngine {
                 if (wState.reloadTimer <= 0.0f) {
                     wState.isReloading = false;
                     wState.reloadTimer = 0.0f;
-                    wState.currentAmmo = wpBP->magazine_size;
+                    if (ammo) Ammo::FinishReload(*ammo, wState, *wpBP);   // i colpi arrivano dalla riserva
+                    else wState.currentAmmo = wpBP->magazine_size;
                     if (isPlayer) SUN_CORE_INFO("Arma ricaricata! Munizioni: {0}", wState.currentAmmo);
                 }
                 wState.wasFiringLastFrame = wantsToFire;
                 continue;
             }
 
-            if (wantsReload && wState.currentAmmo < wpBP->magazine_size && !wState.isReloading) {
+            if (wantsReload && wState.currentAmmo < wpBP->magazine_size && !wState.isReloading && (!ammo || Ammo::CanReload(*ammo))) {
                 wState.isReloading = true;
                 wState.reloadTimer = wpBP->reload_time_sec;
                 if (isPlayer) SUN_CORE_INFO("Ricarica avviata...");
@@ -312,10 +318,15 @@ namespace SunEngine {
                         wState.burstRemaining--;
                     }
                 }
-                else if (!wState.isReloading) {
+                else if (!wState.isReloading && (!ammo || Ammo::CanReload(*ammo))) {
                     wState.isReloading = true;
                     wState.reloadTimer = wpBP->reload_time_sec;
                     if (isPlayer) SUN_CORE_WARN("Caricatore vuoto! Ricarica automatica...");
+                }
+                else if (triggerJustPressed && ammo) {
+                    // Niente caricatore e niente riserva: "click" a vuoto
+                    ammo->feedback = "Munizioni esaurite";
+                    ammo->feedbackTimer = 1.5f;
                 }
             }
 

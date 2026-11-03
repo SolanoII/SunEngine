@@ -1,0 +1,217 @@
+{
+  "id": "grot_blasta",
+  "comment": "Grot Blasta a blocchi: pistola sgangherata a canna larga, piastre rivettate e impugnatura di legno. Spazio modello: canna verso -Z, +Y alto, +X destra. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.075,
+      0.075
+    ],
+    "muzzle": [
+      0.0,
+      0.02,
+      -0.205
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0.0,
+        0.02,
+        -0.1
+      ],
+      "size": [
+        0.038,
+        0.038,
+        0.19
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0.0,
+        0.02,
+        -0.195
+      ],
+      "size": [
+        0.048,
+        0.048,
+        0.02
+      ],
+      "color": [
+        0.16,
+        0.15,
+        0.14,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "fascetta",
+      "offset": [
+        0.0,
+        0.02,
+        -0.06
+      ],
+      "size": [
+        0.046,
+        0.046,
+        0.012
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0.0,
+        0.005,
+        0.04
+      ],
+      "size": [
+        0.05,
+        0.06,
+        0.1
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.5
+    },
+    {
+      "name": "piastra_dx",
+      "offset": [
+        0.027,
+        0.005,
+        0.03
+      ],
+      "size": [
+        0.006,
+        0.045,
+        0.07
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "rivetto",
+      "offset": [
+        0.031,
+        0.02,
+        0.05
+      ],
+      "size": [
+        0.006,
+        0.008,
+        0.008
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "cane",
+      "offset": [
+        0.0,
+        0.04,
+        0.09
+      ],
+      "size": [
+        0.016,
+        0.026,
+        0.02
+      ],
+      "rotation": [
+        25,
+        0,
+        0
+      ],
+      "color": [
+        0.16,
+        0.15,
+        0.14,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0.0,
+        -0.075,
+        0.075
+      ],
+      "size": [
+        0.036,
+        0.1,
+        0.04
+      ],
+      "rotation": [
+        -15,
+        0,
+        0
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "name": "ponticello",
+      "offset": [
+        0.0,
+        -0.035,
+        0.025
+      ],
+      "size": [
+        0.01,
+        0.03,
+        0.04
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    }
+  ]
+}

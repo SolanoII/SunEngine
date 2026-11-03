@@ -1,0 +1,158 @@
+{
+  "id": "grot_knife_small",
+  "displayName": "Coltello da Grot",
+  "comment": "Dotazione base del gretchin: lama piccola, meno danno di un coltello normale. Passive: +5% velocita' a chi la tiene in mano, x2 danno alle spalle (gioco stealth).",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "is_melee": true,
+  "hand_type": "OneHanded",
+  "slot_type": "Melee",
+  "weight_kg": 0.5,
+  "point_cost": 0,
+  "base_damage": 15.0,
+  "melee_reach": 1.55,
+  "backstab_multiplier": 2.0,
+  "wielder_speed_bonus": 0.05,
+  "default_melee_type": "Light",
+  "weapon_scale": [
+    0.03,
+    0.06,
+    0.28
+  ],
+  "hold_offset": [
+    0.0,
+    -0.02,
+    0.14
+  ],
+  "primary_color": [
+    0.55,
+    0.5,
+    0.42,
+    1.0
+  ],
+  "moveset": {
+    "entry_node": "normal_1",
+    "nodes": {
+      "heavy_1": {
+        "damage_multiplier": 1.85,
+        "stamina_cost": 11.2,
+        "timings": {
+          "windup": 0.153,
+          "active": 0.102,
+          "recovery": 0.153
+        },
+        "combo_window": {
+          "start": 0.102,
+          "end": 0.297
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "normal_1": {
+        "damage_multiplier": 1.0,
+        "stamina_cost": 5.6,
+        "timings": {
+          "windup": 0.068,
+          "active": 0.102,
+          "recovery": 0.119
+        },
+        "combo_window": {
+          "start": 0.068,
+          "end": 0.255
+        },
+        "transitions": {
+          "F_CLICK": "normal_2",
+          "LMB": "normal_2",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "normal_2": {
+        "damage_multiplier": 1.15,
+        "stamina_cost": 6.4,
+        "timings": {
+          "windup": 0.076,
+          "active": 0.111,
+          "recovery": 0.128
+        },
+        "combo_window": {
+          "start": 0.068,
+          "end": 0.272
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "low_1": {
+        "damage_multiplier": 0.8,
+        "stamina_cost": 4.0,
+        "timings": {
+          "windup": 0.051,
+          "active": 0.085,
+          "recovery": 0.102
+        },
+        "combo_window": {
+          "start": 0.051,
+          "end": 0.212
+        },
+        "transitions": {
+          "C": "low_2",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "low_2": {
+        "damage_multiplier": 0.85,
+        "stamina_cost": 4.4,
+        "timings": {
+          "windup": 0.051,
+          "active": 0.085,
+          "recovery": 0.102
+        },
+        "combo_window": {
+          "start": 0.051,
+          "end": 0.212
+        },
+        "transitions": {
+          "C": "low_3",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "low_3": {
+        "damage_multiplier": 1.05,
+        "stamina_cost": 5.2,
+        "timings": {
+          "windup": 0.06,
+          "active": 0.102,
+          "recovery": 0.119
+        },
+        "combo_window": {
+          "start": 0.06,
+          "end": 0.238
+        },
+        "transitions": {
+          "C": "low_1",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      }
+    }
+  }
+}

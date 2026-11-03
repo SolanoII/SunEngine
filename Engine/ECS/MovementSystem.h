@@ -374,6 +374,8 @@ public:
             }
 
             float moveSpeed = (stats.baseSpeed > 0.1f) ? (stats.baseSpeed * stats.speedModifier) : 5.0f;
+            // Passiva dell'arma bianca in mano (es. coltello del gretchin: +5%)
+            if (const auto* inv = scene.GetRegistry().try_get<InventoryComponent>(entity)) moveSpeed *= inv->HeldSpeedMultiplier();
 
             glm::vec3 moveDir{ 0.0f };
             if (Input::IsKeyPressed(GLFW_KEY_W)) moveDir.z -= 1.0f;

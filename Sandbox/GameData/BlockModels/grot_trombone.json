@@ -1,0 +1,248 @@
+{
+  "id": "grot_trombone",
+  "comment": "Trombone a blocchi: canna lunga con bocca a campana svasata, castello rivettato, calcio di legno. Canna verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.07,
+      0.14
+    ],
+    "grip_left": [
+      0.0,
+      -0.02,
+      -0.12
+    ],
+    "muzzle": [
+      0.0,
+      0.03,
+      -0.5
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0.0,
+        0.03,
+        -0.22
+      ],
+      "size": [
+        0.045,
+        0.045,
+        0.48
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "campana_1",
+      "offset": [
+        0.0,
+        0.03,
+        -0.44
+      ],
+      "size": [
+        0.075,
+        0.075,
+        0.04
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "campana_2",
+      "offset": [
+        0.0,
+        0.03,
+        -0.48
+      ],
+      "size": [
+        0.1,
+        0.1,
+        0.04
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "fascetta",
+      "offset": [
+        0.0,
+        0.03,
+        -0.1
+      ],
+      "size": [
+        0.055,
+        0.055,
+        0.015
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0.0,
+        -0.02,
+        -0.12
+      ],
+      "size": [
+        0.05,
+        0.035,
+        0.16
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0.0,
+        0.0,
+        0.06
+      ],
+      "size": [
+        0.06,
+        0.08,
+        0.14
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.5
+    },
+    {
+      "name": "piastra",
+      "offset": [
+        0.032,
+        0.0,
+        0.06
+      ],
+      "size": [
+        0.006,
+        0.06,
+        0.1
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "cane",
+      "offset": [
+        0.0,
+        0.05,
+        0.11
+      ],
+      "size": [
+        0.018,
+        0.03,
+        0.025
+      ],
+      "rotation": [
+        25,
+        0,
+        0
+      ],
+      "color": [
+        0.16,
+        0.15,
+        0.14,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0.0,
+        -0.07,
+        0.14
+      ],
+      "size": [
+        0.04,
+        0.09,
+        0.045
+      ],
+      "rotation": [
+        -15,
+        0,
+        0
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0.0,
+        -0.04,
+        0.27
+      ],
+      "size": [
+        0.05,
+        0.09,
+        0.18
+      ],
+      "rotation": [
+        -8,
+        0,
+        0
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

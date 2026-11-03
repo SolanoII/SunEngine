@@ -1,5 +1,6 @@
 #include "BlueprintManager.h"
 #include "../Core/Logger/Log.h"
+#include <algorithm>
 #include <fstream>
 #include <filesystem>
 
@@ -112,6 +113,25 @@ namespace SunEngine {
                 bp.range_effective = j.value("range_effective", 0.0f);
                 bp.heat_capacity = j.value("heat_capacity", 100.0f);
                 bp.burst_count = j.value("burst_count", 3);   // <-- AGGIUNGI QUESTA RIGA
+                bp.spare_magazines = std::max(0, j.value("spare_magazines", 4));
+                bp.backstab_multiplier = j.value("backstab_multiplier", 1.0f);
+                bp.wielder_speed_bonus = j.value("wielder_speed_bonus", 0.0f);
+                bp.equipment_type = j.value("equipment_type", std::string());
+                bp.equipment_uses = j.value("equipment_uses", 0);
+                bp.equipment_range = j.value("equipment_range", 5.0f);
+                bp.equipment_use_time = j.value("equipment_use_time", 1.0f);
+                if (j.contains("repair_tags") && j["repair_tags"].is_array()) {
+                    for (const auto& t : j["repair_tags"]) if (t.is_string()) bp.repair_tags.push_back(t.get<std::string>());
+                }
+                bp.repair_rate = j.value("repair_rate", 0.0f);
+                bp.repair_range = j.value("repair_range", 2.2f);
+                bp.companion_speed = j.value("companion_speed", 7.0f);
+                bp.companion_attack_interval = j.value("companion_attack_interval", 1.0f);
+                bp.explosion_radius = j.value("explosion_radius", 0.0f);
+                bp.explosion_damage = j.value("explosion_damage", 0.0f);
+                if (j.contains("allowed_units") && j["allowed_units"].is_array()) {
+                    for (const auto& u : j["allowed_units"]) if (u.is_string()) bp.allowed_units.push_back(u.get<std::string>());
+                }
 
                 // fire_modes: array di stringhe nel JSON, es. ["semi"] o ["auto"] o ["burst"]
                 if (j.contains("fire_modes") && j["fire_modes"].is_array()) {
@@ -137,7 +157,11 @@ namespace SunEngine {
                 bp.damage_falloff_end = j.value("damage_falloff_end", 0.0f);
 
                 std::string slotStr = j.value("slot_type", j.value("weapon_slot", "primary"));
-                if (slotStr == "secondary" || slotStr == "Secondary") {
+                if (slotStr == "equipment" || slotStr == "Equipment") {
+                    bp.slot_type = WeaponSlotType::Equipment;
+                    bp.is_equipment = true;
+                }
+                else if (slotStr == "secondary" || slotStr == "Secondary") {
                     bp.slot_type = WeaponSlotType::Secondary;
                 }
                 else if (slotStr == "melee" || slotStr == "Melee" || bp.is_melee) {
@@ -280,6 +304,18 @@ namespace SunEngine {
                 bp.fov_degrees = j.value("fov_degrees", 90.0f);
                 bp.weight_capacity = j.value("weight_capacity", 60.0f);
                 bp.weightCapacity = bp.weight_capacity;
+                bp.ammo_multiplier = j.value("ammo_multiplier", 1.0f);
+                if (j.contains("default_loadout") && j["default_loadout"].is_object()) {
+                    const auto& lj = j["default_loadout"];
+                    bp.has_default_loadout = true;
+                    bp.default_primary = lj.value("primary", std::string());
+                    bp.default_secondary = lj.value("secondary", std::string());
+                    bp.default_melee = lj.value("melee", std::string());
+                    if (lj.contains("equipment") && lj["equipment"].is_array()) {
+                        for (size_t i = 0; i < 3 && i < lj["equipment"].size(); ++i)
+                            if (lj["equipment"][i].is_string()) bp.default_equipment[i] = lj["equipment"][i].get<std::string>();
+                    }
+                }
 
                 m_Units[bp.id] = bp;
                 SUN_CORE_INFO("Unita caricata: {0} (ID: {1})", bp.displayName, bp.id);

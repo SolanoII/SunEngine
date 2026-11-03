@@ -1,0 +1,71 @@
+{
+  "id": "grot_trombone",
+  "displayName": "Trombone",
+  "comment": "Fucile rudimentale a 2 mani che spara chiodi, bulloni e rottami. Monocolpo: 1 in canna + 2 di scorta, 10 s per ricaricare. Rosa molto larga: a 3 metri uccide un umano senza armatura, da lontano quasi inutile. Si ricerca sotto il Gretchin e si compra per unita'.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 4.5,
+  "point_cost": 4,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 1,
+  "spare_magazines": 2,
+  "reload_time_sec": 10.0,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 60.0,
+  "base_damage": 26.0,
+  "pellet_count": 14,
+  "armor_penetration": 2,
+  "impact_force": 40.0,
+  "toughness_bypass": 0.0,
+  "range_effective": 20.0,
+  "damage_falloff_start": 4.0,
+  "damage_falloff_end": 14.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 3.0,
+  "shake_intensity": 0.25,
+  "fov_kick": 3.0,
+  "spread_base": 0.35,
+  "spread_auto_multiplier": 1.0,
+  "suppression_value": 8,
+  "projectile_type": "ballistic",
+  "is_beam": false,
+  "projectile_speed": 90.0,
+  "projectile_length": 0.25,
+  "projectile_width": 0.05,
+  "primary_color": [
+    0.85,
+    0.55,
+    0.25,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    0.8,
+    0.5,
+    1.0
+  ],
+  "weapon_scale": [
+    0.12,
+    0.14,
+    0.8
+  ],
+  "hold_offset": [
+    0.35,
+    -0.12,
+    -0.25
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.45
+  ],
+  "heat_recoil_multiplier": 1.0
+}

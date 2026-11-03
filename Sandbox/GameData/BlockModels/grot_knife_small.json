@@ -1,0 +1,165 @@
+{
+  "id": "grot_knife_small",
+  "comment": "Coltello da grot a blocchi: lama corta e seghettata, manico avvolto di stracci. Spazio modello: punta verso -Z, +Y alto, +X destra. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.003,
+      0.075
+    ],
+    "muzzle": [
+      0.0,
+      -0.005,
+      -0.13
+    ]
+  },
+  "parts": [
+    {
+      "name": "lama",
+      "offset": [
+        0.0,
+        0.0,
+        -0.035
+      ],
+      "size": [
+        0.006,
+        0.028,
+        0.12
+      ],
+      "color": [
+        0.58,
+        0.56,
+        0.52,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "punta",
+      "offset": [
+        0.0,
+        -0.006,
+        -0.11
+      ],
+      "size": [
+        0.005,
+        0.016,
+        0.04
+      ],
+      "color": [
+        0.58,
+        0.56,
+        0.52,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "dente_1",
+      "offset": [
+        0.0,
+        0.016,
+        -0.02
+      ],
+      "size": [
+        0.005,
+        0.008,
+        0.012
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "name": "dente_2",
+      "offset": [
+        0.0,
+        0.016,
+        -0.05
+      ],
+      "size": [
+        0.005,
+        0.008,
+        0.012
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "name": "guardia",
+      "offset": [
+        0.0,
+        0.0,
+        0.03
+      ],
+      "size": [
+        0.012,
+        0.04,
+        0.01
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "manico",
+      "offset": [
+        0.0,
+        -0.003,
+        0.075
+      ],
+      "size": [
+        0.022,
+        0.03,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.36,
+        0.26,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    {
+      "name": "pomo",
+      "offset": [
+        0.0,
+        -0.003,
+        0.12
+      ],
+      "size": [
+        0.026,
+        0.032,
+        0.014
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    }
+  ]
+}

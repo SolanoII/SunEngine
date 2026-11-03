@@ -1,0 +1,30 @@
+{
+  "id": "squig_biter",
+  "displayName": "Squig da Compagnia",
+  "comment": "Compagno del gretchin: basta averlo in uno slot equipaggiamento, ti segue da solo. Quando spari (anche mancando) attacca il nemico piu' vicino alla tua linea di tiro e lo morde.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "squig",
+  "hand_type": "OneHanded",
+  "weight_kg": 0.0,
+  "point_cost": 3,
+  "equipment_uses": 1,
+  "base_damage": 14.0,
+  "armor_penetration": 0,
+  "companion_speed": 7.5,
+  "companion_attack_interval": 1.0,
+  "weapon_scale": [
+    0.3,
+    0.3,
+    0.3
+  ],
+  "primary_color": [
+    0.8,
+    0.22,
+    0.14,
+    1.0
+  ]
+}

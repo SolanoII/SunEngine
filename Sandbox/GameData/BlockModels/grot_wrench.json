@@ -1,0 +1,144 @@
+{
+  "id": "grot_wrench",
+  "comment": "Chiave inglese a blocchi: manico lungo e testa a ganascia aperta. Punta verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      0.0,
+      0.1
+    ],
+    "muzzle": [
+      0.0,
+      0.0,
+      -0.17
+    ]
+  },
+  "parts": [
+    {
+      "name": "manico",
+      "offset": [
+        0.0,
+        0.0,
+        0.04
+      ],
+      "size": [
+        0.018,
+        0.03,
+        0.24
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.75
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0.0,
+        0.0,
+        0.11
+      ],
+      "size": [
+        0.024,
+        0.036,
+        0.1
+      ],
+      "color": [
+        0.55,
+        0.15,
+        0.1,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "name": "testa",
+      "offset": [
+        0.0,
+        0.0,
+        -0.1
+      ],
+      "size": [
+        0.022,
+        0.07,
+        0.05
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "ganascia_alta",
+      "offset": [
+        0.0,
+        0.03,
+        -0.145
+      ],
+      "size": [
+        0.022,
+        0.018,
+        0.05
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "ganascia_bassa",
+      "offset": [
+        0.0,
+        -0.025,
+        -0.14
+      ],
+      "size": [
+        0.022,
+        0.016,
+        0.04
+      ],
+      "color": [
+        0.45,
+        0.27,
+        0.15,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "name": "vite",
+      "offset": [
+        0.0,
+        0.0,
+        -0.075
+      ],
+      "size": [
+        0.03,
+        0.02,
+        0.02
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    }
+  ]
+}

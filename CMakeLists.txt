@@ -147,7 +147,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/External/JoltPhysics/Build" EXCLUD
 # ==========================
 # Engine (Libreria Statica)
 # ==========================
-file(GLOB_RECURSE ENGINE_SOURCES "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
+file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "Engine/*.cpp" "Engine/*.c" "Engine/*.h" "Engine/*.hpp")
 add_library(SunEngine STATIC ${ENGINE_SOURCES} "Engine/Renderer/PostFX/AutoExposure.h")
 
 target_include_directories(SunEngine PUBLIC
@@ -178,7 +178,7 @@ target_link_libraries(SunEngine PUBLIC
 # ==========================
 # Gioco (Eseguibile)
 # ==========================
-file(GLOB_RECURSE SANDBOX_SOURCES "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
+file(GLOB_RECURSE SANDBOX_SOURCES CONFIGURE_DEPENDS "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
 add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/Renderer/PostFX/AutoExposure.h")
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
 

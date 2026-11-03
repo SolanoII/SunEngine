@@ -1,0 +1,120 @@
+{
+  "id": "grot_wrench",
+  "displayName": "Chiave Inglese da Grot",
+  "comment": "Arma impropria: combo semplicissime e danni miseri. Con la chiave in mano (tasto 3) il click destro tenuto ripara le entita' Structure/Construct/Mechanical (veicoli, strutture, torrette, semoventi). Si ricerca sotto il Gretchin e si compra per unita'.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "is_melee": true,
+  "hand_type": "OneHanded",
+  "slot_type": "Melee",
+  "weight_kg": 1.5,
+  "point_cost": 1,
+  "base_damage": 8.0,
+  "melee_reach": 1.6,
+  "default_melee_type": "Normal",
+  "repair_tags": [
+    "Structure",
+    "Construct",
+    "Mechanical"
+  ],
+  "repair_rate": 20.0,
+  "repair_range": 2.2,
+  "weapon_scale": [
+    0.04,
+    0.1,
+    0.34
+  ],
+  "hold_offset": [
+    0.0,
+    -0.02,
+    0.16
+  ],
+  "primary_color": [
+    0.4,
+    0.38,
+    0.34,
+    1.0
+  ],
+  "moveset": {
+    "entry_node": "normal_1",
+    "nodes": {
+      "normal_1": {
+        "damage_multiplier": 1.0,
+        "stamina_cost": 8.0,
+        "timings": {
+          "windup": 0.16,
+          "active": 0.14,
+          "recovery": 0.22
+        },
+        "combo_window": {
+          "start": 0.12,
+          "end": 0.4
+        },
+        "transitions": {
+          "F_CLICK": "normal_2",
+          "LMB": "normal_2",
+          "F_HOLD": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "normal_2": {
+        "damage_multiplier": 1.1,
+        "stamina_cost": 8.0,
+        "timings": {
+          "windup": 0.16,
+          "active": 0.14,
+          "recovery": 0.24
+        },
+        "combo_window": {
+          "start": 0.12,
+          "end": 0.4
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "heavy_1": {
+        "damage_multiplier": 1.6,
+        "stamina_cost": 14.0,
+        "timings": {
+          "windup": 0.3,
+          "active": 0.16,
+          "recovery": 0.3
+        },
+        "combo_window": {
+          "start": 0.18,
+          "end": 0.48
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "low_1": {
+        "damage_multiplier": 0.8,
+        "stamina_cost": 6.0,
+        "timings": {
+          "windup": 0.1,
+          "active": 0.12,
+          "recovery": 0.16
+        },
+        "combo_window": {
+          "start": 0.08,
+          "end": 0.3
+        },
+        "transitions": {
+          "C": "low_1",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1"
+        }
+      }
+    }
+  }
+}

@@ -32,7 +32,8 @@ namespace SunEngine {
     enum class WeaponSlotType {
         Primary,
         Secondary,
-        Melee
+        Melee,
+        Equipment   // dotazione tattica (scatola di munizioni, ...): slot equipaggiamento, tasti 4-5-6
     };
 
     enum class HandType {
@@ -138,6 +139,42 @@ namespace SunEngine {
 
         std::unordered_map<std::string, PowerMode> power_modes;
 
+        // --- Munizioni limitate ---
+        // Riserva iniziale = magazine_size * spare_magazines * ammo_multiplier dell'unita'.
+        // Es. Grot Blasta: 6 colpi x 2 caricatori di scorta = 12 di riserva (18 in tutto).
+        int spare_magazines = 4;
+
+        // --- Passive delle armi da mischia ---
+        float backstab_multiplier = 1.0f;    // danno se colpisci alle spalle (x2 = doppio)
+        float wielder_speed_bonus = 0.0f;    // velocita' extra di chi la tiene in mano (0.05 = +5%)
+
+        // --- Dotazione tattica (slot_type "equipment") ---
+        bool is_equipment = false;
+        std::string equipment_type;          // "ammo_box": click sinistro = rifornisce se', destro = un compagno vicino
+        int equipment_uses = 0;              // usi per partita
+        float equipment_range = 5.0f;        // portata per rifornire un compagno (metri)
+        float equipment_use_time = 1.0f;     // secondi per completare un rifornimento
+
+        // Riparazione (es. chiave inglese): click destro tenuto ripara le entita' con almeno uno di questi tag
+        // ("Structure", "Construct", "Mechanical": veicoli, strutture, torrette, semoventi...)
+        std::vector<std::string> repair_tags;
+        float repair_rate = 0.0f;            // salute riparata al secondo
+        float repair_range = 2.2f;           // metri
+
+        // Compagno squig (equipment_type "squig" = morso, "squig_bomb" = carica ed esplode, uno per partita).
+        // base_damage / armor_penetration = morso; explosion_radius / explosion_damage = esplosione.
+        float companion_speed = 7.0f;
+        float companion_attack_interval = 1.0f;
+        float explosion_damage = 0.0f;
+
+        // Unita' che possono equipaggiarla ("allowed_units"); vuoto = tutte (armi esistenti, da rivedere)
+        std::vector<std::string> allowed_units;
+        bool AllowedFor(const std::string& unitId) const {
+            if (allowed_units.empty()) return true;
+            for (const auto& u : allowed_units) if (u == unitId) return true;
+            return false;
+        }
+
         glm::vec3 weapon_scale = glm::vec3(0.2f, 0.2f, 0.8f);
         glm::vec3 hold_offset = glm::vec3(0.6f, 0.0f, -0.2f);
         glm::vec3 barrel_offset = glm::vec3(0.0f, 0.0f, -0.4f);
@@ -171,6 +208,14 @@ namespace SunEngine {
         float fov_degrees = 0.0f;
         float weight_capacity = 60.0f;
         float weightCapacity = 60.0f; // Alias di sicurezza per evitare errori di denominazione
+        // Munizioni di scorta del personaggio: moltiplica la riserva di ogni arma (1 = standard)
+        float ammo_multiplier = 1.0f;
+        // Dotazione base ("default_loadout"): armi ed equipaggiamento con cui l'unita' arriva nel garage
+        bool has_default_loadout = false;
+        std::string default_primary;
+        std::string default_secondary;
+        std::string default_melee;
+        std::string default_equipment[3];
     };
 
     struct ArmorBlueprint {

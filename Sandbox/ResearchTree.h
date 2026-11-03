@@ -21,10 +21,14 @@ namespace SunEngine {
     //  - Sbloccare (ricercare) un nodo costa PUNTI STUDIO dell'unita' PADRE (si guadagnano giocando con
     //    quel tipo di unita'); i nodi radice sono gia' sbloccati.
     //  - Un nodo sbloccato si "acquista" con ENERGIA: crea un'unita' nuova nel garage (anche piu' volte).
+    //  - Nodi OGGETTO ("item": id di un'arma o dotazione): si ricercano coi punti studio della prima unita'
+    //    risalendo l'albero (es. la chiave inglese sotto il Gretchin usa i punti studio del Gretchin) e poi si
+    //    comprano nel garage, unita' per unita'. Gli oggetti senza nodo (dotazione base) sono sempre disponibili.
     // Solo dati e regole: la UI sta in GameLayer. Dati in GameData/Research/research_tree.json.
     struct ResearchNode {
         std::string id;
-        std::string unitId;        // id del blueprint dell'unita'
+        std::string unitId;        // id del blueprint dell'unita' (vuoto nei nodi oggetto)
+        std::string itemId;        // id del blueprint dell'arma/dotazione (nodi oggetto)
         std::string name;          // nome mostrato nell'albero
         std::string parentId;      // vuoto = radice
         std::string defaultName = "Recluta";   // nome dato alle nuove unita' acquistate
@@ -78,7 +82,8 @@ namespace SunEngine {
                         ResearchNode n;
                         n.id = jn.value("id", std::string());
                         n.unitId = jn.value("unit", std::string());
-                        n.name = jn.value("name", n.unitId);
+                        n.itemId = jn.value("item", std::string());
+                        n.name = jn.value("name", n.unitId.empty() ? n.itemId : n.unitId);
                         n.parentId = jn.value("parent", std::string());
                         n.defaultName = jn.value("default_name", std::string("Recluta"));
                         n.tier = jn.value("tier", 1);
@@ -89,7 +94,8 @@ namespace SunEngine {
                         if (jn.contains("color") && jn["color"].is_array() && jn["color"].size() >= 4) {
                             for (int i = 0; i < 4; ++i) n.color[i] = jn["color"][i].get<float>();
                         }
-                        if (n.id.empty() || n.unitId.empty()) return fail("nodo senza 'id' o 'unit' nella fazione " + f.id);
+                        if (n.id.empty() || (n.unitId.empty() && n.itemId.empty())) return fail("nodo senza 'id' o 'unit'/'item' nella fazione " + f.id);
+                        if (!n.unitId.empty() && !n.itemId.empty()) return fail("nodo con sia 'unit' che 'item': " + n.id);
                         if (m_ById.count(n.id)) return fail("id nodo duplicato: " + n.id);
                         m_ById[n.id] = n;
                         f.nodes.push_back(n);
@@ -122,8 +128,28 @@ namespace SunEngine {
             return n.parentId.empty() ? nullptr : FindNode(n.parentId);
         }
         const ResearchNode* FindNodeByUnit(const std::string& unitId) const {
+            if (unitId.empty()) return nullptr;
             for (const auto& kv : m_ById) if (kv.second.unitId == unitId) return &kv.second;
             return nullptr;
+        }
+        const ResearchNode* FindNodeByItem(const std::string& itemId) const {
+            if (itemId.empty()) return nullptr;
+            for (const auto& kv : m_ById) if (kv.second.itemId == itemId) return &kv.second;
+            return nullptr;
+        }
+
+        // Nodo unita' i cui punti studio pagano la ricerca di n: il primo antenato che e' un'unita'
+        const ResearchNode* FindStudySource(const ResearchNode& n) const {
+            const ResearchNode* p = FindParent(n);
+            while (p && p->unitId.empty()) p = FindParent(*p);
+            return p;
+        }
+
+        // Oggetto da ricercare e comprare? (false = dotazione base, sempre disponibile)
+        bool IsItemLocked(const std::string& itemId) const { return FindNodeByItem(itemId) != nullptr; }
+        bool IsItemResearched(const PlayerProfile& p, const std::string& itemId) const {
+            const ResearchNode* n = FindNodeByItem(itemId);
+            return !n || IsResearched(p, *n);
         }
 
         static int64_t GetStudyPoints(const PlayerProfile& p, const std::string& unitId) {
@@ -140,15 +166,16 @@ namespace SunEngine {
             const ResearchNode* parent = FindParent(n);
             if (!parent) return ResearchStatus::Researchable;          // radice
             if (!IsResearched(p, *parent)) return ResearchStatus::LockedParent;
-            if (GetStudyPoints(p, parent->unitId) < n.researchCost) return ResearchStatus::LockedPoints;
+            const ResearchNode* source = FindStudySource(n);
+            if (source && GetStudyPoints(p, source->unitId) < n.researchCost) return ResearchStatus::LockedPoints;
             return ResearchStatus::Researchable;
         }
 
         // Sblocca il nodo spendendo i punti studio del PADRE. false se non sbloccabile.
         bool Research(PlayerProfile& p, const ResearchNode& n) const {
             if (GetStatus(p, n) != ResearchStatus::Researchable) return false;
-            if (const ResearchNode* parent = FindParent(n)) {
-                p.studyPoints[parent->unitId] -= n.researchCost;
+            if (const ResearchNode* source = FindStudySource(n)) {
+                p.studyPoints[source->unitId] -= n.researchCost;
             }
             p.researchedNodes.insert(n.id);
             return true;
