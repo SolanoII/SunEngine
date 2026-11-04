@@ -610,6 +610,14 @@ namespace SunEngine {
         bool hasLeft = false;
     };
 
+    // Buff di fazione attivo sull'unita' (es. WAAAGH! degli orki): moltiplicatori letti da movimento, armi e mischia
+    struct FactionBuffComponent {
+        float moveSpeedMult = 1.0f;     // velocita' di movimento
+        float reloadSpeedMult = 1.0f;   // velocita' di ricarica (1.4 = ricarica il 40% piu' in fretta)
+        float meleeSpeedMult = 1.0f;    // velocita' dei colpi in mischia
+        float meleeDamageMult = 1.0f;   // danni in mischia inflitti
+    };
+
     // Accovacciato (CTRL tenuto): piu' basso dietro le coperture, hitbox comprese, ma piu' lento.
     struct CrouchComponent {
         float amount = 0.0f;          // 0 in piedi, 1 accovacciato (transizione morbida)

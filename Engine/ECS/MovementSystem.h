@@ -440,6 +440,7 @@ public:
             // Passiva dell'arma bianca in mano (es. coltello del gretchin: +5%)
             if (const auto* inv = scene.GetRegistry().try_get<InventoryComponent>(entity)) moveSpeed *= inv->HeldSpeedMultiplier();
             moveSpeed *= 1.0f - 0.5f * crouch.amount;   // accovacciato: meta' velocita'
+            if (const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity)) moveSpeed *= buff->moveSpeedMult;   // WAAAGH!
 
             glm::vec3 moveDir{ 0.0f };
             if (Input::IsKeyPressed(GLFW_KEY_W)) moveDir.z -= 1.0f;

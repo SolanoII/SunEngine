@@ -72,7 +72,9 @@ namespace SunEngine {
                 auto it = weaponBP->moveset.nodes.find(melee.currentAttackNode);
                 if (it != weaponBP->moveset.nodes.end()) {
                     const auto& node = it->second;
-                    melee.stateTimer += deltaTime;
+                    // Buff di fazione (WAAAGH!): colpi piu' rapidi (tutte le fasi dell'attacco scorrono piu' in fretta)
+                    const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
+                    melee.stateTimer += deltaTime * (buff ? buff->meleeSpeedMult : 1.0f);
 
                     if (melee.stateTimer >= node.comboWindow.start && melee.stateTimer <= node.comboWindow.end) {
                         if (!melee.bufferedInput.empty() && node.transitions.find(melee.bufferedInput) != node.transitions.end()) {

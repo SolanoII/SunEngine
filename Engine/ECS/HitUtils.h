@@ -82,6 +82,10 @@ namespace SunEngine {
 
     // Registra un colpo andato a segno: marcatore nell'HUD + flash del blocco colpito.
     // Solo per i colpi del giocatore (il feedback e' per chi spara o colpisce in mischia).
+    // Danni inflitti dal giocatore (anche col suo squig e i suoi esplosivi) dall'ultima lettura: GameLayer li
+    // usa per caricare il buff di fazione (WAAAGH!) e poi azzera
+    inline float& PlayerDamageDealtAccum() { static float v = 0.0f; return v; }
+
     inline void EmitHitFeedback(Scene& scene, entt::entity shooter, entt::entity target,
         const glm::vec3& hitPoint, HitboxLocation location, float healthBefore) {
         auto& reg = scene.GetRegistry();
@@ -93,6 +97,7 @@ namespace SunEngine {
 
         const float dealt = (std::max)(0.0f, healthBefore - health->currentHealth);
         const bool killed = health->currentHealth <= 0.0f && healthBefore > 0.0f;
+        if (dealt > 0.0f && !SameTeam(reg, shooter, target)) PlayerDamageDealtAccum() += dealt;
 
         // Esperienza: danni a un nemico (una volta per nemico, lo controlla GameLayer) e colpo di grazia.
         // Non contano manichini e squig (si potrebbero "coltivare").

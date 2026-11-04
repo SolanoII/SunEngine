@@ -240,7 +240,9 @@ namespace SunEngine {
             }
 
             if (wState.isReloading) {
-                wState.reloadTimer -= deltaTime;
+                // Buff di fazione (WAAAGH!): ricarica piu' veloce
+                const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
+                wState.reloadTimer -= deltaTime * (buff ? buff->reloadSpeedMult : 1.0f);
                 if (wState.reloadTimer <= 0.0f) {
                     wState.isReloading = false;
                     wState.reloadTimer = 0.0f;

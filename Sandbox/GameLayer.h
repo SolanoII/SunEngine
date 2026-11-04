@@ -310,6 +310,9 @@ namespace SunEngine {
         void EndVsBotMatch(int result, const char* reason);
         void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
         void RenderAmmoHUD();
+        void RenderPlayerStatusHUD();                      // in alto a sinistra: salute, stamina, buff di fazione
+        void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki
+        void ResetFactionBuff();
 
         // --- Esperienza di partita (punti studio) e riepilogo di fine partita ---
         struct MatchXpLine { int count = 0; int64_t xp = 0; };
@@ -542,7 +545,14 @@ namespace SunEngine {
         int m_VsBotEnemyKills = 0;
         std::string m_VsBotMessage;                // esito dell'ultimo tentativo di avvio (es. squadra nemica impossibile)
         std::unordered_map<entt::entity, TrainedUnit> m_VsBotUnits;   // unita' dei bot in campo
-        std::vector<VsBotPlayer> m_VsBotPlayers;   // 0 = tu, poi alleati IA, poi avversari IA
+        std::vector<VsBotPlayer> m_VsBotPlayers;
+        // Buff di fazione (orki: WAAAGH!)
+        std::string m_FactionBuffFaction;          // fazione dell'unita' con cui si sta caricando
+        float m_WaaaghPoints = 0.0f;               // 0..350 (7 caratteri di "Waaagh!" da 50 punti)
+        float m_WaaaghTimer = 0.0f;                // >0: WAAAGH! attiva, secondi rimasti
+        float m_WaaaghPrevHp = -1.0f;              // per misurare i danni subiti
+        static constexpr float kWaaaghMax = 350.0f;
+        static constexpr float kWaaaghDuration = 20.0f;   // 0 = tu, poi alleati IA, poi avversari IA
         std::vector<glm::vec3> m_VsBotSpawns[2];
         float m_VsBotYaw[2] = { 0.0f, 180.0f };
         float m_VsBotDeadTime = 0.0f;              // secondi da quando la tua unita' e' caduta

@@ -1962,6 +1962,130 @@ namespace SunEngine {
 
     // HUD munizioni in basso a destra: nome dell'arma in mano, "caricatore / riserva" e stato.
     // Con la scatola di munizioni in mano: usi rimasti, comandi e barra del rifornimento in corso.
+    // ===================== BUFF DI FAZIONE =====================
+    // Orki: WAAAGH!. La scritta "Waaagh!" ha 7 caratteri da 50 punti (350). Si carica con i danni inflitti e
+    // subiti dal giocatore; piena, parte da sola: per 20 secondi +15% velocita', +40% velocita' di ricarica,
+    // +20% velocita' dei colpi in mischia, +15% danni in mischia. Durante il buff la scritta si svuota e alla fine
+    // riparte da 0. Il contatore resta se rientri con un'altra unita' orka, si azzera se passi a un'altra fazione.
+    void GameLayer::ResetFactionBuff() {
+        m_FactionBuffFaction.clear();
+        m_WaaaghPoints = 0.0f;
+        m_WaaaghTimer = 0.0f;
+        m_WaaaghPrevHp = -1.0f;
+        PlayerDamageDealtAccum() = 0.0f;
+        auto& reg = m_Scene.GetRegistry();
+        if (reg.valid(m_PlayerEntity) && reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
+    }
+
+    void GameLayer::UpdateFactionBuff(float deltaTime) {
+        auto& reg = m_Scene.GetRegistry();
+        float dealt = PlayerDamageDealtAccum();
+        PlayerDamageDealtAccum() = 0.0f;
+        if (!reg.valid(m_PlayerEntity)) return;
+
+        std::string faction;
+        if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity)) faction = VsBotFactionOf(uid->id);
+        if (faction != m_FactionBuffFaction) {   // cambio di fazione: si riparte da zero
+            ResetFactionBuff();
+            m_FactionBuffFaction = faction;
+            dealt = 0.0f;
+        }
+
+        // Danni subiti: calo della salute del giocatore (il rientro con salute piena non conta)
+        float taken = 0.0f;
+        if (const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) {
+            if (m_WaaaghPrevHp >= 0.0f && hp->currentHealth < m_WaaaghPrevHp) taken = m_WaaaghPrevHp - std::max(0.0f, hp->currentHealth);
+            m_WaaaghPrevHp = std::max(0.0f, hp->currentHealth);
+        }
+
+        if (faction != "orks") return;
+        if (m_WaaaghTimer > 0.0f) {
+            m_WaaaghTimer -= deltaTime;
+            if (m_WaaaghTimer <= 0.0f) {
+                m_WaaaghTimer = 0.0f;
+                m_WaaaghPoints = 0.0f;
+                if (reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
+                SUN_CORE_INFO("WAAAGH! finita");
+            }
+            else {
+                // Anche dopo un rientro con un'altra unita' orka il buff resta per il tempo che manca
+                auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
+                b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
+            }
+            return;
+        }
+        m_WaaaghPoints = std::min(kWaaaghMax, m_WaaaghPoints + dealt + taken);
+        if (m_WaaaghPoints >= kWaaaghMax) {
+            m_WaaaghTimer = kWaaaghDuration;
+            auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
+            b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
+            SUN_CORE_INFO("WAAAGH!!! (20 s)");
+        }
+    }
+
+    // In alto a sinistra: salute, sotto la stamina, sotto ancora il buff di fazione
+    void GameLayer::RenderPlayerStatusHUD() {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(m_PlayerEntity)) return;
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        ImFont* font = ImGui::GetFont();
+        const float x = 20.0f;
+        float y = 20.0f;
+        const float w = 280.0f;
+
+        if (const auto* h = reg.try_get<HealthComponent>(m_PlayerEntity)) {
+            const float frac = std::clamp(h->currentHealth / std::max(1.0f, h->maxHealth), 0.0f, 1.0f);
+            const float bh = 24.0f;
+            dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(60, 8, 8, 210), 3.0f);
+            const ImU32 col = frac > 0.4f ? IM_COL32(40, 210, 70, 255) : IM_COL32(230, 40, 35, 255);
+            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w * frac, y + bh), col, 3.0f);
+            dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(0, 0, 0, 200), 3.0f, 0, 1.5f);
+            char txt[64];
+            std::snprintf(txt, sizeof(txt), "%.0f / %.0f", std::max(0.0f, h->currentHealth), h->maxHealth);
+            const ImVec2 ts = ImGui::CalcTextSize(txt);
+            dl->AddText(ImVec2(x + (w - ts.x) * 0.5f + 1.0f, y + (bh - ts.y) * 0.5f + 1.0f), IM_COL32(0, 0, 0, 220), txt);
+            dl->AddText(ImVec2(x + (w - ts.x) * 0.5f, y + (bh - ts.y) * 0.5f), IM_COL32(255, 255, 255, 255), txt);
+            y += bh + 5.0f;
+        }
+        if (const auto* st = reg.try_get<UnitStatsComponent>(m_PlayerEntity)) {
+            const float frac = std::clamp(st->stamina / std::max(1.0f, st->maxStamina), 0.0f, 1.0f);
+            const float bh = 10.0f;
+            dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(45, 40, 10, 200), 2.0f);
+            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w * frac, y + bh), IM_COL32(235, 200, 50, 255), 2.0f);
+            dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(0, 0, 0, 200), 2.0f, 0, 1.0f);
+            y += bh + 8.0f;
+        }
+
+        if (m_FactionBuffFaction != "orks") return;
+        // "Waaagh!": ogni carattere vale 50 punti e si accende di verde da sinistra a destra (anche a meta')
+        static const char* kLetters[7] = { "W", "a", "a", "a", "g", "h", "!" };
+        const float size = 34.0f;
+        const bool active = m_WaaaghTimer > 0.0f;
+        const float lit = active ? (m_WaaaghTimer / kWaaaghDuration) * kWaaaghMax : m_WaaaghPoints;   // attiva: si svuota
+        const float pulse = active ? 0.75f + 0.25f * std::sin(static_cast<float>(ImGui::GetTime()) * 10.0f) : 1.0f;
+        const ImU32 off = IM_COL32(70, 75, 70, 230);
+        const ImU32 on = active ? IM_COL32(static_cast<int>(120 * pulse), 255, static_cast<int>(60 * pulse), 255) : IM_COL32(60, 220, 70, 255);
+        float lx = x;
+        for (int i = 0; i < 7; ++i) {
+            const ImVec2 ls = font->CalcTextSizeA(size, FLT_MAX, 0.0f, kLetters[i]);
+            const float f = std::clamp((lit - i * 50.0f) / 50.0f, 0.0f, 1.0f);
+            dl->AddText(font, size, ImVec2(lx + 2.0f, y + 2.0f), IM_COL32(0, 0, 0, 200), kLetters[i]);
+            dl->AddText(font, size, ImVec2(lx, y), off, kLetters[i]);
+            if (f > 0.0f) {   // parte accesa della lettera
+                dl->PushClipRect(ImVec2(lx, y), ImVec2(lx + ls.x * f, y + ls.y), true);
+                dl->AddText(font, size, ImVec2(lx, y), on, kLetters[i]);
+                dl->PopClipRect();
+            }
+            lx += ls.x + 1.0f;
+        }
+        char info[96];
+        if (active) std::snprintf(info, sizeof(info), "WAAAGH!  %.0f s", std::ceil(m_WaaaghTimer));
+        else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_WaaaghPoints, kWaaaghMax);
+        dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), active ? on : IM_COL32(200, 200, 200, 220), info);
+        if (active) dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(170, 240, 170, 230),
+            "+15% velocita'  +40% ricarica  +20% colpi in mischia  +15% danni in mischia");
+    }
+
     void GameLayer::RenderAmmoHUD() {
         auto& reg = m_Scene.GetRegistry();
         const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
@@ -3578,6 +3702,7 @@ namespace SunEngine {
         }
 
         SyncWeaponAttachment();
+        if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // WAAAGH! (anche mentre sei a terra: il contatore resta)
         if (m_VsBotActive) {
             UpdateBotVisuals();
             UpdateVsBot(deltaTime);
@@ -3837,18 +3962,7 @@ namespace SunEngine {
                 }
             }
 
-            if (m_Scene.GetRegistry().all_of<HealthComponent>(m_PlayerEntity)) {
-                auto& health = m_Scene.GetRegistry().get<HealthComponent>(m_PlayerEntity);
-                float hpRatio = std::clamp(std::max(health.currentHealth / health.maxHealth, 0.0f), 0.0f, 1.0f);
-
-                float hpBarW = 250.0f;
-                float hpBarH = 30.0f;
-                glm::vec2 hpBarPos = glm::vec2(screen.x - hpBarW - 30.0f, 30.0f);
-
-                Renderer::DrawQuadUI(hpBarPos, glm::vec2(hpBarW, hpBarH), glm::vec4(0.3f, 0.0f, 0.0f, 0.8f), screen);
-                glm::vec4 hpColor = (hpRatio > 0.4f) ? glm::vec4(0.0f, 1.0f, 0.2f, 1.0f) : glm::vec4(1.0f, 0.1f, 0.1f, 1.0f);
-                Renderer::DrawQuadUI(hpBarPos, glm::vec2(hpBarW * hpRatio, hpBarH), hpColor, screen);
-            }
+            // La barra della salute ora e' in alto a sinistra (RenderPlayerStatusHUD), con stamina e buff di fazione
         }
 
         OnImGuiRender();
@@ -3897,9 +4011,11 @@ namespace SunEngine {
                 RenderTrainingDummyLabels();
                 RenderHitMarkers();
                 RenderAmmoHUD();
+                RenderPlayerStatusHUD();
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {
-                    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f));
+                    // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
+                    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 20.0f, 20.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
                     ImGui::Begin("KillCounterOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
                     ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
                     ImGui::End();
@@ -5430,6 +5546,7 @@ namespace SunEngine {
                     g_WaaaghActive = false;
                 }
 
+                ResetFactionBuff();
                 m_GameState = GameState::Gameplay;
                 if (window) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
@@ -6022,6 +6139,7 @@ namespace SunEngine {
         m_VsBotEnemyKills = 0;
         m_VsBotEndReason.clear();
         m_IsPaused = false;
+        ResetFactionBuff();
         m_GameState = GameState::Gameplay;
         if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         return true;
@@ -6115,6 +6233,7 @@ namespace SunEngine {
         }
         m_VsBotUnits.clear();
         m_VsBotPlayers.clear();
+        ResetFactionBuff();
         if (reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
         m_VsBotActive = false;
         m_VsBotResult = 0;

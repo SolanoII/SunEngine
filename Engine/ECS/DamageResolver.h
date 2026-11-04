@@ -204,6 +204,7 @@ namespace SunEngine {
             }
 
             float rawDamage = (attackerStats.strength * 0.4f) + (weaponBaseDamage * nodeMult);
+            if (const auto* buff = reg.try_get<FactionBuffComponent>(attacker)) rawDamage *= buff->meleeDamageMult;   // WAAAGH!
             int ap = weaponBP ? weaponBP->armor_penetration : 10;
 
             // Colpo alle spalle: armi con "backstab_multiplier" (es. coltello del gretchin x2)

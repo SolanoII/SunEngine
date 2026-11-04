@@ -489,6 +489,7 @@ namespace SunEngine {
                 else {
                     float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * brain.moveSpeedFactor;
                     if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
+                    if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     t.Position += dir / dist * std::min(dist, speed * dt);
                     brain.isMoving = true;
                 }
