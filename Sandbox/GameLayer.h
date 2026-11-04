@@ -20,6 +20,7 @@
 #include "Engine/ECS/AmmoSystem.h"
 #include "Engine/ECS/SquigSystem.h"
 #include "Engine/ECS/RepairSystem.h"
+#include "Engine/ECS/ActionPose.h"
 #include "Engine/Scene/MapLoader.h"
 #include "Engine/Navigation/NavMeshQuery.h"
 #include "Engine/AssetManager/BlueprintManager.h"
@@ -550,10 +551,7 @@ namespace SunEngine {
         // Animazioni procedurali del modello animato del giocatore
         ProceduralPose m_PlayerPose;
         float m_PoseTime = 0.0f;
-        float m_PoseClimb = 0.0f, m_PoseGive = 0.0f, m_PoseBuild = 0.0f, m_PoseRepair = 0.0f;   // pesi 0..1
-        int m_PoseAction = 0;                        // 1 lancio granata, 2 oggetto posato a terra
-        float m_PoseActionTime = 0.0f, m_PoseActionDur = 1.0f;
-        int m_PosePrevUses[3] = { 0, 0, 0 };
+        float m_PoseClimb = 0.0f;                    // peso dell'arrampicata (le altre azioni: ActionPoseComponent)
         // Buff di fazione (orki: WAAAGH!)
         std::string m_FactionBuffFaction;          // fazione dell'unita' con cui si sta caricando
         float m_WaaaghPoints = 0.0f;               // 0..350 (7 caratteri di "Waaagh!" da 50 punti)

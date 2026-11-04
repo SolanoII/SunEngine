@@ -2140,37 +2140,14 @@ namespace SunEngine {
             }
         }
 
-        // Dotazione: lancio della granata e oggetti posati (quando cala il numero di usi), poi azioni continue
-        const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
-        const auto* ammo = reg.try_get<AmmoComponent>(m_PlayerEntity);
-        if (inv && ammo) {
-            for (int s = 0; s < 3; ++s) {
-                const int uses = ammo->equipmentUses[s];
-                // (solo in partita: nel garage gli usi cambiano con la dotazione). Il lancio parte gia' quasi
-                // caricato, perche' la granata esce al click
-                if (uses < m_PosePrevUses[s] && m_GameState == GameState::Gameplay) {
-                    const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(4 + s));
-                    if (bp && bp->equipment_type == "grenade") { m_PoseAction = 1; m_PoseActionTime = 0.30f; m_PoseActionDur = 0.75f; }
-                    else if (bp && (bp->equipment_type == "food_pack" || bp->equipment_type == "landmine")) { m_PoseAction = 2; m_PoseActionTime = 0.15f; m_PoseActionDur = 0.9f; }
-                }
-                m_PosePrevUses[s] = uses;
-            }
-            const auto* held = BlueprintManager::Get().GetWeapon(inv->GetActiveWeaponId());
-            const bool using_ = ammo->useTimer > 0.0f && held && held->is_equipment;
-            approach(m_PoseGive, using_ && held->equipment_type == "ammo_box", 6.0f);
-            approach(m_PoseBuild, using_ && (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall"), 5.0f);
-        }
-        approach(m_PoseRepair, m_RepairSystem.repairing, 6.0f);
-        PoseLib::Give(m_PlayerPose, m_PoseTime, m_PoseGive);
-        PoseLib::Build(m_PlayerPose, m_PoseTime, m_PoseBuild, thigh, shin);
-        PoseLib::Repair(m_PlayerPose, m_PoseTime, m_PoseRepair);
-
-        if (m_PoseAction != 0) {
-            m_PoseActionTime += deltaTime;
-            const float t = m_PoseActionTime / m_PoseActionDur;
-            if (t >= 1.0f) m_PoseAction = 0;
-            else if (m_PoseAction == 1) PoseLib::Throw(m_PlayerPose, t);
-            else PoseLib::UseItem(m_PlayerPose, t, thigh, shin);
+        // Dotazione: stato rilevato da ActionPose (lo stesso usato per gli scheletri a blocchi dei bot)
+        const auto* ap = reg.try_get<ActionPoseComponent>(m_PlayerEntity);
+        if (ap && m_GameState == GameState::Gameplay) {   // nel garage lo stato delle azioni non si aggiorna
+            PoseLib::Give(m_PlayerPose, m_PoseTime, ap->give);
+            PoseLib::Build(m_PlayerPose, m_PoseTime, ap->build, thigh, shin);
+            PoseLib::Repair(m_PlayerPose, m_PoseTime, ap->repair);
+            if (ap->action == 1) PoseLib::Throw(m_PlayerPose, ap->time / ap->duration);
+            else if (ap->action == 2) PoseLib::UseItem(m_PlayerPose, ap->time / ap->duration, thigh, shin);
         }
     }
 
@@ -3256,6 +3233,8 @@ namespace SunEngine {
             }
             m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);
             m_RepairSystem.Update(m_Scene, m_PlayerEntity, deltaTime);
+            if (auto* ap = m_Scene.GetRegistry().try_get<ActionPoseComponent>(m_PlayerEntity)) ap->repairing = m_RepairSystem.repairing;
+            ActionPose::Update(m_Scene, deltaTime);   // azioni di tutte le unita' (granate, oggetti, costruzione...)
 
             // F2: cambia al volo tra personaggio a cuboni e personaggio animato
             {
@@ -3759,6 +3738,7 @@ namespace SunEngine {
             }
 
             AnimateUnits(deltaTime, transform.Position, true);
+            ActionPose::ApplyCubes(m_Scene, m_PlayerEntity);   // pose delle azioni sugli scheletri a blocchi (bot e hitbox)
         }
         else if (!m_IsPaused && !isPlayerAlive && m_VsBotActive) {
             // 5v5: la partita va avanti mentre scegli con chi rientrare (o osservi gli alleati)
@@ -6412,7 +6392,10 @@ namespace SunEngine {
         CollectMatchXp(deltaTime, false);   // a terra niente sopravvivenza
         glm::vec3 playerPos(0.0f);
         if (const auto* pt = m_Scene.GetRegistry().try_get<TransformComponent>(m_PlayerEntity)) playerPos = pt->Position;
+        if (auto* ap = m_Scene.GetRegistry().try_get<ActionPoseComponent>(m_PlayerEntity)) ap->repairing = false;
+        ActionPose::Update(m_Scene, deltaTime);
         AnimateUnits(deltaTime, playerPos, false);
+        ActionPose::ApplyCubes(m_Scene, m_PlayerEntity);
     }
 
     // Camera da spettatore: dopo un attimo sul tuo cadavere segue un alleato in vita (cambiabile dalla schermata).
