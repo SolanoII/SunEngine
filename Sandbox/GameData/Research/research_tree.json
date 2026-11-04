@@ -636,31 +636,34 @@
       ],
       "nodes": [
         {
-          "id": "sm_neophyte",
+          "id": "sm_aspirant",
           "unit": "spacemarines_neophyte",
-          "name": "Neophyte",
+          "name": "Aspirant",
           "tier": 1,
           "col": 0,
-          "row": 1,
+          "row": 1.5,
           "parent": "",
           "research_cost": 0,
           "purchase_cost": 65000,
-          "default_name": "Neofita Corvo",
+          "default_name": "Aspirante Corvo",
           "color": [
             0.92,
             0.72,
             0.68,
             1
+          ],
+          "renamed_from": [
+            "sm_neophyte"
           ]
         },
         {
           "id": "sm_scout",
           "unit": "spacemarines_scout",
-          "name": "Scout",
+          "name": "Scout Squad",
           "tier": 2,
           "col": 1,
-          "row": 1,
-          "parent": "sm_neophyte",
+          "row": 1.5,
+          "parent": "sm_aspirant",
           "research_cost": 20000,
           "purchase_cost": 85000,
           "default_name": "Scout Ilex",
@@ -672,12 +675,12 @@
           ]
         },
         {
-          "id": "sm_tacticus",
+          "id": "sm_firstborn",
           "unit": "spacemarines_battle_brother",
-          "name": "Tacticus",
+          "name": "Firstborn",
           "tier": 3,
           "col": 2,
-          "row": 0,
+          "row": 1.5,
           "parent": "sm_scout",
           "research_cost": 40000,
           "purchase_cost": 165000,
@@ -687,41 +690,374 @@
             0.25,
             0.75,
             1
+          ],
+          "renamed_from": [
+            "sm_tacticus"
           ]
         },
         {
-          "id": "sm_phobos",
-          "unit": "spacemarines_phobos",
-          "name": "Phobos",
-          "tier": 3,
-          "col": 2,
-          "row": 1,
-          "parent": "sm_scout",
-          "research_cost": 45000,
-          "purchase_cost": 150000,
-          "default_name": "Fratello Vael",
+          "id": "sm_intercessors",
+          "unit": "spacemarines_intercessor",
+          "name": "Intercessors",
+          "tier": 4,
+          "col": 3,
+          "row": 0,
+          "parent": "sm_firstborn",
+          "research_cost": 50000,
+          "purchase_cost": 200000,
+          "default_name": "Fratello Cassian",
           "color": [
-            0.1,
+            0.2,
+            0.3,
+            0.7,
+            1
+          ]
+        },
+        {
+          "id": "sm_sternguard",
+          "unit": "spacemarines_sternguard",
+          "name": "Sternguard Veterans",
+          "tier": 5,
+          "col": 4,
+          "row": 0,
+          "parent": "sm_intercessors",
+          "research_cost": 70000,
+          "purchase_cost": 240000,
+          "default_name": "Veterano Adrax",
+          "color": [
+            0.15,
             0.22,
             0.55,
             1
           ]
         },
         {
-          "id": "sm_gravis",
-          "unit": "spacemarines_gravis",
-          "name": "Gravis",
-          "tier": 3,
-          "col": 2,
+          "id": "sm_terminators",
+          "unit": "spacemarines_terminator",
+          "name": "Terminators",
+          "tier": 6,
+          "col": 5,
+          "row": 0,
+          "parent": "sm_sternguard",
+          "research_cost": 95000,
+          "purchase_cost": 280000,
+          "default_name": "Fratello Gideon",
+          "color": [
+            0.55,
+            0.5,
+            0.35,
+            1
+          ]
+        },
+        {
+          "id": "sm_terminator_assault",
+          "unit": "spacemarines_terminator_assault",
+          "name": "Terminator Assault Squad",
+          "tier": 7,
+          "col": 6,
+          "row": 0,
+          "parent": "sm_terminators",
+          "research_cost": 125000,
+          "purchase_cost": 330000,
+          "default_name": "Fratello Kaelen",
+          "color": [
+            0.5,
+            0.45,
+            0.3,
+            1
+          ]
+        },
+        {
+          "id": "sm_captain_terminator",
+          "unit": "spacemarines_captain_terminator",
+          "name": "Captain in Terminator Armour",
+          "tier": 8,
+          "col": 7,
+          "row": 0,
+          "parent": "sm_terminator_assault",
+          "research_cost": 170000,
+          "purchase_cost": 400000,
+          "default_name": "Capitano Severus",
+          "color": [
+            0.75,
+            0.62,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "sm_assault_intercessors",
+          "unit": "spacemarines_assault_intercessor",
+          "name": "Assault Intercessors",
+          "tier": 4,
+          "col": 3,
+          "row": 1,
+          "parent": "sm_firstborn",
+          "research_cost": 50000,
+          "purchase_cost": 200000,
+          "default_name": "Fratello Damon",
+          "color": [
+            0.3,
+            0.35,
+            0.7,
+            1
+          ]
+        },
+        {
+          "id": "sm_jump_intercessors",
+          "unit": "spacemarines_jump_intercessor",
+          "name": "Jump Pack Intercessors",
+          "tier": 5,
+          "col": 4,
+          "row": 1,
+          "parent": "sm_assault_intercessors",
+          "research_cost": 70000,
+          "purchase_cost": 240000,
+          "default_name": "Fratello Icaro",
+          "color": [
+            0.35,
+            0.4,
+            0.75,
+            1
+          ]
+        },
+        {
+          "id": "sm_vanguard",
+          "unit": "spacemarines_vanguard_veteran",
+          "name": "Vanguard Veterans",
+          "tier": 6,
+          "col": 5,
+          "row": 1,
+          "parent": "sm_jump_intercessors",
+          "research_cost": 95000,
+          "purchase_cost": 280000,
+          "default_name": "Veterano Lysander",
+          "color": [
+            0.25,
+            0.3,
+            0.6,
+            1
+          ]
+        },
+        {
+          "id": "sm_bladeguard",
+          "unit": "spacemarines_bladeguard_veteran",
+          "name": "Bladeguard Veterans",
+          "tier": 7,
+          "col": 6,
+          "row": 1,
+          "parent": "sm_vanguard",
+          "research_cost": 125000,
+          "purchase_cost": 330000,
+          "default_name": "Veterano Aurelio",
+          "color": [
+            0.6,
+            0.55,
+            0.4,
+            1
+          ]
+        },
+        {
+          "id": "sm_captain",
+          "unit": "spacemarines_captain",
+          "name": "Captain",
+          "tier": 8,
+          "col": 7,
+          "row": 1,
+          "parent": "sm_bladeguard",
+          "research_cost": 170000,
+          "purchase_cost": 400000,
+          "default_name": "Capitano Varro",
+          "color": [
+            0.7,
+            0.6,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "sm_devastators",
+          "unit": "spacemarines_devastator",
+          "name": "Devastator Squad",
+          "tier": 4,
+          "col": 3,
           "row": 2,
-          "parent": "sm_scout",
-          "research_cost": 55000,
-          "purchase_cost": 225000,
+          "parent": "sm_firstborn",
+          "research_cost": 50000,
+          "purchase_cost": 200000,
+          "default_name": "Fratello Brutus",
+          "color": [
+            0.25,
+            0.28,
+            0.55,
+            1
+          ]
+        },
+        {
+          "id": "sm_hellblasters",
+          "unit": "spacemarines_hellblaster",
+          "name": "Hellblasters",
+          "tier": 5,
+          "col": 4,
+          "row": 2,
+          "parent": "sm_devastators",
+          "research_cost": 70000,
+          "purchase_cost": 240000,
+          "default_name": "Fratello Plinio",
+          "color": [
+            0.2,
+            0.35,
+            0.6,
+            1
+          ]
+        },
+        {
+          "id": "sm_eradicators",
+          "unit": "spacemarines_eradicator",
+          "name": "Eradicators",
+          "tier": 6,
+          "col": 5,
+          "row": 2,
+          "parent": "sm_hellblasters",
+          "research_cost": 95000,
+          "purchase_cost": 280000,
+          "default_name": "Fratello Vulkar",
+          "color": [
+            0.3,
+            0.25,
+            0.5,
+            1
+          ]
+        },
+        {
+          "id": "sm_aggressors",
+          "unit": "spacemarines_gravis",
+          "name": "Aggressors",
+          "tier": 7,
+          "col": 6,
+          "row": 2,
+          "parent": "sm_eradicators",
+          "research_cost": 125000,
+          "purchase_cost": 330000,
           "default_name": "Fratello Garran",
           "color": [
             0.05,
             0.18,
             0.6,
+            1
+          ],
+          "renamed_from": [
+            "sm_gravis"
+          ]
+        },
+        {
+          "id": "sm_captain_gravis",
+          "unit": "spacemarines_captain_gravis",
+          "name": "Captain in Gravis Armour",
+          "tier": 8,
+          "col": 7,
+          "row": 2,
+          "parent": "sm_aggressors",
+          "research_cost": 170000,
+          "purchase_cost": 400000,
+          "default_name": "Capitano Tyberos",
+          "color": [
+            0.72,
+            0.58,
+            0.22,
+            1
+          ]
+        },
+        {
+          "id": "sm_infiltrators",
+          "unit": "spacemarines_phobos",
+          "name": "Infiltrators",
+          "tier": 4,
+          "col": 3,
+          "row": 3,
+          "parent": "sm_firstborn",
+          "research_cost": 50000,
+          "purchase_cost": 200000,
+          "default_name": "Fratello Vael",
+          "color": [
+            0.1,
+            0.22,
+            0.55,
+            1
+          ],
+          "renamed_from": [
+            "sm_phobos"
+          ]
+        },
+        {
+          "id": "sm_incursors",
+          "unit": "spacemarines_incursor",
+          "name": "Incursors",
+          "tier": 5,
+          "col": 4,
+          "row": 3,
+          "parent": "sm_infiltrators",
+          "research_cost": 70000,
+          "purchase_cost": 240000,
+          "default_name": "Fratello Nyx",
+          "color": [
+            0.25,
+            0.3,
+            0.32,
+            1
+          ]
+        },
+        {
+          "id": "sm_reivers",
+          "unit": "spacemarines_reiver",
+          "name": "Reivers",
+          "tier": 6,
+          "col": 5,
+          "row": 3,
+          "parent": "sm_incursors",
+          "research_cost": 95000,
+          "purchase_cost": 280000,
+          "default_name": "Fratello Mortis",
+          "color": [
+            0.15,
+            0.15,
+            0.18,
+            1
+          ]
+        },
+        {
+          "id": "sm_eliminators",
+          "unit": "spacemarines_eliminator",
+          "name": "Eliminators",
+          "tier": 7,
+          "col": 6,
+          "row": 3,
+          "parent": "sm_reivers",
+          "research_cost": 125000,
+          "purchase_cost": 330000,
+          "default_name": "Fratello Silas",
+          "color": [
+            0.22,
+            0.26,
+            0.24,
+            1
+          ]
+        },
+        {
+          "id": "sm_captain_phobos",
+          "unit": "spacemarines_captain_phobos",
+          "name": "Captain in Phobos Armour",
+          "tier": 8,
+          "col": 7,
+          "row": 3,
+          "parent": "sm_eliminators",
+          "research_cost": 170000,
+          "purchase_cost": 400000,
+          "default_name": "Capitano Shrike",
+          "color": [
+            0.6,
+            0.5,
+            0.25,
             1
           ]
         }
