@@ -172,7 +172,9 @@ namespace SunEngine {
 
             float vaultMod = (stats.vaultModifier > 0.01f) ? stats.vaultModifier : 1.0f;
             float jumpReach = (stats.strength * 0.032f) * vaultMod;
-            float maxClimbHeight = legHeight + jumpReach;
+            const float vaultHeight = legHeight + jumpReach;            // scavalcamento normale
+            // Arrampicata lenta (es. gretchin): puo' salire su muri piu' alti di quanto scavalcherebbe
+            float maxClimbHeight = std::max(vaultHeight, stats.climbHeight);
 
             glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
             glm::vec3 forwardDir = glm::normalize(glm::vec3(rot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
@@ -210,7 +212,13 @@ namespace SunEngine {
                 }
 
                 {
+                    if (foundTop && obstacleHeight > vaultHeight && wallDist > 0.75f) {
+                        return false;   // arrampicata: bisogna essere attaccati al muro, non a un metro e mezzo
+                    }
                     if (foundTop) {
+                        // Muro piu' alto dello scavalcamento: si arrampica lentamente (sale a climbSpeed m/s)
+                        const bool slowClimb = obstacleHeight > vaultHeight;
+                        const float climbTime = slowClimb ? 0.45f + obstacleHeight / std::max(0.1f, stats.climbSpeed) : 0.0f;
 
                         // Secondo raycast più avanti (1.3m) per verificare se la cassa è larga o stretta
                         glm::vec3 farDownRayStart = trans.Position + forwardDir * (wallDist + 1.30f) + glm::vec3(0.0f, maxClimbHeight + 0.5f, 0.0f);
@@ -220,7 +228,7 @@ namespace SunEngine {
                         if (hasFarHit && (farDownHitPoint.y > trans.Position.y + 0.25f)) {
                             // 1. OSTACOLO LARGO (Tetto / Cassa Grande): Arrampicata e atterraggio SOPRA la cassa
                             outIsClimbing = (obstacleHeight > legHeight);
-                            outDuration = outIsClimbing ? 0.75f : 0.40f;
+                            outDuration = slowClimb ? climbTime : (outIsClimbing ? 0.75f : 0.40f);
                             outPeakPos = downHitPoint + glm::vec3(0.0f, 0.35f, 0.0f);
                             outTargetPos = downHitPoint + forwardDir * 0.70f;
                             outTargetPos.y = downHitPoint.y; // Resta sulla superficie superiore della cassa
@@ -228,7 +236,7 @@ namespace SunEngine {
                         else {
                             // 2. OSTACOLO STRETTO (Muretto / Cassa Stretta): Scavalcamento OLTRE l'ostacolo
                             outIsClimbing = (obstacleHeight > legHeight);
-                            outDuration = outIsClimbing ? 0.80f : 0.38f;
+                            outDuration = slowClimb ? climbTime + 0.3f : (outIsClimbing ? 0.80f : 0.38f);
 
                             // Peak posizionato in alto e leggermente avanzato
                             outPeakPos = downHitPoint + glm::vec3(0.0f, 0.45f, 0.0f) + forwardDir * 0.25f;
@@ -247,6 +255,56 @@ namespace SunEngine {
             }
             return false;
         }
+        // Posa accovacciata: il blocco radice (Torso) scende del 40% della sua altezza e le gambe (blocco unico,
+        // senza ginocchio) si aprono una avanti e una indietro quanto basta per restare a terra. Le hitbox sono gli
+        // stessi blocchi, quindi dietro una copertura bassa si e' davvero piu' difficili da colpire.
+        static void ApplyCrouchPose(SkeletonComponent& skel, CrouchComponent& crouch) {
+            int root = -1;
+            for (size_t i = 0; i < skel.data.blocks.size(); ++i) if (skel.data.blocks[i].parentIndex < 0) { root = static_cast<int>(i); break; }
+            if (root < 0) return;
+            auto& rootBlock = skel.data.blocks[root];
+            if (crouch.skeletonId != skel.data.id) {
+                // Nuovo scheletro (cambio unita'): altezza di riposo e angolo delle gambe a piena accovacciata.
+                // L'angolo si cerca in modo che i piedi non vadano sotto il livello che hanno in piedi (le gambe
+                // sono blocchi spessi: col solo calcolo trigonometrico gli spigoli entrerebbero nel terreno).
+                crouch.skeletonId = skel.data.id;
+                crouch.baseRootY = rootBlock.localOffset.y;
+                SkeletonData probe = skel.data;
+                for (auto& b : probe.blocks) b.jointRotation = glm::vec3(0.0f);
+                auto lowest = [&]() {
+                    float mn = 1e9f;
+                    const auto mats = probe.ComputeWorldTransforms(glm::vec3(0.0f), glm::vec3(0.0f), 1.0f);
+                    for (size_t i = 0; i < mats.size(); ++i) {
+                        if (probe.blocks[i].name != "Leg_L" && probe.blocks[i].name != "Leg_R") continue;   // solo i piedi
+                        const glm::mat4& m = mats[i];
+                        for (int c = 0; c < 8; ++c) {
+                            const glm::vec4 p = m * glm::vec4((c & 1) ? 0.5f : -0.5f, (c & 2) ? 0.5f : -0.5f, (c & 4) ? 0.5f : -0.5f, 1.0f);
+                            mn = std::min(mn, p.y);
+                        }
+                    }
+                    return mn;
+                };
+                const float standLow = lowest();
+                probe.blocks[root].localOffset.y = crouch.baseRootY * 0.60f;
+                crouch.legAngle = 89.0f;
+                for (float a = 0.0f; a <= 89.0f; a += 1.0f) {
+                    for (auto& b : probe.blocks) {
+                        if (b.name == "Leg_L") b.jointRotation.x = a;
+                        else if (b.name == "Leg_R") b.jointRotation.x = -a;
+                    }
+                    if (lowest() >= standLow - 0.01f) { crouch.legAngle = a; break; }
+                }
+            }
+            const float drop = crouch.baseRootY * 0.40f * crouch.amount;
+            rootBlock.localOffset.y = crouch.baseRootY - drop;
+            if (crouch.amount <= 0.0f) return;
+            for (auto& block : skel.data.blocks) {
+                if (block.name != "Leg_L" && block.name != "Leg_R") continue;
+                const float target = block.name == "Leg_L" ? crouch.legAngle : -crouch.legAngle;   // sinistra avanti, destra indietro
+                block.jointRotation.x = glm::mix(block.jointRotation.x, target, crouch.amount);
+            }
+        }
+
         void ProcessVaulting(Scene& scene, PhysicsSystem& physicsSystem, entt::entity entity, float deltaTime) {
             auto& vault = scene.GetRegistry().get<VaultComponent>(entity);
             auto& trans = scene.GetRegistry().get<TransformComponent>(entity);
@@ -353,7 +411,12 @@ public:
                 continue;
             }
 
-            if (Input::IsKeyPressed(GLFW_KEY_SPACE) && Input::IsKeyPressed(GLFW_KEY_W)) {
+            // Accovacciamento: CTRL tenuto (transizione di ~0,15 s)
+            auto& crouch = scene.GetRegistry().get_or_emplace<CrouchComponent>(entity);
+            const bool wantCrouch = Input::IsKeyPressed(GLFW_KEY_LEFT_CONTROL) || Input::IsKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+            crouch.amount = std::clamp(crouch.amount + (wantCrouch ? 1.0f : -1.0f) * deltaTime * 7.0f, 0.0f, 1.0f);
+
+            if (Input::IsKeyPressed(GLFW_KEY_SPACE) && Input::IsKeyPressed(GLFW_KEY_W) && crouch.amount < 0.5f) {
                 glm::vec3 peakPos, targetPos;
                 bool isClimbing = false;
                 float duration = 0.35f;
@@ -376,6 +439,7 @@ public:
             float moveSpeed = (stats.baseSpeed > 0.1f) ? (stats.baseSpeed * stats.speedModifier) : 5.0f;
             // Passiva dell'arma bianca in mano (es. coltello del gretchin: +5%)
             if (const auto* inv = scene.GetRegistry().try_get<InventoryComponent>(entity)) moveSpeed *= inv->HeldSpeedMultiplier();
+            moveSpeed *= 1.0f - 0.5f * crouch.amount;   // accovacciato: meta' velocita'
 
             glm::vec3 moveDir{ 0.0f };
             if (Input::IsKeyPressed(GLFW_KEY_W)) moveDir.z -= 1.0f;
@@ -476,6 +540,7 @@ public:
                         block.jointRotation.x = -transform.AimPitch * 0.5f;
                     }
                 }
+                ApplyCrouchPose(skel, crouch);
             }
         }
 

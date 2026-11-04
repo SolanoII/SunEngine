@@ -785,6 +785,8 @@ namespace SunEngine {
         unitHealth.currentHealth = bp->health;
         stats.toughness = bp->toughness;
         stats.strength = bp->strength;
+        stats.climbHeight = bp->climb_height;
+        stats.climbSpeed = bp->climb_speed > 0.05f ? bp->climb_speed : 0.6f;
         stats.accuracySkill = bp->accuracy_skill;
         stats.meleeSkill = bp->melee_skill;
         stats.morale = bp->morale;
@@ -2197,6 +2199,10 @@ namespace SunEngine {
             if (auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity)) {
                 in.vaulting = vault->isVaulting;
                 in.vaultDuration = vault->vaultDuration;
+            }
+            if (auto* crouch = reg.try_get<CrouchComponent>(m_PlayerEntity)) {
+                in.crouching = crouch->amount > 0.5f;
+                if (in.crouching) in.sprinting = false;
             }
             // Fuoco: solo armi a distanza, grilletto premuto, non in ricarica e con munizioni
             if (auto* wState = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {

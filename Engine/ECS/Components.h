@@ -266,6 +266,8 @@ namespace SunEngine {
         float toughness = 50.0f;
         float strength = 50.0f;
         float vaultModifier = 1.0f;
+        float climbHeight = 0.0f;   // arrampicata lenta oltre lo scavalcamento (m, 0 = no)
+        float climbSpeed = 0.6f;    // m/s in salita
         float accuracySkill = 1.0f;
         float meleeSkill = 1.0f;
         float morale = 100.0f;
@@ -606,6 +608,14 @@ namespace SunEngine {
         glm::vec3 left{ 0.0f };
         bool hasRight = false;
         bool hasLeft = false;
+    };
+
+    // Accovacciato (CTRL tenuto): piu' basso dietro le coperture, hitbox comprese, ma piu' lento.
+    struct CrouchComponent {
+        float amount = 0.0f;          // 0 in piedi, 1 accovacciato (transizione morbida)
+        float baseRootY = 0.0f;       // altezza di riposo del blocco radice (Torso) dello scheletro
+        std::string skeletonId;       // scheletro su cui e' stata presa baseRootY (cambio unita' = si riprende)
+        float legAngle = 0.0f;        // apertura delle gambe a piena accovacciata (calcolata per lo scheletro)
     };
 
     struct VaultComponent {

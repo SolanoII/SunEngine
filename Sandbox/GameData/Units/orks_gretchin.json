@@ -37,5 +37,7 @@
       "leg_r": "leg_r_grot_rags"
     }
   },
-  "strict_loadout": true
+  "strict_loadout": true,
+  "climb_height": 2.5,
+  "climb_speed": 0.6
 }

@@ -1,7 +1,7 @@
 {
   "id": "boy_big_shoota",
   "displayName": "Big Shoota",
-  "comment": "Sbloccabile dell'ork boy: mitragliatrice a due mani, 36 colpi a caricatore e 108 di riserva. Spara tanto e male, come piace agli orki.",
+  "comment": "Sbloccabile dell'ork boy: mitragliatrice a due mani, 24 colpi a caricatore e 48 di riserva (truppa standard: le munizioni vanno gestite). Spara tanto e male, come piace agli orki.",
   "faction": "Orks",
   "allowed_units": [
     "orks_boy"
@@ -13,8 +13,8 @@
   "has_scope": false,
   "has_underbarrel": false,
   "is_melee": false,
-  "magazine_size": 36,
-  "spare_magazines": 3,
+  "magazine_size": 24,
+  "spare_magazines": 2,
   "reload_time_sec": 3.2,
   "fire_modes": [
     "auto"

@@ -240,6 +240,10 @@ namespace SunEngine {
         float toughness = 15.0f;
         int armor_rating = 0;
         float strength = 0.0f;
+        // Arrampicata lenta (es. gretchin): muri fino a "climb_height" metri, piu' alti di quanto scavalcherebbe,
+        // a "climb_speed" m/s. 0 = solo lo scavalcamento normale.
+        float climb_height = 0.0f;
+        float climb_speed = 0.6f;
         float accuracy_skill = 0.0f;
         float melee_skill = 0.0f;
         float morale = 0.0f;

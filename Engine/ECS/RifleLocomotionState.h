@@ -17,6 +17,8 @@ namespace SunEngine {
         Sprint,
         JumpForward,
         JumpBackward,
-        Firing
+        Firing,
+        CrouchIdle,     // opzionali: "crouch idle.fbx" / "crouch walking.fbx" nella cartella delle animazioni
+        CrouchWalk
     };
 }

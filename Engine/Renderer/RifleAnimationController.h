@@ -15,6 +15,7 @@ namespace SunEngine {
         bool aiming = false;
         bool firing = false;     // sta sparando (grilletto / cooldown colpo attivo)
         bool vaulting = false;   // scavalcamento ostacolo in corso
+        bool crouching = false;  // accovacciato (CTRL)
         bool shotFired = false;  // un colpo e' partito in QUESTO frame (fronte di salita del cooldown)
         float groundSpeed = 0.0f;     // velocita' orizzontale reale del personaggio (m/s); <=0 = ignora
         float vaultDuration = 0.0f;   // durata dello scavalcamento in corso (s); adatta la clip di salto
@@ -52,6 +53,12 @@ namespace SunEngine {
             allOk &= LoadClip(RifleAnimState::JumpForward, animsDir + "jump forward.fbx", model);
             allOk &= LoadClip(RifleAnimState::JumpBackward, animsDir + "jump backward.fbx", model);
             allOk &= LoadClip(RifleAnimState::Firing, animsDir + "firing rifle.fbx", model);
+            // Accovacciato: clip facoltative (se mancano il modello animato resta in piedi, le hitbox si abbassano comunque)
+            {
+                std::error_code ec;
+                if (std::filesystem::exists(animsDir + "crouch idle.fbx", ec)) LoadClip(RifleAnimState::CrouchIdle, animsDir + "crouch idle.fbx", model);
+                if (std::filesystem::exists(animsDir + "crouch walking.fbx", ec)) LoadClip(RifleAnimState::CrouchWalk, animsDir + "crouch walking.fbx", model);
+            }
 
             auto it = m_Clips.find(m_CurrentState);
             if (it != m_Clips.end()) {
@@ -75,7 +82,7 @@ namespace SunEngine {
 
             // Fuoco: la clip e' UN colpo di rinculo che parte e torna all'idle. Va rilanciata a ogni
             // colpo (non messa in loop, altrimenti si vede "abbassa il fucile / rialza" tra due spari).
-            const bool restartFiring = in.shotFired && !in.isMoving && !in.vaulting
+            const bool restartFiring = in.shotFired && !in.isMoving && !in.vaulting && !in.crouching
                 && m_Clips.find(RifleAnimState::Firing) != m_Clips.end();
             if (restartFiring) {
                 desired = RifleAnimState::Firing;
@@ -139,6 +146,7 @@ namespace SunEngine {
             }
 
             const bool locomotion = (m_CurrentState == RifleAnimState::Walk || m_CurrentState == RifleAnimState::WalkBack
+                || m_CurrentState == RifleAnimState::CrouchWalk
                 || m_CurrentState == RifleAnimState::StrafeLeft || m_CurrentState == RifleAnimState::StrafeRight
                 || m_CurrentState == RifleAnimState::Sprint);
             if (!locomotion || in.groundSpeed < 0.2f) return 1.0f;
@@ -152,6 +160,11 @@ namespace SunEngine {
             // Scavalcamento: clip di salto in avanti (o indietro se si arretra)
             if (in.vaulting) {
                 return (in.backward && !in.forward) ? RifleAnimState::JumpBackward : RifleAnimState::JumpForward;
+            }
+            if (in.crouching) {
+                const RifleAnimState c = in.isMoving ? RifleAnimState::CrouchWalk : RifleAnimState::CrouchIdle;
+                if (m_Clips.count(c)) return c;
+                if (m_Clips.count(RifleAnimState::CrouchIdle)) return RifleAnimState::CrouchIdle;
             }
 
             // Fermo: idle. Il rinculo di fuoco e' un one-shot gestito in Update (vedi restartFiring); se si
