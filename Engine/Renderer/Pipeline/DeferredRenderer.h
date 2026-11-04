@@ -89,7 +89,10 @@ namespace SunEngine {
             const glm::vec4& color,
             float roughness = 0.7f,
             float metallic = 0.0f,
-            float emissive = 0.0f);
+            float emissive = 0.0f,
+            const GpuTexture* texture = nullptr,   // strato di vestito: texture triplanare in posa T
+            float texScale = 1.0f,
+            float alphaCut = 0.0f);
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
     private:
         void RunLightingPass();

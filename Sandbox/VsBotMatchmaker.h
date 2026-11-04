@@ -141,4 +141,44 @@ namespace SunEngine {
         return {};
     }
 
+    // Squadra di un giocatore IA: quante piu' unita' possibile (fino a 5) con somma <= cap della coda e sopra
+    // il minimo. A parita' di unita' VsBotFillTeam cerca il totale piu' vicino al cap. Prima solo la fazione
+    // indicata; se strictFaction e' falso e la fazione da sola non ci riesce, mescola (preferendo la fazione).
+    inline std::vector<std::string> VsBotBuildSquad(const std::vector<VsBotCandidate>& all, const std::string& faction,
+                                                    const VsBotQueueTier& tier, std::mt19937& rng, bool strictFaction) {
+        std::vector<VsBotCandidate> own;
+        for (const auto& c : all) if (c.faction == faction) own.push_back(c);
+        auto attempt = [&](const std::vector<VsBotCandidate>& pool, const std::string& pref) -> std::vector<std::string> {
+            for (int slots = kVsBotTeamSize; slots > 0; --slots) {
+                const auto idx = VsBotFillTeam(pool, slots, tier.cap, rng, 3000, pref);
+                int sum = 0; for (int i : idx) sum += pool[i].cost;
+                if (!idx.empty() && sum > tier.minExclusive) {
+                    std::vector<std::string> out;
+                    for (int i : idx) out.push_back(pool[i].unitId);
+                    return out;
+                }
+            }
+            return {};
+        };
+        auto out = attempt(own, "");
+        if (out.empty() && !strictFaction) out = attempt(all, faction);
+        return out;
+    }
+
+    // Nomi dei giocatori IA, per fazione (senza ripetizioni nella stessa partita).
+    inline std::string VsBotRandomName(const std::string& faction, std::vector<std::string>& used, std::mt19937& rng) {
+        static const std::vector<std::string> orks = { "Zogrot", "Krugdakka", "Urgnash", "Skabblog", "Morgrim", "Drakka",
+            "Nazgrub", "Grimtoof", "Uzbad", "Wazzgob", "Snagrik", "Bogrukk" };
+        static const std::vector<std::string> imperium = { "Sgt. Varro", "Cpl. Hessin", "Kael", "Ostrava", "Brandt", "Mirelle",
+            "Taveck", "Ilsen", "Corvin", "Lt. Drusa", "Okonkwo", "Reiss" };
+        static const std::vector<std::string> marines = { "Fratello Aurex", "Fratello Taddeus", "Fratello Lucan", "Fratello Varn",
+            "Fratello Castor", "Fratello Severin", "Fratello Ignus", "Fratello Halvar", "Fratello Remus", "Fratello Cassian" };
+        const auto& list = faction == "orks" ? orks : (faction == "spacemarines" ? marines : imperium);
+        std::vector<std::string> free;
+        for (const auto& n : list) if (std::find(used.begin(), used.end(), n) == used.end()) free.push_back(n);
+        std::string name = free.empty() ? list[rng() % list.size()] + " " + std::to_string(used.size() + 1) : free[rng() % free.size()];
+        used.push_back(name);
+        return name;
+    }
+
 }

@@ -28,7 +28,8 @@ namespace SunEngine {
     struct ResearchNode {
         std::string id;
         std::string unitId;        // id del blueprint dell'unita' (vuoto nei nodi oggetto)
-        std::string itemId;        // id del blueprint dell'arma/dotazione (nodi oggetto)
+        std::string itemId;        // id del blueprint dell'arma/dotazione/armatura (nodi oggetto)
+        std::vector<std::string> itemIds;   // tutti gli oggetti sbloccati dal nodo ("item" e/o "items")
         std::string name;          // nome mostrato nell'albero
         std::string parentId;      // vuoto = radice
         std::string defaultName = "Recluta";   // nome dato alle nuove unita' acquistate
@@ -83,6 +84,11 @@ namespace SunEngine {
                         n.id = jn.value("id", std::string());
                         n.unitId = jn.value("unit", std::string());
                         n.itemId = jn.value("item", std::string());
+                        if (!n.itemId.empty()) n.itemIds.push_back(n.itemId);
+                        if (jn.contains("items") && jn["items"].is_array()) {
+                            for (const auto& it : jn["items"]) if (it.is_string()) n.itemIds.push_back(it.get<std::string>());
+                        }
+                        if (n.itemId.empty() && !n.itemIds.empty()) n.itemId = n.itemIds.front();
                         n.name = jn.value("name", n.unitId.empty() ? n.itemId : n.unitId);
                         n.parentId = jn.value("parent", std::string());
                         n.defaultName = jn.value("default_name", std::string("Recluta"));
@@ -134,7 +140,8 @@ namespace SunEngine {
         }
         const ResearchNode* FindNodeByItem(const std::string& itemId) const {
             if (itemId.empty()) return nullptr;
-            for (const auto& kv : m_ById) if (kv.second.itemId == itemId) return &kv.second;
+            for (const auto& kv : m_ById)
+                for (const auto& id : kv.second.itemIds) if (id == itemId) return &kv.second;
             return nullptr;
         }
 

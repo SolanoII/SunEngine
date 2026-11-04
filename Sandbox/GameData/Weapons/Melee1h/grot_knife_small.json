@@ -10,7 +10,7 @@
   "hand_type": "OneHanded",
   "slot_type": "Melee",
   "weight_kg": 0.5,
-  "point_cost": 0,
+  "point_cost": 1,
   "base_damage": 15.0,
   "melee_reach": 1.55,
   "backstab_multiplier": 2.0,

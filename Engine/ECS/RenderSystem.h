@@ -64,6 +64,12 @@ namespace SunEngine {
                                 skinnedInst->metallic,
                                 skinnedInst->emissive);
                         }
+                        // Vestiti e armature: stesse ossa del corpo, quindi seguono ogni animazione
+                        for (const auto& g : skinnedInst->garments) {
+                            if (!g.mesh) continue;
+                            deferred.DrawSkinnedMesh(*g.mesh, modelMat, bones, g.color, g.roughness, g.metallic, 0.0f,
+                                g.texture, g.texScale, g.alphaCut);
+                        }
                         continue;   // non disegnare i cubi procedurali per questa entità
                     }
                 }
@@ -81,18 +87,36 @@ namespace SunEngine {
                     // (il giocatore e' mostrato col modello animato).
                     if (!scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) {
                         auto& skel = scene.GetRegistry().get<SkeletonComponent>(entity);
+                        const auto* skin = scene.GetRegistry().try_get<SkinComponent>(entity);   // vesti / armatura sul campo
                         auto worldTransforms = skel.data.ComputeWorldTransforms(
                             transform.Position, transform.Rotation, skel.scale);
                         for (size_t i = 0; i < worldTransforms.size() && i < skel.data.blocks.size(); ++i) {
+                            // Colore del blocco: quello della skin (es. vesti marroni sul torso) o quello dell'unita'
+                            glm::vec4 blockColor = baseColor;
+                            if (skin && i < skin->blockColors.size() && skin->blockColors[i].a > 0.0f) blockColor = skin->blockColors[i];
                             // Blocco colpito da poco: si illumina col colore di efficacia del colpo
                             float flash = (i < skel.blockFlashTimers.size()) ? skel.blockFlashTimers[i] : 0.0f;
                             if (flash > 0.0f && i < skel.blockFlashColors.size()) {
                                 const float k = flash / 0.18f;   // 1 appena colpito -> 0
-                                const glm::vec4 col = glm::mix(baseColor, glm::vec4(skel.blockFlashColors[i], baseColor.a), 0.75f * k);
+                                const glm::vec4 col = glm::mix(blockColor, glm::vec4(skel.blockFlashColors[i], blockColor.a), 0.75f * k);
                                 deferred.DrawCube(worldTransforms[i], col, 0.7f, 0.1f, k);   // emissivo: canale 0..1 del GBuffer
                             }
                             else {
-                                deferred.DrawCube(worldTransforms[i], baseColor, 0.7f, 0.1f, 0.0f);
+                                deferred.DrawCube(worldTransforms[i], blockColor, 0.7f, 0.1f, 0.0f);
+                            }
+                        }
+                        // Pezzi aggiunti dalla skin (es. elmetto): cubi agganciati al loro blocco
+                        if (skin) {
+                            for (const auto& part : skin->parts) {
+                                if (part.block < 0 || part.block >= static_cast<int>(worldTransforms.size())) continue;
+                                glm::mat4 m = worldTransforms[part.block];
+                                for (int c = 0; c < 3; ++c) {   // tolgo la scala del blocco, tengo posizione e rotazione
+                                    const float len = glm::length(glm::vec3(m[c]));
+                                    if (len > 1e-6f) m[c] /= len;
+                                }
+                                m = glm::translate(m, part.offset * skel.scale);
+                                m = glm::scale(m, part.size * skel.scale);
+                                deferred.DrawCube(m, part.color, part.roughness, part.metallic, 0.0f);
                             }
                         }
                     }

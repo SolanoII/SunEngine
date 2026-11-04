@@ -1,0 +1,105 @@
+{
+  "id": "arm_r_yoof_scrap",
+  "displayName": "Spallaccio di Scrap (dx)",
+  "comment": "Spallaccio di lamiera con punta. Si ricerca sotto lo Yoof e si compra per unita', un pezzo alla volta.",
+  "location": "RightArm",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_yoof"
+  ],
+  "armor_rating": 5,
+  "coverage": 0.75,
+  "max_durability": 25.0,
+  "weight": 2.5,
+  "point_cost": 1,
+  "skin_blocks": {
+    "Shoulder_R": [
+      0.32,
+      0.3,
+      0.28,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Shoulder_R",
+      "offset": [
+        0,
+        0.25,
+        0
+      ],
+      "bone": "mixamorig1:RightArm",
+      "bone_offset": [
+        0.0,
+        0.24,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.16,
+        0.08
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:RightArm",
+      "bone_offset": [
+        0.0,
+        0.08,
+        0.0
+      ],
+      "size": [
+        0.48,
+        0.16,
+        0.48
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    }
+  ],
+  "garments": [
+    {
+      "id": "yoof_scrap_arm_r",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.84,
+        1.0
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.1,
+      "inflate": 0.013,
+      "plate_cells": 7,
+      "plate_step": 0.006,
+      "texture": "Textures/Garments/scrap_metal.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.6
+    }
+  ]
+}

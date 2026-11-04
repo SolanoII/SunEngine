@@ -1,0 +1,189 @@
+{
+  "id": "boy_choppa",
+  "displayName": "Choppa",
+  "comment": "Dotazione base dell'ork boy: la choppa degli orki.",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "faction": "Orks",
+  "unit_restriction": "",
+  "is_melee": true,
+  "hand_type": "OneHanded",
+  "slot_type": "Melee",
+  "weight_kg": 5.5,
+  "point_cost": 4,
+  "base_damage": 50.0,
+  "default_melee_type": "Normal",
+  "weapon_scale": [
+    0.12,
+    0.4,
+    0.65
+  ],
+  "hold_offset": [
+    0.0,
+    -0.1,
+    0.25
+  ],
+  "primary_color": [
+    0.45,
+    0.47,
+    0.5,
+    1.0
+  ],
+  "moveset": {
+    "entry_node": "normal_1",
+    "nodes": {
+      "normal_1": {
+        "damage_multiplier": 1.0,
+        "stamina_cost": 10.0,
+        "timings": {
+          "windup": 0.12,
+          "active": 0.15,
+          "recovery": 0.2
+        },
+        "combo_window": {
+          "start": 0.1,
+          "end": 0.38
+        },
+        "pose": {
+          "Arm_R": [
+            40.0,
+            -70.0,
+            20.0
+          ],
+          "Torso": [
+            5.0,
+            45.0,
+            -10.0
+          ]
+        },
+        "transitions": {
+          "F_CLICK": "normal_2",
+          "LMB": "normal_2",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "normal_2": {
+        "damage_multiplier": 1.2,
+        "stamina_cost": 12.0,
+        "timings": {
+          "windup": 0.12,
+          "active": 0.15,
+          "recovery": 0.22
+        },
+        "combo_window": {
+          "start": 0.1,
+          "end": 0.38
+        },
+        "pose": {
+          "Arm_R": [
+            40.0,
+            70.0,
+            -20.0
+          ],
+          "Torso": [
+            5.0,
+            -45.0,
+            10.0
+          ]
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "heavy_1": {
+        "damage_multiplier": 2.2,
+        "stamina_cost": 22.0,
+        "timings": {
+          "windup": 0.25,
+          "active": 0.18,
+          "recovery": 0.3
+        },
+        "combo_window": {
+          "start": 0.15,
+          "end": 0.42
+        },
+        "pose": {
+          "Arm_R": [
+            115.0,
+            -10.0,
+            0.0
+          ],
+          "Torso": [
+            -20.0,
+            10.0,
+            0.0
+          ]
+        },
+        "transitions": {
+          "F_CLICK": "heavy_2",
+          "LMB": "heavy_2",
+          "F_HOLD": "heavy_2",
+          "RMB": "heavy_2"
+        }
+      },
+      "heavy_2": {
+        "damage_multiplier": 2.6,
+        "stamina_cost": 25.0,
+        "timings": {
+          "windup": 0.22,
+          "active": 0.2,
+          "recovery": 0.35
+        },
+        "combo_window": {
+          "start": 0.0,
+          "end": 0.0
+        },
+        "pose": {
+          "Arm_R": [
+            120.0,
+            15.0,
+            0.0
+          ],
+          "Torso": [
+            -25.0,
+            -15.0,
+            0.0
+          ]
+        },
+        "transitions": {}
+      },
+      "low_1": {
+        "damage_multiplier": 0.85,
+        "stamina_cost": 8.0,
+        "timings": {
+          "windup": 0.1,
+          "active": 0.16,
+          "recovery": 0.2
+        },
+        "combo_window": {
+          "start": 0.08,
+          "end": 0.32
+        },
+        "pose": {
+          "Arm_R": [
+            85.0,
+            0.0,
+            0.0
+          ],
+          "Torso": [
+            25.0,
+            0.0,
+            0.0
+          ]
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      }
+    }
+  }
+}

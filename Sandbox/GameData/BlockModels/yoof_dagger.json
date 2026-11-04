@@ -1,0 +1,144 @@
+{
+  "id": "yoof_dagger",
+  "comment": "Pugnale da yoof a blocchi: lama larga e seghettata, manico avvolto. Punta verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.004,
+      0.09
+    ],
+    "muzzle": [
+      0.0,
+      -0.006,
+      -0.16
+    ]
+  },
+  "parts": [
+    {
+      "name": "lama",
+      "offset": [
+        0,
+        0,
+        -0.045
+      ],
+      "size": [
+        0.008,
+        0.036,
+        0.15
+      ],
+      "color": [
+        0.58,
+        0.56,
+        0.52,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "punta",
+      "offset": [
+        0,
+        -0.008,
+        -0.14
+      ],
+      "size": [
+        0.007,
+        0.02,
+        0.045
+      ],
+      "color": [
+        0.58,
+        0.56,
+        0.52,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "dente",
+      "offset": [
+        0,
+        0.02,
+        -0.03
+      ],
+      "size": [
+        0.006,
+        0.01,
+        0.015
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "name": "guardia",
+      "offset": [
+        0,
+        0,
+        0.035
+      ],
+      "size": [
+        0.016,
+        0.05,
+        0.012
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "manico",
+      "offset": [
+        0,
+        -0.004,
+        0.09
+      ],
+      "size": [
+        0.026,
+        0.035,
+        0.095
+      ],
+      "color": [
+        0.4,
+        0.33,
+        0.24,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    {
+      "name": "pomo",
+      "offset": [
+        0,
+        -0.004,
+        0.145
+      ],
+      "size": [
+        0.03,
+        0.036,
+        0.016
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    }
+  ]
+}

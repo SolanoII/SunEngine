@@ -20,5 +20,26 @@
   "fov_degrees": 85,
   "weight_capacity": 90.0,
   "base_speed": 4.5,
-  "health": 110.0
+  "health": 110.0,
+  "ammo_multiplier": 1.0,
+  "default_loadout": {
+    "primary": "",
+    "secondary": "yoof_slugga",
+    "melee": "yoof_dagger",
+    "equipment": [
+      "yoof_scrap",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "",
+      "torso": "torso_yoof_rags",
+      "arm_l": "",
+      "arm_r": "",
+      "leg_l": "leg_l_yoof_rags",
+      "leg_r": "leg_r_yoof_rags"
+    }
+  },
+  "loadout_version": 3,
+  "strict_loadout": true
 }

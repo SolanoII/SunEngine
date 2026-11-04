@@ -1,0 +1,139 @@
+{
+  "id": "yoof_food_pack",
+  "comment": "Zaino di cibo a blocchi: sacco di tela con funghi e carne che spuntano. Origine alla base. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      0.32,
+      0.0
+    ]
+  },
+  "parts": [
+    {
+      "name": "sacco",
+      "offset": [
+        0,
+        0.15,
+        0
+      ],
+      "size": [
+        0.3,
+        0.3,
+        0.22
+      ],
+      "color": [
+        0.5,
+        0.4,
+        0.25,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    {
+      "name": "chiusura",
+      "offset": [
+        0,
+        0.31,
+        0
+      ],
+      "size": [
+        0.18,
+        0.04,
+        0.12
+      ],
+      "color": [
+        0.4,
+        0.3,
+        0.18,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    {
+      "name": "fungo",
+      "offset": [
+        0.06,
+        0.36,
+        0.02
+      ],
+      "size": [
+        0.1,
+        0.05,
+        0.1
+      ],
+      "color": [
+        0.8,
+        0.2,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "gambo",
+      "offset": [
+        0.06,
+        0.32,
+        0.02
+      ],
+      "size": [
+        0.03,
+        0.06,
+        0.03
+      ],
+      "color": [
+        0.9,
+        0.88,
+        0.8,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "carne",
+      "offset": [
+        -0.07,
+        0.34,
+        -0.02
+      ],
+      "size": [
+        0.08,
+        0.06,
+        0.06
+      ],
+      "color": [
+        0.6,
+        0.22,
+        0.18,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "cinghia",
+      "offset": [
+        0,
+        0.15,
+        0.115
+      ],
+      "size": [
+        0.05,
+        0.28,
+        0.01
+      ],
+      "color": [
+        0.3,
+        0.2,
+        0.1,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "id": "torso_shoota_plate",
+  "displayName": "Pettorale da Shoota",
+  "comment": "Dotazione base dello shoota boy: pettorale di lamiera con cinghie.",
+  "allowed_units": [
+    "orks_shoota_boy"
+  ],
+  "location": "Torso",
+  "faction": "Orks",
+  "armor_rating": 10,
+  "coverage": 0.8,
+  "max_durability": 50.0,
+  "weight": 7.0,
+  "point_cost": 2,
+  "skin_blocks": {},
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.04,
+        -0.335
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.06,
+        -0.34
+      ],
+      "size": [
+        0.76,
+        0.5,
+        0.07
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.3,
+        0.24,
+        -0.2
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.3,
+        0.14,
+        -0.2
+      ],
+      "size": [
+        0.08,
+        0.06,
+        0.42
+      ],
+      "color": [
+        0.3,
+        0.2,
+        0.1,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.3,
+        0.24,
+        -0.2
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        -0.3,
+        0.14,
+        -0.2
+      ],
+      "size": [
+        0.08,
+        0.06,
+        0.42
+      ],
+      "color": [
+        0.3,
+        0.2,
+        0.1,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        -0.1,
+        -0.375
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.2,
+        -0.385
+      ],
+      "size": [
+        0.22,
+        0.12,
+        0.03
+      ],
+      "color": [
+        0.62,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    }
+  ],
+  "garments": [
+    {
+      "id": "boy_plate_chest",
+      "bones": [
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.68,
+        0.95
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.15,
+      "inflate": 0.016,
+      "plate_cells": 4,
+      "plate_step": 0.006,
+      "texture": "Textures/Garments/ork_plate.png",
+      "tex_tiles": 4,
+      "roughness": 0.55,
+      "metallic": 0.7
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "id": "leg_l_yoof_scrap",
+  "displayName": "Gambale di Scrap (sx)",
+  "comment": "Ginocchiera e gambale di lamiera. Si ricerca sotto lo Yoof e si compra per unita', un pezzo alla volta.",
+  "location": "LeftLeg",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_yoof"
+  ],
+  "armor_rating": 5,
+  "coverage": 0.75,
+  "max_durability": 25.0,
+  "weight": 3.0,
+  "point_cost": 1,
+  "skin_blocks": {},
+  "skin_parts": [
+    {
+      "block": "Leg_L",
+      "offset": [
+        0.0,
+        -0.05,
+        -0.21
+      ],
+      "bone": "mixamorig1:LeftLeg",
+      "bone_offset": [
+        0.0,
+        0.06,
+        -0.2
+      ],
+      "size": [
+        0.3,
+        0.3,
+        0.05
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Leg_L",
+      "offset": [
+        0.0,
+        0.12,
+        -0.22
+      ],
+      "bone": "mixamorig1:LeftLeg",
+      "bone_offset": [
+        0.0,
+        0.2,
+        -0.21
+      ],
+      "size": [
+        0.12,
+        0.06,
+        0.03
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    }
+  ],
+  "garments": [
+    {
+      "id": "yoof_scrap_leg_l",
+      "bones": [
+        "LeftLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.1,
+        0.36
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.1,
+      "inflate": 0.014,
+      "plate_cells": 6,
+      "plate_step": 0.006,
+      "texture": "Textures/Garments/scrap_metal.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.6
+    }
+  ]
+}

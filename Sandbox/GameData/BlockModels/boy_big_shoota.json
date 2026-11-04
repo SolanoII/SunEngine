@@ -1,0 +1,217 @@
+{
+  "id": "boy_big_shoota",
+  "comment": "Big Shoota a blocchi: canna lunga con smorzatore, castello squadrato, nastro di proiettili, maniglia di trasporto. Canna verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.12,
+      0.18
+    ],
+    "grip_left": [
+      0.0,
+      -0.06,
+      -0.18
+    ],
+    "muzzle": [
+      0.0,
+      0.04,
+      -0.62
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.04,
+        -0.34
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.52
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "smorzatore",
+      "offset": [
+        0,
+        0.04,
+        -0.58
+      ],
+      "size": [
+        0.09,
+        0.09,
+        0.08
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.0,
+        0.05
+      ],
+      "size": [
+        0.12,
+        0.16,
+        0.34
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.5
+    },
+    {
+      "name": "piastra",
+      "offset": [
+        0.062,
+        0.0,
+        0.05
+      ],
+      "size": [
+        0.006,
+        0.1,
+        0.24
+      ],
+      "color": [
+        0.62,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    },
+    {
+      "name": "nastro",
+      "offset": [
+        -0.09,
+        -0.02,
+        0.02
+      ],
+      "size": [
+        0.06,
+        0.1,
+        0.18
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.12,
+        0.18
+      ],
+      "size": [
+        0.05,
+        0.12,
+        0.06
+      ],
+      "rotation": [
+        -15,
+        0,
+        0
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0,
+        -0.06,
+        -0.18
+      ],
+      "size": [
+        0.07,
+        0.06,
+        0.16
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    },
+    {
+      "name": "maniglia",
+      "offset": [
+        0,
+        0.12,
+        -0.02
+      ],
+      "size": [
+        0.03,
+        0.04,
+        0.16
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.02,
+        0.3
+      ],
+      "size": [
+        0.08,
+        0.12,
+        0.16
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

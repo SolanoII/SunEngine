@@ -30,6 +30,7 @@ namespace SunEngine {
         void DoMelee(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);
         void TryParry(Scene& scene, entt::entity self, BotBrainComponent& brain);
         void Resupply(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);   // scatola di munizioni
+        void TryGrenade(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt); // granate (es. stikkbomb)
     };
 
 }

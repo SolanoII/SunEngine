@@ -1,0 +1,70 @@
+{
+  "id": "loota_deffgun_shooty",
+  "displayName": "Shooty Deffgun",
+  "comment": "Dotazione base del loota: arma enorme da spalla montata sul braccio destro, tante canne e tanti proiettili. 40 colpi, 120 di riserva.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_loota"
+  ],
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "point_cost": 8,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "weight_kg": 18.0,
+  "magazine_size": 40,
+  "spare_magazines": 3,
+  "reload_time_sec": 3.8,
+  "fire_modes": [
+    "auto"
+  ],
+  "rate_of_fire": 550.0,
+  "base_damage": 22.0,
+  "armor_penetration": 2,
+  "impact_force": 22.0,
+  "toughness_bypass": 0.0,
+  "range_effective": 45.0,
+  "damage_falloff_start": 20.0,
+  "damage_falloff_end": 45.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 1.6,
+  "shake_intensity": 0.14,
+  "fov_kick": 1.0,
+  "spread_base": 0.28,
+  "spread_auto_multiplier": 1.4,
+  "suppression_value": 9,
+  "projectile_type": "ballistic",
+  "is_beam": false,
+  "projectile_speed": 140.0,
+  "projectile_length": 0.45,
+  "projectile_width": 0.07,
+  "primary_color": [
+    1.0,
+    0.6,
+    0.15,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    0.85,
+    0.5,
+    1.0
+  ],
+  "weapon_scale": [
+    0.2,
+    0.25,
+    1.0
+  ],
+  "hold_offset": [
+    0.35,
+    -0.05,
+    -0.25
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.55
+  ],
+  "heat_recoil_multiplier": 1.0
+}

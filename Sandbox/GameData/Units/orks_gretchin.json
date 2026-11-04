@@ -27,6 +27,15 @@
       "grot_ammo_box",
       "",
       ""
-    ]
-  }
+    ],
+    "armor": {
+      "head": "",
+      "torso": "torso_grot_rags",
+      "arm_l": "",
+      "arm_r": "",
+      "leg_l": "leg_l_grot_rags",
+      "leg_r": "leg_r_grot_rags"
+    }
+  },
+  "strict_loadout": true
 }

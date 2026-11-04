@@ -1,0 +1,201 @@
+{
+  "id": "shoota_shoota",
+  "comment": "Shoota a blocchi: canna doppia corta, caricatore curvo, calcio di lamiera. Canna verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.11,
+      0.14
+    ],
+    "grip_left": [
+      0.0,
+      -0.05,
+      -0.16
+    ],
+    "muzzle": [
+      0.0,
+      0.03,
+      -0.5
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.3
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.4
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna_2",
+      "offset": [
+        0,
+        -0.02,
+        -0.26
+      ],
+      "size": [
+        0.04,
+        0.04,
+        0.3
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0,
+        0.03
+      ],
+      "size": [
+        0.1,
+        0.14,
+        0.3
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.5
+    },
+    {
+      "name": "caricatore",
+      "offset": [
+        0,
+        -0.13,
+        -0.03
+      ],
+      "size": [
+        0.05,
+        0.14,
+        0.07
+      ],
+      "rotation": [
+        15,
+        0,
+        0
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.11,
+        0.14
+      ],
+      "size": [
+        0.05,
+        0.11,
+        0.06
+      ],
+      "rotation": [
+        -15,
+        0,
+        0
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0,
+        -0.05,
+        -0.16
+      ],
+      "size": [
+        0.07,
+        0.05,
+        0.14
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.02,
+        0.27
+      ],
+      "size": [
+        0.06,
+        0.1,
+        0.16
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.6
+    },
+    {
+      "name": "dente",
+      "offset": [
+        0.052,
+        0.02,
+        0.0
+      ],
+      "size": [
+        0.006,
+        0.05,
+        0.1
+      ],
+      "color": [
+        0.62,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    }
+  ]
+}

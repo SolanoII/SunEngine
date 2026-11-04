@@ -11,7 +11,7 @@
   "hand_type": "OneHanded",
   "is_melee": false,
   "weight_kg": 3.0,
-  "point_cost": 0,
+  "point_cost": 1,
   "equipment_uses": 3,
   "equipment_range": 5.0,
   "equipment_use_time": 1.2,

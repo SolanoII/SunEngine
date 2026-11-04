@@ -1,0 +1,149 @@
+{
+  "id": "yoof_slugga",
+  "comment": "Slugga a blocchi: canna corta e larga, caricatore a scatola, impugnatura rivettata. Canna verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.09,
+      0.08
+    ],
+    "muzzle": [
+      0.0,
+      0.03,
+      -0.25
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.13
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.22
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0,
+        0.03,
+        -0.24
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.02
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.01,
+        0.03
+      ],
+      "size": [
+        0.07,
+        0.08,
+        0.14
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.5
+    },
+    {
+      "name": "caricatore",
+      "offset": [
+        0,
+        -0.07,
+        -0.03
+      ],
+      "size": [
+        0.04,
+        0.08,
+        0.05
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.09,
+        0.08
+      ],
+      "size": [
+        0.045,
+        0.11,
+        0.05
+      ],
+      "rotation": [
+        -15,
+        0,
+        0
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    },
+    {
+      "name": "dente",
+      "offset": [
+        0,
+        0.06,
+        -0.2
+      ],
+      "size": [
+        0.04,
+        0.02,
+        0.02
+      ],
+      "color": [
+        0.62,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    }
+  ]
+}

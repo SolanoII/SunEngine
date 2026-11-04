@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <utility>
 #include <nlohmann/json.hpp>
+#include "../Renderer/GarmentShell.h"
 #include <glm/glm.hpp>
 
 namespace SunEngine {
@@ -73,6 +74,20 @@ namespace SunEngine {
         int heat_generation = 0;
     };
 
+    // Pezzo visivo di un'armatura/veste ("skin"): un cubo agganciato a un blocco dello scheletro a cubi
+    // (offset dal centro del blocco, nei suoi assi) e, per il modello animato, a un osso (offset negli assi
+    // del corpo: +X destra, +Y su, -Z avanti). Solo estetica: non e' una hitbox.
+    struct ArmorSkinPart {
+        std::string block;             // es. "Head"
+        glm::vec3 offset{ 0.0f };
+        std::string bone;              // es. "mixamorig1:Head" (vuoto = niente sul modello animato)
+        glm::vec3 boneOffset{ 0.0f };
+        glm::vec3 size{ 0.1f };
+        glm::vec4 color{ 0.5f, 0.5f, 0.5f, 1.0f };
+        float roughness = 0.7f;
+        float metallic = 0.0f;
+    };
+
     struct WeaponBlueprint {
         std::string id;
         std::string displayName;
@@ -97,6 +112,7 @@ namespace SunEngine {
         std::string special_ability = "none";
         bool parry_blocks_ranged = false;   // la parata con quest'arma ferma anche i colpi a distanza (perfect deflect)
         float melee_reach = 1.85f;          // portata del colpo in mischia (metri, dal centro dell'attaccante)
+        float heavy_lunge_distance = 0.0f;  // attacco pesante con scatto in avanti (metri), es. lancia dello yoof
         bool hasMoveset = false;
         MeleeMoveset moveset;
 
@@ -166,6 +182,30 @@ namespace SunEngine {
         float companion_speed = 7.0f;
         float companion_attack_interval = 1.0f;
         float explosion_damage = 0.0f;
+        // Scrap ("scrap_barricade"): fermo e con il click sinistro tenuto per equipment_use_time secondi costruisce
+        // una barricata davanti a se' (copertura che ferma colpi e movimento), grande barricade_size.
+        glm::vec3 barricade_size = glm::vec3(2.0f, 1.0f, 0.4f);
+        // Zaino di cibo ("food_pack"): click sinistro lo posa a terra; per effect_duration secondi cura
+        // heal_per_second ai compagni entro equipment_range metri.
+        float heal_per_second = 0.0f;
+        float effect_duration = 0.0f;
+        // Granata ("grenade") e mina ("landmine"): explosion_radius / explosion_damage / armor_penetration.
+        // fuse_time = miccia della granata o tempo per armare la mina; throw_speed = velocita' di lancio;
+        // trigger_radius = quanto vicino deve passare un nemico per far scattare la mina.
+        float fuse_time = 3.0f;
+        bool explode_on_impact = false;    // granata a impatto (es. stikkbomb): scoppia appena tocca qualcosa
+        float ammo_capacity_bonus = 0.0f;  // zaino munizioni ("ammo_backpack"): +50% di riserva = 0.5
+        // Danno delle esplosioni a strutture e mezzi (barricate, muri, veicoli, torrette): x structure_damage_multiplier.
+        // Es. granata anti-struttura del loota = 5.
+        float structure_damage_multiplier = 1.0f;
+        float structure_health = 250.0f;   // salute di barricate e muri costruiti con questo oggetto
+        // Skin della dotazione sul corpo (es. zaino sulla schiena), come "skin_parts" delle armature
+        std::vector<ArmorSkinPart> skinParts;
+        std::vector<GarmentDef> garments;   // strati sul modello animato ("garments")
+        float throw_speed = 14.0f;
+        float trigger_radius = 0.9f;
+        float companion_health = 30.0f;      // lo squig si puo' uccidere: poca salute...
+        float companion_evasion = 0.30f;     // ...ma schiva il 30% dei colpi
 
         // Unita' che possono equipaggiarla ("allowed_units"); vuoto = tutte (armi esistenti, da rivedere)
         std::vector<std::string> allowed_units;
@@ -208,6 +248,17 @@ namespace SunEngine {
         float fov_degrees = 0.0f;
         float weight_capacity = 60.0f;
         float weightCapacity = 60.0f; // Alias di sicurezza per evitare errori di denominazione
+        // Vestiti sempre visibili sotto l'armatura ("base_skin": "skin_blocks" + "skin_parts"), es. calzoni degli orki
+        std::vector<std::pair<std::string, glm::vec4>> baseSkinBlockColors;
+        std::vector<ArmorSkinPart> baseSkinParts;
+        std::vector<GarmentDef> baseGarments;   // vestiti base sul modello animato ("base_skin": {"garments": [...]})
+        // Niente armi da mischia ("no_melee", es. loota): lo slot resta vuoto e i tasti della mischia usano
+        // l'arma di riserva "melee_fallback" (es. botta col deffgun), che non si puo' equipaggiare.
+        bool no_melee = false;
+        std::string melee_fallback;
+        // Solo l'equipaggiamento definito per questa unita' ("strict_loadout", es. tutti gli orki): niente armi e
+        // armature generiche (quelle senza "allowed_units")
+        bool strict_loadout = false;
         // Munizioni di scorta del personaggio: moltiplica la riserva di ogni arma (1 = standard)
         float ammo_multiplier = 1.0f;
         // Dotazione base ("default_loadout"): armi ed equipaggiamento con cui l'unita' arriva nel garage
@@ -216,6 +267,11 @@ namespace SunEngine {
         std::string default_secondary;
         std::string default_melee;
         std::string default_equipment[3];
+        // Versione della dotazione base: se un'unita' salvata nel profilo ne ha una piu' vecchia, la riceve di nuovo
+        // al caricamento (es. yoof = 3: gli yoof gia' nel garage passano dal fucile laser al kit da yoof)
+        int loadout_version = 0;
+        bool has_default_armor = false;
+        std::string default_armor[6];      // testa, torso, braccio sx, braccio dx, gamba sx, gamba dx ("" = scoperto)
     };
 
     struct ArmorBlueprint {
@@ -229,6 +285,27 @@ namespace SunEngine {
         int pointCost = 0;
         std::string faction;
         std::string unitRestriction;
+
+        // Unita' che possono indossarla ("allowed_units"); vuoto = regola di "unit_restriction"
+        std::vector<std::string> allowed_units;
+        bool AllowedFor(const std::string& unitId) const {
+            if (!allowed_units.empty()) {
+                for (const auto& u : allowed_units) if (u == unitId) return true;
+                return false;
+            }
+            return unitRestriction.empty() || unitRestriction == unitId;
+        }
+        // Elmetto: finche' regge, annulla il moltiplicatore del colpo in testa (es. elmetto di ferraglia del
+        // gretchin: un colpo di lasgun in testa non lo uccide piu' al primo colpo)
+        bool blocks_headshot_bonus = false;
+
+        // Skin sul campo: colore di alcuni blocchi dello scheletro ("skin_blocks": {"Torso": [r,g,b]}) e
+        // pezzi aggiunti ("skin_parts"), es. vesti e elmetto del gretchin
+        std::vector<std::pair<std::string, glm::vec4>> skinBlockColors;
+        std::vector<ArmorSkinPart> skinParts;
+        // Strati sul modello animato (texture/mesh sopra il corpo, vedi GarmentShell.h). Se ci sono, i pezzi
+        // a cubi agganciati alle ossa ("bone" negli skin_parts) non vengono usati sul modello animato.
+        std::vector<GarmentDef> garments;
     };
 
     class BlueprintManager {
@@ -243,6 +320,24 @@ namespace SunEngine {
         const UnitBlueprint* GetUnit(const std::string& id) const;
         const WeaponBlueprint* GetWeapon(const std::string& id) const;
         const ArmorBlueprint* GetArmorPiece(const std::string& id) const;
+
+        // L'unita' puo' equipaggiare l'oggetto? Con "strict_loadout" solo se l'oggetto la elenca in "allowed_units".
+        bool CanEquip(const WeaponBlueprint& w, const std::string& unitId) const {
+            const UnitBlueprint* u = GetUnit(unitId);
+            if (u && u->strict_loadout) {
+                for (const auto& a : w.allowed_units) if (a == unitId) return true;
+                return false;
+            }
+            return w.AllowedFor(unitId);
+        }
+        bool CanEquip(const ArmorBlueprint& a, const std::string& unitId) const {
+            const UnitBlueprint* u = GetUnit(unitId);
+            if (u && u->strict_loadout) {
+                for (const auto& x : a.allowed_units) if (x == unitId) return true;
+                return false;
+            }
+            return a.AllowedFor(unitId);
+        }
 
         const std::unordered_map<std::string, UnitBlueprint>& GetUnits() const { return m_Units; }
         const std::unordered_map<std::string, WeaponBlueprint>& GetWeapons() const { return m_Weapons; }

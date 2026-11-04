@@ -1,0 +1,112 @@
+{
+  "id": "torso_yoof_rags",
+  "displayName": "Vesti da Yoof",
+  "comment": "Vestiti dello yoof: nessuna armatura, solo aspetto.",
+  "location": "Torso",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_yoof"
+  ],
+  "armor_rating": 0,
+  "coverage": 0.0,
+  "max_durability": 0.0,
+  "weight": 0.4,
+  "point_cost": 0,
+  "skin_blocks": {
+    "Torso": [
+      0.42,
+      0.33,
+      0.22,
+      1.0
+    ],
+    "Hump": [
+      0.34,
+      0.26,
+      0.17,
+      1.0
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:Spine1",
+      "bone_offset": [
+        0.0,
+        0.0,
+        0.02
+      ],
+      "size": [
+        0.98,
+        0.42,
+        0.68
+      ],
+      "color": [
+        0.42,
+        0.33,
+        0.22,
+        1.0
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:Hips",
+      "bone_offset": [
+        0.0,
+        -0.04,
+        0.0
+      ],
+      "size": [
+        0.84,
+        0.2,
+        0.64
+      ],
+      "color": [
+        0.34,
+        0.26,
+        0.17,
+        1.0
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ],
+  "garments": [
+    {
+      "id": "yoof_rags_torso",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftUpLeg",
+        "RightUpLeg"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.45,
+        0.93
+      ],
+      "inflate": 0.007,
+      "noise": 0.7,
+      "noise_scale": 10,
+      "texture": "Textures/Garments/grot_rags.png",
+      "tex_tiles": 4,
+      "alpha_cut": 0.5,
+      "roughness": 0.95
+    }
+  ]
+}

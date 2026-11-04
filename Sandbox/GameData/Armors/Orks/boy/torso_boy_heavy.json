@@ -1,0 +1,163 @@
+{
+  "id": "torso_boy_heavy",
+  "displayName": "Corazza Pesante da Boy",
+  "comment": "Sbloccabile dell'ork boy: corazza completa di piastre rivettate su petto, schiena e gobba.",
+  "location": "Torso",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "armor_rating": 16,
+  "coverage": 0.85,
+  "max_durability": 80.0,
+  "weight": 12.0,
+  "point_cost": 4,
+  "skin_blocks": {
+    "Torso": [
+      0.32,
+      0.3,
+      0.28,
+      1
+    ],
+    "Hump": [
+      0.47,
+      0.28,
+      0.15,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.04,
+        -0.34
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.06,
+        -0.35
+      ],
+      "size": [
+        0.82,
+        0.56,
+        0.08
+      ],
+      "color": [
+        0.26,
+        0.25,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.2,
+        -0.385
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        0.1,
+        -0.395
+      ],
+      "size": [
+        0.5,
+        0.08,
+        0.03
+      ],
+      "color": [
+        0.8,
+        0.62,
+        0.1,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    },
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:Spine1",
+      "bone_offset": [
+        0.0,
+        0.0,
+        0.02
+      ],
+      "size": [
+        1.0,
+        0.48,
+        0.7
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Hump",
+      "offset": [
+        0.0,
+        0.17,
+        0.0
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        0.12,
+        0.18
+      ],
+      "size": [
+        0.06,
+        0.12,
+        0.06
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    }
+  ],
+  "garments": [
+    {
+      "id": "boy_heavy_torso",
+      "bones": [
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.62,
+        0.96
+      ],
+      "inflate": 0.02,
+      "plate_cells": 4,
+      "plate_step": 0.008,
+      "texture": "Textures/Garments/ork_plate.png",
+      "tex_tiles": 4,
+      "roughness": 0.55,
+      "metallic": 0.7
+    }
+  ]
+}

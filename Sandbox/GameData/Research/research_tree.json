@@ -1,5 +1,5 @@
 {
-  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Valori di costo provvisori. Nodi con 'item' al posto di 'unit' = oggetti: si ricercano coi punti studio della prima unita' risalendo l'albero e si comprano nel garage per ogni unita'.",
+  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Valori di costo provvisori. Nodi con 'item' al posto di 'unit' = oggetti: si ricercano coi punti studio della prima unita' risalendo l'albero e si comprano nel garage per ogni unita'. Costi in migliaia (un'uccisione = 500 PS, un secondo in vita = 50 PS).",
   "factions": [
     {
       "id": "imperium",
@@ -19,7 +19,7 @@
           "row": 1,
           "parent": "",
           "research_cost": 0,
-          "purchase_cost": 15,
+          "purchase_cost": 15000,
           "default_name": "Coscritto",
           "color": [
             0.55,
@@ -36,8 +36,8 @@
           "col": 1,
           "row": 1,
           "parent": "ig_conscript",
-          "research_cost": 15,
-          "purchase_cost": 15,
+          "research_cost": 15000,
+          "purchase_cost": 15000,
           "default_name": "Scudo Bianco",
           "color": [
             0.78,
@@ -54,8 +54,8 @@
           "col": 2,
           "row": 0,
           "parent": "ig_whiteshield",
-          "research_cost": 25,
-          "purchase_cost": 30,
+          "research_cost": 25000,
+          "purchase_cost": 30000,
           "default_name": "Recluta Vance",
           "color": [
             0.65,
@@ -72,8 +72,8 @@
           "col": 2,
           "row": 1,
           "parent": "ig_whiteshield",
-          "research_cost": 45,
-          "purchase_cost": 120,
+          "research_cost": 45000,
+          "purchase_cost": 120000,
           "default_name": "Ogryn Bruto",
           "color": [
             0.6,
@@ -90,8 +90,8 @@
           "col": 2,
           "row": 2,
           "parent": "ig_whiteshield",
-          "research_cost": 40,
-          "purchase_cost": 55,
+          "research_cost": 40000,
+          "purchase_cost": 55000,
           "default_name": "Scion Thorne",
           "color": [
             0.35,
@@ -120,7 +120,7 @@
           "row": 1,
           "parent": "",
           "research_cost": 0,
-          "purchase_cost": 65,
+          "purchase_cost": 65000,
           "default_name": "Neofita Corvo",
           "color": [
             0.92,
@@ -137,8 +137,8 @@
           "col": 1,
           "row": 1,
           "parent": "sm_neophyte",
-          "research_cost": 20,
-          "purchase_cost": 85,
+          "research_cost": 20000,
+          "purchase_cost": 85000,
           "default_name": "Scout Ilex",
           "color": [
             0.45,
@@ -155,8 +155,8 @@
           "col": 2,
           "row": 0,
           "parent": "sm_scout",
-          "research_cost": 40,
-          "purchase_cost": 165,
+          "research_cost": 40000,
+          "purchase_cost": 165000,
           "default_name": "Fratello Titus",
           "color": [
             0.05,
@@ -173,8 +173,8 @@
           "col": 2,
           "row": 1,
           "parent": "sm_scout",
-          "research_cost": 45,
-          "purchase_cost": 150,
+          "research_cost": 45000,
+          "purchase_cost": 150000,
           "default_name": "Fratello Vael",
           "color": [
             0.1,
@@ -191,8 +191,8 @@
           "col": 2,
           "row": 2,
           "parent": "sm_scout",
-          "research_cost": 55,
-          "purchase_cost": 225,
+          "research_cost": 55000,
+          "purchase_cost": 225000,
           "default_name": "Fratello Garran",
           "color": [
             0.05,
@@ -221,7 +221,7 @@
           "row": 1,
           "parent": "",
           "research_cost": 0,
-          "purchase_cost": 15,
+          "purchase_cost": 15000,
           "default_name": "Snik",
           "color": [
             0.3,
@@ -238,8 +238,8 @@
           "col": 1,
           "row": 1,
           "parent": "ork_gretchin",
-          "research_cost": 15,
-          "purchase_cost": 35,
+          "research_cost": 15000,
+          "purchase_cost": 35000,
           "default_name": "Grotz",
           "color": [
             0.2,
@@ -256,8 +256,8 @@
           "col": 2,
           "row": 0,
           "parent": "ork_yoof",
-          "research_cost": 25,
-          "purchase_cost": 55,
+          "research_cost": 25000,
+          "purchase_cost": 55000,
           "default_name": "Gor-Gath",
           "color": [
             0.15,
@@ -274,8 +274,8 @@
           "col": 2,
           "row": 1,
           "parent": "ork_yoof",
-          "research_cost": 25,
-          "purchase_cost": 50,
+          "research_cost": 25000,
+          "purchase_cost": 50000,
           "default_name": "Zogga",
           "color": [
             0.18,
@@ -292,8 +292,8 @@
           "col": 2,
           "row": 2,
           "parent": "ork_yoof",
-          "research_cost": 35,
-          "purchase_cost": 60,
+          "research_cost": 35000,
+          "purchase_cost": 60000,
           "default_name": "Mekk",
           "color": [
             0.12,
@@ -310,8 +310,8 @@
           "col": 1,
           "row": 3,
           "parent": "ork_gretchin",
-          "research_cost": 8,
-          "purchase_cost": 20,
+          "research_cost": 8000,
+          "purchase_cost": 20000,
           "color": [
             0.45,
             0.43,
@@ -327,8 +327,8 @@
           "col": 1,
           "row": 4,
           "parent": "ork_gretchin",
-          "research_cost": 18,
-          "purchase_cost": 35,
+          "research_cost": 18000,
+          "purchase_cost": 35000,
           "color": [
             0.7,
             0.55,
@@ -344,8 +344,8 @@
           "col": 1,
           "row": 5,
           "parent": "ork_gretchin",
-          "research_cost": 20,
-          "purchase_cost": 40,
+          "research_cost": 20000,
+          "purchase_cost": 40000,
           "color": [
             0.8,
             0.22,
@@ -361,12 +361,455 @@
           "col": 2,
           "row": 5,
           "parent": "ork_item_squig",
-          "research_cost": 25,
-          "purchase_cost": 50,
+          "research_cost": 25000,
+          "purchase_cost": 50000,
           "color": [
             0.95,
             0.45,
             0.1,
+            1
+          ]
+        },
+        {
+          "id": "ork_item_scrap_helmet",
+          "item": "head_grot_scrap_helmet",
+          "name": "Elmetto di Ferraglia",
+          "tier": 1,
+          "col": 1,
+          "row": 6,
+          "parent": "ork_gretchin",
+          "research_cost": 10000,
+          "purchase_cost": 15000,
+          "color": [
+            0.36,
+            0.34,
+            0.31,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_slugga_auto",
+          "item": "yoof_slugga_auto",
+          "name": "Slugga Automatica",
+          "tier": 2,
+          "col": 2,
+          "row": 3,
+          "parent": "ork_yoof",
+          "research_cost": 20000,
+          "purchase_cost": 40000,
+          "color": [
+            0.62,
+            0.12,
+            0.08,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_choppa",
+          "item": "yoof_choppa",
+          "name": "Choppa",
+          "tier": 2,
+          "col": 2,
+          "row": 4,
+          "parent": "ork_yoof",
+          "research_cost": 20000,
+          "purchase_cost": 35000,
+          "color": [
+            0.45,
+            0.47,
+            0.5,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_food",
+          "item": "yoof_food_pack",
+          "name": "Zaino di Cibo",
+          "tier": 2,
+          "col": 2,
+          "row": 6,
+          "parent": "ork_yoof",
+          "research_cost": 25000,
+          "purchase_cost": 45000,
+          "color": [
+            0.5,
+            0.4,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_scrap_torso",
+          "item": "torso_yoof_scrap",
+          "name": "Corazza di Scrap",
+          "tier": 2,
+          "col": 2,
+          "row": 7,
+          "parent": "ork_yoof",
+          "research_cost": 15000,
+          "purchase_cost": 30000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_scrap_arms",
+          "items": [
+            "arm_l_yoof_scrap",
+            "arm_r_yoof_scrap"
+          ],
+          "name": "Spallacci di Scrap",
+          "tier": 2,
+          "col": 3,
+          "row": 7,
+          "parent": "ork_yoof_item_scrap_torso",
+          "research_cost": 20000,
+          "purchase_cost": 25000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_scrap_legs",
+          "items": [
+            "leg_l_yoof_scrap",
+            "leg_r_yoof_scrap"
+          ],
+          "name": "Gambali di Scrap",
+          "tier": 2,
+          "col": 4,
+          "row": 7,
+          "parent": "ork_yoof_item_scrap_arms",
+          "research_cost": 20000,
+          "purchase_cost": 25000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_big_choppa",
+          "item": "boy_big_choppa",
+          "name": "Big Choppa",
+          "tier": 3,
+          "col": 3,
+          "row": 0,
+          "parent": "ork_slugga",
+          "research_cost": 30000,
+          "purchase_cost": 60000,
+          "color": [
+            0.4,
+            0.4,
+            0.42,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_big_shoota",
+          "item": "boy_big_shoota",
+          "name": "Big Shoota",
+          "tier": 3,
+          "col": 3,
+          "row": 1,
+          "parent": "ork_slugga",
+          "research_cost": 35000,
+          "purchase_cost": 70000,
+          "color": [
+            0.62,
+            0.12,
+            0.08,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_mines",
+          "item": "boy_mines",
+          "name": "Mine da Terra",
+          "tier": 3,
+          "col": 3,
+          "row": 2,
+          "parent": "ork_slugga",
+          "research_cost": 25000,
+          "purchase_cost": 45000,
+          "color": [
+            0.3,
+            0.32,
+            0.22,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_arms",
+          "items": [
+            "arm_l_boy_plate",
+            "arm_r_boy_plate"
+          ],
+          "name": "Spallacci da Boy",
+          "tier": 3,
+          "col": 3,
+          "row": 3,
+          "parent": "ork_slugga",
+          "research_cost": 20000,
+          "purchase_cost": 30000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_legs",
+          "items": [
+            "leg_l_boy_plate",
+            "leg_r_boy_plate"
+          ],
+          "name": "Gambali da Boy",
+          "tier": 3,
+          "col": 4,
+          "row": 3,
+          "parent": "ork_boy_item_arms",
+          "research_cost": 20000,
+          "purchase_cost": 30000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_helmet",
+          "item": "head_boy_helmet",
+          "name": "Elmo da Boy",
+          "tier": 3,
+          "col": 5,
+          "row": 3,
+          "parent": "ork_boy_item_legs",
+          "research_cost": 25000,
+          "purchase_cost": 35000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_boy_item_heavy",
+          "item": "torso_boy_heavy",
+          "name": "Corazza Pesante",
+          "tier": 3,
+          "col": 6,
+          "row": 3,
+          "parent": "ork_boy_item_helmet",
+          "research_cost": 30000,
+          "purchase_cost": 50000,
+          "color": [
+            0.26,
+            0.25,
+            0.24,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_big_shoota",
+          "item": "shoota_big_shoota",
+          "name": "Big Shoota",
+          "tier": 3,
+          "col": 3,
+          "row": 4,
+          "parent": "ork_shoota",
+          "research_cost": 30000,
+          "purchase_cost": 60000,
+          "color": [
+            0.62,
+            0.12,
+            0.08,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_rokkit",
+          "item": "shoota_rokkit",
+          "name": "Rokkit Launcha",
+          "tier": 3,
+          "col": 3,
+          "row": 5,
+          "parent": "ork_shoota",
+          "research_cost": 40000,
+          "purchase_cost": 80000,
+          "color": [
+            0.95,
+            0.45,
+            0.1,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_backpack",
+          "item": "shoota_ammo_backpack",
+          "name": "Zaino Munizioni",
+          "tier": 3,
+          "col": 3,
+          "row": 6,
+          "parent": "ork_shoota",
+          "research_cost": 20000,
+          "purchase_cost": 35000,
+          "color": [
+            0.35,
+            0.3,
+            0.2,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_arms",
+          "items": [
+            "arm_l_shoota_plate",
+            "arm_r_shoota_plate"
+          ],
+          "name": "Spallacci da Shoota",
+          "tier": 3,
+          "col": 4,
+          "row": 6,
+          "parent": "ork_shoota",
+          "research_cost": 20000,
+          "purchase_cost": 30000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_legs",
+          "items": [
+            "leg_l_shoota_plate",
+            "leg_r_shoota_plate"
+          ],
+          "name": "Gambali da Shoota",
+          "tier": 3,
+          "col": 5,
+          "row": 6,
+          "parent": "ork_shoota_item_arms",
+          "research_cost": 20000,
+          "purchase_cost": 30000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_helmet",
+          "item": "head_shoota_helmet",
+          "name": "Elmo da Shoota",
+          "tier": 3,
+          "col": 6,
+          "row": 6,
+          "parent": "ork_shoota_item_legs",
+          "research_cost": 25000,
+          "purchase_cost": 35000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_shoota_item_heavy",
+          "item": "torso_shoota_heavy",
+          "name": "Corazza Pesante",
+          "tier": 3,
+          "col": 7,
+          "row": 6,
+          "parent": "ork_shoota_item_helmet",
+          "research_cost": 30000,
+          "purchase_cost": 50000,
+          "color": [
+            0.26,
+            0.25,
+            0.24,
+            1
+          ]
+        },
+        {
+          "id": "ork_loota_item_beamy",
+          "item": "loota_deffgun_beamy",
+          "name": "Beamy Deffgun",
+          "tier": 3,
+          "col": 3,
+          "row": 8,
+          "parent": "ork_loota",
+          "research_cost": 40000,
+          "purchase_cost": 80000,
+          "color": [
+            0.7,
+            0.15,
+            0.1,
+            1
+          ]
+        },
+        {
+          "id": "ork_loota_item_plasma",
+          "item": "loota_deffgun_plasma",
+          "name": "Plasma Deffgun",
+          "tier": 3,
+          "col": 3,
+          "row": 9,
+          "parent": "ork_loota",
+          "research_cost": 45000,
+          "purchase_cost": 90000,
+          "color": [
+            0.15,
+            0.35,
+            0.7,
+            1
+          ]
+        },
+        {
+          "id": "ork_loota_item_helmet",
+          "item": "head_loota_helmet",
+          "name": "Elmetto da Loota",
+          "tier": 3,
+          "col": 3,
+          "row": 10,
+          "parent": "ork_loota",
+          "research_cost": 25000,
+          "purchase_cost": 35000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_loota_item_slit_wall",
+          "item": "loota_slit_wall",
+          "name": "Muro con Feritoia",
+          "tier": 3,
+          "col": 3,
+          "row": 11,
+          "parent": "ork_loota",
+          "research_cost": 30000,
+          "purchase_cost": 50000,
+          "color": [
+            0.34,
+            0.32,
+            0.3,
             1
           ]
         }

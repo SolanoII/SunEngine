@@ -1,0 +1,111 @@
+{
+  "id": "shoota_ammo_backpack",
+  "displayName": "Zaino Munizioni",
+  "comment": "Sbloccabile dello shoota boy: zaino pieno di caricatori. Passivo (basta averlo in uno slot): +50% di munizioni di riserva per tutte le armi. Si vede sulla schiena.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_shoota_boy"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "ammo_backpack",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 5.0,
+  "point_cost": 3,
+  "equipment_uses": 1,
+  "ammo_capacity_bonus": 0.5,
+  "weapon_scale": [
+    0.3,
+    0.3,
+    0.3
+  ],
+  "primary_color": [
+    0.35,
+    0.3,
+    0.2,
+    1.0
+  ],
+  "skin_parts": [
+    {
+      "block": "Hump",
+      "offset": [
+        0.0,
+        -0.12,
+        0.36
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.02,
+        0.4
+      ],
+      "size": [
+        0.6,
+        0.5,
+        0.28
+      ],
+      "color": [
+        0.35,
+        0.3,
+        0.2,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "block": "Hump",
+      "offset": [
+        0.0,
+        0.16,
+        0.36
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        0.26,
+        0.4
+      ],
+      "size": [
+        0.62,
+        0.06,
+        0.3
+      ],
+      "color": [
+        0.32,
+        0.2,
+        0.1,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "block": "Hump",
+      "offset": [
+        0.28,
+        -0.12,
+        0.4
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.28,
+        -0.02,
+        0.44
+      ],
+      "size": [
+        0.06,
+        0.4,
+        0.1
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    }
+  ]
+}

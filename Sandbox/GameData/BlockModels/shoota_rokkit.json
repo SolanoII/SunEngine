@@ -1,0 +1,196 @@
+{
+  "id": "shoota_rokkit",
+  "comment": "Rokkit Launcha a blocchi: tubo largo con razzo rosso in punta, impugnatura e mirino a croce. Canna verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.12,
+      0.12
+    ],
+    "grip_left": [
+      0.0,
+      -0.1,
+      -0.22
+    ],
+    "muzzle": [
+      0.0,
+      0.0,
+      -0.62
+    ]
+  },
+  "parts": [
+    {
+      "name": "tubo",
+      "offset": [
+        0,
+        0,
+        -0.05
+      ],
+      "size": [
+        0.12,
+        0.12,
+        1.0
+      ],
+      "color": [
+        0.3,
+        0.32,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.4
+    },
+    {
+      "name": "razzo",
+      "offset": [
+        0,
+        0,
+        -0.6
+      ],
+      "size": [
+        0.08,
+        0.08,
+        0.14
+      ],
+      "color": [
+        0.62,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.2
+    },
+    {
+      "name": "punta",
+      "offset": [
+        0,
+        0,
+        -0.69
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.05
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "fascia",
+      "offset": [
+        0,
+        0,
+        -0.4
+      ],
+      "size": [
+        0.13,
+        0.13,
+        0.04
+      ],
+      "color": [
+        0.8,
+        0.62,
+        0.1,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.12,
+        0.12
+      ],
+      "size": [
+        0.05,
+        0.12,
+        0.06
+      ],
+      "rotation": [
+        -15,
+        0,
+        0
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    },
+    {
+      "name": "impugnatura_2",
+      "offset": [
+        0,
+        -0.1,
+        -0.22
+      ],
+      "size": [
+        0.05,
+        0.1,
+        0.05
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0,
+        0.1,
+        -0.25
+      ],
+      "size": [
+        0.02,
+        0.08,
+        0.02
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "coda",
+      "offset": [
+        0,
+        0,
+        0.47
+      ],
+      "size": [
+        0.14,
+        0.14,
+        0.04
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    }
+  ]
+}

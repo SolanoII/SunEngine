@@ -1,0 +1,38 @@
+{
+  "id": "boy_stikkbomb",
+  "displayName": "Stikkbomb",
+  "comment": "Dotazione base dell'ork boy: granata a manico, come quelle della prima guerra mondiale. In mano (tasto 4), click sinistro la lancia verso il mirino: scoppia appena tocca qualcosa (terreno, muro o un nemico). 130 danni al centro, 4 metri di raggio. 2 per partita.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "grenade",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 1.2,
+  "point_cost": 2,
+  "equipment_uses": 2,
+  "fuse_time": 3.0,
+  "throw_speed": 14.0,
+  "explosion_radius": 4.0,
+  "explosion_damage": 130.0,
+  "armor_penetration": 3,
+  "weapon_scale": [
+    0.07,
+    0.07,
+    0.32
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.4,
+    0.42,
+    0.3,
+    1.0
+  ],
+  "explode_on_impact": true
+}

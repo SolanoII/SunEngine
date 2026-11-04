@@ -1,0 +1,148 @@
+{
+  "id": "head_boy_helmet",
+  "displayName": "Elmo da Boy",
+  "comment": "Sbloccabile dell'ork boy: elmo di ferro con corna. Finche' regge annulla il bonus del colpo in testa.",
+  "location": "Head",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "armor_rating": 12,
+  "coverage": 0.8,
+  "max_durability": 40.0,
+  "weight": 3.0,
+  "point_cost": 2,
+  "blocks_headshot_bonus": true,
+  "skin_blocks": {},
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.155,
+        0.0
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.0,
+        0.19,
+        -0.04
+      ],
+      "size": [
+        0.44,
+        0.12,
+        0.44
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.095,
+        -0.02
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.0,
+        0.13,
+        -0.06
+      ],
+      "size": [
+        0.48,
+        0.03,
+        0.48
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.4
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.21,
+        0.22,
+        0.0
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.21,
+        0.26,
+        -0.04
+      ],
+      "size": [
+        0.06,
+        0.14,
+        0.06
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "block": "Head",
+      "offset": [
+        -0.21,
+        0.22,
+        0.0
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        -0.21,
+        0.26,
+        -0.04
+      ],
+      "size": [
+        0.06,
+        0.14,
+        0.06
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    }
+  ],
+  "garments": [
+    {
+      "id": "boy_helmet",
+      "bones": [
+        "Head",
+        "HeadTop_End"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.915,
+        1.0
+      ],
+      "inflate": 0.014,
+      "plate_cells": 5,
+      "plate_step": 0.006,
+      "texture": "Textures/Garments/ork_plate.png",
+      "tex_tiles": 5,
+      "roughness": 0.55,
+      "metallic": 0.7
+    }
+  ]
+}

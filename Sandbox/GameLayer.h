@@ -28,11 +28,16 @@
 #include "Engine/Renderer/Model.h"
 #include "Engine/Renderer/StaticModelShader.h"
 #include "Engine/Renderer/SkinnedModel.h"
+#include "Engine/Renderer/GarmentLibrary.h"
 #include "Engine/Renderer/SkinnedModelShader.h"
 #include "Engine/Renderer/RifleAnimationController.h"
 
 #include <glm/glm.hpp>
 #include <miniaudio.h>
+#include <array>
+#include <map>
+#include <optional>
+#include <set>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -93,6 +98,61 @@ namespace SunEngine {
             secondaryWeaponId = bp->default_secondary;
             meleeWeaponId = bp->default_melee;
             for (int i = 0; i < 3; ++i) equipmentSlots[i] = bp->default_equipment[i];
+            ApplyDefaultArmor();
+        }
+
+        // Toglie l'equipaggiamento che l'unita' non puo' piu' usare (es. orki: armi generiche o choppa vecchia),
+        // rimettendo al suo posto quello della dotazione base. Ritorna true se ha cambiato qualcosa.
+        bool SanitizeLoadout() {
+            const auto& bpm = BlueprintManager::Get();
+            const auto* bp = bpm.GetUnit(blueprintId);
+            if (!bp) return false;
+            bool changed = false;
+            auto fixWeapon = [&](std::string& slot, const std::string& def) {
+                if (slot.empty() || slot == "none") return;
+                const auto* w = bpm.GetWeapon(slot);
+                if (w && bpm.CanEquip(*w, blueprintId)) return;
+                slot = def; changed = true;
+            };
+            fixWeapon(primaryWeaponId, bp->default_primary);
+            fixWeapon(secondaryWeaponId, bp->default_secondary);
+            fixWeapon(meleeWeaponId, bp->no_melee ? std::string() : bp->default_melee);
+            for (int i = 0; i < 3; ++i) fixWeapon(equipmentSlots[i], bp->default_equipment[i]);
+            std::string* armor[6] = { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId };
+            for (int i = 0; i < 6; ++i) {
+                std::string& slot = *armor[i];
+                if (slot.empty() || slot == "none") continue;
+                const auto* a = bpm.GetArmorPiece(slot);
+                if (a && bpm.CanEquip(*a, blueprintId)) continue;
+                slot = bp->default_armor[i].empty() ? std::string("none") : bp->default_armor[i];
+                changed = true;
+            }
+            return changed;
+        }
+
+        // Armatura / vesti base del blueprint (es. gretchin: vesti di stracci, testa scoperta)
+        void ApplyDefaultArmor() {
+            const auto* bp = BlueprintManager::Get().GetUnit(blueprintId);
+            if (!bp || !bp->has_default_armor) return;
+            std::string* slots[6] = { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId };
+            for (int i = 0; i < 6; ++i) *slots[i] = bp->default_armor[i].empty() ? std::string("none") : bp->default_armor[i];
+        }
+
+        // Punti battaglia (code Vs Bot e limite della squadra): costo dell'unita' + costo di ogni equipaggiamento
+        // gia' rivisto, cioe' con "allowed_units" (armi, dotazione, armature: es. tutto il kit di gretchin e yoof).
+        // Le armi e armature vecchie (senza "allowed_units") non contano finche' non vengono rifatte, cosi' le
+        // unita' non ancora rivedute restano nelle loro code.
+        int CalculateBattlePoints() const {
+            int points = 0;
+            if (const auto* unitBp = BlueprintManager::Get().GetUnit(blueprintId)) points += unitBp->point_cost;
+            for (const std::string* wId : { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId,
+                                            &equipmentSlots[0], &equipmentSlots[1], &equipmentSlots[2] }) {
+                if (const auto* wBp = BlueprintManager::Get().GetWeapon(*wId); wBp && !wBp->allowed_units.empty()) points += wBp->point_cost;
+            }
+            for (const std::string* aId : { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId }) {
+                if (const auto* aBp = BlueprintManager::Get().GetArmorPiece(*aId); aBp && !aBp->allowed_units.empty()) points += aBp->pointCost;
+            }
+            return points;
         }
 
         // Costo in punti squadra: unita' + armi (primaria, secondaria, mischia) + dotazione + pezzi di armatura
@@ -140,6 +200,27 @@ namespace SunEngine {
         int rosterIndex = -1;
         bool isAlive = true;
         float currentHealth = 100.0f;
+    };
+
+    // 5v5: ogni giocatore (tu o un'IA) porta la sua squadra; quando l'unita' in campo cade rientra con un'altra.
+    enum class VsBotSlotState { Reserve, InField, Fallen };
+    struct VsBotSlot {
+        TrainedUnit unit;
+        int rosterIdx = -1;                      // solo per il giocatore: indice nel roster del garage
+        int points = 0;                          // punti battaglia (unita' + equipaggiamento)
+        VsBotSlotState state = VsBotSlotState::Reserve;
+        entt::entity entity = entt::null;        // bot in campo (il giocatore usa m_PlayerEntity)
+    };
+    struct VsBotPlayer {
+        std::string name;
+        int team = 0;
+        bool human = false;
+        std::vector<VsBotSlot> squad;
+        int active = -1;                         // slot in campo, -1 = in attesa di rientrare
+        float respawnTimer = 0.0f;
+        int CountState(VsBotSlotState st) const { int n = 0; for (const auto& s : squad) n += s.state == st ? 1 : 0; return n; }
+        int PointsState(VsBotSlotState st) const { int n = 0; for (const auto& s : squad) n += s.state == st ? s.points : 0; return n; }
+        int TotalPoints() const { int n = 0; for (const auto& s : squad) n += s.points; return n; }
     };
 
     struct EditorStructure {
@@ -211,16 +292,49 @@ namespace SunEngine {
         void RenderVsBotQueues();                          // i 3 bottoni delle code con l'idoneita' della squadra
         bool StartVsBotMatch(int tierIdx);
         TrainedUnit MakeBotUnit(const std::string& unitId, int number) const;
+        void AddBotExtras(TrainedUnit& u, int& budget) const;   // oggetti ricercabili a caso, entro il budget della coda
         entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex);
         void UpdateVsBot(float deltaTime);                 // fine partita (eliminazione o tempo scaduto)
         void UpdateBotVisuals();                           // arma in mano e posa delle braccia dei bot
         void RenderVsBotHUD();
-        void RenderVsBotDeathUI();                         // giocatore caduto: prende il controllo di un alleato
+        void RenderVsBotDeathUI();                         // giocatore caduto: sceglie con quale unita' della squadra rientrare
+        void RenderVsBotScoreboard();                      // TAB: giocatori, squadre alleate e caduti avversari
+        void VsBotSpawnAi(VsBotPlayer& p, int slot, const glm::vec3& pos);
+        void VsBotRespawnHuman(int slot);
+        glm::vec3 VsBotSpawnPoint(int team, int i, bool jitter) const;
+        void UpdateVsBotWorld(float deltaTime);           // il mondo continua mentre sei a terra / osservi
+        void UpdateVsBotSpectator();                       // camera sugli alleati mentre sei a terra
+        void AnimateUnits(float deltaTime, const glm::vec3& playerPos, bool pushFromPlayer);
         void RenderVsBotResults();
-        void TakeOverBot(entt::entity bot);
         void EndVsBotMatch(int result, const char* reason);
         void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
         void RenderAmmoHUD();
+
+        // --- Esperienza di partita (punti studio) e riepilogo di fine partita ---
+        struct MatchXpLine { int count = 0; int64_t xp = 0; };
+        std::map<std::string, std::array<MatchXpLine, static_cast<size_t>(XpCategory::Count)>> m_MatchXp;   // per tipo di unita'
+        std::set<uint32_t> m_MatchXpDamaged;     // nemici gia' danneggiati (i danni contano una volta per nemico)
+        float m_MatchSurvivalAccum = 0.0f;
+        bool m_MatchXpApplied = false;
+        std::map<std::string, int64_t> m_MatchPsBefore;   // punti studio prima della partita (per le barre)
+        int64_t m_MatchXpTotal = 0;
+        int64_t m_MatchEnergy = 0;
+        float m_MatchRevealTimer = 0.0f;
+        bool m_MatchPlayerDied = false;          // il giocatore e' morto almeno una volta (5v5: ricompensa ridotta)
+        int64_t m_MatchRawXp = 0;                // esperienza prima dei moltiplicatori
+        float m_MatchOutcomeMult = 1.0f;         // esito della 5v5 (100% / 75% / 50%)
+        std::string m_MatchOutcomeLabel;
+        bool m_MatchVip = false;
+        std::map<std::string, int64_t> m_MatchUnitGain;   // punti studio dati a ogni unita' (dopo i moltiplicatori)
+        void ResetMatchXp();
+        void CollectMatchXp(float deltaTime, bool countSurvival);
+        void ApplyMatchXp(float outcomeMult = 1.0f, const std::string& outcomeLabel = "");
+        void RenderMatchRecap();
+        void RenderHealZones(bool deferred);       // cerchio di cura dello zaino di cibo
+        void ApplyArmorSkin(entt::entity e, const TrainedUnit& unit);   // vesti / elmetto visibili sul campo
+        void UpdateAnimatedSkin();                                    // pezzi della skin sul modello animato
+        std::vector<entt::entity> m_SkinPartEntities;
+        GarmentLibrary m_Garments;   // vestiti/armature sul modello animato (gusci skinnati + texture), in cache
         bool DrawItemOption(TrainedUnit& unit, std::string& slotRef, const std::string& wId, const WeaponBlueprint& wBP);                      // caricatore / riserva in basso a destra, dotazione in mano
         void RenderParryRings(bool deferred);      // anello giallo sotto i piedi durante la parata (Q)   // invecchia marcatori di colpo e flash dei blocchi
         void RenderHitMarkers();                   // cerchi sul punto colpito (HUD)
@@ -279,6 +393,9 @@ namespace SunEngine {
         WeaponSystem m_WeaponSystem;
         EquipmentSystem m_EquipmentSystem;   // scatola di munizioni e altra dotazione tattica
         SquigSystem m_SquigSystem;           // compagni squig dei gretchin
+        ExplosiveSystem m_ExplosiveSystem;   // granate, mine, lampi delle esplosioni
+        std::optional<SkeletonData> m_SquigSkeleton;   // scheletro a cubi dello squig (Skeletons/squig.json)
+        bool m_SquigSkeletonLoaded = false;
         RepairSystem m_RepairSystem;         // chiave inglese: ripara veicoli, strutture, torrette
         ParticleSystem m_ParticleSystem;
         RenderSystem m_RenderSystem;
@@ -424,7 +541,14 @@ namespace SunEngine {
         int m_VsBotReward = 0;
         int m_VsBotEnemyKills = 0;
         std::string m_VsBotMessage;                // esito dell'ultimo tentativo di avvio (es. squadra nemica impossibile)
-        std::unordered_map<entt::entity, TrainedUnit> m_VsBotUnits;   // unita' dei bot (per prendere il controllo degli alleati)
+        std::unordered_map<entt::entity, TrainedUnit> m_VsBotUnits;   // unita' dei bot in campo
+        std::vector<VsBotPlayer> m_VsBotPlayers;   // 0 = tu, poi alleati IA, poi avversari IA
+        std::vector<glm::vec3> m_VsBotSpawns[2];
+        float m_VsBotYaw[2] = { 0.0f, 180.0f };
+        float m_VsBotDeadTime = 0.0f;              // secondi da quando la tua unita' e' caduta
+        int m_VsBotSpectate = 0;                   // alleato osservato
+        static constexpr float kVsBotAiRespawn = 5.0f;      // l'IA rientra dopo 5 s
+        static constexpr float kVsBotHumanRespawn = 3.0f;   // tu puoi scegliere dopo 3 s
     };
 
 }

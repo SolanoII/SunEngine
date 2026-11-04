@@ -415,6 +415,16 @@ public:
                 transform.Rotation.y = LerpAngle(transform.Rotation.y, transform.AimYaw, 15.0f * deltaTime);
             }
 
+            // Scatto dell'attacco pesante (lancia): spinta in avanti che si ferma contro i muri
+            if (auto* melee = scene.GetRegistry().try_get<MeleeStateComponent>(entity); melee && melee->lungeTimer > 0.0f) {
+                const float dt = std::min(deltaTime, melee->lungeTimer);
+                melee->lungeTimer -= deltaTime;
+                glm::vec3 nx = transform.Position; nx.x += melee->lungeVelocity.x * dt;
+                if (!CheckWallCollision(scene, nx, transform.Position.y)) transform.Position.x = nx.x;
+                glm::vec3 nz = transform.Position; nz.z += melee->lungeVelocity.z * dt;
+                if (!CheckWallCollision(scene, nz, transform.Position.y)) transform.Position.z = nz.z;
+            }
+
             // FIX #21: nessun terreno sotto (bordo mappa) -> annulla lo spostamento orizzontale di
             // questo frame e mantieni Y, invece di teletrasportare a y=0.
             if (auto groundY = GetGroundHeightAt(scene, transform.Position, transform.Position.y)) {

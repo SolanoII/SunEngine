@@ -369,8 +369,12 @@ uniform mat4 u_BoneMatrices[128];
 
 out vec3 v_WorldPos;
 out vec3 v_Normal;
+out vec3 v_BindPos;      // posizione e normale in posa T: la texture dei vestiti resta "incollata" al corpo
+out vec3 v_BindNormal;
 
 void main() {
+    v_BindPos = a_Position;
+    v_BindNormal = a_Normal;
     vec4 skinnedPos = vec4(0.0);
     vec3 skinnedNormal = vec3(0.0);
     float totalWeight = 0.0;
@@ -407,6 +411,8 @@ void main() {
 #version 410 core
 in vec3 v_WorldPos;
 in vec3 v_Normal;
+in vec3 v_BindPos;
+in vec3 v_BindNormal;
 
 layout (location = 0) out vec4 out_Albedo;
 layout (location = 1) out vec4 out_Normal;
@@ -416,9 +422,28 @@ uniform vec4  u_Color;
 uniform float u_Roughness;
 uniform float u_Metallic;
 uniform float u_Emissive;
+uniform int   u_UseTexture;   // 1 = strato di vestito con texture
+uniform sampler2D u_Albedo;
+uniform float u_TexScale;     // ripetizioni per unita' del modello
+uniform float u_AlphaCut;     // alpha sotto soglia = buco (stracci)
+
+// Proiezione triplanare in posa T: niente UV, la texture segue il corpo in ogni animazione
+vec4 SampleTriplanar() {
+    vec3 n = abs(normalize(v_BindNormal));
+    n = pow(n, vec3(4.0));
+    n /= max(n.x + n.y + n.z, 1e-4);
+    vec3 p = v_BindPos * u_TexScale;
+    return texture(u_Albedo, p.zy) * n.x + texture(u_Albedo, p.xz) * n.y + texture(u_Albedo, p.xy) * n.z;
+}
 
 void main() {
-    out_Albedo   = vec4(u_Color.rgb, u_Color.a);
+    vec4 color = u_Color;
+    if (u_UseTexture == 1) {
+        vec4 t = SampleTriplanar();
+        if (t.a < u_AlphaCut) discard;
+        color.rgb *= t.rgb;
+    }
+    out_Albedo   = vec4(color.rgb, color.a);
     out_Normal   = vec4(normalize(v_Normal), 1.0);
     out_Material = vec4(u_Roughness, u_Metallic, u_Emissive, 0.0);
 }
@@ -833,11 +858,20 @@ void main() {
         const glm::mat4& model,
         const std::vector<glm::mat4>& boneMatrices,
         const glm::vec4& color,
-        float roughness, float metallic, float emissive)
+        float roughness, float metallic, float emissive,
+        const GpuTexture* texture, float texScale, float alphaCut)
     {
         if (!m_GBufferSkinnedShader || !m_GBufferSkinnedShader->IsValid()) return;
 
         m_GBufferSkinnedShader->Bind();
+        // Strato di vestito: texture triplanare (unita' 0) e soglia per i buchi
+        m_GBufferSkinnedShader->SetInt("u_UseTexture", texture ? 1 : 0);
+        if (texture) {
+            texture->Bind(0);
+            m_GBufferSkinnedShader->SetInt("u_Albedo", 0);
+            m_GBufferSkinnedShader->SetFloat("u_TexScale", texScale);
+            m_GBufferSkinnedShader->SetFloat("u_AlphaCut", alphaCut);
+        }
         m_GBufferSkinnedShader->SetMat4("u_Model", model);
         m_GBufferSkinnedShader->SetMat4("u_ViewProjection", m_ViewProjection);
         m_GBufferSkinnedShader->SetVec4("u_Color", color);

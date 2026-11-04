@@ -1,0 +1,123 @@
+{
+  "id": "shoota_frag",
+  "comment": "Granata frag a blocchi: corpo ovale quadrettato verde con leva e anello. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.07,
+        0.09,
+        0.07
+      ],
+      "color": [
+        0.3,
+        0.34,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.4
+    },
+    {
+      "name": "corpo_45",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.07,
+        0.09,
+        0.07
+      ],
+      "rotation": [
+        0,
+        45,
+        0
+      ],
+      "color": [
+        0.27,
+        0.31,
+        0.22,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.4
+    },
+    {
+      "name": "spoletta",
+      "offset": [
+        0,
+        0.06,
+        0
+      ],
+      "size": [
+        0.03,
+        0.03,
+        0.03
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "leva",
+      "offset": [
+        0.02,
+        0.03,
+        0
+      ],
+      "size": [
+        0.01,
+        0.07,
+        0.02
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "anello",
+      "offset": [
+        -0.025,
+        0.07,
+        0
+      ],
+      "size": [
+        0.02,
+        0.02,
+        0.005
+      ],
+      "color": [
+        0.8,
+        0.62,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    }
+  ]
+}

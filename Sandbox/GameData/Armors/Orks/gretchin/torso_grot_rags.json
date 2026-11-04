@@ -1,0 +1,110 @@
+{
+  "id": "torso_grot_rags",
+  "displayName": "Vesti da Grot",
+  "comment": "Stracci del gretchin: nessuna armatura, solo aspetto. Cuboni: torso e pancia color straccio. Modello animato: casacca sulla schiena (Spine1) e perizoma sui fianchi (Hips).",
+  "location": "Torso",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "armor_rating": 0,
+  "coverage": 0.0,
+  "max_durability": 0.0,
+  "weight": 0.3,
+  "point_cost": 0,
+  "skin_blocks": {
+    "Torso": [
+      0.42,
+      0.33,
+      0.22,
+      1.0
+    ],
+    "Belly": [
+      0.34,
+      0.26,
+      0.17,
+      1.0
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:Spine1",
+      "bone_offset": [
+        0.0,
+        0.03,
+        0.0
+      ],
+      "size": [
+        0.29,
+        0.2,
+        0.23
+      ],
+      "color": [
+        0.42,
+        0.33,
+        0.22,
+        1.0
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:Hips",
+      "bone_offset": [
+        0.0,
+        -0.03,
+        0.0
+      ],
+      "size": [
+        0.27,
+        0.1,
+        0.21
+      ],
+      "color": [
+        0.34,
+        0.26,
+        0.17,
+        1.0
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ],
+  "garments": [
+    {
+      "id": "grot_rags_torso",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.43,
+        0.735
+      ],
+      "inflate": 0.01,
+      "noise": 0.7,
+      "noise_scale": 10,
+      "texture": "Textures/Garments/grot_rags.png",
+      "tex_tiles": 3.5,
+      "alpha_cut": 0.5,
+      "roughness": 0.95
+    }
+  ]
+}

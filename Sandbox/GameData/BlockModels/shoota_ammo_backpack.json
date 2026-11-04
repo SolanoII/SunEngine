@@ -1,0 +1,55 @@
+{
+  "id": "shoota_ammo_backpack",
+  "comment": "Zaino munizioni a blocchi (in mano non si usa: e' passivo). Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      0.2,
+      0.0
+    ]
+  },
+  "parts": [
+    {
+      "name": "zaino",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.4,
+        0.36,
+        0.2
+      ],
+      "color": [
+        0.35,
+        0.3,
+        0.2,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "name": "cinghia",
+      "offset": [
+        0,
+        0.2,
+        0
+      ],
+      "size": [
+        0.3,
+        0.04,
+        0.2
+      ],
+      "color": [
+        0.32,
+        0.2,
+        0.1,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    }
+  ]
+}

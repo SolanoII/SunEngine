@@ -1,0 +1,148 @@
+{
+  "id": "head_grot_scrap_helmet",
+  "displayName": "Elmetto di Ferraglia",
+  "comment": "Elmetto rattoppato del gretchin: 1 di armatura e pochissima durabilita' (regge un colpo), ma finche' regge annulla il bonus del colpo in testa: un colpo di lasgun in testa non lo uccide piu' al primo colpo. Si ricerca sotto il Gretchin e si compra per unita'.",
+  "location": "Head",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_gretchin"
+  ],
+  "armor_rating": 1,
+  "coverage": 1.0,
+  "max_durability": 4.0,
+  "weight": 0.6,
+  "point_cost": 1,
+  "blocks_headshot_bonus": true,
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.1,
+        0.0
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.0,
+        0.19,
+        -0.04
+      ],
+      "size": [
+        0.31,
+        0.1,
+        0.3
+      ],
+      "color": [
+        0.36,
+        0.34,
+        0.31,
+        1.0
+      ],
+      "roughness": 0.6,
+      "metallic": 0.6
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.055,
+        -0.01
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.0,
+        0.14,
+        -0.05
+      ],
+      "size": [
+        0.35,
+        0.025,
+        0.35
+      ],
+      "color": [
+        0.46,
+        0.28,
+        0.15,
+        1.0
+      ],
+      "roughness": 0.75,
+      "metallic": 0.4
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.165,
+        0.0
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.0,
+        0.255,
+        -0.04
+      ],
+      "size": [
+        0.04,
+        0.04,
+        0.04
+      ],
+      "color": [
+        0.36,
+        0.34,
+        0.31,
+        1.0
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.08,
+        0.11,
+        -0.152
+      ],
+      "bone": "mixamorig1:Head",
+      "bone_offset": [
+        0.08,
+        0.2,
+        -0.2
+      ],
+      "size": [
+        0.07,
+        0.05,
+        0.01
+      ],
+      "color": [
+        0.46,
+        0.28,
+        0.15,
+        1.0
+      ],
+      "roughness": 0.8,
+      "metallic": 0.3
+    }
+  ],
+  "garments": [
+    {
+      "id": "grot_scrap_helmet",
+      "bones": [
+        "Head",
+        "HeadTop_End"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.86,
+        1.0
+      ],
+      "max_abs_x": 0.09,
+      "inflate": 0.012,
+      "plate_cells": 7,
+      "plate_step": 0.006,
+      "texture": "Textures/Garments/scrap_metal.png",
+      "tex_tiles": 6,
+      "roughness": 0.55,
+      "metallic": 0.65
+    }
+  ]
+}

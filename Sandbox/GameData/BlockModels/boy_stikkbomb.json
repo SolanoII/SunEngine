@@ -1,0 +1,97 @@
+{
+  "id": "boy_stikkbomb",
+  "comment": "Stikkbomb a blocchi: manico di legno e testa cilindrica di metallo verde con fascia gialla. Testa verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      0.0,
+      0.08
+    ]
+  },
+  "parts": [
+    {
+      "name": "manico",
+      "offset": [
+        0,
+        0,
+        0.06
+      ],
+      "size": [
+        0.035,
+        0.035,
+        0.24
+      ],
+      "color": [
+        0.38,
+        0.24,
+        0.13,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "name": "testa",
+      "offset": [
+        0,
+        0,
+        -0.1
+      ],
+      "size": [
+        0.075,
+        0.075,
+        0.11
+      ],
+      "color": [
+        0.4,
+        0.42,
+        0.3,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "fascia",
+      "offset": [
+        0,
+        0,
+        -0.1
+      ],
+      "size": [
+        0.08,
+        0.08,
+        0.025
+      ],
+      "color": [
+        0.8,
+        0.62,
+        0.1,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    },
+    {
+      "name": "tappo",
+      "offset": [
+        0,
+        0,
+        0.185
+      ],
+      "size": [
+        0.04,
+        0.04,
+        0.015
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    }
+  ]
+}

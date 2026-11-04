@@ -1,0 +1,75 @@
+{
+  "id": "leg_l_yoof_rags",
+  "displayName": "Calzoni da Yoof (sx)",
+  "comment": "Calzoni dello yoof: nessuna armatura, solo aspetto.",
+  "location": "LeftLeg",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_yoof"
+  ],
+  "armor_rating": 0,
+  "coverage": 0.0,
+  "max_durability": 0.0,
+  "weight": 0.15,
+  "point_cost": 0,
+  "skin_blocks": {
+    "Leg_L": [
+      0.34,
+      0.26,
+      0.17,
+      1.0
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:LeftUpLeg",
+      "bone_offset": [
+        0.0,
+        -0.17,
+        0.0
+      ],
+      "size": [
+        0.38,
+        0.36,
+        0.42
+      ],
+      "color": [
+        0.34,
+        0.26,
+        0.17,
+        1.0
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ],
+  "garments": [
+    {
+      "id": "yoof_rags_leg_l",
+      "bones": [
+        "Hips",
+        "LeftUpLeg",
+        "LeftLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.18,
+        0.57
+      ],
+      "inflate": 0.008,
+      "noise": 0.7,
+      "noise_scale": 10,
+      "texture": "Textures/Garments/grot_rags.png",
+      "tex_tiles": 4,
+      "alpha_cut": 0.5,
+      "roughness": 0.95,
+      "side": 1
+    }
+  ]
+}

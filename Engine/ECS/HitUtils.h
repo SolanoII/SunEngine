@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
 #include "Components.h"
+#include "XpEvents.h"
 #include "Tags.h"
 #include "../Scene/Scene.h"
 
@@ -92,6 +93,14 @@ namespace SunEngine {
 
         const float dealt = (std::max)(0.0f, healthBefore - health->currentHealth);
         const bool killed = health->currentHealth <= 0.0f && healthBefore > 0.0f;
+
+        // Esperienza: danni a un nemico (una volta per nemico, lo controlla GameLayer) e colpo di grazia.
+        // Non contano manichini e squig (si potrebbero "coltivare").
+        if (dealt > 0.0f && !SameTeam(reg, shooter, target) &&
+            !reg.all_of<TrainingDummyComponent>(target) && !reg.all_of<SquigComponent>(target)) {
+            EmitXp(shooter, XpCategory::Damage, XpValues::Damage, target);
+            if (killed) EmitXp(shooter, XpCategory::Kill, XpValues::Kill, target);
+        }
 
         // Somma ai colpi recenti sullo stesso bersaglio
         HitMarkerComponent* marker = nullptr;

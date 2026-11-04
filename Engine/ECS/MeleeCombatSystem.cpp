@@ -19,6 +19,14 @@ namespace SunEngine {
 
             if (melee.parrySuccessTimer > 0.0f) melee.parrySuccessTimer = std::max(0.0f, melee.parrySuccessTimer - deltaTime);
 
+            // Scatto dell'attacco pesante: le unita' dell'IA si spostano qui, il giocatore in MovementSystem
+            // (che controlla i muri)
+            if (melee.lungeTimer > 0.0f && !scene.GetRegistry().all_of<PlayerTag>(entity)) {
+                trans.Position += melee.lungeVelocity * std::min(deltaTime, melee.lungeTimer);
+                melee.lungeTimer -= deltaTime;
+            }
+            if (melee.currentPhase == MeleePhase::Stunned) melee.lungeTimer = 0.0f;
+
             // Arma da mischia in uso (stessa regola dell'input e del calcolo del danno)
             const auto* weaponBP = DamageResolver::ResolveMeleeWeapon(scene.GetRegistry(), entity);
 
@@ -89,6 +97,13 @@ namespace SunEngine {
                     if (melee.currentPhase == MeleePhase::Windup && melee.stateTimer >= node.timings.windup) {
                         melee.currentPhase = MeleePhase::Active;
                         melee.stateTimer = 0.0f;
+                        // Affondo dell'attacco pesante (es. lancia): scatto in avanti durante la fase attiva
+                        if (weaponBP->heavy_lunge_distance > 0.0f && melee.currentAttackNode.find("heavy") != std::string::npos) {
+                            const float dur = std::max(0.08f, node.timings.active);
+                            const float yaw = glm::radians(trans.AimYaw);
+                            melee.lungeVelocity = glm::vec3(-std::sin(yaw), 0.0f, -std::cos(yaw)) * (weaponBP->heavy_lunge_distance / dur);
+                            melee.lungeTimer = dur;
+                        }
                         CombatVFX::SpawnSlashTrail(scene, entity, trans, melee, &node);
                     }
                     else if (melee.currentPhase == MeleePhase::Active && melee.stateTimer >= node.timings.active) {

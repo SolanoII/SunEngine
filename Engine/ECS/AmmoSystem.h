@@ -10,11 +10,19 @@
 //   click sinistro = rifornisce se' stessi, click destro = rifornisce il compagno piu' vicino entro la portata.
 //   Ogni rifornimento riporta caricatori e riserva al massimo, dura equipment_use_time secondi e consuma un uso.
 //   I bot la usano tramite WeaponTriggerComponent (useEquipment / giveEquipment).
+//
+// Scrap ("scrap_barricade"): fermo, click sinistro tenuto per equipment_use_time secondi -> barricata davanti a
+//   se' (collider statico: ferma colpi, linea di vista e movimento del giocatore). Muoversi azzera la canalizzazione.
+// Zaino di cibo ("food_pack"): click sinistro lo posa ai piedi; per effect_duration secondi cura heal_per_second
+//   ai compagni (stessa squadra) entro equipment_range metri.
 #include "Components.h"
 #include "../Scene/Scene.h"
 #include "../Core/Input.h"
 #include "../Core/Logger/Log.h"
+#include "../Core/Random.h"
 #include "../AssetManager/BlueprintManager.h"
+#include "BlockModel.h"
+#include "ExplosiveSystem.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cmath>
@@ -66,10 +74,16 @@ namespace SunEngine {
             const bool wasInfinite = reg.all_of<AmmoComponent>(e) && reg.get<AmmoComponent>(e).infinite;
             auto& a = reg.emplace_or_replace<AmmoComponent>(e);
             a.infinite = wasInfinite;
+            // Zaino munizioni nella dotazione: riserva aumentata (es. +50%)
+            float capacity = 1.0f;
+            for (int s = 4; s <= 6; ++s) {
+                const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+                if (bp && bp->is_equipment && bp->ammo_capacity_bonus > 0.0f) capacity += bp->ammo_capacity_bonus;
+            }
             for (int i = 0; i < 2; ++i) {
                 const auto* w = RangedAt(*inv, i);
                 a.magazine[i] = w ? w->magazine_size : 0;
-                a.reserve[i] = a.maxReserve[i] = w ? StartingReserve(*w, unitId) : 0;
+                a.reserve[i] = a.maxReserve[i] = w ? static_cast<int>(std::lround(StartingReserve(*w, unitId) * capacity)) : 0;
             }
             for (int s = 4; s <= 6; ++s) {
                 const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
@@ -152,8 +166,9 @@ namespace SunEngine {
     // Uso della dotazione tattica tenuta in mano (giocatore: mouse; bot: WeaponTriggerComponent).
     class EquipmentSystem {
     public:
-        void Update(Scene& scene, float dt) {
+        void Update(Scene& scene, float dt, const BlockModelLibrary* models = nullptr) {
             auto& reg = scene.GetRegistry();
+            UpdateHealZones(scene, dt);
             auto view = reg.view<AmmoComponent, InventoryComponent, TransformComponent>(entt::exclude<CorpseComponent>);
             for (auto e : view) {
                 auto& a = view.get<AmmoComponent>(e);
@@ -162,10 +177,11 @@ namespace SunEngine {
 
                 const bool isPlayer = reg.all_of<PlayerTag>(e);
                 auto* trigger = reg.try_get<WeaponTriggerComponent>(e);
-                bool wantSelf = false, wantGive = false;
+                bool wantSelf = false, wantGive = false, holdUse = false;
                 entt::entity giveTarget = entt::null;
                 if (isPlayer) {
                     const bool lmb = Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
+                    holdUse = lmb;
                     const bool rmb = Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
                     wantSelf = lmb && !m_PlayerLmbWasDown;
                     wantGive = rmb && !m_PlayerRmbWasDown;
@@ -186,6 +202,23 @@ namespace SunEngine {
 
                 const int slotIdx = inv.currentSlot - 4;
 
+                if (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall") {
+                    UpdateBarricade(scene, e, a, *held, inv.currentSlot, holdUse, wantSelf, dt, models);
+                    continue;
+                }
+                if (held->equipment_type == "food_pack") {
+                    if (wantSelf) DropFood(scene, e, a, *held, slotIdx, models);
+                    continue;
+                }
+                if (held->equipment_type == "grenade") {
+                    if (wantSelf) ThrowGrenade(scene, e, a, *held, slotIdx, giveTarget, models);
+                    continue;
+                }
+                if (held->equipment_type == "landmine") {
+                    if (wantSelf) PlaceMine(scene, e, a, *held, slotIdx, models);
+                    continue;
+                }
+
                 // Rifornimento in corso
                 if (a.useTimer > 0.0f) {
                     if (a.useSlot != inv.currentSlot || !Valid(reg, a.useTarget) ||
@@ -198,6 +231,8 @@ namespace SunEngine {
                     if (a.useTimer <= 0.0f) {
                         a.useTimer = 0.0f; a.useSlot = -1;
                         const int got = Ammo::Refill(reg, a.useTarget);
+                        EmitXp(e, a.useTarget == e ? XpCategory::AmmoSelf : XpCategory::AmmoAlly,
+                               a.useTarget == e ? XpValues::AmmoSelf : XpValues::AmmoAlly);
                         a.equipmentUses[slotIdx] = std::max(0, a.equipmentUses[slotIdx] - 1);
                         if (a.useTarget == e) Feedback(a, "Munizioni recuperate: +" + std::to_string(got));
                         else {
@@ -240,6 +275,233 @@ namespace SunEngine {
     private:
         bool m_PlayerLmbWasDown = true;   // true: il click che ha avviato la partita non conta
         bool m_PlayerRmbWasDown = true;
+
+        static float FootY(entt::registry& reg, entt::entity e) {
+            const auto& t = reg.get<TransformComponent>(e);
+            if (const auto* c = reg.try_get<ColliderComponent>(e)) return t.Position.y + (c->localCenterOffset.y - c->halfExtents.y) * t.Scale.y;
+            return t.Position.y;
+        }
+
+        // Scrap: canalizzazione da fermi, poi barricata davanti (orientata sull'asse piu' vicino alla mira,
+        // perche' i collider del motore sono box allineati agli assi)
+        void UpdateBarricade(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slot,
+                             bool holding, bool pressed, float dt, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            const int slotIdx = slot - 4;
+            const auto& t = reg.get<TransformComponent>(e);
+            if (a.equipmentUses[slotIdx] <= 0) {
+                if (pressed) Feedback(a, "Scrap finiti");
+                a.useTimer = 0.0f;
+                return;
+            }
+            if (!holding) {
+                if (a.useTimer > 0.0f) Feedback(a, "Costruzione annullata");
+                a.useTimer = 0.0f; a.useSlot = -1;
+                return;
+            }
+            const glm::vec3 here(t.Position.x, 0.0f, t.Position.z);
+            if (a.useTimer <= 0.0f || a.useSlot != slot) {
+                a.useStartPos = here;
+                a.useDuration = std::max(0.1f, bp.equipment_use_time);
+                a.useTimer = a.useDuration;
+                a.useSlot = slot;
+                a.useTarget = e;
+                return;
+            }
+            if (glm::length(here - a.useStartPos) > 0.25f) {   // si e' mosso: si ricomincia da capo
+                a.useStartPos = here;
+                a.useTimer = a.useDuration;
+                Feedback(a, "Resta fermo per costruire");
+                return;
+            }
+            a.useTimer -= dt;
+            if (a.useTimer > 0.0f) return;
+            a.useTimer = 0.0f; a.useSlot = -1;
+
+            BuildStructure(scene, e, bp, models);
+            EmitXp(e, XpCategory::Build, XpValues::Build);
+            a.equipmentUses[slotIdx] -= 1;
+            Feedback(a, std::string(bp.equipment_type == "slit_wall" ? "Muro costruito" : "Barricata costruita") +
+                        " (" + std::to_string(a.equipmentUses[slotIdx]) + " rimaste)");
+        }
+
+        // Un blocco di struttura (collider statico + salute da struttura + riparabile con la chiave inglese)
+        static entt::entity SpawnStructurePiece(Scene& scene, entt::entity owner, const glm::vec3& center, const glm::vec3& worldHalf, float rotY,
+                                                const BlockModel* model, const glm::vec3& modelOrigin, const glm::vec4& color, float hp) {
+            auto& reg = scene.GetRegistry();
+            const entt::entity b = scene.CreateEntity();
+            auto& bt = reg.emplace<TransformComponent>(b);
+            reg.emplace<MeshComponent>(b, 0u);
+            auto& c = reg.emplace<ColorComponent>(b);
+            c.Color = color; c.BaseColor = color;
+            auto& col = reg.emplace<ColliderComponent>(b);
+            if (model) {
+                bt.Position = modelOrigin;
+                bt.Rotation = glm::vec3(0.0f, rotY, 0.0f);
+                bt.Scale = glm::vec3(1.0f);
+                reg.emplace<BlockModelComponent>(b, BlockModelComponent{ model });
+                col.halfExtents = worldHalf;
+                col.localCenterOffset = center - modelOrigin;   // il modello ha l'origine a terra
+            }
+            else {
+                bt.Position = center;          // cubo semplice: niente rotazione, dimensioni gia' sugli assi del mondo
+                bt.Scale = worldHalf * 2.0f;
+                col.halfExtents = glm::vec3(0.5f);
+                col.localCenterOffset = glm::vec3(0.0f);
+            }
+            reg.emplace<BarricadeTag>(b);
+            StructureHealthComponent sh;
+            sh.hp = sh.maxHp = hp;
+            sh.owner = owner;
+            reg.emplace<StructureHealthComponent>(b, sh);
+            reg.emplace<RepairableComponent>(b, RepairableComponent{ { "Structure", "Construct" } });
+            return b;
+        }
+
+        // Barricata (scrap dello yoof) o muro con feritoia (loota) davanti a chi costruisce, ruotato di 0 o 90
+        // gradi secondo la mira (i collider del motore sono box allineati agli assi)
+        static void BuildStructure(Scene& scene, entt::entity e, const WeaponBlueprint& bp, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            const auto& t = reg.get<TransformComponent>(e);
+            float yaw = std::fmod(t.AimYaw, 360.0f); if (yaw < 0.0f) yaw += 360.0f;
+            const float snapped = std::round(yaw / 90.0f) * 90.0f;
+            const bool sideways = static_cast<int>(std::lround(snapped / 90.0f)) % 2 != 0;
+            const float yr = glm::radians(t.AimYaw);
+            const glm::vec3 fwd(-std::sin(yr), 0.0f, -std::cos(yr));
+            const glm::vec3 size = bp.barricade_size;
+            const float depth = sideways ? size.x : size.z;
+            const glm::vec3 base = glm::vec3(t.Position.x, FootY(reg, e), t.Position.z) + fwd * (1.1f + depth * 0.5f);
+            // asse "lungo" del muro nel mondo (X se dritto, Z se ruotato di 90)
+            const glm::vec3 along = sideways ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+            auto worldHalf = [&](float w, float h, float d) { return sideways ? glm::vec3(d, h, w) * 0.5f : glm::vec3(w, h, d) * 0.5f; };
+            const glm::vec4 color = bp.primary_color;
+            if (bp.equipment_type == "slit_wall") {
+                // Muro con feritoia: due pilastri, parapetto sotto e architrave sopra la fessura (da 1.1 a 1.5 m)
+                const float w = size.x, h = size.y, d = size.z, slitW = 0.45f, slitLo = 1.1f, slitHi = 1.5f;
+                const float sideW = (w - slitW) * 0.5f;
+                const BlockModel* pillar = models ? models->Find("slit_wall_pillar") : nullptr;
+                for (int s = -1; s <= 1; s += 2) {
+                    const glm::vec3 c = base + along * (s * (slitW * 0.5f + sideW * 0.5f)) + glm::vec3(0.0f, h * 0.5f, 0.0f);
+                    SpawnStructurePiece(scene, e, c, worldHalf(sideW, h, d), snapped, pillar, glm::vec3(c.x, base.y, c.z), color, bp.structure_health);
+                }
+                SpawnStructurePiece(scene, e, base + glm::vec3(0.0f, slitLo * 0.5f, 0.0f), worldHalf(slitW, slitLo, d), snapped, nullptr, base, color, bp.structure_health * 0.6f);
+                SpawnStructurePiece(scene, e, base + glm::vec3(0.0f, (slitHi + h) * 0.5f, 0.0f), worldHalf(slitW, h - slitHi, d), snapped, nullptr, base, color, bp.structure_health * 0.6f);
+                return;
+            }
+            const BlockModel* model = models ? models->Find("scrap_barricade") : nullptr;
+            SpawnStructurePiece(scene, e, base + glm::vec3(0.0f, size.y * 0.5f, 0.0f), worldHalf(size.x, size.y, size.z), snapped, model, base,
+                                glm::vec4(0.40f, 0.34f, 0.28f, 1.0f), bp.structure_health);
+        }
+
+        // Zaino di cibo: posato ai piedi, cura chi e' nel cerchio
+        void DropFood(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Zaino di cibo gia' usato"); return; }
+            const auto& t = reg.get<TransformComponent>(e);
+            const entt::entity z = scene.CreateEntity();
+            auto& zt = reg.emplace<TransformComponent>(z);
+            zt.Position = glm::vec3(t.Position.x, FootY(reg, e), t.Position.z);
+            zt.Rotation = glm::vec3(0.0f, t.Rotation.y, 0.0f);
+            reg.emplace<MeshComponent>(z, 0u);
+            auto& c = reg.emplace<ColorComponent>(z);
+            c.Color = glm::vec4(0.45f, 0.35f, 0.20f, 1.0f); c.BaseColor = c.Color;
+            if (const BlockModel* model = models ? models->Find(bp.id) : nullptr) {   // stesso modello tenuto in mano
+                reg.emplace<BlockModelComponent>(z, BlockModelComponent{ model });
+                zt.Scale = glm::vec3(1.0f);
+            }
+            else {
+                zt.Scale = glm::vec3(0.35f, 0.30f, 0.25f);
+                zt.Position.y += 0.15f;
+            }
+            HealZoneComponent zone;
+            zone.owner = e;
+            if (const auto* team = reg.try_get<TeamComponent>(e)) zone.team = team->team;
+            zone.radius = bp.equipment_range;
+            zone.healPerSecond = bp.heal_per_second;
+            zone.duration = zone.timeLeft = std::max(0.5f, bp.effect_duration);
+            reg.emplace<HealZoneComponent>(z, zone);
+            a.equipmentUses[slotIdx] -= 1;
+            Feedback(a, "Zaino di cibo a terra: cura per " + std::to_string(static_cast<int>(zone.duration)) + " s");
+        }
+
+        // Granata: giocatore = lungo la mira (raggio del mirino se c'e'), bot = parabola verso il bersaglio (giveTarget)
+        void ThrowGrenade(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx,
+                          entt::entity target, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Granate finite"); return; }
+            const auto& t = reg.get<TransformComponent>(e);
+            const float footY = FootY(reg, e);
+            float height = 1.8f;
+            if (const auto* c = reg.try_get<ColliderComponent>(e)) height = std::max(0.6f, c->halfExtents.y * 2.0f * t.Scale.y);
+            const float yr = glm::radians(t.AimYaw);
+            const glm::vec3 fwd(-std::sin(yr), 0.0f, -std::cos(yr));
+            const glm::vec3 origin = glm::vec3(t.Position.x, footY + height * 0.85f, t.Position.z) + fwd * 0.4f;
+            glm::vec3 vel;
+            if (!reg.all_of<PlayerTag>(e) && target != entt::null && reg.valid(target) && reg.all_of<TransformComponent>(target)) {
+                // Mira un po' corta: dopo l'impatto la granata rimbalza e rotola in avanti di un paio di metri
+                const glm::vec3 tp = reg.get<TransformComponent>(target).Position;
+                glm::vec3 toT = tp - origin; toT.y = 0.0f;
+                const float dist = glm::length(toT);
+                glm::vec3 aimAt = dist > 0.1f ? tp - toT / dist * std::min(2.5f, dist * 0.18f) : tp;
+                aimAt += glm::vec3(Random::Range(-1.5f, 1.5f), 0.0f, Random::Range(-1.5f, 1.5f));   // i bot non sono infallibili
+                vel = Explosives::BallisticVelocity(origin, aimAt, bp.throw_speed * 1.3f);
+            }
+            else {
+                glm::vec3 dir;
+                const auto* aim = reg.try_get<AimRayComponent>(e);
+                if (aim && aim->valid) dir = glm::normalize(aim->dir);
+                else {
+                    const float p = glm::radians(t.AimPitch);
+                    dir = glm::normalize(glm::vec3(fwd.x * std::cos(p), std::sin(p), fwd.z * std::cos(p)));
+                }
+                vel = glm::normalize(dir + glm::vec3(0.0f, 0.25f, 0.0f)) * bp.throw_speed;   // un po' a campanile
+            }
+            Explosives::ThrowGrenade(scene, e, bp, origin, vel, models);
+            a.equipmentUses[slotIdx] -= 1;
+            Feedback(a, bp.displayName + " lanciata! (" + std::to_string(a.equipmentUses[slotIdx]) + " rimaste)");
+        }
+
+        // Mina: posata un metro davanti, a terra
+        void PlaceMine(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Mine finite"); return; }
+            const auto& t = reg.get<TransformComponent>(e);
+            const float yr = glm::radians(t.AimYaw);
+            glm::vec3 pos = glm::vec3(t.Position.x, FootY(reg, e), t.Position.z) + glm::vec3(-std::sin(yr), 0.0f, -std::cos(yr)) * 1.0f;
+            if (const auto g = GetGroundHeightAt(scene, pos, pos.y + 0.3f, 0.05f)) pos.y = *g;
+            Explosives::PlaceMine(scene, e, bp, pos, t.AimYaw, models);
+            a.equipmentUses[slotIdx] -= 1;
+            Feedback(a, "Mina piazzata, si arma in " + std::to_string(static_cast<int>(std::lround(bp.fuse_time))) + " s (" +
+                        std::to_string(a.equipmentUses[slotIdx]) + " rimaste)");
+        }
+
+        void UpdateHealZones(Scene& scene, float dt) {
+            auto& reg = scene.GetRegistry();
+            std::vector<entt::entity> expired;
+            for (auto z : reg.view<HealZoneComponent, TransformComponent>()) {
+                auto& zone = reg.get<HealZoneComponent>(z);
+                const glm::vec3 c = reg.get<TransformComponent>(z).Position;
+                zone.timeLeft -= dt;
+                if (zone.timeLeft <= -0.01f) { expired.push_back(z); continue; }
+                // Un impulso di cura al secondo: healPerSecond a ogni compagno nel cerchio che non e' pieno.
+                // Il padrone prende 50 punti per ogni compagno curato (anche se gli mancavano pochi HP).
+                zone.tickTimer -= dt;
+                if (zone.tickTimer > 0.0f) continue;
+                zone.tickTimer += 1.0f;
+                auto units = reg.view<HealthComponent, TransformComponent>(entt::exclude<CorpseComponent>);
+                for (auto u : units) {
+                    auto& h = units.get<HealthComponent>(u);
+                    if (h.currentHealth <= 0.0f || h.currentHealth >= h.maxHealth) continue;
+                    const bool ally = zone.team >= 0 ? (reg.all_of<TeamComponent>(u) && reg.get<TeamComponent>(u).team == zone.team) : (u == zone.owner);
+                    if (!ally) continue;
+                    const glm::vec3 d = units.get<TransformComponent>(u).Position - c;
+                    if (glm::length(glm::vec2(d.x, d.z)) > zone.radius) continue;
+                    h.currentHealth = std::min(h.maxHealth, h.currentHealth + zone.healPerSecond);
+                    EmitXp(zone.owner, XpCategory::Heal, XpValues::HealTick);
+                }
+            }
+            for (auto z : expired) scene.DestroyEntity(z);
+        }
 
         static bool Valid(entt::registry& reg, entt::entity e) {
             if (e == entt::null || !reg.valid(e) || reg.all_of<CorpseComponent>(e)) return false;

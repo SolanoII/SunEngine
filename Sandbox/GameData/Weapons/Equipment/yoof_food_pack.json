@@ -1,0 +1,35 @@
+{
+  "id": "yoof_food_pack",
+  "displayName": "Zaino di Cibo",
+  "comment": "Sbloccabile dello yoof: in mano, click sinistro lo posa a terra; per 10 secondi cura 5 HP al secondo ai compagni entro 5 metri (cerchio verde). Uno per partita.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_yoof"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "food_pack",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 2.0,
+  "point_cost": 3,
+  "equipment_uses": 1,
+  "equipment_range": 5.0,
+  "heal_per_second": 5.0,
+  "effect_duration": 10.0,
+  "weapon_scale": [
+    0.3,
+    0.35,
+    0.25
+  ],
+  "hold_offset": [
+    0.0,
+    -0.1,
+    0.05
+  ],
+  "primary_color": [
+    0.45,
+    0.35,
+    0.2,
+    1.0
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "id": "torso_yoof_scrap",
+  "displayName": "Corazza di Scrap",
+  "comment": "Piastre di lamiera rivettate sul petto dello yoof. Si ricerca sotto lo Yoof e si compra per unita'.",
+  "location": "Torso",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_yoof"
+  ],
+  "armor_rating": 8,
+  "coverage": 0.8,
+  "max_durability": 40.0,
+  "weight": 6.0,
+  "point_cost": 3,
+  "skin_blocks": {},
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.05,
+        -0.33
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.05,
+        -0.33
+      ],
+      "size": [
+        0.7,
+        0.45,
+        0.06
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.24,
+        0.12,
+        -0.37
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.24,
+        0.02,
+        -0.37
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.03
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.22,
+        -0.08,
+        -0.37
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        -0.22,
+        -0.15,
+        -0.37
+      ],
+      "size": [
+        0.18,
+        0.14,
+        0.03
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    }
+  ],
+  "garments": [
+    {
+      "id": "yoof_scrap_chest",
+      "bones": [
+        "Spine1",
+        "Spine2"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.66,
+        0.9
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.25,
+      "inflate": 0.015,
+      "plate_cells": 6,
+      "plate_step": 0.007,
+      "texture": "Textures/Garments/scrap_metal.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.6
+    }
+  ]
+}

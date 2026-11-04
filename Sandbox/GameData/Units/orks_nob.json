@@ -18,5 +18,178 @@
   "suppression_threshold": 95,
   "vision_range": 120,
   "fov_degrees": 90,
-  "weight_capacity": 200.0
+  "weight_capacity": 200.0,
+  "base_skin": {
+    "skin_blocks": {
+      "Leg_L": [
+        0.3,
+        0.26,
+        0.2,
+        1
+      ],
+      "Leg_R": [
+        0.3,
+        0.26,
+        0.2,
+        1
+      ]
+    },
+    "skin_parts": [
+      {
+        "block": "Torso",
+        "offset": [
+          0,
+          -0.4,
+          0
+        ],
+        "bone": "mixamorig1:Hips",
+        "bone_offset": [
+          0.0,
+          0.06,
+          0.0
+        ],
+        "size": [
+          1.04,
+          0.08,
+          0.76
+        ],
+        "color": [
+          0.32,
+          0.2,
+          0.1,
+          1
+        ],
+        "roughness": 0.85,
+        "metallic": 0.0
+      },
+      {
+        "block": "Torso",
+        "offset": [
+          0,
+          -0.39,
+          -0.39
+        ],
+        "bone": "mixamorig1:Hips",
+        "bone_offset": [
+          0.0,
+          0.06,
+          -0.33
+        ],
+        "size": [
+          0.12,
+          0.08,
+          0.03
+        ],
+        "color": [
+          0.7,
+          0.55,
+          0.25,
+          1
+        ],
+        "roughness": 0.5,
+        "metallic": 0.8
+      },
+      {
+        "block": "",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "bone": "mixamorig1:LeftUpLeg",
+        "bone_offset": [
+          0.0,
+          -0.17,
+          0.0
+        ],
+        "size": [
+          0.38,
+          0.36,
+          0.42
+        ],
+        "color": [
+          0.3,
+          0.26,
+          0.2,
+          1
+        ],
+        "roughness": 0.85,
+        "metallic": 0.0
+      },
+      {
+        "block": "",
+        "offset": [
+          0,
+          0,
+          0
+        ],
+        "bone": "mixamorig1:RightUpLeg",
+        "bone_offset": [
+          0.0,
+          -0.17,
+          0.0
+        ],
+        "size": [
+          0.38,
+          0.36,
+          0.42
+        ],
+        "color": [
+          0.3,
+          0.26,
+          0.2,
+          1
+        ],
+        "roughness": 0.85,
+        "metallic": 0.0
+      }
+    ],
+    "garments": [
+      {
+        "id": "ork_trousers",
+        "bones": [
+          "Hips",
+          "LeftUpLeg",
+          "RightUpLeg",
+          "LeftLeg",
+          "RightLeg"
+        ],
+        "min_weight": 0.5,
+        "height_range": [
+          0.1,
+          0.585
+        ],
+        "inflate": 0.005,
+        "noise": 0.6,
+        "noise_scale": 12,
+        "texture": "Textures/Garments/ork_cloth.png",
+        "tex_tiles": 5,
+        "alpha_cut": 0.5,
+        "roughness": 0.9
+      },
+      {
+        "id": "ork_belt",
+        "bones": [
+          "Hips",
+          "Spine"
+        ],
+        "min_weight": 0.3,
+        "height_range": [
+          0.55,
+          0.605
+        ],
+        "inflate": 0.011,
+        "texture": "Textures/Garments/ork_plate.png",
+        "tex_tiles": 7,
+        "color": [
+          0.55,
+          0.35,
+          0.2,
+          1
+        ],
+        "roughness": 0.7,
+        "metallic": 0.2
+      }
+    ]
+  }
 }

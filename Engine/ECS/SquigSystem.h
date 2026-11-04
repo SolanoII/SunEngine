@@ -4,13 +4,15 @@
 //                  piu' vicino alla linea di tiro e lo morde finche' l'ordine non scade.
 //   "squig_bomb" : carica il nemico piu' vicino che vede; se non ne vede, quello a cui il padrone spara.
 //                  Arrivato a contatto esplode (danno ad area ai nemici del padrone). Uno solo per partita.
-// Lo squig non ha salute ne' collider: per ora non puo' essere colpito. Sparisce se il padrone muore,
+// Lo squig ha uno scheletro a cubi (Skeletons/squig.json) che fa da modello e da hitbox: si puo' colpire e
+// uccidere (poca salute, ma schiva il 30% dei colpi). Ucciso, per il padrone e' perso fino a fine partita
+// (la morte la gestisce GameLayer::CheckUnitDeaths, con il ragdoll). Sparisce anche se il padrone muore,
 // se toglie lo squig dalla dotazione o se si esce dalla partita.
 #include "Components.h"
-#include "BlockModel.h"
 #include "DamageResolver.h"
 #include "RaycastUtils.h"
 #include "AmmoSystem.h"
+#include "ExplosiveSystem.h"
 #include "../Scene/Scene.h"
 #include "../Navigation/NavMeshQuery.h"
 #include "../Core/Logger/Log.h"
@@ -22,28 +24,20 @@
 
 namespace SunEngine {
 
-    // Lampo dell'esplosione: cubo arancione che si gonfia e sparisce
-    struct ExplosionFlashComponent {
-        float life = 0.0f;
-        float maxLife = 0.3f;
-        float radius = 3.0f;
-    };
-
     class SquigSystem {
     public:
         static constexpr float kFollowDistance = 1.4f;
         static constexpr float kVisionRange = 25.0f;     // squig esplosivo: quanto lontano vede i nemici
         static constexpr float kOrderSeconds = 6.0f;     // per quanto insegue il bersaglio indicato dal padrone
 
-        void Update(Scene& scene, NavMeshQuery& nav, float dt, const BlockModel* biterModel, const BlockModel* bombModel) {
+        void Update(Scene& scene, NavMeshQuery& nav, float dt, const SkeletonData* skeleton) {
             auto& reg = scene.GetRegistry();
-            UpdateFlashes(scene, dt);
-            SyncSquigs(scene, biterModel, bombModel);
+            SyncSquigs(scene, skeleton);
 
             std::vector<entt::entity> squigs;
             for (auto e : reg.view<SquigComponent, TransformComponent>()) squigs.push_back(e);
             for (auto e : squigs) {
-                if (!reg.valid(e)) continue;
+                if (!reg.valid(e) || !Alive(reg, e)) continue;   // squig morto: ci pensa CheckUnitDeaths
                 UpdateSquig(scene, nav, e, dt);
             }
         }
@@ -53,7 +47,6 @@ namespace SunEngine {
             auto& reg = scene.GetRegistry();
             std::vector<entt::entity> toDestroy;
             for (auto e : reg.view<SquigComponent>()) toDestroy.push_back(e);
-            for (auto e : reg.view<ExplosionFlashComponent>()) toDestroy.push_back(e);
             for (auto e : toDestroy) if (reg.valid(e)) scene.DestroyEntity(e);
         }
 
@@ -89,7 +82,7 @@ namespace SunEngine {
         }
 
         // Crea gli squig mancanti ed elimina quelli senza piu' padrone
-        void SyncSquigs(Scene& scene, const BlockModel* biterModel, const BlockModel* bombModel) {
+        void SyncSquigs(Scene& scene, const SkeletonData* skeleton) {
             auto& reg = scene.GetRegistry();
             std::vector<std::pair<entt::entity, int>> present;
             std::vector<entt::entity> toDestroy;
@@ -114,18 +107,18 @@ namespace SunEngine {
                 for (int s = 4; s <= 6; ++s) {
                     const auto* bp = SquigItem(inv, s);
                     if (!bp) continue;
-                    if (bp->equipment_type == "squig_bomb" && ammo.equipmentUses[s - 4] <= 0) continue;   // gia' esploso
+                    if (ammo.equipmentUses[s - 4] <= 0) continue;   // esploso o ucciso: perso fino a fine partita
                     if (std::find(present.begin(), present.end(), std::make_pair(o, s)) != present.end()) continue;
                     toSpawn.push_back({ o, s });
                 }
             }
             for (const auto& [o, s] : toSpawn) {
                 const auto* bp = SquigItem(reg.get<InventoryComponent>(o), s);
-                Spawn(scene, o, s, *bp, bp->equipment_type == "squig_bomb" ? bombModel : biterModel);
+                Spawn(scene, o, s, *bp, skeleton);
             }
         }
 
-        void Spawn(Scene& scene, entt::entity owner, int slot, const WeaponBlueprint& bp, const BlockModel* model) {
+        void Spawn(Scene& scene, entt::entity owner, int slot, const WeaponBlueprint& bp, const SkeletonData* skeleton) {
             auto& reg = scene.GetRegistry();
             const auto& ot = reg.get<TransformComponent>(owner);
             const float yaw = glm::radians(ot.Rotation.y);
@@ -137,14 +130,24 @@ namespace SunEngine {
             reg.emplace<MeshComponent>(e, 0u);
             auto& c = reg.emplace<ColorComponent>(e);
             c.Color = bp.primary_color; c.BaseColor = c.Color;
-            if (model) {
-                reg.emplace<BlockModelComponent>(e, BlockModelComponent{ model });
-                t.Scale = glm::vec3(1.0f);          // il modello e' in metri
+            t.Scale = glm::vec3(1.0f);
+            if (skeleton) {
+                // Modello e hitbox: lo scheletro a cubi (corpo, testa, mascella, piedi)
+                auto& skel = reg.emplace<SkeletonComponent>(e);
+                skel.data = *skeleton;
+                skel.scale = 1.0f;
             }
             else {
-                t.Scale = glm::vec3(0.40f, 0.35f, 0.45f);
-                t.Position.y += 0.18f;
+                t.Scale = glm::vec3(0.40f, 0.35f, 0.45f);   // senza scheletro: un cubo (colpibile col box di riserva dei colpi)
             }
+            // Colpibile: salute, statistiche (niente armatura), squadra del padrone (niente fuoco amico), evasione
+            reg.emplace<HealthComponent>(e, bp.companion_health, bp.companion_health);
+            auto& st = reg.emplace<UnitStatsComponent>(e);
+            st.maxHealth = st.currentHealth = bp.companion_health;
+            st.toughness = 5.0f;
+            st.baseSpeed = bp.companion_speed;
+            if (const auto* team = reg.try_get<TeamComponent>(owner)) reg.emplace<TeamComponent>(e, *team);
+            reg.emplace<EvasionComponent>(e, EvasionComponent{ std::clamp(bp.companion_evasion, 0.0f, 0.95f) });
             auto& sq = reg.emplace<SquigComponent>(e);
             sq.owner = owner;
             sq.ownerSlot = slot;
@@ -265,7 +268,10 @@ namespace SunEngine {
                     auto& ts = reg.get<UnitStatsComponent>(sq.target);
                     auto& th = reg.get<HealthComponent>(sq.target);
                     const HitboxLocation loc = Random::Chance(0.5f) ? HitboxLocation::LeftLeg : HitboxLocation::RightLeg;
+                    const float before = th.currentHealth;
                     DamageResolver::ResolveHit(bp->base_damage, bp->armor_penetration, loc, ts, th);
+                    // Feedback ed esperienza al padrone (i danni dello squig contano come suoi)
+                    EmitHitFeedback(scene, sq.owner, sq.target, reg.get<TransformComponent>(sq.target).Position + glm::vec3(0.0f, 0.4f, 0.0f), loc, before);
                     if (reg.all_of<PlayerTag>(sq.owner)) SUN_CORE_INFO("Morso di squig! Salute bersaglio: {0}", th.currentHealth);
                 }
             }
@@ -286,7 +292,9 @@ namespace SunEngine {
                 dist = glm::length(dir);
             }
             const float toGoal = HDist(t.Position, goal);
-            if (toGoal > stopDist && dist > 1e-3f) {
+            const bool moving = toGoal > stopDist && dist > 1e-3f;
+            Animate(reg, e, sq, moving, dt);
+            if (moving) {
                 const float step = std::min(dist, speed * dt);
                 t.Position += dir / dist * step;
                 t.Position.y = glm::mix(t.Position.y, next.y, std::min(1.0f, 10.0f * dt));
@@ -298,54 +306,36 @@ namespace SunEngine {
             }
         }
 
-        // Esplosione: danno ai nemici del padrone entro il raggio (pieno al centro, 40% al bordo)
+        // Animazione minima sullo scheletro: piedi che si alternano e corpo che ondeggia quando corre,
+        // mascella che si apre quando morde
+        static void Animate(entt::registry& reg, entt::entity e, SquigComponent& sq, bool moving, float dt) {
+            auto* skel = reg.try_get<SkeletonComponent>(e);
+            if (!skel) return;
+            sq.hopPhase = moving ? sq.hopPhase + dt * 14.0f : 0.0f;
+            const float swing = moving ? std::sin(sq.hopPhase) * 30.0f : 0.0f;
+            const bool biting = sq.kind == SquigKind::Biter && sq.attackCooldown > 0.6f;
+            for (auto& b : skel->data.blocks) {
+                if (b.name == "Leg_L") b.jointRotation.x = swing;
+                else if (b.name == "Leg_R") b.jointRotation.x = -swing;
+                else if (b.name == "Torso") b.jointRotation.x = moving ? std::abs(std::sin(sq.hopPhase)) * -8.0f : 0.0f;
+                else if (b.name == "Jaw") b.jointRotation.x = (biting || sq.state == SquigState::Charge) ? 28.0f : 0.0f;
+            }
+        }
+
+        // Esplosione: stessa regola di granate e mine (nemici del padrone, pieno al centro, 40% al bordo)
         void Explode(Scene& scene, entt::entity squig, const WeaponBlueprint& bp) {
             auto& reg = scene.GetRegistry();
             const auto sq = reg.get<SquigComponent>(squig);
             const glm::vec3 center = reg.get<TransformComponent>(squig).Position;
-            const float radius = std::max(0.5f, bp.explosion_radius);
-            int hit = 0;
-            for (auto e : reg.view<UnitStatsComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>)) {
-                if (!IsEnemy(reg, sq.owner, e)) continue;
-                const float d = HDist(center, reg.get<TransformComponent>(e).Position);
-                if (d > radius) continue;
-                const float dmg = bp.explosion_damage * (1.0f - 0.6f * (d / radius));
-                DamageResolver::ResolveHit(dmg, bp.armor_penetration, HitboxLocation::Torso,
-                    reg.get<UnitStatsComponent>(e), reg.get<HealthComponent>(e));
-                ++hit;
-            }
+            const int hit = Explosives::Explode(scene, center, bp.explosion_radius, bp.explosion_damage, bp.armor_penetration,
+                                                sq.owner, Explosives::TeamOf(reg, sq.owner), bp.structure_damage_multiplier);
             if (auto* ammo = reg.try_get<AmmoComponent>(sq.owner)) {
                 ammo->equipmentUses[sq.ownerSlot - 4] = 0;   // uno solo per partita
                 ammo->feedback = "Squig esplosivo: BOOM! (" + std::to_string(hit) + " colpiti)";
                 ammo->feedbackTimer = 2.5f;
             }
             SUN_CORE_INFO("Squig esplosivo detonato: {0} nemici nel raggio", hit);
-
-            // Lampo
-            const entt::entity f = scene.CreateEntity();
-            auto& ft = reg.emplace<TransformComponent>(f);
-            ft.Position = center + glm::vec3(0.0f, 0.5f, 0.0f);
-            ft.Scale = glm::vec3(0.2f);
-            reg.emplace<MeshComponent>(f, 0u);
-            auto& fc = reg.emplace<ColorComponent>(f);
-            fc.Color = glm::vec4(1.0f, 0.55f, 0.1f, 1.0f); fc.BaseColor = fc.Color;
-            reg.emplace<ExplosionFlashComponent>(f, ExplosionFlashComponent{ 0.0f, 0.3f, radius });
-
             scene.DestroyEntity(squig);
-        }
-
-        void UpdateFlashes(Scene& scene, float dt) {
-            auto& reg = scene.GetRegistry();
-            std::vector<entt::entity> done;
-            for (auto e : reg.view<ExplosionFlashComponent, TransformComponent>()) {
-                auto& f = reg.get<ExplosionFlashComponent>(e);
-                f.life += dt;
-                const float k = std::clamp(f.life / f.maxLife, 0.0f, 1.0f);
-                reg.get<TransformComponent>(e).Scale = glm::vec3(glm::mix(0.3f, f.radius * 1.6f, k));
-                if (auto* c = reg.try_get<ColorComponent>(e)) c->Color = glm::mix(glm::vec4(1.0f, 0.85f, 0.3f, 1.0f), glm::vec4(0.6f, 0.15f, 0.05f, 1.0f), k);
-                if (f.life >= f.maxLife) done.push_back(e);
-            }
-            for (auto e : done) scene.DestroyEntity(e);
         }
     };
 

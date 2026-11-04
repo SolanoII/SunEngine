@@ -178,6 +178,7 @@ namespace SunEngine {
             auto& wState = view.get<WeaponStateComponent>(entity);
             auto& inventory = view.get<InventoryComponent>(entity);
             auto& recoil = view.get<CameraRecoilComponent>(entity);
+            if (scene.GetRegistry().all_of<CorpseComponent>(entity)) continue;   // a terra non si spara (5v5: il mondo gira anche da morto)
 
             // Munizioni limitate: ogni arma tiene il suo caricatore, cambiare arma non lo riempie
             auto* ammo = scene.GetRegistry().try_get<AmmoComponent>(entity);
@@ -604,6 +605,17 @@ namespace SunEngine {
                 }
                 EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore);
             }
+            // Colpo su una struttura costruita (barricata, muro): meta' danno, puo' romperla
+            else if (!parried && hit.hit && !hit.hitUnit && hit.entity != entt::null && scene.GetRegistry().valid(hit.entity) &&
+                     scene.GetRegistry().all_of<StructureHealthComponent>(hit.entity)) {
+                const float dmg = CalculateDamageWithFalloff(wpBP.base_damage, hit.distance, wpBP.damage_falloff_start, wpBP.damage_falloff_end);
+                if (DamageStructure(scene.GetRegistry(), hit.entity, dmg * XpValues::StructureBulletDamage)) scene.DestroyEntity(hit.entity);
+            }
+            // Proiettile esplosivo (es. Rokkit Launcha): esplode dove arriva, colpendo i nemici attorno
+            if (wpBP.projectile_type == ProjectileType::Explosive && wpBP.explosion_radius > 0.0f && !parried) {
+                Explosives::Explode(scene, hitPoint, wpBP.explosion_radius, wpBP.explosion_damage, wpBP.armor_penetration,
+                                    shooter, Explosives::TeamOf(scene.GetRegistry(), shooter), wpBP.structure_damage_multiplier);
+            }
             if (skipTrail) continue;
             entt::entity bulletTrailEntity = scene.CreateEntity();
             auto& bulletTrail = scene.GetRegistry().emplace<TrailRequestComponent>(bulletTrailEntity);
@@ -714,6 +726,13 @@ namespace SunEngine {
             if (e == shooter) continue;
             if (SameTeam(reg, shooter, e)) continue;   // niente fuoco amico: i colpi attraversano gli alleati
             const auto& trans = unitView.get<TransformComponent>(e);
+            // Evasione (es. squig 30%): il colpo lo manca e prosegue verso quello che c'e' dietro
+            if (const auto* ev = reg.try_get<EvasionComponent>(e); ev && ev->chance > 0.0f) {
+                const glm::vec3 toUnit = trans.Position - rayOrigin;
+                const float along = glm::dot(toUnit, rayDir);
+                if (along > -1.0f && along < closest + 1.0f && glm::length(toUnit - rayDir * along) < 1.5f &&
+                    Random::Chance(ev->chance)) continue;
+            }
 
             // Unita' con scheletro a cubi: il colpo si testa sui SINGOLI blocchi (testa, torso, braccia,
             // gambe) nella posa attuale. Prima si usava il collider di movimento, che per gli orchi e'

@@ -18,8 +18,10 @@ namespace SunEngine {
             ArmorPiece* armor = stats.armorSet.GetPiece(location);
             float finalHpDamage = rawDamage;
 
+            bool helmetHeld = false;   // elmetto che ha retto il colpo: niente moltiplicatore della testa
             if (armor && armor->currentDurability > 0.0f && armor->armorRating > 0) {
                 if (Random::Chance(armor->coverage)) {
+                    helmetHeld = armor->blocksHeadshotBonus;
                     int effectiveArmor = std::max(0, armor->armorRating - weaponAP);
                     float mitigation = 100.0f / (100.0f + static_cast<float>(effectiveArmor));
                     finalHpDamage = rawDamage * mitigation;
@@ -34,7 +36,7 @@ namespace SunEngine {
             float toughnessMitigation = 100.0f / (100.0f + stats.toughness);
             finalHpDamage *= toughnessMitigation;
 
-            if (location == HitboxLocation::Head) {
+            if (location == HitboxLocation::Head && !helmetHeld) {
                 finalHpDamage *= 1.75f;
             }
             else if (location == HitboxLocation::LeftLeg || location == HitboxLocation::RightLeg ||
@@ -76,6 +78,13 @@ namespace SunEngine {
                 if (!inv->meleeWeaponId.empty() && inv->meleeWeaponId != "none") {
                     const auto* bp = bpm.GetWeapon(inv->meleeWeaponId);
                     if (bp && bp->hasMoveset) return bp;
+                }
+            }
+            // Unita' senza armi da mischia (es. loota): la sua arma di riserva
+            if (const auto* uid = reg.try_get<UnitBlueprintId>(e)) {
+                if (const auto* ubp = bpm.GetUnit(uid->id); ubp && !ubp->melee_fallback.empty()) {
+                    const auto* fb = bpm.GetWeapon(ubp->melee_fallback);
+                    if (fb && fb->hasMoveset) return fb;
                 }
             }
             const auto* fallback = bpm.GetWeapon(reg.all_of<PlayerTag>(e) ? "standard_chainsword_1h" : "ork_choppa_1h");
@@ -154,6 +163,13 @@ namespace SunEngine {
 
                 SUN_CORE_INFO("PERFECT PARRY! Attaccante Stordito per {0}s", stunDuration);
                 return MeleeClashResult::Parried;
+            }
+
+            // EVASIONE (es. squig): il colpo va a vuoto, uno solo per fendente
+            if (const auto* ev = reg.try_get<EvasionComponent>(defender); ev && ev->chance > 0.0f && Random::Chance(ev->chance)) {
+                attackerMelee.hasHitInThisAttack = true;
+                SUN_CORE_INFO("Colpo schivato!");
+                return MeleeClashResult::Countered;
             }
 
             // REGOLE DI COUNTER MELEE & INTERRUZIONE AI

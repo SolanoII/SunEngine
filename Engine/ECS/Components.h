@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include <entt/entt.hpp>
+#include "XpEvents.h"
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyID.h>
 #include <Jolt/Physics/Constraints/Constraint.h>
@@ -95,6 +96,10 @@ namespace SunEngine {
         float fKeyHoldTimer = 0.0f;
         bool fKeyWasPressed = false;
 
+        // Scatto dell'attacco pesante (armi con "heavy_lunge_distance", es. lancia dello yoof)
+        float lungeTimer = 0.0f;
+        glm::vec3 lungeVelocity{ 0.0f };
+
         std::string bufferedInput = "";
         float inputBufferTimer = 0.0f;
     };
@@ -108,6 +113,7 @@ namespace SunEngine {
         float maxDurability = 0.0f;
         float weight = 0.0f;
         int pointCost = 0;
+        bool blocksHeadshotBonus = false;   // elmetto: finche' regge, niente moltiplicatore del colpo in testa
     };
 
     struct ArmorSet {
@@ -310,7 +316,50 @@ namespace SunEngine {
         entt::entity useTarget = entt::null;   // chi riceve le munizioni (se' stessi o un compagno)
         float feedbackTimer = 0.0f;    // messaggio a schermo dopo l'uso
         std::string feedback;
+        glm::vec3 useStartPos{ 0.0f }; // dove e' iniziata la canalizzazione (scrap: bisogna restare fermi)
     };
+
+    // Zaino di cibo posato a terra: cura i compagni nel raggio finche' dura
+    struct HealZoneComponent {
+        entt::entity owner = entt::null;
+        int team = -1;                 // squadra del padrone (-1 = nessuna: cura solo il padrone)
+        float radius = 5.0f;
+        float healPerSecond = 5.0f;
+        float timeLeft = 10.0f;
+        float duration = 10.0f;
+        float tickTimer = 1.0f;        // la cura arriva a impulsi, uno al secondo
+    };
+
+    // Barricata/muro costruito (copertura: collider statico). Non ha HealthComponent (cosi' resta un ostacolo per
+    // colpi, linea di vista e movimento) ma una salute da struttura: la rompono le esplosioni, la ripara la chiave.
+    struct BarricadeTag {};
+    struct StructureHealthComponent {
+        float hp = 250.0f;
+        float maxHp = 250.0f;
+        entt::entity owner = entt::null;   // chi l'ha costruita (prende l'esperienza del danno assorbito)
+        float xpGiven = 0.0f;              // esperienza gia' data per il danno assorbito (max = maxHp, anche se riparata)
+        float xpPending = 0.0f;            // frazioni di punto non ancora date
+    };
+
+    // Danno a una struttura costruita: il padrone guadagna 1 punto per ogni punto di danno assorbito, ma in tutta
+    // la vita della struttura non piu' della sua salute massima. Ritorna true se e' distrutta (la distrugge il chiamante).
+    inline bool DamageStructure(entt::registry& reg, entt::entity e, float amount) {
+        auto* sh = reg.try_get<StructureHealthComponent>(e);
+        if (!sh || amount <= 0.0f) return false;
+        const float taken = std::min(amount, std::max(0.0f, sh->hp));
+        sh->hp -= amount;
+        const float xp = std::min(taken, std::max(0.0f, sh->maxHp - sh->xpGiven));
+        if (xp > 0.0f) {
+            sh->xpGiven += xp;
+            sh->xpPending += xp;
+            if (sh->xpPending >= 1.0f) {
+                const float whole = std::floor(sh->xpPending);
+                sh->xpPending -= whole;
+                EmitXp(sh->owner, XpCategory::Absorb, static_cast<int64_t>(whole));
+            }
+        }
+        return sh->hp <= 0.0f;
+    }
 
     // Entita' riparabile con un attrezzo (chiave inglese): veicoli, strutture, torrette, semoventi...
     // Tag tipici: "Structure", "Construct", "Mechanical". La salute e' quella dell'HealthComponent.
@@ -320,6 +369,12 @@ namespace SunEngine {
             for (const auto& w : wanted) for (const auto& t : tags) if (w == t) return true;
             return false;
         }
+    };
+
+    // Probabilita' di schivare un colpo (a distanza o in mischia): il colpo non fa danno e, se a distanza,
+    // prosegue oltre. Es. squig 0.30 = 30%.
+    struct EvasionComponent {
+        float chance = 0.0f;
     };
 
     // Compagno squig che segue il padrone e attacca quello a cui il padrone spara.
@@ -405,11 +460,11 @@ namespace SunEngine {
             return !id.empty() && id != "none" && BlueprintManager::Get().GetWeapon(id) != nullptr;
         }
 
-        // Si puo' prendere in mano? (gli squig sono compagni passivi: occupano lo slot ma non si impugnano)
+        // Si puo' prendere in mano? (squig e zaino munizioni sono passivi: occupano lo slot ma non si impugnano)
         bool IsSlotSelectable(int slot) const {
             if (!HasSlotItem(slot)) return false;
             const auto* bp = BlueprintManager::Get().GetWeapon(GetSlotItemId(slot));
-            return !(bp->is_equipment && bp->equipment_type.rfind("squig", 0) == 0);
+            return !(bp->is_equipment && (bp->equipment_type.rfind("squig", 0) == 0 || bp->equipment_type == "ammo_backpack"));
         }
 
         // Primo slot con qualcosa dentro (es. il gretchin non ha primaria: parte con la Grot Blasta)
@@ -458,6 +513,25 @@ namespace SunEngine {
 
             return EquipStance::RangedTwoHanded;
         }
+    };
+
+    // Skin dell'armatura/vesti sul campo (vedi ArmorBlueprint: "skin_blocks" e "skin_parts").
+    // blockColors: colore per blocco dello scheletro (alpha 0 = colore dell'unita'); parts: cubi aggiunti,
+    // agganciati a un blocco (modalita' cuboni) e a un osso (modello animato del giocatore).
+    struct SkinPart {
+        int block = -1;
+        glm::vec3 offset{ 0.0f };
+        std::string bone;
+        glm::vec3 boneOffset{ 0.0f };
+        glm::vec3 size{ 0.1f };
+        glm::vec4 color{ 0.5f, 0.5f, 0.5f, 1.0f };
+        float roughness = 0.7f;
+        float metallic = 0.0f;
+    };
+    struct SkinComponent {
+        std::vector<glm::vec4> blockColors;
+        std::vector<SkinPart> parts;
+        std::vector<GarmentDef> garments;   // strati (vestiti/armature) sul modello animato
     };
 
     struct SkeletonComponent {
@@ -596,6 +670,7 @@ namespace SunEngine {
         float roughness = 0.7f;
         float metallic = 0.0f;
         float emissive = 0.0f;
+        std::vector<GarmentDraw> garments;   // vestiti e armature disegnati sopra il corpo, con le stesse ossa
         // Modello vuoto di default: non renderizzato finché non setti i puntatori
     };                               // ← aggiungi ; 
 
@@ -684,6 +759,10 @@ namespace SunEngine {
         // Dotazione tattica (scatola di munizioni): slot in mano mentre rifornisce se' o un compagno (-1 = no)
         int resupplySlot = -1;
         float resupplyCheck = 0.0f;
+
+        // Granate: tempo prima della prossima e lancio in preparazione (granata gia' in mano)
+        float grenadeCooldown = 4.0f;
+        bool throwingGrenade = false;
     };
 
 }                                    // ← aggiungi chiusura namespace

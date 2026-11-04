@@ -1,0 +1,102 @@
+{
+  "id": "squig",
+  "race": "Orks",
+  "comment": "Squig da compagnia: scheletro a cubi che fa da modello e da hitbox. Origine a terra, muso verso -Z. Torso = corpo (palla), Head = cupola con gli occhi (colpo in testa x1.75), Jaw = mascella (conta come testa), Leg_L/Leg_R = piedoni.",
+  "blocks": [
+    {
+      "name": "Torso",
+      "parentIndex": -1,
+      "offset": [
+        0,
+        0.25,
+        0
+      ],
+      "pivotOffset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.4,
+        0.3,
+        0.4
+      ]
+    },
+    {
+      "name": "Head",
+      "parentIndex": 0,
+      "offset": [
+        0,
+        0.15,
+        -0.04
+      ],
+      "pivotOffset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.3,
+        0.1,
+        0.28
+      ]
+    },
+    {
+      "name": "Jaw",
+      "parentIndex": 0,
+      "offset": [
+        0,
+        -0.06,
+        -0.16
+      ],
+      "pivotOffset": [
+        0,
+        -0.03,
+        -0.04
+      ],
+      "size": [
+        0.34,
+        0.1,
+        0.14
+      ]
+    },
+    {
+      "name": "Leg_L",
+      "parentIndex": 0,
+      "offset": [
+        -0.13,
+        -0.15,
+        0.0
+      ],
+      "pivotOffset": [
+        0,
+        -0.04,
+        -0.02
+      ],
+      "size": [
+        0.11,
+        0.08,
+        0.18
+      ]
+    },
+    {
+      "name": "Leg_R",
+      "parentIndex": 0,
+      "offset": [
+        0.13,
+        -0.15,
+        0.0
+      ],
+      "pivotOffset": [
+        0,
+        -0.04,
+        -0.02
+      ],
+      "size": [
+        0.11,
+        0.08,
+        0.18
+      ]
+    }
+  ]
+}

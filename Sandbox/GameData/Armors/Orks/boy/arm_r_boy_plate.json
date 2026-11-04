@@ -1,0 +1,133 @@
+{
+  "id": "arm_r_boy_plate",
+  "displayName": "Spallaccio da Boy (dx)",
+  "comment": "Sbloccabile dell'ork boy: spallaccio e bracciale di piastra.",
+  "location": "RightArm",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "armor_rating": 9,
+  "coverage": 0.75,
+  "max_durability": 35.0,
+  "weight": 3.5,
+  "point_cost": 1,
+  "skin_blocks": {
+    "Shoulder_R": [
+      0.32,
+      0.3,
+      0.28,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Shoulder_R",
+      "offset": [
+        0,
+        0.26,
+        0
+      ],
+      "bone": "mixamorig1:RightArm",
+      "bone_offset": [
+        0.0,
+        0.26,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.16,
+        0.08
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:RightArm",
+      "bone_offset": [
+        0.0,
+        0.09,
+        0.0
+      ],
+      "size": [
+        0.54,
+        0.18,
+        0.54
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.0,
+        -0.18,
+        -0.185
+      ],
+      "bone": "mixamorig1:RightForeArm",
+      "bone_offset": [
+        0.0,
+        -0.12,
+        -0.05
+      ],
+      "size": [
+        0.28,
+        0.32,
+        0.05
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    }
+  ],
+  "garments": [
+    {
+      "id": "boy_plate_arm_r",
+      "bones": [
+        "RightArm",
+        "RightShoulder"
+      ],
+      "min_weight": 0.55,
+      "height_range": [
+        0.84,
+        1.0
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.016,
+      "plate_cells": 5,
+      "plate_step": 0.007,
+      "texture": "Textures/Garments/ork_plate.png",
+      "tex_tiles": 4,
+      "roughness": 0.55,
+      "metallic": 0.7
+    }
+  ]
+}

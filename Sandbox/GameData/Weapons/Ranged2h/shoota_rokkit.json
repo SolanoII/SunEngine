@@ -1,0 +1,72 @@
+{
+  "id": "shoota_rokkit",
+  "displayName": "Rokkit Launcha",
+  "comment": "Sbloccabile dello shoota boy: lanciarazzi a colpo singolo. Il razzo esplode dove arriva (muro, unita' o fine gittata): 60 danni a chi viene centrato e un'esplosione da 110 danni su 3.5 metri. 1 razzo nel tubo + 4 di scorta.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_shoota_boy"
+  ],
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 9.0,
+  "point_cost": 10,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 1,
+  "spare_magazines": 4,
+  "reload_time_sec": 3.5,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 30.0,
+  "base_damage": 60.0,
+  "armor_penetration": 6,
+  "impact_force": 60.0,
+  "toughness_bypass": 0.0,
+  "range_effective": 70.0,
+  "damage_falloff_start": 60.0,
+  "damage_falloff_end": 70.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 3.5,
+  "shake_intensity": 0.3,
+  "fov_kick": 2.5,
+  "spread_base": 0.06,
+  "spread_auto_multiplier": 1.0,
+  "suppression_value": 12,
+  "projectile_type": "explosive",
+  "is_beam": false,
+  "projectile_speed": 55.0,
+  "projectile_length": 0.6,
+  "projectile_width": 0.14,
+  "explosion_radius": 3.5,
+  "explosion_damage": 110.0,
+  "primary_color": [
+    1.0,
+    0.45,
+    0.1,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    0.85,
+    0.4,
+    1.0
+  ],
+  "weapon_scale": [
+    0.16,
+    0.16,
+    1.0
+  ],
+  "hold_offset": [
+    0.35,
+    -0.08,
+    -0.2
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.55
+  ],
+  "heat_recoil_multiplier": 1.0
+}

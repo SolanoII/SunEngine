@@ -1,0 +1,396 @@
+{
+  "id": "boy_choppa",
+  "comment": "Choppa orchesca a blocchi (cleaver arrugginito, lama larga con spuntoni, manico fasciato). Spazio modello: origine al centro dell'ingombro, lama verso -Z, +Y alto, +X destra. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.0675,
+      0.2005
+    ],
+    "muzzle": [
+      0.0,
+      -0.0275,
+      -0.3065
+    ]
+  },
+  "parts": [
+    {
+      "name": "blade_main",
+      "offset": [
+        0.0,
+        -0.0175,
+        -0.1045
+      ],
+      "size": [
+        0.03,
+        0.22,
+        0.4
+      ],
+      "color": [
+        0.42,
+        0.38,
+        0.34,
+        1
+      ],
+      "roughness": 0.65,
+      "metallic": 0.7
+    },
+    {
+      "name": "blade_edge",
+      "offset": [
+        0.0,
+        -0.1255,
+        -0.1065
+      ],
+      "size": [
+        0.016,
+        0.036,
+        0.404
+      ],
+      "color": [
+        0.66,
+        0.64,
+        0.6,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.9
+    },
+    {
+      "name": "blade_front",
+      "offset": [
+        0.0,
+        -0.0275,
+        -0.2745
+      ],
+      "size": [
+        0.034,
+        0.25,
+        0.06
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.7
+    },
+    {
+      "name": "spike_1",
+      "offset": [
+        0.0,
+        0.1125,
+        0.0155
+      ],
+      "size": [
+        0.034,
+        0.05,
+        0.04
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "spike_2",
+      "offset": [
+        0.0,
+        0.1205,
+        -0.0745
+      ],
+      "size": [
+        0.034,
+        0.064,
+        0.036
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "spike_3",
+      "offset": [
+        0.0,
+        0.1105,
+        -0.1645
+      ],
+      "size": [
+        0.034,
+        0.044,
+        0.04
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "spike_4",
+      "offset": [
+        0.0,
+        0.1175,
+        -0.2445
+      ],
+      "size": [
+        0.034,
+        0.058,
+        0.036
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    },
+    {
+      "name": "rust_patch_1",
+      "offset": [
+        0.0,
+        0.0125,
+        -0.1545
+      ],
+      "size": [
+        0.033,
+        0.07,
+        0.08
+      ],
+      "color": [
+        0.36,
+        0.2,
+        0.11,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.2
+    },
+    {
+      "name": "rust_patch_2",
+      "offset": [
+        0.0,
+        -0.0675,
+        -0.0145
+      ],
+      "size": [
+        0.033,
+        0.06,
+        0.07
+      ],
+      "color": [
+        0.36,
+        0.2,
+        0.11,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.2
+    },
+    {
+      "name": "rivet_1",
+      "offset": [
+        0.0,
+        0.0425,
+        -0.0295
+      ],
+      "size": [
+        0.038,
+        0.014,
+        0.014
+      ],
+      "color": [
+        0.55,
+        0.52,
+        0.45,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "rivet_2",
+      "offset": [
+        0.0,
+        0.0425,
+        -0.1195
+      ],
+      "size": [
+        0.038,
+        0.014,
+        0.014
+      ],
+      "color": [
+        0.55,
+        0.52,
+        0.45,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "rivet_3",
+      "offset": [
+        0.0,
+        0.0425,
+        -0.2095
+      ],
+      "size": [
+        0.038,
+        0.014,
+        0.014
+      ],
+      "color": [
+        0.55,
+        0.52,
+        0.45,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "guard",
+      "offset": [
+        0.0,
+        -0.0475,
+        0.1105
+      ],
+      "size": [
+        0.04,
+        0.1,
+        0.025
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.13,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.75
+    },
+    {
+      "name": "handle",
+      "offset": [
+        0.0,
+        -0.0675,
+        0.2005
+      ],
+      "size": [
+        0.03,
+        0.05,
+        0.17
+      ],
+      "color": [
+        0.28,
+        0.2,
+        0.12,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "name": "wrap_1",
+      "offset": [
+        0.0,
+        -0.0675,
+        0.1605
+      ],
+      "size": [
+        0.036,
+        0.056,
+        0.012
+      ],
+      "color": [
+        0.14,
+        0.1,
+        0.07,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "name": "wrap_2",
+      "offset": [
+        0.0,
+        -0.0675,
+        0.2005
+      ],
+      "size": [
+        0.036,
+        0.056,
+        0.012
+      ],
+      "color": [
+        0.14,
+        0.1,
+        0.07,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "name": "wrap_3",
+      "offset": [
+        0.0,
+        -0.0675,
+        0.2405
+      ],
+      "size": [
+        0.036,
+        0.056,
+        0.012
+      ],
+      "color": [
+        0.14,
+        0.1,
+        0.07,
+        1
+      ],
+      "roughness": 0.9,
+      "metallic": 0.0
+    },
+    {
+      "name": "pommel",
+      "offset": [
+        0.0,
+        -0.0675,
+        0.2935
+      ],
+      "size": [
+        0.045,
+        0.065,
+        0.03
+      ],
+      "color": [
+        0.14,
+        0.13,
+        0.13,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.75
+    }
+  ]
+}

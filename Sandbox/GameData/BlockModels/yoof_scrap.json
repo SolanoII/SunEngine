@@ -1,0 +1,112 @@
+{
+  "id": "yoof_scrap",
+  "comment": "Scrap a blocchi: fascio di lamiere e tubi legati, tenuto per la corda. Metri.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      0.1,
+      0.0
+    ]
+  },
+  "parts": [
+    {
+      "name": "lamiera_1",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.26,
+        0.16,
+        0.04
+      ],
+      "rotation": [
+        0,
+        0,
+        8
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    },
+    {
+      "name": "lamiera_2",
+      "offset": [
+        0,
+        0.01,
+        0.05
+      ],
+      "size": [
+        0.24,
+        0.14,
+        0.04
+      ],
+      "rotation": [
+        0,
+        0,
+        -6
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    },
+    {
+      "name": "tubo",
+      "offset": [
+        0,
+        0.02,
+        -0.05
+      ],
+      "size": [
+        0.04,
+        0.04,
+        0.28
+      ],
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "corda",
+      "offset": [
+        0,
+        0.1,
+        0.0
+      ],
+      "size": [
+        0.03,
+        0.04,
+        0.12
+      ],
+      "color": [
+        0.55,
+        0.45,
+        0.3,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    }
+  ]
+}

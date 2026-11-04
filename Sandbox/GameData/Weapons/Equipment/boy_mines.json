@@ -1,0 +1,37 @@
+{
+  "id": "boy_mines",
+  "displayName": "Mine da Terra",
+  "comment": "Sbloccabile dell'ork boy: 2 mine a pressione. In mano, click sinistro ne piazza una davanti ai piedi; dopo 1.5 secondi si arma e scoppia quando un nemico ci passa sopra (150 danni al centro, 3.5 metri di raggio).",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "landmine",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 4.0,
+  "point_cost": 4,
+  "equipment_uses": 2,
+  "fuse_time": 1.5,
+  "trigger_radius": 0.9,
+  "explosion_radius": 3.5,
+  "explosion_damage": 150.0,
+  "armor_penetration": 4,
+  "weapon_scale": [
+    0.3,
+    0.08,
+    0.3
+  ],
+  "hold_offset": [
+    0.0,
+    -0.1,
+    0.05
+  ],
+  "primary_color": [
+    0.3,
+    0.32,
+    0.22,
+    1.0
+  ]
+}

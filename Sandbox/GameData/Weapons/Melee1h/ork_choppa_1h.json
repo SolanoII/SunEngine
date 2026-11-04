@@ -1,5 +1,9 @@
 {
   "id": "ork_choppa_1h",
+  "comment": "Choppa originale: non si equipaggia piu' dal garage (gli orki usano le loro choppe: boy_choppa, shoota_choppa, yoof_choppa). Resta per l'orda della sopravvivenza e come arma di riserva.",
+  "allowed_units": [
+    "__nessuno__"
+  ],
   "displayName": "Ork Choppa Brutale",
   "faction": "Orks",
   "unit_restriction": "",
@@ -10,9 +14,22 @@
   "point_cost": 6,
   "base_damage": 50.0,
   "default_melee_type": "Normal",
-  "weapon_scale": [ 0.12, 0.40, 0.65 ],
-  "hold_offset": [ 0.0, -0.10, 0.25 ],
-  "primary_color": [ 0.45, 0.47, 0.50, 1.0 ],
+  "weapon_scale": [
+    0.12,
+    0.4,
+    0.65
+  ],
+  "hold_offset": [
+    0.0,
+    -0.1,
+    0.25
+  ],
+  "primary_color": [
+    0.45,
+    0.47,
+    0.5,
+    1.0
+  ],
   "moveset": {
     "entry_node": "normal_1",
     "nodes": {
@@ -22,15 +39,23 @@
         "timings": {
           "windup": 0.12,
           "active": 0.15,
-          "recovery": 0.20
+          "recovery": 0.2
         },
         "combo_window": {
-          "start": 0.10,
+          "start": 0.1,
           "end": 0.38
         },
         "pose": {
-          "Arm_R": [ 40.0, -70.0, 20.0 ],
-          "Torso": [ 5.0, 45.0, -10.0 ]
+          "Arm_R": [
+            40.0,
+            -70.0,
+            20.0
+          ],
+          "Torso": [
+            5.0,
+            45.0,
+            -10.0
+          ]
         },
         "transitions": {
           "F_CLICK": "normal_2",
@@ -49,12 +74,20 @@
           "recovery": 0.22
         },
         "combo_window": {
-          "start": 0.10,
+          "start": 0.1,
           "end": 0.38
         },
         "pose": {
-          "Arm_R": [ 40.0, 70.0, -20.0 ],
-          "Torso": [ 5.0, -45.0, 10.0 ]
+          "Arm_R": [
+            40.0,
+            70.0,
+            -20.0
+          ],
+          "Torso": [
+            5.0,
+            -45.0,
+            10.0
+          ]
         },
         "transitions": {
           "F_CLICK": "normal_1",
@@ -69,15 +102,23 @@
         "timings": {
           "windup": 0.25,
           "active": 0.18,
-          "recovery": 0.30
+          "recovery": 0.3
         },
         "combo_window": {
           "start": 0.15,
           "end": 0.42
         },
         "pose": {
-          "Arm_R": [ 115.0, -10.0, 0.0 ],
-          "Torso": [ -20.0, 10.0, 0.0 ]
+          "Arm_R": [
+            115.0,
+            -10.0,
+            0.0
+          ],
+          "Torso": [
+            -20.0,
+            10.0,
+            0.0
+          ]
         },
         "transitions": {
           "F_CLICK": "heavy_2",
@@ -91,7 +132,7 @@
         "stamina_cost": 25.0,
         "timings": {
           "windup": 0.22,
-          "active": 0.20,
+          "active": 0.2,
           "recovery": 0.35
         },
         "combo_window": {
@@ -99,8 +140,16 @@
           "end": 0.0
         },
         "pose": {
-          "Arm_R": [ 120.0, 15.0, 0.0 ],
-          "Torso": [ -25.0, -15.0, 0.0 ]
+          "Arm_R": [
+            120.0,
+            15.0,
+            0.0
+          ],
+          "Torso": [
+            -25.0,
+            -15.0,
+            0.0
+          ]
         },
         "transitions": {}
       },
@@ -108,17 +157,25 @@
         "damage_multiplier": 0.85,
         "stamina_cost": 8.0,
         "timings": {
-          "windup": 0.10,
+          "windup": 0.1,
           "active": 0.16,
-          "recovery": 0.20
+          "recovery": 0.2
         },
         "combo_window": {
           "start": 0.08,
           "end": 0.32
         },
         "pose": {
-          "Arm_R": [ 85.0, 0.0, 0.0 ],
-          "Torso": [ 25.0, 0.0, 0.0 ]
+          "Arm_R": [
+            85.0,
+            0.0,
+            0.0
+          ],
+          "Torso": [
+            25.0,
+            0.0,
+            0.0
+          ]
         },
         "transitions": {
           "F_CLICK": "normal_1",

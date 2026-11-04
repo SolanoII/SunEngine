@@ -1,0 +1,112 @@
+{
+  "id": "slit_wall_pillar",
+  "comment": "Pilastro del muro con feritoia: lamiere rivettate, 0.975 x 2.0 x 0.4 m, origine a terra al centro, lato lungo sull'asse X.",
+  "anchors": {},
+  "parts": [
+    {
+      "name": "lastra",
+      "offset": [
+        0,
+        1.0,
+        0
+      ],
+      "size": [
+        0.975,
+        2.0,
+        0.36
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.5
+    },
+    {
+      "name": "piastra_alta",
+      "offset": [
+        0,
+        1.55,
+        -0.19
+      ],
+      "size": [
+        0.8,
+        0.5,
+        0.03
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    },
+    {
+      "name": "rivetti",
+      "offset": [
+        0,
+        0.6,
+        -0.19
+      ],
+      "size": [
+        0.7,
+        0.05,
+        0.03
+      ],
+      "color": [
+        0.7,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "dente",
+      "offset": [
+        0.2,
+        1.85,
+        -0.2
+      ],
+      "size": [
+        0.3,
+        0.12,
+        0.02
+      ],
+      "color": [
+        0.62,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    },
+    {
+      "name": "palo",
+      "offset": [
+        0,
+        1.0,
+        0.19
+      ],
+      "size": [
+        0.08,
+        2.0,
+        0.04
+      ],
+      "color": [
+        0.15,
+        0.14,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.7
+    }
+  ]
+}

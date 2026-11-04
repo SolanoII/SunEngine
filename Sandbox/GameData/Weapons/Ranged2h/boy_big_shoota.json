@@ -1,0 +1,70 @@
+{
+  "id": "boy_big_shoota",
+  "displayName": "Big Shoota",
+  "comment": "Sbloccabile dell'ork boy: mitragliatrice a due mani, 36 colpi a caricatore e 108 di riserva. Spara tanto e male, come piace agli orki.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_boy"
+  ],
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 11.0,
+  "point_cost": 8,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 36,
+  "spare_magazines": 3,
+  "reload_time_sec": 3.2,
+  "fire_modes": [
+    "auto"
+  ],
+  "rate_of_fire": 600.0,
+  "base_damage": 20.0,
+  "armor_penetration": 2,
+  "impact_force": 20.0,
+  "toughness_bypass": 0.0,
+  "range_effective": 40.0,
+  "damage_falloff_start": 18.0,
+  "damage_falloff_end": 40.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 1.8,
+  "shake_intensity": 0.12,
+  "fov_kick": 1.0,
+  "spread_base": 0.3,
+  "spread_auto_multiplier": 1.4,
+  "suppression_value": 8,
+  "projectile_type": "ballistic",
+  "is_beam": false,
+  "projectile_speed": 140.0,
+  "projectile_length": 0.45,
+  "projectile_width": 0.07,
+  "primary_color": [
+    1.0,
+    0.6,
+    0.15,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    0.85,
+    0.5,
+    1.0
+  ],
+  "weapon_scale": [
+    0.14,
+    0.18,
+    0.9
+  ],
+  "hold_offset": [
+    0.35,
+    -0.12,
+    -0.25
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.5
+  ],
+  "heat_recoil_multiplier": 1.0
+}

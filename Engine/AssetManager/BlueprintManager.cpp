@@ -1,4 +1,5 @@
 #include "BlueprintManager.h"
+#include "GarmentJson.h"
 #include "../Core/Logger/Log.h"
 #include <algorithm>
 #include <fstream>
@@ -14,6 +15,38 @@ namespace SunEngine {
         if (locStr == "LeftLeg")  return HitboxLocation::LeftLeg;
         if (locStr == "RightLeg") return HitboxLocation::RightLeg;
         return HitboxLocation::Torso;
+    }
+
+    // Skin sul campo: "skin_blocks" {"Blocco": [r,g,b]} e "skin_parts" [{block, offset, bone, bone_offset, size, color, ...}]
+    static void ParseSkin(const nlohmann::json& j, std::vector<std::pair<std::string, glm::vec4>>& blockColors, std::vector<ArmorSkinPart>& parts,
+                          std::vector<GarmentDef>* garments) {
+        if (garments) ParseGarments(j, *garments);   // strati sul modello animato
+        auto readVec3 = [](const nlohmann::json& a, glm::vec3 def) {
+            if (a.is_array() && a.size() >= 3) return glm::vec3(a[0].get<float>(), a[1].get<float>(), a[2].get<float>());
+            return def;
+        };
+        auto readColor = [](const nlohmann::json& a) {
+            glm::vec4 c(0.5f, 0.5f, 0.5f, 1.0f);
+            if (a.is_array() && a.size() >= 3) c = glm::vec4(a[0].get<float>(), a[1].get<float>(), a[2].get<float>(), a.size() >= 4 ? a[3].get<float>() : 1.0f);
+            return c;
+        };
+        if (j.contains("skin_blocks") && j["skin_blocks"].is_object()) {
+            for (auto& [blockName, col] : j["skin_blocks"].items()) blockColors.push_back({ blockName, readColor(col) });
+        }
+        if (j.contains("skin_parts") && j["skin_parts"].is_array()) {
+            for (const auto& jp : j["skin_parts"]) {
+                ArmorSkinPart part;
+                part.block = jp.value("block", std::string());
+                part.offset = readVec3(jp.value("offset", nlohmann::json()), glm::vec3(0.0f));
+                part.bone = jp.value("bone", std::string());
+                part.boneOffset = readVec3(jp.value("bone_offset", nlohmann::json()), glm::vec3(0.0f));
+                part.size = readVec3(jp.value("size", nlohmann::json()), glm::vec3(0.1f));
+                part.color = readColor(jp.value("color", nlohmann::json()));
+                part.roughness = jp.value("roughness", 0.7f);
+                part.metallic = jp.value("metallic", 0.0f);
+                parts.push_back(part);
+            }
+        }
     }
 
     BlueprintManager& BlueprintManager::Get() {
@@ -54,6 +87,12 @@ namespace SunEngine {
                 bp.pointCost = j.value("point_cost", 0);
                 bp.faction = j.value("faction", "Neutral");
                 bp.unitRestriction = j.value("unit_restriction", "");
+                if (j.contains("allowed_units") && j["allowed_units"].is_array()) {
+                    for (const auto& u : j["allowed_units"]) if (u.is_string()) bp.allowed_units.push_back(u.get<std::string>());
+                }
+                bp.blocks_headshot_bonus = j.value("blocks_headshot_bonus", false);
+
+                ParseSkin(j, bp.skinBlockColors, bp.skinParts, &bp.garments);
 
                 m_Armors[bp.id] = bp;
                 SUN_CORE_INFO("Armatura caricata: [{0}] {1} (ID: {2})", bp.faction, bp.displayName, bp.id);
@@ -100,6 +139,7 @@ namespace SunEngine {
                 bp.special_ability = j.value("special_ability", "none");
                 bp.parry_blocks_ranged = j.value("parry_blocks_ranged", false);
                 bp.melee_reach = j.value("melee_reach", 1.85f);
+                bp.heavy_lunge_distance = j.value("heavy_lunge_distance", 0.0f);
 
                 bp.weight_kg = j.value("weight_kg", 0.0f);
                 bp.point_cost = j.value("point_cost", 5);
@@ -129,6 +169,23 @@ namespace SunEngine {
                 bp.companion_attack_interval = j.value("companion_attack_interval", 1.0f);
                 bp.explosion_radius = j.value("explosion_radius", 0.0f);
                 bp.explosion_damage = j.value("explosion_damage", 0.0f);
+                bp.companion_health = j.value("companion_health", 30.0f);
+                if (j.contains("barricade_size") && j["barricade_size"].is_array() && j["barricade_size"].size() >= 3)
+                    bp.barricade_size = glm::vec3(j["barricade_size"][0].get<float>(), j["barricade_size"][1].get<float>(), j["barricade_size"][2].get<float>());
+                bp.heal_per_second = j.value("heal_per_second", 0.0f);
+                bp.fuse_time = j.value("fuse_time", 3.0f);
+                bp.throw_speed = j.value("throw_speed", 14.0f);
+                bp.trigger_radius = j.value("trigger_radius", 0.9f);
+                bp.explode_on_impact = j.value("explode_on_impact", false);
+                bp.structure_damage_multiplier = j.value("structure_damage_multiplier", 1.0f);
+                bp.structure_health = j.value("structure_health", 250.0f);
+                bp.ammo_capacity_bonus = j.value("ammo_capacity_bonus", 0.0f);
+                {
+                    std::vector<std::pair<std::string, glm::vec4>> unusedColors;   // la dotazione aggiunge solo pezzi
+                    ParseSkin(j, unusedColors, bp.skinParts, &bp.garments);
+                }
+                bp.effect_duration = j.value("effect_duration", 0.0f);
+                bp.companion_evasion = j.value("companion_evasion", 0.30f);
                 if (j.contains("allowed_units") && j["allowed_units"].is_array()) {
                     for (const auto& u : j["allowed_units"]) if (u.is_string()) bp.allowed_units.push_back(u.get<std::string>());
                 }
@@ -305,6 +362,11 @@ namespace SunEngine {
                 bp.weight_capacity = j.value("weight_capacity", 60.0f);
                 bp.weightCapacity = bp.weight_capacity;
                 bp.ammo_multiplier = j.value("ammo_multiplier", 1.0f);
+                bp.loadout_version = j.value("loadout_version", 0);
+                bp.no_melee = j.value("no_melee", false);
+                bp.melee_fallback = j.value("melee_fallback", std::string());
+                bp.strict_loadout = j.value("strict_loadout", false);
+                if (j.contains("base_skin") && j["base_skin"].is_object()) ParseSkin(j["base_skin"], bp.baseSkinBlockColors, bp.baseSkinParts, &bp.baseGarments);
                 if (j.contains("default_loadout") && j["default_loadout"].is_object()) {
                     const auto& lj = j["default_loadout"];
                     bp.has_default_loadout = true;
@@ -314,6 +376,13 @@ namespace SunEngine {
                     if (lj.contains("equipment") && lj["equipment"].is_array()) {
                         for (size_t i = 0; i < 3 && i < lj["equipment"].size(); ++i)
                             if (lj["equipment"][i].is_string()) bp.default_equipment[i] = lj["equipment"][i].get<std::string>();
+                    }
+                    // Armatura/vesti base: "armor": {"head": "", "torso": "...", "arm_l", "arm_r", "leg_l", "leg_r"}
+                    if (lj.contains("armor") && lj["armor"].is_object()) {
+                        const auto& aj = lj["armor"];
+                        bp.has_default_armor = true;
+                        const char* keys[6] = { "head", "torso", "arm_l", "arm_r", "leg_l", "leg_r" };
+                        for (int i = 0; i < 6; ++i) bp.default_armor[i] = aj.value(keys[i], std::string());
                     }
                 }
 

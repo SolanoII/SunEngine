@@ -21,7 +21,8 @@ namespace SunEngine {
     // impostazioni; la "Pietra Nera" (valuta a pagamento) e' qui solo un SALDO segnaposto. Quando ci
     // sara' un acquisto reale il saldo dovra' vivere lato server.
     struct PlayerProfile {
-        static constexpr int kVersion = 1;
+        // 2 = punti studio ed energia in migliaia (un'uccisione vecchia = 1000): i profili v1 vengono moltiplicati x1000
+        static constexpr int kVersion = 2;
 
         // --- Impostazioni ---
         int   resolutionIdx = 0;
@@ -32,8 +33,9 @@ namespace SunEngine {
         bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
 
         // --- Valute ---
-        int64_t energy = 0;       // valuta principale (1 per ogni orco ucciso)
+        int64_t energy = 0;       // valuta principale: a fine partita meta' dei punti studio guadagnati
         int64_t blackStone = 0;   // "Pietra Nera": valuta premium (a pagamento)
+        bool vip = false;         // VIP (negozio, 1000 Pietra Nera): +25% di punti studio ed energia a fine partita
 
         // --- Progressione ---
         // Punti studio per TIPO di unita' (id blueprint): si guadagnano giocando con quell'unita' e si
@@ -71,6 +73,7 @@ namespace SunEngine {
                               {"volumeSFX", volumeSFX}, {"volumeVoice", volumeVoice}, {"volumeMusic", volumeMusic},
                               {"animatedPlayer", animatedPlayer} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
+            j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
             nlohmann::json w = nlohmann::json::object();
             std::vector<std::string> keys;
@@ -123,6 +126,12 @@ namespace SunEngine {
                 if (r.contains("researchedNodes") && r["researchedNodes"].is_array()) {
                     for (const auto& v : r["researchedNodes"]) if (v.is_string()) p.researchedNodes.insert(v.get<std::string>());
                 }
+            }
+            if (j.contains("shop") && j["shop"].is_object()) p.vip = j["shop"].value("vip", false);
+            // Profilo salvato prima della scala x1000: energia e punti studio passano alle migliaia
+            if (j.value("version", 1) < 2) {
+                p.energy *= 1000;
+                for (auto& kv : p.studyPoints) kv.second *= 1000;
             }
             if (j.contains("garage") && j["garage"].is_object()) {
                 const auto& g = j["garage"];

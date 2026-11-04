@@ -108,7 +108,7 @@ namespace SunEngine {
 
         int CountTeamNear(entt::registry& reg, int team, const glm::vec3& p, float radius, entt::entity except) {
             int n = 0;
-            auto view = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+            auto view = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
             for (auto e : view) {
                 if (e == except || view.get<TeamComponent>(e).team != team) continue;
                 if (view.get<HealthComponent>(e).currentHealth <= 0.0f) continue;
@@ -233,6 +233,7 @@ namespace SunEngine {
             }
 
             Resupply(scene, self, brain, deltaTime);
+            TryGrenade(scene, self, brain, deltaTime);
             TryParry(scene, self, brain);
             Move(scene, navQuery, self, brain, deltaTime);
             AimAndFire(scene, self, brain, deltaTime);
@@ -281,10 +282,11 @@ namespace SunEngine {
             const glm::vec3 theirFwd = YawForward(reg.get<TransformComponent>(s.e).AimYaw);
             glm::vec3 toMe = t.Position - reg.get<TransformComponent>(s.e).Position; toMe.y = 0.0f;
             const bool facingMe = glm::length(toMe) > 1e-3f && glm::dot(theirFwd, glm::normalize(toMe)) > 0.5f;
+            const float squigPenalty = reg.all_of<SquigComponent>(s.e) ? 35.0f : 0.0f;   // prima le unita', poi gli squig
             switch (role) {
-            case BotRole::Ranged:    return s.dist * 0.5f + frac * 25.0f + (facingMe ? 6.0f : 0.0f) + (s.dist > range ? 30.0f : 0.0f);
-            case BotRole::Versatile: return s.dist * 1.0f + frac * 15.0f;
-            default:                 return s.dist + frac * 4.0f;
+            case BotRole::Ranged:    return squigPenalty + s.dist * 0.5f + frac * 25.0f + (facingMe ? 6.0f : 0.0f) + (s.dist > range ? 30.0f : 0.0f);
+            case BotRole::Versatile: return squigPenalty + s.dist * 1.0f + frac * 15.0f;
+            default:                 return squigPenalty + s.dist + frac * 4.0f;
             }
         };
         if (!seen.empty()) {
@@ -616,6 +618,30 @@ namespace SunEngine {
         const auto* ammo = reg.try_get<AmmoComponent>(self);
         if (!inv || !ammo) { brain.resupplySlot = -1; return; }
         if (ammo->useTimer > 0.0f) return;   // rifornimento in corso: tiene la scatola in mano
+        const bool notFighting = !(brain.targetVisible || brain.intent == BotIntent::Charge || brain.intent == BotIntent::Melee);
+
+        // Zaino di cibo: lo posa quando lui o un compagno vicino e' sotto meta' salute e non sta combattendo
+        for (int s = 4; s <= 6 && notFighting; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!bp || bp->equipment_type != "food_pack" || ammo->equipmentUses[s - 4] <= 0) continue;
+            auto lowHp = [&](entt::entity u) {
+                const auto* h = reg.try_get<HealthComponent>(u);
+                return h && h->currentHealth > 0.0f && h->maxHealth > 0.0f && h->currentHealth < h->maxHealth * 0.5f;
+            };
+            bool need = lowHp(self);
+            if (!need) {
+                const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+                auto view = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                for (auto o : view) {
+                    if (o == self || !SameTeam(reg, self, o)) continue;
+                    if (HorizontalDist(view.get<TransformComponent>(o).Position, me) <= bp->equipment_range * 0.8f && lowHp(o)) { need = true; break; }
+                }
+            }
+            if (!need) break;
+            brain.resupplySlot = s;
+            if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+            return;
+        }
 
         int boxSlot = -1;
         float boxRange = 5.0f;
@@ -655,6 +681,44 @@ namespace SunEngine {
         auto& trigger = reg.get_or_emplace<WeaponTriggerComponent>(self);
         if (selfNeeds) trigger.useEquipment = true;
         else { trigger.giveEquipment = true; trigger.giveTarget = ally; }
+    }
+
+    // Granata: se vede il bersaglio fra 7 e 22 metri, senza compagni vicino al bersaglio, ogni tanto prende la
+    // granata e gliela tira (parabola calcolata da EquipmentSystem su giveTarget)
+    void BotAISystem::TryGrenade(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {
+        auto& reg = scene.GetRegistry();
+        brain.grenadeCooldown -= dt;
+        const auto* inv = reg.try_get<InventoryComponent>(self);
+        const auto* ammo = reg.try_get<AmmoComponent>(self);
+        if (!inv || !ammo) return;
+        int slot = -1;
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (bp && bp->equipment_type == "grenade" && ammo->equipmentUses[s - 4] > 0) { slot = s; break; }
+        }
+        const bool targetOk = brain.target != entt::null && Alive(reg, brain.target) && brain.targetVisible;
+        if (brain.throwingGrenade) {
+            if (slot < 0 || !targetOk) { brain.throwingGrenade = false; if (brain.resupplySlot == slot || slot < 0) brain.resupplySlot = -1; return; }
+            brain.resupplySlot = slot;
+            if (inv->currentSlot == slot) {
+                auto& trigger = reg.get_or_emplace<WeaponTriggerComponent>(self);
+                trigger.useEquipment = true;
+                trigger.giveTarget = brain.target;
+                brain.throwingGrenade = false;
+                brain.resupplySlot = -1;
+                brain.grenadeCooldown = Random::Range(10.0f, 18.0f);
+            }
+            return;
+        }
+        if (slot < 0 || brain.grenadeCooldown > 0.0f || !targetOk) return;
+        const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+        const glm::vec3 tp = reg.get<TransformComponent>(brain.target).Position;
+        const float d = HorizontalDist(me, tp);
+        if (d < 7.0f || d > 22.0f) return;
+        if (CountTeamNear(reg, TeamOf(reg, self), tp, 4.5f, self) > 0) { brain.grenadeCooldown = 1.5f; return; }   // compagni vicino al bersaglio
+        if (!Random::Chance(0.5f)) { brain.grenadeCooldown = 2.5f; return; }
+        brain.throwingGrenade = true;
+        brain.resupplySlot = slot;
     }
 
     void BotAISystem::DoMelee(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {

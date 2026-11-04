@@ -1,0 +1,107 @@
+{
+  "id": "arm_r_loota_plate",
+  "displayName": "Piastra del Deffgun (dx)",
+  "comment": "Dotazione base del loota: piastra sul braccio destro, quello coperto dal deffgun. E' l'unico braccio che il loota puo' corazzare.",
+  "location": "RightArm",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_loota"
+  ],
+  "armor_rating": 12,
+  "coverage": 0.85,
+  "max_durability": 45.0,
+  "weight": 4.0,
+  "point_cost": 1,
+  "skin_blocks": {
+    "Shoulder_R": [
+      0.32,
+      0.3,
+      0.28,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.0,
+        -0.18,
+        -0.185
+      ],
+      "bone": "mixamorig1:RightForeArm",
+      "bone_offset": [
+        0.0,
+        -0.12,
+        -0.05
+      ],
+      "size": [
+        0.3,
+        0.4,
+        0.05
+      ],
+      "color": [
+        0.47,
+        0.28,
+        0.15,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.4
+    },
+    {
+      "block": "",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "bone": "mixamorig1:RightArm",
+      "bone_offset": [
+        0.0,
+        0.09,
+        0.0
+      ],
+      "size": [
+        0.54,
+        0.18,
+        0.54
+      ],
+      "color": [
+        0.32,
+        0.3,
+        0.28,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.6
+    }
+  ],
+  "garments": [
+    {
+      "id": "loota_plate_arm_r",
+      "bones": [
+        "RightArm",
+        "RightForeArm",
+        "RightShoulder"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.82,
+        1.0
+      ],
+      "inflate": 0.016,
+      "plate_cells": 5,
+      "plate_step": 0.007,
+      "texture": "Textures/Garments/ork_plate.png",
+      "tex_tiles": 4,
+      "color": [
+        0.95,
+        0.75,
+        0.6,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.6
+    }
+  ]
+}

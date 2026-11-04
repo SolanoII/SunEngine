@@ -1,0 +1,70 @@
+{
+  "id": "loota_deffgun_plasma",
+  "displayName": "Plasma Deffgun",
+  "comment": "Sbloccabile del loota: deffgun al plasma. Pochi colpi pesantissimi che sciolgono le corazze. 8 colpi, 16 di riserva.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_loota"
+  ],
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "point_cost": 14,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "weight_kg": 17.0,
+  "magazine_size": 8,
+  "spare_magazines": 2,
+  "reload_time_sec": 4.0,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 60.0,
+  "base_damage": 70.0,
+  "armor_penetration": 10,
+  "impact_force": 40.0,
+  "toughness_bypass": 0.3,
+  "range_effective": 55.0,
+  "damage_falloff_start": 35.0,
+  "damage_falloff_end": 55.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 2.0,
+  "shake_intensity": 0.18,
+  "fov_kick": 1.6,
+  "spread_base": 0.05,
+  "spread_auto_multiplier": 1.0,
+  "suppression_value": 10,
+  "projectile_type": "plasma",
+  "is_beam": false,
+  "projectile_speed": 70.0,
+  "projectile_length": 0.8,
+  "projectile_width": 0.18,
+  "primary_color": [
+    0.3,
+    0.7,
+    1.0,
+    1.0
+  ],
+  "core_color": [
+    0.85,
+    0.95,
+    1.0,
+    1.0
+  ],
+  "weapon_scale": [
+    0.2,
+    0.25,
+    1.0
+  ],
+  "hold_offset": [
+    0.35,
+    -0.05,
+    -0.25
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.55
+  ],
+  "heat_recoil_multiplier": 1.0
+}
