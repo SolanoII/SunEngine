@@ -1911,6 +1911,12 @@ namespace SunEngine {
         std::string unitId;
         if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity)) unitId = uid->id;
         auto& log = XpEventLog();
+        // Aiuti ai compagni per gli ordini della Guardia (munizioni date, cure, strutture costruite e che assorbono)
+        for (const auto& ev : log) {
+            if (ev.source != m_PlayerEntity) continue;
+            if (ev.category == XpCategory::AmmoAlly || ev.category == XpCategory::Heal || ev.category == XpCategory::Build) m_OrdersAssistAccum += ev.xp * 0.1f;
+            else if (ev.category == XpCategory::Absorb) m_OrdersAssistAccum += ev.xp * 0.05f;
+        }
         if (m_MatchXpApplied || unitId.empty()) { log.clear(); return; }
         auto& lines = m_MatchXp[unitId];
         for (const auto& ev : log) {
@@ -2061,24 +2067,116 @@ namespace SunEngine {
     // HUD munizioni in basso a destra: nome dell'arma in mano, "caricatore / riserva" e stato.
     // Con la scatola di munizioni in mano: usi rimasti, comandi e barra del rifornimento in corso.
     // ===================== BUFF DI FAZIONE =====================
+    // Si attiva col tasto V. Il contatore resta se rientri con un'altra unita' della stessa fazione e si azzera se
+    // passi a un'altra fazione. Vale solo per l'unita' del giocatore.
+    //
     // Orki: WAAAGH!. La scritta "Waaagh!" ha 7 caratteri da 50 punti (350). Si carica con i danni inflitti e
-    // subiti dal giocatore; piena, parte da sola: per 20 secondi +15% velocita', +40% velocita' di ricarica,
-    // +20% velocita' dei colpi in mischia, +15% danni in mischia. Durante il buff la scritta si svuota e alla fine
-    // riparte da 0. Il contatore resta se rientri con un'altra unita' orka, si azzera se passi a un'altra fazione.
+    // subiti; piena, si scatena con V: per 20 secondi +15% velocita', +40% velocita' di ricarica, +20% velocita'
+    // dei colpi in mischia, +15% danni in mischia. Se non combatti per piu' di 5 secondi (sparare con un nemico in
+    // vista o colpire in mischia con un nemico entro 5 m) la barra inizia a svuotarsi.
+    //
+    // Guardia imperiale: FOLLOW ORDERS (300 punti). Si carica con la coesione (compagni entro 12 m, fino a 4; non
+    // nei primi 10 secondi dopo ogni schieramento), i danni inflitti e gli aiuti ai compagni. Scende se dai le
+    // spalle a un nemico che ti vede ed e' a portata: la Guardia non arretra. Piena, V tenuto apre il selettore
+    // radiale (mouse per scegliere, rilascia per dare l'ordine), 10 secondi:
+    //   Take AIM!          +30% cadenza, -30% dispersione
+    //   Take Cover         -15% danni subiti, immune agli stordimenti per i primi 3 secondi
+    //   MOVE MOVE MOVE!    +20% velocita', immune ai rallentamenti
+    //   Fix Bayonets!      +15% danni in mischia, +20% recupero della stamina
+    static const char* kOrderNames[4] = { "Take AIM!", "Take Cover", "MOVE MOVE MOVE!", "Fix Bayonets!" };
+    static const char* kOrderEffects[4] = { "+30% cadenza   -30% dispersione", "-15% danni subiti   immune agli stordimenti (3 s)",
+                                            "+20% velocita'   immune ai rallentamenti", "+15% danni in mischia   +20% recupero stamina" };
+
     void GameLayer::ResetFactionBuff() {
         m_FactionBuffFaction.clear();
         m_WaaaghPoints = 0.0f;
         m_WaaaghTimer = 0.0f;
         m_WaaaghPrevHp = -1.0f;
+        m_FactionFightIdle = 0.0f;
+        m_OrdersAssistAccum = 0.0f;
+        m_OrderActive = -1;
+        m_OrderTimer = 0.0f;
+        m_CohesionDelay = 10.0f;
+        m_RadialOpen = false;
+        m_RadialVec = glm::vec2(0.0f);
         PlayerDamageDealtAccum() = 0.0f;
         auto& reg = m_Scene.GetRegistry();
         if (reg.valid(m_PlayerEntity) && reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
+        if (reg.valid(m_PlayerEntity)) if (auto* st = reg.try_get<UnitStatsComponent>(m_PlayerEntity)) st->damageTakenMult = 1.0f;
+    }
+
+    // Effetti dell'ordine in corso (ogni frame: dopo un rientro l'unita' nuova li riprende)
+    void GameLayer::ApplyOrderBuff() {
+        auto& reg = m_Scene.GetRegistry();
+        auto* st = reg.try_get<UnitStatsComponent>(m_PlayerEntity);
+        if (m_OrderActive < 0) {
+            if (reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
+            if (st) st->damageTakenMult = 1.0f;
+            return;
+        }
+        auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
+        b = FactionBuffComponent{};
+        if (st) st->damageTakenMult = 1.0f;
+        switch (m_OrderActive) {
+        case 0: b.fireRateMult = 1.30f; b.spreadMult = 0.70f; break;
+        case 1: if (st) st->damageTakenMult = 0.85f; b.stunImmuneTimer = std::max(0.0f, m_OrderTimer - (kOrderDuration - 3.0f)); break;
+        case 2: b.moveSpeedMult = 1.20f; b.ignoreSlows = true; break;
+        case 3: b.meleeDamageMult = 1.15f; b.staminaRegenMult = 1.20f; break;
+        default: break;
+        }
+    }
+
+    // Nemici in vista dal giocatore (linea di vista dagli occhi), ogni 0,2 s: davanti entro la portata dell'arma
+    // (orki: "sta combattendo") e alle spalle entro la portata (Guardia: "volta le spalle al nemico").
+    void GameLayer::ScanFactionEnemies() {
+        auto& reg = m_Scene.GetRegistry();
+        m_FactionEnemyFront = m_FactionEnemyBehind = false;
+        m_FactionNearestEnemy = 1e9f;
+        if (!reg.valid(m_PlayerEntity)) return;
+        const auto& pt = reg.get<TransformComponent>(m_PlayerEntity);
+        float footY = pt.Position.y, height = 1.8f;
+        if (const auto* c = reg.try_get<ColliderComponent>(m_PlayerEntity)) {
+            height = std::max(0.6f, c->halfExtents.y * 2.0f * pt.Scale.y);
+            footY = pt.Position.y + (c->localCenterOffset.y - c->halfExtents.y) * pt.Scale.y;
+        }
+        const glm::vec3 eye(pt.Position.x, footY + height * 0.88f, pt.Position.z);
+        const float yr = glm::radians(pt.AimYaw);
+        const glm::vec3 fwd(-std::sin(yr), 0.0f, -std::cos(yr));
+        float range = 40.0f;
+        if (const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity)) {
+            const WeaponBlueprint* w = Ammo::RangedAt(*inv, 0);
+            if (!w) w = Ammo::RangedAt(*inv, 1);
+            if (w) range = std::clamp(w->range_effective, 25.0f, 60.0f);
+        }
+        const auto* myTeam = reg.try_get<TeamComponent>(m_PlayerEntity);
+        auto view = reg.view<TransformComponent, HealthComponent, UnitStatsComponent>(entt::exclude<CorpseComponent, PlayerTag>);
+        for (auto o : view) {
+            if (view.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+            if (const auto* sq = reg.try_get<SquigComponent>(o); sq && sq->owner == m_PlayerEntity) continue;
+            bool enemy;
+            if (const auto* ot = reg.try_get<TeamComponent>(o)) enemy = !myTeam || ot->team != myTeam->team;
+            else enemy = reg.any_of<HordeAgentComponent, TrainingDummyComponent>(o);
+            if (!enemy) continue;
+            const glm::vec3 op = view.get<TransformComponent>(o).Position;
+            glm::vec3 to = op - pt.Position; to.y = 0.0f;
+            const float d = glm::length(to);
+            m_FactionNearestEnemy = std::min(m_FactionNearestEnemy, d);
+            if (d > range || d < 1e-3f) continue;
+            const float dot = glm::dot(fwd, to / d);
+            const bool front = dot > 0.5f, behind = dot < -0.34f;   // davanti: +-60 gradi; alle spalle: oltre 110 gradi
+            if ((!front || m_FactionEnemyFront) && (!behind || m_FactionEnemyBehind)) continue;
+            if (!HasLineOfSight(m_Scene, eye, op + glm::vec3(0.0f, 1.0f, 0.0f), m_PlayerEntity)) continue;
+            if (front) m_FactionEnemyFront = true;
+            if (behind) m_FactionEnemyBehind = true;
+        }
     }
 
     void GameLayer::UpdateFactionBuff(float deltaTime) {
         auto& reg = m_Scene.GetRegistry();
         float dealt = PlayerDamageDealtAccum();
         PlayerDamageDealtAccum() = 0.0f;
+        float assist = m_OrdersAssistAccum;
+        m_OrdersAssistAccum = 0.0f;
         if (!reg.valid(m_PlayerEntity)) return;
 
         std::string faction;
@@ -2086,39 +2184,157 @@ namespace SunEngine {
         if (faction != m_FactionBuffFaction) {   // cambio di fazione: si riparte da zero
             ResetFactionBuff();
             m_FactionBuffFaction = faction;
-            dealt = 0.0f;
+            dealt = assist = 0.0f;
         }
 
         // Danni subiti: calo della salute del giocatore (il rientro con salute piena non conta)
         float taken = 0.0f;
-        if (const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) {
+        const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
+        if (hp) {
             if (m_WaaaghPrevHp >= 0.0f && hp->currentHealth < m_WaaaghPrevHp) taken = m_WaaaghPrevHp - std::max(0.0f, hp->currentHealth);
             m_WaaaghPrevHp = std::max(0.0f, hp->currentHealth);
         }
+        const bool alive = hp && hp->currentHealth > 0.0f && !reg.all_of<CorpseComponent>(m_PlayerEntity);
+        if (alive && !m_FactionWasAlive) m_CohesionDelay = 10.0f;   // appena schierato (inizio partita o rientro)
+        m_FactionWasAlive = alive;
+        if (alive) m_CohesionDelay = std::max(0.0f, m_CohesionDelay - deltaTime);
 
-        if (faction != "orks") return;
-        if (m_WaaaghTimer > 0.0f) {
-            m_WaaaghTimer -= deltaTime;
-            if (m_WaaaghTimer <= 0.0f) {
-                m_WaaaghTimer = 0.0f;
-                m_WaaaghPoints = 0.0f;
-                if (reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
-                SUN_CORE_INFO("WAAAGH! finita");
+        // Tasto V (fronte di salita / rilascio)
+        const bool canInput = alive && !m_IsPaused && m_GameState == GameState::Gameplay;
+        const bool keyDown = canInput && Input::IsKeyPressed(GLFW_KEY_V);
+        const bool keyPressed = keyDown && !m_FactionKeyWasDown;
+        const bool keyReleased = !keyDown && m_FactionKeyWasDown;
+        m_FactionKeyWasDown = keyDown;
+
+        // Combattimento del giocatore: sparo con un nemico in vista davanti, o colpo in mischia con un nemico entro 5 m
+        m_FactionScanTimer -= deltaTime;
+        if (m_FactionScanTimer <= 0.0f) { m_FactionScanTimer = 0.2f; ScanFactionEnemies(); }
+        bool fought = false;
+        if (alive) {
+            const auto* ws = reg.try_get<WeaponStateComponent>(m_PlayerEntity);
+            const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
+            if (ws && inv) {
+                if (inv->currentSlot == m_FactionPrevSlot && ws->currentAmmo < m_FactionPrevAmmo && m_FactionEnemyFront) fought = true;
+                m_FactionPrevAmmo = ws->currentAmmo; m_FactionPrevSlot = inv->currentSlot;
             }
-            else {
-                // Anche dopo un rientro con un'altra unita' orka il buff resta per il tempo che manca
+            if (const auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
+                const bool windup = melee->currentPhase == MeleePhase::Windup;
+                if (windup && !m_FactionPrevWindup && m_FactionNearestEnemy <= 5.0f) fought = true;
+                m_FactionPrevWindup = windup;
+            }
+        }
+
+        if (faction == "orks") {
+            if (m_WaaaghTimer > 0.0f) {
+                m_WaaaghTimer -= deltaTime;
+                if (m_WaaaghTimer <= 0.0f) {
+                    m_WaaaghTimer = 0.0f;
+                    m_WaaaghPoints = 0.0f;
+                    if (reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
+                    SUN_CORE_INFO("WAAAGH! finita");
+                }
+                else {
+                    // Anche dopo un rientro con un'altra unita' orka il buff resta per il tempo che manca
+                    auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
+                    b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
+                }
+                return;
+            }
+            m_WaaaghPoints = std::min(kWaaaghMax, m_WaaaghPoints + dealt + taken);
+            // Senza combattere per piu' di 5 secondi la barra si svuota (25 punti al secondo)
+            m_FactionFightIdle = (fought || dealt > 0.0f) ? 0.0f : m_FactionFightIdle + deltaTime;
+            if (m_FactionFightIdle > 5.0f) m_WaaaghPoints = std::max(0.0f, m_WaaaghPoints - 25.0f * deltaTime);
+            if (m_WaaaghPoints >= kWaaaghMax && keyPressed) {
+                m_WaaaghTimer = kWaaaghDuration;
                 auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
                 b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
+                SUN_CORE_INFO("WAAAGH!!! (20 s)");
             }
             return;
         }
-        m_WaaaghPoints = std::min(kWaaaghMax, m_WaaaghPoints + dealt + taken);
-        if (m_WaaaghPoints >= kWaaaghMax) {
-            m_WaaaghTimer = kWaaaghDuration;
-            auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
-            b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
-            SUN_CORE_INFO("WAAAGH!!! (20 s)");
+
+        if (faction == "imperium") {
+            if (m_OrderActive >= 0) {
+                m_RadialOpen = false;
+                m_OrderTimer -= deltaTime;
+                if (m_OrderTimer <= 0.0f) { m_OrderTimer = 0.0f; m_OrderActive = -1; m_WaaaghPoints = 0.0f; }
+                ApplyOrderBuff();
+                return;
+            }
+            ApplyOrderBuff();   // nessun ordine: niente effetti
+            // Carica: coesione (compagni entro 12 m, fino a 4: 2,5 punti al secondo ciascuno), danni, aiuti
+            float gain = dealt * 0.5f + assist;
+            if (alive && m_CohesionDelay <= 0.0f) {
+                if (const auto* myTeam = reg.try_get<TeamComponent>(m_PlayerEntity)) {
+                    const glm::vec3 me = reg.get<TransformComponent>(m_PlayerEntity).Position;
+                    int allies = 0;
+                    auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent>);
+                    for (auto o : mates) {
+                        if (mates.get<TeamComponent>(o).team != myTeam->team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                        const glm::vec3 op = mates.get<TransformComponent>(o).Position;
+                        if (glm::length(glm::vec2(op.x - me.x, op.z - me.z)) <= 12.0f) ++allies;
+                    }
+                    gain += std::min(allies, 4) * 2.5f * deltaTime;
+                }
+            }
+            m_WaaaghPoints = std::min(kOrdersMax, m_WaaaghPoints + gain);
+            // La Guardia non arretra: spalle a un nemico che ti vede e a portata = 20 punti al secondo persi
+            if (alive && m_FactionEnemyBehind) m_WaaaghPoints = std::max(0.0f, m_WaaaghPoints - 20.0f * deltaTime);
+
+            // Selettore radiale: V tenuto con la barra piena, il mouse sceglie, il rilascio da' l'ordine
+            if (keyPressed && m_WaaaghPoints >= kOrdersMax) { m_RadialOpen = true; m_RadialVec = glm::vec2(0.0f); }
+            if (m_RadialOpen && (!alive || m_IsPaused)) m_RadialOpen = false;
+            if (m_RadialOpen && keyReleased) {
+                m_RadialOpen = false;
+                if (glm::length(m_RadialVec) > 20.0f) {
+                    // 0 su, 1 destra, 2 giu', 3 sinistra (il mouse in su ha delta y negativo)
+                    const float a = glm::degrees(std::atan2(m_RadialVec.x, -m_RadialVec.y));
+                    const int sector = ((static_cast<int>(std::lround(a / 90.0f)) % 4) + 4) % 4;
+                    m_OrderActive = sector;
+                    m_OrderTimer = kOrderDuration;
+                    ApplyOrderBuff();
+                    SUN_CORE_INFO("Ordine: {0}", kOrderNames[sector]);
+                }
+            }
+            return;
         }
+        // Altre fazioni: nessun buff
+        m_RadialOpen = false;
+    }
+
+    // Selettore radiale degli ordini al centro dello schermo: 4 voci (su, destra, giu', sinistra)
+    void GameLayer::RenderOrdersRadial() {
+        if (!m_RadialOpen) return;
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        const ImVec2 c(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f);
+        const float R = 150.0f;
+        dl->AddCircleFilled(c, R + 40.0f, IM_COL32(10, 12, 10, 150), 48);
+        dl->AddCircle(c, R + 40.0f, IM_COL32(200, 170, 80, 200), 48, 2.0f);
+        int sel = -1;
+        if (glm::length(m_RadialVec) > 20.0f) {
+            const float a = glm::degrees(std::atan2(m_RadialVec.x, -m_RadialVec.y));
+            sel = ((static_cast<int>(std::lround(a / 90.0f)) % 4) + 4) % 4;
+        }
+        const ImVec2 dirs[4] = { ImVec2(0, -1), ImVec2(1, 0), ImVec2(0, 1), ImVec2(-1, 0) };
+        for (int i = 0; i < 4; ++i) {
+            const ImVec2 p(c.x + dirs[i].x * R, c.y + dirs[i].y * R);
+            const bool on = i == sel;
+            const ImVec2 ts = ImGui::CalcTextSize(kOrderNames[i]);
+            const ImVec2 es = ImGui::CalcTextSize(kOrderEffects[i]);
+            const float w = std::max(ts.x, es.x) * 0.5f + 12.0f;
+            dl->AddRectFilled(ImVec2(p.x - w, p.y - 24.0f), ImVec2(p.x + w, p.y + 24.0f), on ? IM_COL32(150, 115, 30, 235) : IM_COL32(40, 42, 36, 225), 6.0f);
+            dl->AddRect(ImVec2(p.x - w, p.y - 24.0f), ImVec2(p.x + w, p.y + 24.0f), on ? IM_COL32(255, 220, 110, 255) : IM_COL32(150, 140, 100, 200), 6.0f, 0, on ? 2.5f : 1.0f);
+            dl->AddText(ImVec2(p.x - ts.x * 0.5f, p.y - 18.0f), on ? IM_COL32(255, 245, 200, 255) : IM_COL32(230, 220, 190, 255), kOrderNames[i]);
+            dl->AddText(ImVec2(p.x - es.x * 0.5f, p.y + 2.0f), IM_COL32(190, 190, 170, 230), kOrderEffects[i]);
+        }
+        // Puntatore: dove sta andando il mouse
+        const glm::vec2 v = m_RadialVec * (R * 0.6f / 90.0f);
+        dl->AddLine(c, ImVec2(c.x + v.x, c.y + v.y), IM_COL32(255, 220, 110, 230), 3.0f);
+        dl->AddCircleFilled(c, 5.0f, IM_COL32(255, 220, 110, 255));
+        const char* title = "FOLLOW ORDERS   (muovi il mouse, rilascia V)";
+        const ImVec2 tt = ImGui::CalcTextSize(title);
+        dl->AddText(ImVec2(c.x - tt.x * 0.5f, c.y + R + 52.0f), IM_COL32(230, 210, 150, 255), title);
     }
 
     // In alto a sinistra: salute, sotto la stamina, sotto ancora il buff di fazione
@@ -2154,6 +2370,47 @@ namespace SunEngine {
             y += bh + 8.0f;
         }
 
+        if (m_FactionBuffFaction == "imperium") {
+            // "FOLLOW ORDERS": le lettere si accendono d'oro da sinistra a destra man mano che la barra si carica
+            const char* word = "FOLLOW ORDERS";
+            const int n = static_cast<int>(std::strlen(word));
+            const float size = 28.0f;
+            const bool active = m_OrderActive >= 0;
+            const float frac = active ? m_OrderTimer / kOrderDuration : m_WaaaghPoints / kOrdersMax;
+            const bool full = !active && m_WaaaghPoints >= kOrdersMax;
+            const float pulse = (active || full) ? 0.75f + 0.25f * std::sin(static_cast<float>(ImGui::GetTime()) * 8.0f) : 1.0f;
+            const ImU32 off = IM_COL32(70, 70, 66, 230);
+            const ImU32 on = IM_COL32(static_cast<int>(255 * pulse), static_cast<int>(205 * pulse), 70, 255);
+            float lx = x;
+            for (int i = 0; i < n; ++i) {
+                const char ch[2] = { word[i], 0 };
+                const ImVec2 ls = font->CalcTextSizeA(size, FLT_MAX, 0.0f, ch);
+                const float f = std::clamp(frac * n - i, 0.0f, 1.0f);
+                dl->AddText(font, size, ImVec2(lx + 2.0f, y + 2.0f), IM_COL32(0, 0, 0, 200), ch);
+                dl->AddText(font, size, ImVec2(lx, y), off, ch);
+                if (f > 0.0f) {
+                    dl->PushClipRect(ImVec2(lx, y), ImVec2(lx + ls.x * f, y + ls.y), true);
+                    dl->AddText(font, size, ImVec2(lx, y), on, ch);
+                    dl->PopClipRect();
+                }
+                lx += ls.x + 1.0f;
+            }
+            char info[96];
+            if (active) std::snprintf(info, sizeof(info), "%s  %.0f s", kOrderNames[m_OrderActive], std::ceil(m_OrderTimer));
+            else if (full) std::snprintf(info, sizeof(info), "PRONTO: tieni [V]");
+            else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_WaaaghPoints, kOrdersMax);
+            dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), (active || full) ? on : IM_COL32(200, 200, 200, 220), info);
+            float ly = y + size + 2.0f;
+            if (active) { dl->AddText(ImVec2(x, ly), IM_COL32(240, 220, 160, 230), kOrderEffects[m_OrderActive]); ly += 16.0f; }
+            else {
+                if (m_CohesionDelay > 0.0f) {
+                    char d[64]; std::snprintf(d, sizeof(d), "Coesione attiva tra %.0f s", std::ceil(m_CohesionDelay));
+                    dl->AddText(ImVec2(x, ly), IM_COL32(170, 170, 160, 220), d); ly += 16.0f;
+                }
+                if (m_FactionEnemyBehind) dl->AddText(ImVec2(x, ly), IM_COL32(255, 90, 70, 255), "Non voltare le spalle al nemico!");
+            }
+            return;
+        }
         if (m_FactionBuffFaction != "orks") return;
         // "Waaagh!": ogni carattere vale 50 punti e si accende di verde da sinistra a destra (anche a meta')
         static const char* kLetters[7] = { "W", "a", "a", "a", "g", "h", "!" };
@@ -2177,11 +2434,15 @@ namespace SunEngine {
             lx += ls.x + 1.0f;
         }
         char info[96];
+        const bool ready = !active && m_WaaaghPoints >= kWaaaghMax;
         if (active) std::snprintf(info, sizeof(info), "WAAAGH!  %.0f s", std::ceil(m_WaaaghTimer));
+        else if (ready) std::snprintf(info, sizeof(info), "PRONTA: premi [V]");
         else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_WaaaghPoints, kWaaaghMax);
-        dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), active ? on : IM_COL32(200, 200, 200, 220), info);
+        dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), (active || ready) ? on : IM_COL32(200, 200, 200, 220), info);
         if (active) dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(170, 240, 170, 230),
             "+15% velocita'  +40% ricarica  +20% colpi in mischia  +15% danni in mischia");
+        else if (m_FactionFightIdle > 5.0f && m_WaaaghPoints > 0.0f)
+            dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(255, 120, 80, 240), "Niente rissa: la WAAAGH! si sta spegnendo!");
     }
 
     // Animazioni procedurali del modello animato (ProceduralPose.h): accovacciato (se mancano le clip),
@@ -3203,9 +3464,15 @@ namespace SunEngine {
             glm::vec2 mouseDelta = Input::GetMouseDelta();
             float mouseSensitivity = 0.15f;
 
-            transform.AimYaw -= mouseDelta.x * mouseSensitivity;
-            transform.AimPitch -= mouseDelta.y * mouseSensitivity;
-            transform.AimPitch = std::clamp(transform.AimPitch, -85.0f, 85.0f);
+            if (m_RadialOpen) {   // selettore degli ordini aperto: il mouse sceglie, la visuale resta ferma
+                m_RadialVec += mouseDelta;
+                if (glm::length(m_RadialVec) > 90.0f) m_RadialVec = glm::normalize(m_RadialVec) * 90.0f;
+            }
+            else {
+                transform.AimYaw -= mouseDelta.x * mouseSensitivity;
+                transform.AimPitch -= mouseDelta.y * mouseSensitivity;
+                transform.AimPitch = std::clamp(transform.AimPitch, -85.0f, 85.0f);
+            }
 
             if (!Input::IsKeyPressed(GLFW_KEY_W) &&
                 !Input::IsKeyPressed(GLFW_KEY_S) &&
@@ -4269,6 +4536,7 @@ namespace SunEngine {
                 RenderHitMarkers();
                 RenderAmmoHUD();
                 RenderPlayerStatusHUD();
+                RenderOrdersRadial();
                 RenderTurretHUD();
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {

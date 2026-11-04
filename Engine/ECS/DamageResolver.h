@@ -44,6 +44,7 @@ namespace SunEngine {
                 finalHpDamage *= 0.8f;
             }
 
+            finalHpDamage *= stats.damageTakenMult;   // es. ordine "Take Cover"
             health.currentHealth -= finalHpDamage;
             if (health.currentHealth < 0.0f) health.currentHealth = 0.0f;
         }
@@ -155,6 +156,11 @@ namespace SunEngine {
 
                 float baseStunDuration = 2.2f;
                 float stunDuration = baseStunDuration * (100.0f / (100.0f + attackerStats.toughness));
+                // Immune agli stordimenti (ordine "Take Cover"): il colpo e' parato ma l'attaccante non resta stordito
+                if (const auto* buff = reg.try_get<FactionBuffComponent>(attacker); buff && buff->stunImmuneTimer > 0.0f) {
+                    attackerMelee.hasHitInThisAttack = true;
+                    return MeleeClashResult::Parried;
+                }
 
                 attackerMelee.currentPhase = MeleePhase::Stunned;
                 attackerMelee.stunTimer = stunDuration;

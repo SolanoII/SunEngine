@@ -456,6 +456,8 @@ namespace SunEngine {
         UnitStatsComponent& stats) {
         wState.currentAmmo = std::max(0, wState.currentAmmo - std::max(1, wpBP.ammo_per_shot));
         wState.fireCooldown = (wpBP.rate_of_fire > 0.0f) ? (60.0f / wpBP.rate_of_fire) : 0.15f;
+        const auto* orderBuff = scene.GetRegistry().try_get<FactionBuffComponent>(shooter);   // es. "Take AIM!"
+        if (orderBuff && orderBuff->fireRateMult > 0.0f) wState.fireCooldown /= orderBuff->fireRateMult;
 
         wState.currentHeat += 12.0f;
         if (wState.currentHeat >= wpBP.heat_capacity) {
@@ -565,6 +567,7 @@ namespace SunEngine {
             spreadBase = 0.09f;
         }
         float totalSpread = spreadBase + wState.currentSpread;
+        if (orderBuff) totalSpread *= orderBuff->spreadMult;
 
         glm::vec3 rightDir = glm::normalize(glm::cross(baseDir, glm::vec3(0.0f, 1.0f, 0.0f)));
         if (glm::length(rightDir) < 0.001f) {

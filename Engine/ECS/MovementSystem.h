@@ -437,7 +437,9 @@ public:
                 }
             }
 
-            float moveSpeed = (stats.baseSpeed > 0.1f) ? (stats.baseSpeed * stats.speedModifier) : 5.0f;
+            const auto* moveBuff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
+            const float slow = (moveBuff && moveBuff->ignoreSlows) ? std::max(1.0f, stats.speedModifier) : stats.speedModifier;   // "MOVE MOVE MOVE!"
+            float moveSpeed = (stats.baseSpeed > 0.1f) ? (stats.baseSpeed * slow) : 5.0f;
             // Passiva dell'arma bianca in mano (es. coltello del gretchin: +5%)
             if (const auto* inv = scene.GetRegistry().try_get<InventoryComponent>(entity)) moveSpeed *= inv->HeldSpeedMultiplier();
             moveSpeed *= 1.0f - 0.5f * crouch.amount;   // accovacciato: meta' velocita'

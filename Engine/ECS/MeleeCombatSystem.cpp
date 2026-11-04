@@ -38,7 +38,8 @@ namespace SunEngine {
             }
 
             if (melee.currentPhase == MeleePhase::None) {
-                stats.stamina = std::min(stats.maxStamina, stats.stamina + stats.staminaRegen * deltaTime);
+                const auto* regenBuff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);   // es. "Fix Bayonets!"
+                stats.stamina = std::min(stats.maxStamina, stats.stamina + stats.staminaRegen * (regenBuff ? regenBuff->staminaRegenMult : 1.0f) * deltaTime);
             }
 
             if (melee.currentPhase == MeleePhase::Stunned) {

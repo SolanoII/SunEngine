@@ -321,8 +321,11 @@ namespace SunEngine {
         void RenderPlayerStatusHUD();
         void RenderTurretHUD();
         void BuildPlayerPose(float deltaTime, RifleAnimationController& controller);   // animazioni procedurali                      // in alto a sinistra: salute, stamina, buff di fazione
-        void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki
+        void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki, Follow Orders della Guardia
         void ResetFactionBuff();
+        void ApplyOrderBuff();                             // effetti dell'ordine attivo sul giocatore
+        void ScanFactionEnemies();                         // nemici in vista davanti / alle spalle (per i buff)
+        void RenderOrdersRadial();                         // selettore radiale degli ordini (tasto V tenuto)
 
         // --- Esperienza di partita (punti studio) e riepilogo di fine partita ---
         struct MatchXpLine { int count = 0; int64_t xp = 0; };
@@ -567,7 +570,26 @@ namespace SunEngine {
         float m_WaaaghTimer = 0.0f;                // >0: WAAAGH! attiva, secondi rimasti
         float m_WaaaghPrevHp = -1.0f;              // per misurare i danni subiti
         static constexpr float kWaaaghMax = 350.0f;
-        static constexpr float kWaaaghDuration = 20.0f;   // 0 = tu, poi alleati IA, poi avversari IA
+        static constexpr float kWaaaghDuration = 20.0f;
+        // Tasto del buff di fazione (V): orki = scatena la WAAAGH! carica; Guardia = selettore radiale degli ordini
+        bool m_FactionKeyWasDown = true;
+        float m_FactionFightIdle = 0.0f;           // orki: secondi senza combattere (oltre 5 la barra si svuota)
+        int m_FactionPrevAmmo = -1, m_FactionPrevSlot = -1;
+        bool m_FactionPrevWindup = false;
+        bool m_FactionWasAlive = false;
+        float m_FactionScanTimer = 0.0f;
+        bool m_FactionEnemyFront = false;          // nemico in vista davanti (entro la portata dell'arma)
+        bool m_FactionEnemyBehind = false;         // nemico in vista alle spalle (la Guardia perde punti)
+        float m_FactionNearestEnemy = 1e9f;
+        // Guardia imperiale: "Follow Orders"
+        float m_OrdersAssistAccum = 0.0f;          // aiuti ai compagni dall'ultimo frame (munizioni, cure, strutture)
+        float m_CohesionDelay = 10.0f;             // dopo ogni schieramento la coesione non carica per 10 s
+        int m_OrderActive = -1;                    // 0 Take AIM!, 1 Take Cover, 2 MOVE MOVE MOVE!, 3 Fix Bayonets!
+        float m_OrderTimer = 0.0f;
+        bool m_RadialOpen = false;
+        glm::vec2 m_RadialVec{ 0.0f };
+        static constexpr float kOrdersMax = 300.0f;
+        static constexpr float kOrderDuration = 10.0f;   // 0 = tu, poi alleati IA, poi avversari IA
         std::vector<glm::vec3> m_VsBotSpawns[2];
         float m_VsBotYaw[2] = { 0.0f, 180.0f };
         float m_VsBotDeadTime = 0.0f;              // secondi da quando la tua unita' e' caduta

@@ -276,6 +276,7 @@ namespace SunEngine {
         float fovDegrees = 90.0f;
         float weightCapacity = 60.0f;
         float currentWeight = 0.0f;
+        float damageTakenMult = 1.0f;   // danni subiti (0.85 = -15%, ordine "Take Cover")
 
         ArmorSet armorSet;
     };
@@ -645,6 +646,12 @@ namespace SunEngine {
         float reloadSpeedMult = 1.0f;   // velocita' di ricarica (1.4 = ricarica il 40% piu' in fretta)
         float meleeSpeedMult = 1.0f;    // velocita' dei colpi in mischia
         float meleeDamageMult = 1.0f;   // danni in mischia inflitti
+        // Ordini della Guardia ("Follow Orders")
+        float fireRateMult = 1.0f;      // cadenza delle armi da fuoco (1.3 = +30%)
+        float spreadMult = 1.0f;        // dispersione dei colpi (0.7 = -30%)
+        float staminaRegenMult = 1.0f;  // recupero della stamina
+        bool ignoreSlows = false;       // immune ai rallentamenti (peso, mira)
+        float stunImmuneTimer = 0.0f;   // >0: non puo' essere stordito
     };
 
     // Accovacciato (CTRL tenuto): piu' basso dietro le coperture, hitbox comprese, ma piu' lento.
