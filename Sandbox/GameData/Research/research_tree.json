@@ -659,7 +659,7 @@
           "name": "Gretchin",
           "tier": 1,
           "col": 0,
-          "row": 1,
+          "row": 2.5,
           "parent": "",
           "research_cost": 0,
           "purchase_cost": 15000,
@@ -677,7 +677,7 @@
           "name": "Yoofs",
           "tier": 2,
           "col": 1,
-          "row": 1,
+          "row": 2.5,
           "parent": "ork_gretchin",
           "research_cost": 15000,
           "purchase_cost": 35000,
@@ -692,7 +692,7 @@
         {
           "id": "ork_slugga",
           "unit": "orks_boy",
-          "name": "Slugga Boy",
+          "name": "Slugga Boyz",
           "tier": 3,
           "col": 2,
           "row": 0,
@@ -710,10 +710,10 @@
         {
           "id": "ork_shoota",
           "unit": "orks_shoota_boy",
-          "name": "Shoota Boy",
+          "name": "Shoota Boyz",
           "tier": 3,
           "col": 2,
-          "row": 1,
+          "row": 2,
           "parent": "ork_yoof",
           "research_cost": 25000,
           "purchase_cost": 50000,
@@ -728,10 +728,10 @@
         {
           "id": "ork_loota",
           "unit": "orks_loota",
-          "name": "Loota",
+          "name": "Lootas",
           "tier": 3,
           "col": 2,
-          "row": 2,
+          "row": 4.5,
           "parent": "ork_yoof",
           "research_cost": 35000,
           "purchase_cost": 60000,
@@ -740,6 +740,248 @@
             0.12,
             0.45,
             0.12,
+            1
+          ]
+        },
+        {
+          "id": "ork_stormboyz",
+          "unit": "orks_stormboy",
+          "name": "Stormboyz",
+          "tier": 4,
+          "col": 3,
+          "row": 0,
+          "parent": "ork_slugga",
+          "research_cost": 35000,
+          "purchase_cost": 70000,
+          "default_name": "Zoomgit",
+          "color": [
+            0.4,
+            0.5,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "ork_ard_boyz",
+          "unit": "orks_ard_boy",
+          "name": "'Ard Boyz",
+          "tier": 5,
+          "col": 4,
+          "row": 0,
+          "parent": "ork_stormboyz",
+          "research_cost": 50000,
+          "purchase_cost": 90000,
+          "default_name": "Grukk 'Ard",
+          "color": [
+            0.3,
+            0.42,
+            0.22,
+            1
+          ]
+        },
+        {
+          "id": "ork_kommandos",
+          "unit": "orks_kommando",
+          "name": "Kommandos",
+          "tier": 4,
+          "col": 3,
+          "row": 2,
+          "parent": "ork_shoota",
+          "research_cost": 35000,
+          "purchase_cost": 70000,
+          "default_name": "Snikrot il Giovane",
+          "color": [
+            0.3,
+            0.4,
+            0.3,
+            1
+          ]
+        },
+        {
+          "id": "ork_tankbustas",
+          "unit": "orks_tankbusta",
+          "name": "Tankbustas",
+          "tier": 4,
+          "col": 3,
+          "row": 3,
+          "parent": "ork_shoota",
+          "research_cost": 35000,
+          "purchase_cost": 70000,
+          "default_name": "Boomgut",
+          "color": [
+            0.5,
+            0.42,
+            0.2,
+            1
+          ]
+        },
+        {
+          "id": "ork_flash_gitz",
+          "unit": "orks_flash_git",
+          "name": "Flash Gitz",
+          "tier": 5,
+          "col": 4,
+          "row": 2,
+          "parent": "",
+          "research_cost": 50000,
+          "purchase_cost": 90000,
+          "default_name": "Badrukk il Lucido",
+          "color": [
+            0.35,
+            0.3,
+            0.45,
+            1
+          ],
+          "parent_any": [
+            "ork_kommandos",
+            "ork_tankbustas"
+          ]
+        },
+        {
+          "id": "ork_nobz",
+          "unit": "orks_nob",
+          "name": "Nobz",
+          "tier": 6,
+          "col": 5,
+          "row": 1,
+          "parent": "ork_ard_boyz",
+          "research_cost": 75000,
+          "purchase_cost": 120000,
+          "default_name": "Uzgrak",
+          "color": [
+            0.08,
+            0.4,
+            0.08,
+            1
+          ],
+          "requires_mastered": [
+            "ork_ard_boyz",
+            "ork_flash_gitz"
+          ]
+        },
+        {
+          "id": "ork_meganobz",
+          "unit": "orks_meganob",
+          "name": "Meganobz",
+          "tier": 7,
+          "col": 6,
+          "row": 1,
+          "parent": "ork_nobz",
+          "research_cost": 100000,
+          "purchase_cost": 160000,
+          "default_name": "Gorbag Mega",
+          "color": [
+            0.25,
+            0.25,
+            0.28,
+            1
+          ]
+        },
+        {
+          "id": "ork_warboss",
+          "unit": "orks_warboss",
+          "name": "Warboss",
+          "tier": 8,
+          "col": 7,
+          "row": 1,
+          "parent": "ork_meganobz",
+          "research_cost": 150000,
+          "purchase_cost": 220000,
+          "default_name": "Kapo Grozzak",
+          "color": [
+            0.1,
+            0.3,
+            0.08,
+            1
+          ]
+        },
+        {
+          "id": "ork_spanner",
+          "unit": "orks_spanner",
+          "name": "Spanner",
+          "tier": 4,
+          "col": 3,
+          "row": 4.5,
+          "parent": "ork_loota",
+          "research_cost": 35000,
+          "purchase_cost": 70000,
+          "default_name": "Klankit",
+          "color": [
+            0.5,
+            0.45,
+            0.3,
+            1
+          ]
+        },
+        {
+          "id": "ork_mek_boy",
+          "unit": "orks_mek_boy",
+          "name": "Mek Boy",
+          "tier": 5,
+          "col": 4,
+          "row": 4.5,
+          "parent": "ork_spanner",
+          "research_cost": 50000,
+          "purchase_cost": 90000,
+          "default_name": "Mek Zogwort",
+          "color": [
+            0.55,
+            0.42,
+            0.22,
+            1
+          ]
+        },
+        {
+          "id": "ork_big_mek",
+          "unit": "orks_big_mek",
+          "name": "Big Mek",
+          "tier": 6,
+          "col": 5,
+          "row": 4.5,
+          "parent": "ork_mek_boy",
+          "research_cost": 75000,
+          "purchase_cost": 120000,
+          "default_name": "Big Mek Gazbag",
+          "color": [
+            0.6,
+            0.4,
+            0.18,
+            1
+          ]
+        },
+        {
+          "id": "ork_big_mek_boss",
+          "unit": "orks_big_mek_boss",
+          "name": "Big Mek Boss",
+          "tier": 7,
+          "col": 6,
+          "row": 4.5,
+          "parent": "ork_big_mek",
+          "research_cost": 100000,
+          "purchase_cost": 160000,
+          "default_name": "Boss Gork-Spanna",
+          "color": [
+            0.55,
+            0.35,
+            0.15,
+            1
+          ]
+        },
+        {
+          "id": "ork_big_mek_boss_mega",
+          "unit": "orks_big_mek_boss_mega",
+          "name": "Big Mek Boss in Mega Armor",
+          "tier": 8,
+          "col": 7,
+          "row": 4.5,
+          "parent": "ork_big_mek_boss",
+          "research_cost": 150000,
+          "purchase_cost": 220000,
+          "default_name": "Boss Ferrocrank",
+          "color": [
+            0.4,
+            0.3,
+            0.15,
             1
           ]
         },

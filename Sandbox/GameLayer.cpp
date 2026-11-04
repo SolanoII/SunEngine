@@ -2034,8 +2034,9 @@ namespace SunEngine {
                 for (const auto& faction : m_ResearchTree.GetFactions()) {
                     for (const auto& n : faction.nodes) {
                         if (m_ResearchTree.IsResearched(m_Profile, n)) continue;
-                        const ResearchNode* src = m_ResearchTree.FindStudySource(n);
-                        if (!src || src->unitId != unitId) continue;
+                        bool paysHere = false;   // anche coi padri alternativi (es. Kommandos oppure Tankbustas)
+                        for (const ResearchNode* src : m_ResearchTree.StudySources(n)) paysHere = paysHere || src->unitId == unitId;
+                        if (!paysHere) continue;
                         const ResearchStatus rst = m_ResearchTree.GetStatus(m_Profile, n);
                         if (rst == ResearchStatus::LockedParent || rst == ResearchStatus::LockedMastery) continue;   // non ancora disponibile
                         any = true;
@@ -4602,6 +4603,21 @@ namespace SunEngine {
             dl->AddLine(ImVec2(midX, a.y), ImVec2(midX, b.y), lc, 2.0f);
             dl->AddLine(ImVec2(midX, b.y), b, lc, 2.0f);
         }
+        // Padri alternativi (ne basta uno): stesso connettore a gomito anche dagli altri padri
+        for (const auto& n : faction.nodes) {
+            if (n.unitId.empty() || n.anyParents.empty()) continue;
+            for (const ResearchNode* par : m_ResearchTree.Parents(n)) {
+                if (par->id == n.parentId) continue;   // il primo e' gia' disegnato sopra
+                const ImVec2 pp = nodePos(*par), cp = nodePos(n);
+                const ImVec2 a(pp.x + nodeW, pp.y + nodeH * 0.5f), b(cp.x, cp.y + nodeH * 0.5f);
+                const float midX = (a.x + b.x) * 0.5f;
+                const bool unlocked = m_ResearchTree.IsResearched(m_Profile, n);
+                const ImU32 lc = unlocked ? col32(faction.accent[0], faction.accent[1], faction.accent[2]) : col32(0.35f, 0.35f, 0.40f);
+                dl->AddLine(a, ImVec2(midX, a.y), lc, 2.0f);
+                dl->AddLine(ImVec2(midX, a.y), ImVec2(midX, b.y), lc, 2.0f);
+                dl->AddLine(ImVec2(midX, b.y), b, lc, 2.0f);
+            }
+        }
         // Rami che si riuniscono: dall'unita' da padroneggiare scende (o sale) una linea dorata fino alla riga del
         // nodo e poi entra da sinistra. Dorata piena = stellina ottenuta.
         for (const auto& n : faction.nodes) {
@@ -4757,13 +4773,21 @@ namespace SunEngine {
 
             if (st != ResearchStatus::Researched) {
                 // Fase 1: ricerca con i punti studio del PADRE
-                if (studySource) {
-                    ImGui::Text("Punti studio di %s: %lld / %lld", studySource->name.c_str(),
-                        static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, studySource->unitId)),
+                if (const ResearchNode* payer = m_ResearchTree.PaySource(m_Profile, n)) {
+                    ImGui::Text("Punti studio di %s: %lld / %lld", payer->name.c_str(),
+                        static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, payer->unitId)),
                         static_cast<long long>(n.researchCost));
                 }
+                // Padri alternativi: ne basta uno (sbloccato e, per un personaggio, con la stellina)
+                std::string alternatives;
+                for (const ResearchNode* par : m_ResearchTree.Parents(n)) alternatives += (alternatives.empty() ? "" : " oppure ") + par->name;
                 if (st == ResearchStatus::LockedParent && parent) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Sblocca prima: %s", parent->name.c_str());
+                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Sblocca prima: %s", n.anyParents.empty() ? parent->name.c_str() : alternatives.c_str());
+                }
+                if (!n.anyParents.empty() && !isItem) {
+                    const bool ok = m_ResearchTree.AnyParentReady(m_Profile, n);
+                    ImGui::TextColored(ok ? ImVec4(1.0f, 0.82f, 0.15f, 1.0f) : ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s Maestria di %s",
+                        ok ? "[*]" : "[ ]", alternatives.c_str());
                 }
                 // Maestria richiesta: il personaggio padre (e i rami che si riuniscono) completati fino alla stellina
                 for (const ResearchNode* req : m_ResearchTree.MasteryRequirements(n)) {

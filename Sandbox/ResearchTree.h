@@ -28,6 +28,8 @@ namespace SunEngine {
     //    Per ricercare il personaggio successivo serve la maestria del personaggio padre (tutte le fazioni).
     //    Un nodo puo' chiedere la maestria di altre unita' ("requires_mastered"), cosi' due rami si riuniscono
     //    (es. Commissar Cadet: Kasrkin E Tempestus Specialist con la stellina).
+    //  - "parent_any": padri alternativi (es. Flash Gitz dopo i Kommandos OPPURE i Tankbustas): basta uno, sbloccato e
+    //    con la stellina; la ricerca si paga coi punti studio di quello che li ha (il primo disegnato e' "parent").
     //  - "renamed_from": vecchi id del nodo, per non perdere le ricerche dei salvataggi quando un nodo cambia id.
     // Solo dati e regole: la UI sta in GameLayer. Dati in GameData/Research/research_tree.json.
     struct ResearchNode {
@@ -37,6 +39,7 @@ namespace SunEngine {
         std::vector<std::string> itemIds;   // tutti gli oggetti sbloccati dal nodo ("item" e/o "items")
         std::string name;          // nome mostrato nell'albero
         std::string parentId;      // vuoto = radice (il padre paga la ricerca e disegna il ramo)
+        std::vector<std::string> anyParents;         // padri alternativi ("parent_any"): ne basta uno
         std::vector<std::string> requiresMastered;   // unita' da padroneggiare (stellina) prima di poterlo ricercare
         std::vector<std::string> renamedFrom;        // vecchi id (migrazione dei salvataggi)
         std::string defaultName = "Recluta";   // nome dato alle nuove unita' acquistate
@@ -104,6 +107,8 @@ namespace SunEngine {
                                 for (const auto& v : jn[key]) if (v.is_string()) out.push_back(v.get<std::string>());
                         };
                         readList("requires_mastered", n.requiresMastered);
+                        readList("parent_any", n.anyParents);
+                        if (n.parentId.empty() && !n.anyParents.empty()) n.parentId = n.anyParents.front();
                         readList("renamed_from", n.renamedFrom);
                         n.defaultName = jn.value("default_name", std::string("Recluta"));
                         n.tier = jn.value("tier", 1);
@@ -132,6 +137,8 @@ namespace SunEngine {
                         if (depth > 64) return fail("ciclo nell'albero vicino al nodo " + kv.first);
                         cur = &it->second;
                     }
+                    for (const auto& alt : kv.second.anyParents)
+                        if (!m_ById.count(alt)) return fail("parent_any inesistente '" + alt + "' per il nodo " + kv.first);
                     for (const auto& req : kv.second.requiresMastered) {
                         auto it = m_ById.find(req);
                         if (it == m_ById.end()) return fail("requires_mastered inesistente '" + req + "' per il nodo " + kv.first);
@@ -163,6 +170,24 @@ namespace SunEngine {
             for (const auto& kv : m_ById)
                 for (const auto& id : kv.second.itemIds) if (id == itemId) return &kv.second;
             return nullptr;
+        }
+
+        // Padri del nodo: quelli alternativi ("parent_any") o l'unico padre
+        std::vector<const ResearchNode*> Parents(const ResearchNode& n) const {
+            std::vector<const ResearchNode*> out;
+            if (!n.anyParents.empty()) { for (const auto& id : n.anyParents) if (const ResearchNode* q = FindNode(id)) out.push_back(q); }
+            else if (const ResearchNode* q = FindParent(n)) out.push_back(q);
+            return out;
+        }
+        // Unita' che possono pagare la ricerca di n (piu' d'una con i padri alternativi)
+        std::vector<const ResearchNode*> StudySources(const ResearchNode& n) const {
+            std::vector<const ResearchNode*> out;
+            if (n.anyParents.empty()) { if (const ResearchNode* q = FindStudySource(n)) out.push_back(q); return out; }
+            for (const ResearchNode* q : Parents(n)) {
+                while (q && q->unitId.empty()) q = FindParent(*q);
+                if (q && std::find(out.begin(), out.end(), q) == out.end()) out.push_back(q);
+            }
+            return out;
         }
 
         // Nodo unita' i cui punti studio pagano la ricerca di n: il primo antenato che e' un'unita'
@@ -208,9 +233,10 @@ namespace SunEngine {
             return true;
         }
         // Unita' da padroneggiare prima di ricercare il nodo: per un personaggio il padre, piu' quelle di "requires_mastered"
+        // (con i padri alternativi la maestria del padre e' "uno dei due": vedi AnyParentReady)
         std::vector<const ResearchNode*> MasteryRequirements(const ResearchNode& n) const {
             std::vector<const ResearchNode*> out;
-            if (!n.unitId.empty()) if (const ResearchNode* par = FindParent(n)) if (!par->unitId.empty()) out.push_back(par);
+            if (!n.unitId.empty() && n.anyParents.empty()) if (const ResearchNode* par = FindParent(n)) if (!par->unitId.empty()) out.push_back(par);
             for (const auto& req : n.requiresMastered) {
                 const ResearchNode* r = FindNode(req);
                 if (r && std::find(out.begin(), out.end(), r) == out.end()) out.push_back(r);
@@ -222,13 +248,40 @@ namespace SunEngine {
             return true;
         }
 
+        // Padre alternativo valido: sbloccato e, per un personaggio, con la stellina
+        bool AlternativeOk(const PlayerProfile& p, const ResearchNode& n, const ResearchNode& par) const {
+            if (!IsResearched(p, par)) return false;
+            return n.unitId.empty() || par.unitId.empty() || IsMastered(p, par);
+        }
+        bool AnyParentReady(const PlayerProfile& p, const ResearchNode& n) const {
+            if (n.anyParents.empty()) return true;
+            for (const ResearchNode* par : Parents(n)) if (AlternativeOk(p, n, *par)) return true;
+            return false;
+        }
+
+        // Chi paga la ricerca: l'unita' padre; coi padri alternativi quella valida con piu' punti studio
+        const ResearchNode* PaySource(const PlayerProfile& p, const ResearchNode& n) const {
+            if (n.anyParents.empty()) return FindStudySource(n);
+            const ResearchNode* best = nullptr;
+            for (const ResearchNode* par : Parents(n)) {
+                if (!AlternativeOk(p, n, *par)) continue;
+                const ResearchNode* src = par;
+                while (src && src->unitId.empty()) src = FindParent(*src);
+                if (src && (!best || GetStudyPoints(p, src->unitId) > GetStudyPoints(p, best->unitId))) best = src;
+            }
+            if (!best) { const auto all = StudySources(n); if (!all.empty()) best = all.front(); }
+            return best;
+        }
+
         ResearchStatus GetStatus(const PlayerProfile& p, const ResearchNode& n) const {
             if (IsResearched(p, n)) return ResearchStatus::Researched;
-            const ResearchNode* parent = FindParent(n);
-            if (!parent) return ResearchStatus::Researchable;          // radice
-            if (!IsResearched(p, *parent)) return ResearchStatus::LockedParent;
-            if (!RequirementsMastered(p, n)) return ResearchStatus::LockedMastery;
-            const ResearchNode* source = FindStudySource(n);
+            const auto parents = Parents(n);
+            if (parents.empty()) return ResearchStatus::Researchable;  // radice
+            bool anyResearched = false;
+            for (const ResearchNode* par : parents) anyResearched = anyResearched || IsResearched(p, *par);
+            if (!anyResearched) return ResearchStatus::LockedParent;
+            if (!AnyParentReady(p, n) || !RequirementsMastered(p, n)) return ResearchStatus::LockedMastery;
+            const ResearchNode* source = PaySource(p, n);
             if (source && GetStudyPoints(p, source->unitId) < n.researchCost) return ResearchStatus::LockedPoints;
             return ResearchStatus::Researchable;
         }
@@ -236,7 +289,7 @@ namespace SunEngine {
         // Sblocca il nodo spendendo i punti studio del PADRE. false se non sbloccabile.
         bool Research(PlayerProfile& p, const ResearchNode& n) const {
             if (GetStatus(p, n) != ResearchStatus::Researchable) return false;
-            if (const ResearchNode* source = FindStudySource(n)) {
+            if (const ResearchNode* source = PaySource(p, n)) {
                 p.studyPoints[source->unitId] -= n.researchCost;
             }
             p.researchedNodes.insert(n.id);
@@ -264,6 +317,7 @@ namespace SunEngine {
                 const ResearchNode* n = FindNodeByUnit(unit);
                 while (n) {
                     p.researchedNodes.insert(n->id);
+                    if (!n->anyParents.empty()) break;   // padri alternativi: non si sa quale ha preso
                     n = FindParent(*n);
                 }
             }
@@ -278,7 +332,10 @@ namespace SunEngine {
             const std::vector<std::string> done(p.researchedNodes.begin(), p.researchedNodes.end());
             for (const auto& id : done) {
                 const ResearchNode* n = FindNode(id);
-                for (n = n ? FindParent(*n) : nullptr; n; n = FindParent(*n)) p.researchedNodes.insert(n->id);
+                while (n && n->anyParents.empty()) {   // padri alternativi: non si sa quale ha preso
+                    n = FindParent(*n);
+                    if (n) p.researchedNodes.insert(n->id);
+                }
             }
         }
 
