@@ -16,6 +16,7 @@ namespace SunEngine {
         bool firing = false;     // sta sparando (grilletto / cooldown colpo attivo)
         bool vaulting = false;   // scavalcamento ostacolo in corso
         bool crouching = false;  // accovacciato (CTRL)
+        bool climbing = false;   // arrampicata lenta (gretchin): base ferma, il movimento lo fa la posa procedurale
         bool shotFired = false;  // un colpo e' partito in QUESTO frame (fronte di salita del cooldown)
         float groundSpeed = 0.0f;     // velocita' orizzontale reale del personaggio (m/s); <=0 = ignora
         float vaultDuration = 0.0f;   // durata dello scavalcamento in corso (s); adatta la clip di salto
@@ -82,7 +83,7 @@ namespace SunEngine {
 
             // Fuoco: la clip e' UN colpo di rinculo che parte e torna all'idle. Va rilanciata a ogni
             // colpo (non messa in loop, altrimenti si vede "abbassa il fucile / rialza" tra due spari).
-            const bool restartFiring = in.shotFired && !in.isMoving && !in.vaulting && !in.crouching
+            const bool restartFiring = in.shotFired && !in.isMoving && !in.vaulting && !in.climbing
                 && m_Clips.find(RifleAnimState::Firing) != m_Clips.end();
             if (restartFiring) {
                 desired = RifleAnimState::Firing;
@@ -117,6 +118,9 @@ namespace SunEngine {
         }
 
         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_Animator.GetFinalBoneMatrices(); }
+        void SetProceduralPose(const ProceduralPose* pose) { m_Animator.SetProceduralPose(pose); }
+        // Clip vere da accovacciato caricate? (altrimenti l'accovacciamento lo fa la posa procedurale)
+        bool HasCrouchClips() const { return m_Clips.count(RifleAnimState::CrouchIdle) > 0; }
         RifleAnimState GetCurrentState() const { return m_CurrentState; }
 
     private:
@@ -158,6 +162,7 @@ namespace SunEngine {
 
         RifleAnimState DetermineState(const RifleAnimInput& in) const {
             // Scavalcamento: clip di salto in avanti (o indietro se si arretra)
+            if (in.climbing) return RifleAnimState::AimIdle;
             if (in.vaulting) {
                 return (in.backward && !in.forward) ? RifleAnimState::JumpBackward : RifleAnimState::JumpForward;
             }

@@ -2086,6 +2086,94 @@ namespace SunEngine {
             "+15% velocita'  +40% ricarica  +20% colpi in mischia  +15% danni in mischia");
     }
 
+    // Animazioni procedurali del modello animato (ProceduralPose.h): accovacciato (se mancano le clip),
+    // arrampicata lenta, colpi in mischia e parata, lancio delle granate, oggetti posati a terra (cibo, mine),
+    // scatola di munizioni, chiave inglese e costruzione di strutture. Si sommano alla clip in corso.
+    void GameLayer::BuildPlayerPose(float deltaTime, RifleAnimationController& controller) {
+        m_PlayerPose.Clear();
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(m_PlayerEntity)) return;
+        m_PoseTime += deltaTime;
+
+        // Lunghezze di coscia e stinco (unita' del modello) dalla posa del frame precedente
+        float thigh = 0.0f, shin = 0.0f;
+        {
+            auto bonePos = [&](const char* b, glm::vec3& out) {
+                glm::mat4 t;
+                if (!controller.GetBoneModelTransform(std::string("mixamorig1:") + b, t)) return false;
+                out = glm::vec3(t[3]);
+                return true;
+            };
+            glm::vec3 a, k, f;
+            if (bonePos("LeftUpLeg", a) && bonePos("LeftLeg", k) && bonePos("LeftFoot", f)) { thigh = glm::distance(a, k); shin = glm::distance(k, f); }
+        }
+        auto approach = [&](float& v, bool on, float rate) { v = std::clamp(v + (on ? 1.0f : -1.0f) * rate * deltaTime, 0.0f, 1.0f); };
+
+        // Accovacciato (solo se non ci sono le clip "crouch idle/walking")
+        if (const auto* crouch = reg.try_get<CrouchComponent>(m_PlayerEntity); crouch && !controller.HasCrouchClips())
+            PoseLib::Crouch(m_PlayerPose, crouch->amount, thigh, shin);
+
+        // Arrampicata lenta (scavalcamento piu' lungo di 1,2 s)
+        const auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity);
+        approach(m_PoseClimb, vault && vault->isVaulting && vault->vaultDuration > 1.2f, 6.0f);
+        PoseLib::Climb(m_PlayerPose, m_PoseTime, m_PoseClimb);
+
+        // Mischia: fasi dell'attacco dalla macchina a stati della mischia
+        if (const auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
+            if (melee->currentPhase == MeleePhase::Stunned) PoseLib::Stunned(m_PlayerPose, 1.0f);
+            else if (melee->currentAttack == MeleeAttackType::Parry) {
+                const float t = melee->stateTimer;
+                PoseLib::Parry(m_PlayerPose, t < 0.08f ? t / 0.08f : (t < 0.28f ? 1.0f : std::max(0.0f, (0.48f - t) / 0.2f)));
+            }
+            else if (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active || melee->currentPhase == MeleePhase::Recovery) {
+                const auto* wbp = DamageResolver::ResolveMeleeWeapon(reg, m_PlayerEntity);
+                MeleeTiming tm;
+                if (wbp && wbp->hasMoveset) {
+                    auto it = wbp->moveset.nodes.find(melee->currentAttackNode);
+                    if (it != wbp->moveset.nodes.end()) tm = it->second.timings;
+                }
+                const int phase = melee->currentPhase == MeleePhase::Windup ? 0 : (melee->currentPhase == MeleePhase::Active ? 1 : 2);
+                const float dur = phase == 0 ? tm.windup : (phase == 1 ? tm.active : tm.recovery);
+                const int type = melee->currentAttack == MeleeAttackType::Light ? 0 : (melee->currentAttack == MeleeAttackType::Heavy ? 2 : 1);
+                PoseLib::Melee(m_PlayerPose, type, phase, melee->stateTimer / std::max(0.01f, dur),
+                               wbp && wbp->hand_type == HandType::TwoHanded);
+            }
+        }
+
+        // Dotazione: lancio della granata e oggetti posati (quando cala il numero di usi), poi azioni continue
+        const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
+        const auto* ammo = reg.try_get<AmmoComponent>(m_PlayerEntity);
+        if (inv && ammo) {
+            for (int s = 0; s < 3; ++s) {
+                const int uses = ammo->equipmentUses[s];
+                // (solo in partita: nel garage gli usi cambiano con la dotazione). Il lancio parte gia' quasi
+                // caricato, perche' la granata esce al click
+                if (uses < m_PosePrevUses[s] && m_GameState == GameState::Gameplay) {
+                    const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(4 + s));
+                    if (bp && bp->equipment_type == "grenade") { m_PoseAction = 1; m_PoseActionTime = 0.30f; m_PoseActionDur = 0.75f; }
+                    else if (bp && (bp->equipment_type == "food_pack" || bp->equipment_type == "landmine")) { m_PoseAction = 2; m_PoseActionTime = 0.15f; m_PoseActionDur = 0.9f; }
+                }
+                m_PosePrevUses[s] = uses;
+            }
+            const auto* held = BlueprintManager::Get().GetWeapon(inv->GetActiveWeaponId());
+            const bool using_ = ammo->useTimer > 0.0f && held && held->is_equipment;
+            approach(m_PoseGive, using_ && held->equipment_type == "ammo_box", 6.0f);
+            approach(m_PoseBuild, using_ && (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall"), 5.0f);
+        }
+        approach(m_PoseRepair, m_RepairSystem.repairing, 6.0f);
+        PoseLib::Give(m_PlayerPose, m_PoseTime, m_PoseGive);
+        PoseLib::Build(m_PlayerPose, m_PoseTime, m_PoseBuild, thigh, shin);
+        PoseLib::Repair(m_PlayerPose, m_PoseTime, m_PoseRepair);
+
+        if (m_PoseAction != 0) {
+            m_PoseActionTime += deltaTime;
+            const float t = m_PoseActionTime / m_PoseActionDur;
+            if (t >= 1.0f) m_PoseAction = 0;
+            else if (m_PoseAction == 1) PoseLib::Throw(m_PlayerPose, t);
+            else PoseLib::UseItem(m_PlayerPose, t, thigh, shin);
+        }
+    }
+
     void GameLayer::RenderAmmoHUD() {
         auto& reg = m_Scene.GetRegistry();
         const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
@@ -2323,6 +2411,7 @@ namespace SunEngine {
             if (auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity)) {
                 in.vaulting = vault->isVaulting;
                 in.vaultDuration = vault->vaultDuration;
+                in.climbing = vault->isVaulting && vault->vaultDuration > 1.2f;   // arrampicata lenta: posa procedurale
             }
             if (auto* crouch = reg.try_get<CrouchComponent>(m_PlayerEntity)) {
                 in.crouching = crouch->amount > 0.5f;
@@ -2432,6 +2521,8 @@ namespace SunEngine {
         const bool modelReady = AnimatedBodyReady(kind);
         RifleAnimationController& controller = AnimatedBodyController(kind);
         if (modelReady) {
+            BuildPlayerPose(deltaTime, controller);   // azioni senza clip, sopra la clip in corso
+            controller.SetProceduralPose(&m_PlayerPose);
             controller.Update(deltaTime, input);
         }
 

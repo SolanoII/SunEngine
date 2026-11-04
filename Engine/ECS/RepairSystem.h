@@ -24,7 +24,10 @@ namespace SunEngine {
             return (bp && !bp->repair_tags.empty() && bp->repair_rate > 0.0f) ? bp : nullptr;
         }
 
+        bool repairing = false;   // il giocatore sta riparando in questo frame (animazione della chiave inglese)
+
         void Update(Scene& scene, entt::entity player, float dt) {
+            repairing = false;
             auto& reg = scene.GetRegistry();
             if (player == entt::null || !reg.valid(player)) return;
             const auto* inv = reg.try_get<InventoryComponent>(player);
@@ -67,6 +70,7 @@ namespace SunEngine {
                 if (ammo) { ammo->feedback = "Niente da riparare qui"; ammo->feedbackTimer = 0.3f; }
                 return;
             }
+            repairing = true;
             float cur, mx;
             if (auto* h = reg.try_get<HealthComponent>(best)) { h->currentHealth = std::min(h->maxHealth, h->currentHealth + tool->repair_rate * dt); cur = h->currentHealth; mx = h->maxHealth; }
             else { auto& sh = reg.get<StructureHealthComponent>(best); sh.hp = std::min(sh.maxHp, sh.hp + tool->repair_rate * dt); cur = sh.hp; mx = sh.maxHp; }

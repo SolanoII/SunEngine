@@ -1,5 +1,6 @@
 #pragma once
 #include "Animation.h"
+#include "ProceduralPose.h"
 #include <unordered_map>
 #include <string>
 #include <cmath>
@@ -60,6 +61,9 @@ namespace SunEngine {
         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_FinalBoneMatrices; }
 
         bool IsFinished() const { return m_Finished; }
+        // Posa procedurale sopra la clip (vedi ProceduralPose.h). nullptr = solo la clip. Il puntatore deve restare
+        // valido fino a UpdateAnimation.
+        void SetProceduralPose(const ProceduralPose* pose) { m_Pose = pose; }
         void SetPlaybackRate(float rate) { m_PlaybackRate = rate; }
 
         // Trasformazione di un osso nello spazio del MODELLO (stesso spazio dei vertici, prima della
@@ -107,6 +111,24 @@ namespace SunEngine {
             }
 
             glm::mat4 globalTransform = parentTransform * nodeTransform;
+            if (m_Pose && !m_Pose->Empty()) {
+                // Posa procedurale: rotazione attorno al giunto (e spostamento delle anche) nello spazio della mesh,
+                // poi di nuovo nello spazio dei nodi. I figli partono dalla trasformazione gia' modificata.
+                const auto colon = node.name.rfind(':');
+                const std::string suffix = colon == std::string::npos ? node.name : node.name.substr(colon + 1);
+                auto rit = m_Pose->rotations.find(suffix);
+                const bool isHips = suffix == "Hips" && glm::dot(m_Pose->hipsOffset, m_Pose->hipsOffset) > 1e-8f;
+                if (rit != m_Pose->rotations.end() || isHips) {
+                    const glm::mat4& gi = m_CurrentAnimation->GetGlobalInverseTransform();
+                    glm::mat4 mesh = gi * globalTransform;
+                    if (isHips) mesh = glm::translate(glm::mat4(1.0f), m_Pose->hipsOffset) * mesh;
+                    if (rit != m_Pose->rotations.end()) {
+                        const glm::vec3 pivot(mesh[3]);
+                        mesh = glm::translate(glm::mat4(1.0f), pivot) * glm::mat4_cast(rit->second) * glm::translate(glm::mat4(1.0f), -pivot) * mesh;
+                    }
+                    globalTransform = glm::inverse(gi) * mesh;
+                }
+            }
             m_ModelTransforms[node.name] = m_CurrentAnimation->GetGlobalInverseTransform() * globalTransform;
 
             const auto& boneInfoMap = m_CurrentAnimation->GetBoneIDMap();
@@ -130,6 +152,7 @@ namespace SunEngine {
         float m_BlendDuration = 0.0f;
         float m_BlendElapsed = 0.0f;
 
+        const ProceduralPose* m_Pose = nullptr;
         bool m_Loop = true;
         bool m_Finished = false;
         float m_PlaybackRate = 1.0f;

@@ -310,7 +310,8 @@ namespace SunEngine {
         void EndVsBotMatch(int result, const char* reason);
         void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
         void RenderAmmoHUD();
-        void RenderPlayerStatusHUD();                      // in alto a sinistra: salute, stamina, buff di fazione
+        void RenderPlayerStatusHUD();
+        void BuildPlayerPose(float deltaTime, RifleAnimationController& controller);   // animazioni procedurali                      // in alto a sinistra: salute, stamina, buff di fazione
         void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki
         void ResetFactionBuff();
 
@@ -546,6 +547,13 @@ namespace SunEngine {
         std::string m_VsBotMessage;                // esito dell'ultimo tentativo di avvio (es. squadra nemica impossibile)
         std::unordered_map<entt::entity, TrainedUnit> m_VsBotUnits;   // unita' dei bot in campo
         std::vector<VsBotPlayer> m_VsBotPlayers;
+        // Animazioni procedurali del modello animato del giocatore
+        ProceduralPose m_PlayerPose;
+        float m_PoseTime = 0.0f;
+        float m_PoseClimb = 0.0f, m_PoseGive = 0.0f, m_PoseBuild = 0.0f, m_PoseRepair = 0.0f;   // pesi 0..1
+        int m_PoseAction = 0;                        // 1 lancio granata, 2 oggetto posato a terra
+        float m_PoseActionTime = 0.0f, m_PoseActionDur = 1.0f;
+        int m_PosePrevUses[3] = { 0, 0, 0 };
         // Buff di fazione (orki: WAAAGH!)
         std::string m_FactionBuffFaction;          // fazione dell'unita' con cui si sta caricando
         float m_WaaaghPoints = 0.0f;               // 0..350 (7 caratteri di "Waaagh!" da 50 punti)
