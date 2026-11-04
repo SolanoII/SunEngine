@@ -31,6 +31,7 @@ namespace SunEngine {
         void TryParry(Scene& scene, entt::entity self, BotBrainComponent& brain);
         void Resupply(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);   // scatola di munizioni
         void TryGrenade(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt); // granate (es. stikkbomb)
+        void TryDeploy(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);  // mine, barricate, muri con feritoia
     };
 
 }

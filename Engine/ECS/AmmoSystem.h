@@ -189,6 +189,7 @@ namespace SunEngine {
                     m_PlayerRmbWasDown = rmb;
                 }
                 else if (trigger) {
+                    holdUse = trigger->holdEquipment;   // l'IA tiene premuto per costruire
                     wantSelf = trigger->useEquipment;
                     wantGive = trigger->giveEquipment;
                     giveTarget = trigger->giveTarget;

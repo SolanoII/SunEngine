@@ -5779,6 +5779,7 @@ namespace SunEngine {
             if (r < 0.25f) tryUpgrade(1.0f, u.primaryWeaponId, "loota_deffgun_beamy");
             else if (r < 0.45f) tryUpgrade(1.0f, u.primaryWeaponId, "loota_deffgun_plasma");
             tryUpgrade(0.30f, u.armorHeadId, "head_loota_helmet");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "loota_slit_wall");
         }
     }
 

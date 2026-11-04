@@ -234,6 +234,11 @@ namespace SunEngine {
 
             Resupply(scene, self, brain, deltaTime);
             TryGrenade(scene, self, brain, deltaTime);
+            TryDeploy(scene, self, brain, deltaTime);
+            if (brain.equipReleaseTimer > 0.0f) {          // granata/mina appena usata: resta in mano un attimo
+                brain.equipReleaseTimer -= deltaTime;
+                brain.resupplySlot = brain.equipReleaseTimer > 0.0f ? brain.equipReleaseSlot : -1;
+            }
             TryParry(scene, self, brain);
             Move(scene, navQuery, self, brain, deltaTime);
             AimAndFire(scene, self, brain, deltaTime);
@@ -464,7 +469,7 @@ namespace SunEngine {
         auto& t = reg.get<TransformComponent>(self);
         const auto& stats = reg.get<UnitStatsComponent>(self);
 
-        const bool wantsMove = brain.hasMoveGoal && (brain.intent == BotIntent::Advance || brain.intent == BotIntent::Reposition || brain.intent == BotIntent::Charge);
+        const bool wantsMove = !brain.holdStill && brain.hasMoveGoal && (brain.intent == BotIntent::Advance || brain.intent == BotIntent::Reposition || brain.intent == BotIntent::Charge);
         brain.isMoving = false;
         if (wantsMove) {
             if (brain.intent == BotIntent::Charge && brain.target != entt::null && brain.targetVisible) {
@@ -705,7 +710,8 @@ namespace SunEngine {
                 trigger.useEquipment = true;
                 trigger.giveTarget = brain.target;
                 brain.throwingGrenade = false;
-                brain.resupplySlot = -1;
+                brain.equipReleaseSlot = slot;      // la tiene in mano finche' l'EquipmentSystem non la lancia
+                brain.equipReleaseTimer = 0.3f;
                 brain.grenadeCooldown = Random::Range(10.0f, 18.0f);
             }
             return;
@@ -718,6 +724,94 @@ namespace SunEngine {
         if (CountTeamNear(reg, TeamOf(reg, self), tp, 4.5f, self) > 0) { brain.grenadeCooldown = 1.5f; return; }   // compagni vicino al bersaglio
         if (!Random::Chance(0.5f)) { brain.grenadeCooldown = 2.5f; return; }
         brain.throwingGrenade = true;
+        brain.resupplySlot = slot;
+    }
+
+    // Mine (boy), barricate di scrap (yoof) e muri con feritoia (loota).
+    // Mina: con un nemico noto fra 8 e 25 m la posa davanti a se', sulla strada che fara' chi lo carica.
+    // Barricata: sotto tiro da un nemico in vista fra 10 e 35 m si ferma, la costruisce (3 s) fra se' e lui e ci
+    // combatte dietro. Muro con feritoia: appena vede un nemico fra 14 e 70 m. Se il nemico arriva a 6 m o parte
+    // la mischia, annulla.
+    void BotAISystem::TryDeploy(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {
+        auto& reg = scene.GetRegistry();
+        brain.deployCooldown -= dt;
+        const auto* inv = reg.try_get<InventoryComponent>(self);
+        const auto* ammo = reg.try_get<AmmoComponent>(self);
+        if (!inv || !ammo) return;
+        int slot = -1;
+        const WeaponBlueprint* bp = nullptr;
+        for (int s = 4; s <= 6 && slot < 0; ++s) {
+            const auto* b = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!b || ammo->equipmentUses[s - 4] <= 0) continue;
+            if (b->equipment_type == "landmine" || b->equipment_type == "scrap_barricade" || b->equipment_type == "slit_wall") { slot = s; bp = b; }
+        }
+        auto& trigger = reg.get_or_emplace<WeaponTriggerComponent>(self);
+        const bool isMine = bp && bp->equipment_type == "landmine";
+        const bool meleeFight = brain.intent == BotIntent::Charge || brain.intent == BotIntent::Melee;
+        const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+        const bool hasTarget = brain.target != entt::null && Alive(reg, brain.target);
+        const float d = hasTarget ? HorizontalDist(me, reg.get<TransformComponent>(brain.target).Position) : 1e9f;
+
+        if (brain.deploying) {
+            const bool abort = slot < 0 || brain.intent == BotIntent::Melee || (!isMine && d < 6.0f);
+            if (abort) {
+                brain.deploying = false; brain.holdStill = false; trigger.holdEquipment = false;
+                if (brain.resupplySlot >= 4) brain.resupplySlot = -1;
+                brain.deployCooldown = Random::Range(4.0f, 7.0f);
+                return;
+            }
+            brain.resupplySlot = slot;               // AimAndFire la prende in mano
+            if (inv->currentSlot != slot) return;
+            if (isMine) {
+                trigger.useEquipment = true;
+                brain.deploying = false;
+                brain.equipReleaseSlot = slot;
+                brain.equipReleaseTimer = 0.3f;
+                brain.deployCooldown = Random::Range(12.0f, 20.0f);
+                return;
+            }
+            brain.holdStill = true;
+            trigger.holdEquipment = true;
+            brain.deployTimer += dt;
+            const bool built = ammo->equipmentUses[slot - 4] < brain.deployUsesBefore;
+            if (built || brain.deployTimer > bp->equipment_use_time + 2.5f) {
+                brain.deploying = false; brain.holdStill = false; trigger.holdEquipment = false;
+                brain.resupplySlot = -1;
+                brain.deployCooldown = built ? Random::Range(20.0f, 35.0f) : Random::Range(5.0f, 8.0f);
+            }
+            return;
+        }
+        trigger.holdEquipment = false;
+        brain.holdStill = false;
+        if (slot < 0 || brain.deployCooldown > 0.0f || brain.throwingGrenade || brain.resupplySlot >= 0 || brain.equipReleaseTimer > 0.0f) return;
+        const int myTeam = TeamOf(reg, self) == 1 ? 1 : 0;
+        if (isMine) {
+            bool ok = hasTarget && !meleeFight && d >= 8.0f && d <= 25.0f;   // nemico in arrivo: mina sulla sua strada
+            if (!ok && !brain.targetVisible) {
+                // Avanzando senza nemici in vista: mina a meta' campo (fra il 30% e il 60% della strada verso la
+                // base nemica), dove passera' chi attacca
+                const glm::vec3 lane = m_Base[1 - myTeam] - m_Base[myTeam];
+                const float len2 = glm::dot(lane, lane);
+                const float progress = len2 > 1.0f ? glm::dot(me - m_Base[myTeam], lane) / len2 : 0.0f;
+                ok = progress >= 0.3f && progress <= 0.6f;
+            }
+            if (!ok) return;
+            if (CountTeamNear(reg, myTeam, me, 2.5f, self) > 0) { brain.deployCooldown = 2.0f; return; }   // non in mezzo ai compagni
+            if (!Random::Chance(0.35f)) { brain.deployCooldown = 3.0f; return; }
+        }
+        else {
+            // Il loota (muro con feritoia, tiratore a lunga distanza) costruisce appena vede il nemico lontano
+            const float maxD = bp->equipment_type == "slit_wall" ? 70.0f : 35.0f;
+            const float minD = bp->equipment_type == "slit_wall" ? 14.0f : 10.0f;
+            if (!hasTarget || !brain.targetVisible || d < minD || d > maxD) return;
+            // In mischia o in carica (es. yoof) si ferma a costruire solo se lo stanno colpendo da lontano
+            if (meleeFight && (brain.intent == BotIntent::Melee || d < 15.0f || brain.recentDamage < 5.0f)) return;
+            if (bp->equipment_type != "slit_wall" && brain.recentDamage < 5.0f && !Random::Chance(0.15f)) { brain.deployCooldown = 3.0f; return; }   // la barricata meglio se sotto tiro
+            if (!Random::Chance(0.5f)) { brain.deployCooldown = 4.0f; return; }
+        }
+        brain.deploying = true;
+        brain.deployTimer = 0.0f;
+        brain.deployUsesBefore = ammo->equipmentUses[slot - 4];
         brain.resupplySlot = slot;
     }
 

@@ -696,6 +696,7 @@ namespace SunEngine {
         bool useEquipment = false;              // dotazione in mano: usa su se' stesso (click sinistro)
         bool giveEquipment = false;             // dotazione in mano: dalla a un compagno (click destro)
         entt::entity giveTarget = entt::null;   // compagno scelto dall'IA (null = il piu' vicino)
+        bool holdEquipment = false;             // dotazione tenuta premuta (es. costruire la barricata: 3 s fermi)
     };
 
     // Ruolo di combattimento dell'IA ("ai_role" nel blueprint dell'unita')
@@ -763,6 +764,17 @@ namespace SunEngine {
         // Granate: tempo prima della prossima e lancio in preparazione (granata gia' in mano)
         float grenadeCooldown = 4.0f;
         bool throwingGrenade = false;
+
+        // Mine, barricate di scrap e muri con feritoia: posa in preparazione / costruzione in corso
+        float deployCooldown = 6.0f;
+        bool deploying = false;
+        bool holdStill = false;                 // costruendo: resta fermo (altrimenti la canalizzazione riparte)
+        float deployTimer = 0.0f;
+        int deployUsesBefore = 0;
+        // Dopo il comando "usa" (granata, mina) la dotazione resta in mano ancora un attimo: l'EquipmentSystem la
+        // usa al frame successivo e, se l'IA tornasse subito all'arma, non troverebbe piu' niente in mano
+        float equipReleaseTimer = 0.0f;
+        int equipReleaseSlot = -1;
     };
 
 }                                    // ← aggiungi chiusura namespace
