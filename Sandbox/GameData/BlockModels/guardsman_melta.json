@@ -1,0 +1,286 @@
+{
+  "id": "guardsman_melta",
+  "comment": "Fucile melta del guardsman a blocchi: canna larga con anelli dissipatori, doppia fiasca di combustibile, bocca incandescente. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.08,
+      0.1
+    ],
+    "grip_left": [
+      0,
+      -0.07,
+      -0.17
+    ],
+    "muzzle": [
+      0,
+      0.03,
+      -0.48
+    ]
+  },
+  "parts": [
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.01,
+        0.02
+      ],
+      "size": [
+        0.08,
+        0.1,
+        0.26
+      ],
+      "color": [
+        0.22,
+        0.2,
+        0.18,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.28
+      ],
+      "size": [
+        0.075,
+        0.075,
+        0.32
+      ],
+      "color": [
+        0.3,
+        0.28,
+        0.26,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.85
+    },
+    {
+      "name": "anello_1",
+      "offset": [
+        0,
+        0.03,
+        -0.18
+      ],
+      "size": [
+        0.095,
+        0.095,
+        0.025
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "anello_2",
+      "offset": [
+        0,
+        0.03,
+        -0.27
+      ],
+      "size": [
+        0.095,
+        0.095,
+        0.025
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "anello_3",
+      "offset": [
+        0,
+        0.03,
+        -0.36
+      ],
+      "size": [
+        0.095,
+        0.095,
+        0.025
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0,
+        0.03,
+        -0.45
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.02
+      ],
+      "color": [
+        1.0,
+        0.45,
+        0.1,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 2.0
+    },
+    {
+      "name": "fiasca_sx",
+      "offset": [
+        -0.05,
+        -0.06,
+        -0.04
+      ],
+      "size": [
+        0.04,
+        0.06,
+        0.14
+      ],
+      "color": [
+        0.45,
+        0.3,
+        0.12,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.6
+    },
+    {
+      "name": "fiasca_dx",
+      "offset": [
+        0.05,
+        -0.06,
+        -0.04
+      ],
+      "size": [
+        0.04,
+        0.06,
+        0.14
+      ],
+      "color": [
+        0.45,
+        0.3,
+        0.12,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.6
+    },
+    {
+      "name": "maniglia",
+      "offset": [
+        0,
+        -0.07,
+        -0.17
+      ],
+      "size": [
+        0.03,
+        0.08,
+        0.035
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        10,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.08,
+        0.1
+      ],
+      "size": [
+        0.032,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.01,
+        0.25
+      ],
+      "size": [
+        0.045,
+        0.08,
+        0.2
+      ],
+      "color": [
+        0.22,
+        0.2,
+        0.18,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.4
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        -0.01,
+        0.355
+      ],
+      "size": [
+        0.05,
+        0.1,
+        0.014
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

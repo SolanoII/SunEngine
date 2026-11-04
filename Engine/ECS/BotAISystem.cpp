@@ -266,20 +266,25 @@ namespace SunEngine {
         // ---------------- PERCEZIONE: solo cio' che vede dalla sua posizione ----------------
         struct Seen { entt::entity e; float dist; };
         std::vector<Seen> seen;
-        auto others = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
-        for (auto o : others) {
-            if (o == self || others.get<TeamComponent>(o).team == myTeam) continue;
-            if (others.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
-            const glm::vec3 op = others.get<TransformComponent>(o).Position;
+        auto consider = [&](entt::entity o) {
+            if (o == self || reg.get<HealthComponent>(o).currentHealth <= 0.0f) return;
+            const glm::vec3 op = reg.get<TransformComponent>(o).Position;
             const float d = HorizontalDist(op, t.Position);
-            if (d > std::max(20.0f, stats.visionRange)) continue;
+            if (d > std::max(20.0f, stats.visionRange)) return;
             glm::vec3 dir = op - t.Position; dir.y = 0.0f;
             const bool inFov = d < kCloseAwareness || (glm::length(dir) > 1e-3f &&
                 glm::degrees(std::acos(std::clamp(glm::dot(fwd, glm::normalize(dir)), -1.0f, 1.0f))) <= stats.fovDegrees * 0.5f);
             const bool alerted = brain.recentDamage > 1.0f && d < 45.0f;   // colpito: si guarda attorno
-            if (!inFov && !alerted) continue;
-            if (!HasLineOfSight(scene, eye, Chest(reg, o), self)) continue;
+            if (!inFov && !alerted) return;
+            if (!HasLineOfSight(scene, eye, Chest(reg, o), self)) return;
             seen.push_back({ o, d });
+        };
+        auto others = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+        for (auto o : others) if (others.get<TeamComponent>(o).team != myTeam) consider(o);
+        // Rinforzi evocati fuori dal Vs Bot (modalita' orda): i nemici dell'orda non hanno squadra
+        if (reg.all_of<SummonedComponent>(self)) {
+            auto horde = reg.view<HordeAgentComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, TeamComponent>);
+            for (auto o : horde) consider(o);
         }
 
         // ---------------- BERSAGLIO ----------------
@@ -350,6 +355,38 @@ namespace SunEngine {
 
         // ---------------- DECISIONE ----------------
         const BotIntent prevIntent = brain.intent;
+
+        // Rinforzo evocato (vox caster): senza nemici segue il padrone, un paio di metri dietro e di lato; in
+        // combattimento non si allontana troppo da lui (vedi in fondo).
+        const auto* summon = reg.try_get<SummonedComponent>(self);
+        const bool followOwner = summon && Alive(reg, summon->owner);
+        glm::vec3 ownerPos(0.0f);
+        float ownerDist = 0.0f;
+        if (followOwner) {
+            const auto& ot = reg.get<TransformComponent>(summon->owner);
+            ownerPos = ot.Position;
+            ownerDist = HorizontalDist(ownerPos, t.Position);
+            if (brain.target == entt::null) {
+                brain.intent = BotIntent::Advance;
+                brain.searching = false;
+                const glm::vec3 of = YawForward(ot.AimYaw);
+                const glm::vec3 right(-of.z, 0.0f, of.x);
+                const glm::vec3 slot = ownerPos - of * 2.2f + right * (summon->side * 1.8f);
+                brain.moveSpeedFactor = ownerDist > 4.5f ? 1.35f : 1.0f;   // rimasto indietro: corre per raggiungerlo
+                if (ownerDist > 3.5f || HorizontalDist(slot, t.Position) > 3.0f) {
+                    if (!brain.hasMoveGoal || HorizontalDist(slot, brain.moveGoal) > 1.5f) {
+                        brain.moveGoal = navQuery.GetNearestValidPoint(slot);
+                        brain.hasMoveGoal = true;
+                        brain.pathTimer = 0.0f;
+                    }
+                }
+                else {
+                    brain.hasMoveGoal = false;
+                    t.AimYaw = ot.AimYaw;   // fermo accanto al padrone: guarda dove guarda lui
+                }
+                return;
+            }
+        }
         const glm::vec3 myBase = m_Base[myTeam == 1 ? 1 : 0];
         const glm::vec3 enemyBase = m_Base[myTeam == 1 ? 0 : 1];
 
@@ -468,6 +505,17 @@ namespace SunEngine {
         default:
             rangedLogic(0.35f, 0.70f, 1.0f);
             break;
+        }
+
+        // Rinforzo evocato: non si allontana piu' di 14 m dal padrone (tranne a contatto in mischia)
+        if (followOwner && ownerDist > 14.0f && brain.intent != BotIntent::Melee) {
+            brain.intent = BotIntent::Reposition;
+            brain.moveSpeedFactor = 1.2f;
+            if (!brain.hasMoveGoal || HorizontalDist(brain.moveGoal, ownerPos) > 6.0f) {
+                brain.moveGoal = navQuery.GetNearestValidPoint(ownerPos + glm::normalize(glm::vec3(t.Position.x - ownerPos.x, 0.0f, t.Position.z - ownerPos.z) + glm::vec3(1e-3f)) * 4.0f);
+                brain.hasMoveGoal = true;
+                brain.pathTimer = 0.0f;
+            }
         }
     }
 
@@ -588,7 +636,10 @@ namespace SunEngine {
 
         const float dist = haveTarget ? HorizontalDist(t.Position, reg.get<TransformComponent>(brain.target).Position) : 1e9f;
         const bool aligned = AngleDiff(t.AimYaw, desiredYaw) < 7.0f;
-        const bool canShoot = brain.isAiming && aligned && dist <= std::max(15.0f, w->range_effective * 1.1f) && !ws->isReloading;
+        // Lanciafiamme: solo quando il bersaglio e' dentro il cono (oltre e' fiato sprecato)
+        const bool flamer = w->projectile_type == ProjectileType::Flamer;
+        const float shootRange = flamer ? w->range_effective : std::max(15.0f, w->range_effective * 1.1f);
+        const bool canShoot = brain.isAiming && aligned && dist <= shootRange && !ws->isReloading;
 
         if (canShoot) {
             const std::string mode = w->fire_modes.empty() ? std::string("auto") : w->fire_modes[0];
@@ -604,10 +655,10 @@ namespace SunEngine {
                 if (brain.burstTimer > 0.0f) {
                     trigger.fire = true;
                     brain.burstTimer -= dt;
-                    if (brain.burstTimer <= 0.0f) brain.pauseTimer = Random::Range(0.25f, 0.7f);
+                    if (brain.burstTimer <= 0.0f) brain.pauseTimer = flamer ? Random::Range(0.1f, 0.25f) : Random::Range(0.25f, 0.7f);
                 }
                 else if (brain.pauseTimer <= 0.0f) {
-                    brain.burstTimer = Random::Range(0.25f, 0.65f);
+                    brain.burstTimer = flamer ? Random::Range(1.2f, 2.2f) : Random::Range(0.25f, 0.65f);   // fiammate lunghe
                 }
             }
         }
@@ -680,6 +731,26 @@ namespace SunEngine {
         const auto* ammo = reg.try_get<AmmoComponent>(self);
         if (!inv || !ammo) { brain.resupplySlot = -1; return; }
         if (ammo->useTimer > 0.0f) return;   // rifornimento in corso: tiene la scatola in mano
+
+        // Vox caster: appena c'e' un nemico noto e nessuno entro 8 m chiama il rinforzo (1 s di chiamata)
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!bp || bp->equipment_type != "vox_caster" || ammo->equipmentUses[s - 4] <= 0) continue;
+            if (brain.resupplySlot != s) {
+                if (brain.target == entt::null) break;
+                const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+                bool enemyNear = false;
+                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                for (auto o : all) {
+                    if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                    if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 8.0f) { enemyNear = true; break; }
+                }
+                if (enemyNear) break;
+                brain.resupplySlot = s;
+            }
+            if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+            return;
+        }
 
         // Medikit (cura se stesso in 3 s): sotto il 50% di salute e senza nemici entro 10 m, perche' per tutta la
         // medicazione non spara. Una volta deciso lo tiene in mano finche' la medicazione non finisce.

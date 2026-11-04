@@ -298,6 +298,12 @@ namespace SunEngine {
         void AddBotExtras(TrainedUnit& u, int& budget) const;   // oggetti ricercabili a caso, entro il budget della coda
         entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex);
         void UpdateVsBot(float deltaTime);                 // fine partita (eliminazione o tempo scaduto)
+        // Rinforzi del vox caster: arrivano dopo il ritardo, seguono chi li ha chiamati, cerchio verde sotto i piedi
+        void UpdateSummons(float deltaTime);
+        entt::entity SpawnSummon(entt::entity owner, const std::string& unitId);
+        void ClearSummons();
+        void RenderSummonRings(bool deferred);
+        bool HasSummons();
         void UpdateBotVisuals();                           // arma in mano e posa delle braccia dei bot
         void RenderVsBotHUD();
         void RenderVsBotDeathUI();                         // giocatore caduto: sceglie con quale unita' della squadra rientrare

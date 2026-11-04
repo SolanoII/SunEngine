@@ -213,6 +213,15 @@ namespace SunEngine {
         std::vector<GarmentDef> garments;   // strati sul modello animato ("garments")
         float throw_speed = 14.0f;
         float trigger_radius = 0.9f;
+        // Lanciagranate ("launches_grenade": true): ogni colpo e' una granata (fuse_time, explode_on_impact,
+        // explosion_radius / explosion_damage) sparata a projectile_speed m/s dalla canna, con la gravita'.
+        bool launches_grenade = false;
+        // Melta a colpo singolo ("melta_shot": true): entro melta_range danno x melta_multiplier e +20 penetrazione
+        bool melta_shot = false;
+        // Vox caster ("vox_caster"): dopo equipment_use_time secondi di chiamata, summon_delay secondi dopo arriva
+        // un'unita' summon_unit che segue chi l'ha chiamata e combatte con lui (cerchio verde sotto i piedi).
+        std::string summon_unit;
+        float summon_delay = 5.0f;
         float companion_health = 30.0f;      // lo squig si puo' uccidere: poca salute...
         float companion_evasion = 0.30f;     // ...ma schiva il 30% dei colpi
 

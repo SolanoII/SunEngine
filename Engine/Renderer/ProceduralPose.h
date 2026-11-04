@@ -193,6 +193,14 @@ namespace SunEngine {
             p.Rotate("Head", Rx(25.0f * amount)); p.Rotate("Spine", Rx(8.0f * amount));
         }
 
+        // Vox caster: cornetta all'orecchio con la sinistra, testa inclinata verso la mano
+        inline void VoxCall(ProceduralPose& p, float amount) {
+            if (amount <= 0.0f) return;
+            p.Rotate("LeftArm", Rx(-30.0f * amount)); p.Rotate("LeftArm", Rz(55.0f * amount));
+            p.Rotate("LeftForeArm", Rx(-120.0f * amount));
+            p.Rotate("Head", Rz(12.0f * amount));
+        }
+
         // Costruzione (barricate, muri): mezzo accovacciato, le due braccia che battono a turno
         inline void Build(ProceduralPose& p, float time, float amount, float thighLen, float shinLen) {
             if (amount <= 0.0f) return;

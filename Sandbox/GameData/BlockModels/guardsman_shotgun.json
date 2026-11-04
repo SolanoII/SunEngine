@@ -1,0 +1,259 @@
+{
+  "id": "guardsman_shotgun",
+  "comment": "Fucile a pompa del guardsman a blocchi: canna lunga con serbatoio tubolare sotto, pompa in legno, calcio. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.07,
+      0.1
+    ],
+    "grip_left": [
+      0,
+      -0.04,
+      -0.22
+    ],
+    "muzzle": [
+      0,
+      0.02,
+      -0.5
+    ]
+  },
+  "parts": [
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.0,
+        0.03
+      ],
+      "size": [
+        0.06,
+        0.08,
+        0.22
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.02,
+        -0.27
+      ],
+      "size": [
+        0.034,
+        0.034,
+        0.46
+      ],
+      "color": [
+        0.34,
+        0.34,
+        0.36,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "serbatoio",
+      "offset": [
+        0,
+        -0.025,
+        -0.22
+      ],
+      "size": [
+        0.03,
+        0.03,
+        0.36
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "pompa",
+      "offset": [
+        0,
+        -0.035,
+        -0.22
+      ],
+      "size": [
+        0.05,
+        0.045,
+        0.14
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0,
+        0.045,
+        -0.48
+      ],
+      "size": [
+        0.008,
+        0.018,
+        0.01
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0,
+        0.02,
+        -0.495
+      ],
+      "size": [
+        0.04,
+        0.04,
+        0.02
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "finestra",
+      "offset": [
+        0.031,
+        0.01,
+        0.02
+      ],
+      "size": [
+        0.004,
+        0.03,
+        0.08
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.07,
+        0.1
+      ],
+      "size": [
+        0.032,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ponticello",
+      "offset": [
+        0,
+        -0.045,
+        0.06
+      ],
+      "size": [
+        0.01,
+        0.015,
+        0.06
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.02,
+        0.27
+      ],
+      "size": [
+        0.045,
+        0.08,
+        0.24
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        -0.02,
+        0.395
+      ],
+      "size": [
+        0.05,
+        0.1,
+        0.014
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

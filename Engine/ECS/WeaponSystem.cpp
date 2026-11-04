@@ -535,6 +535,23 @@ namespace SunEngine {
             return;
         }
 
+        // Lanciagranate: il colpo e' una granata vera (gravita', rimbalzi o impatto) sparata dalla canna.
+        // Il giocatore tira dritto lungo il mirino (alzando la mira va piu' lontano); i bot calcolano la parabola
+        // per arrivare sul punto che stanno mirando.
+        if (wpBP.launches_grenade) {
+            const float speed = (std::max)(5.0f, wpBP.projectile_speed);
+            glm::vec3 vel = baseDir * speed;
+            if (!scene.GetRegistry().all_of<PlayerTag>(shooter)) {
+                const float range = (wpBP.range_effective > 1.0f) ? wpBP.range_effective : 40.0f;
+                const RaycastResult aim = RaycastAll(scene, barrelOrigin - baseDir * rayPullBack, baseDir, range + rayPullBack, shooter);
+                const glm::vec3 target = aim.hit ? aim.point : barrelOrigin + baseDir * range;
+                vel = Explosives::BallisticVelocity(barrelOrigin, target, speed);
+            }
+            Explosives::ThrowGrenade(scene, shooter, wpBP, barrelOrigin, vel, nullptr);   // nullptr: niente modello dell'arma come granata
+            PlayWeaponSound(barrelOrigin, trans.Position + glm::vec3(0.0f, 1.2f, 0.0f), 0.8f);
+            return;
+        }
+
         bool isUnderbarrelShotgun = (wState.currentFireMode == "shotgun" || wState.currentFireMode == "underbarrel_shotgun" || wState.currentFireMode == wpBP.underbarrel_type);
         bool isShotgun = (wpBP.pellet_count > 1) || isUnderbarrelShotgun;
 
@@ -589,6 +606,11 @@ namespace SunEngine {
                 finalDamage = CalculateDamageWithFalloff(finalDamage, hit.distance,
                     wpBP.damage_falloff_start,
                     wpBP.damage_falloff_end);
+                // Melta a colpo singolo: a bruciapelo scioglie tutto
+                if (wpBP.melta_shot && hit.distance <= wpBP.melta_range) {
+                    finalDamage *= (std::max)(1.0f, wpBP.melta_multiplier);
+                    effectiveAP += 20;
+                }
 
                 if (wpBP.projectile_type == ProjectileType::Grav) {
                     ArmorPiece* armor = targetStats.armorSet.GetPiece(hit.location);

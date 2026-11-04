@@ -1,0 +1,307 @@
+{
+  "id": "guardsman_flamer",
+  "comment": "Lanciafiamme del guardsman a blocchi: corpo con serbatoio del promezio sotto, canna con fiamma pilota, maniglia anteriore. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.08,
+      0.12
+    ],
+    "grip_left": [
+      0,
+      -0.08,
+      -0.15
+    ],
+    "muzzle": [
+      0,
+      0.03,
+      -0.5
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0,
+        0.02,
+        0.02
+      ],
+      "size": [
+        0.08,
+        0.09,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.3
+      ],
+      "size": [
+        0.045,
+        0.045,
+        0.34
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "anello_1",
+      "offset": [
+        0,
+        0.03,
+        -0.2
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.02
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "anello_2",
+      "offset": [
+        0,
+        0.03,
+        -0.32
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.02
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "ugello",
+      "offset": [
+        0,
+        0.03,
+        -0.48
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.04
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "fiamma_pilota",
+      "offset": [
+        0,
+        -0.01,
+        -0.49
+      ],
+      "size": [
+        0.018,
+        0.018,
+        0.018
+      ],
+      "color": [
+        1.0,
+        0.5,
+        0.1,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.0,
+      "emissive": 2.0
+    },
+    {
+      "name": "tubo_pilota",
+      "offset": [
+        0,
+        -0.01,
+        -0.4
+      ],
+      "size": [
+        0.012,
+        0.012,
+        0.16
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "serbatoio",
+      "offset": [
+        0,
+        -0.08,
+        -0.02
+      ],
+      "size": [
+        0.09,
+        0.09,
+        0.2
+      ],
+      "color": [
+        0.45,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.4
+    },
+    {
+      "name": "tappo",
+      "offset": [
+        0,
+        -0.08,
+        -0.13
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.02
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "maniglia_anteriore",
+      "offset": [
+        0,
+        -0.08,
+        -0.15
+      ],
+      "size": [
+        0.03,
+        0.09,
+        0.035
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        10,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.08,
+        0.12
+      ],
+      "size": [
+        0.032,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        0.0,
+        0.27
+      ],
+      "size": [
+        0.04,
+        0.07,
+        0.18
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        0.0,
+        0.365
+      ],
+      "size": [
+        0.045,
+        0.09,
+        0.014
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "id": "guardsman_long_las",
+  "displayName": "Long-Las Cadiano",
+  "faction": "Imperium",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 5.0,
+  "point_cost": 6,
+  "has_scope": true,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 1,
+  "reload_time_sec": 1.6,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 60.0,
+  "base_damage": 130.0,
+  "armor_penetration": 25,
+  "range_effective": 200.0,
+  "damage_falloff_start": 0.0,
+  "damage_falloff_end": 0.0,
+  "spread_base": 0.0,
+  "recoil_force": 0.8,
+  "heat_capacity": 100.0,
+  "projectile_type": "laser",
+  "is_beam": true,
+  "primary_color": [
+    1.0,
+    0.2,
+    0.15,
+    1.0
+  ],
+  "projectile_width": 0.06,
+  "weapon_scale": [
+    0.1,
+    0.1,
+    1.05
+  ],
+  "hold_offset": [
+    0.35,
+    -0.15,
+    -0.2
+  ],
+  "spare_magazines": 10,
+  "comment": "Sbloccabile del guardsman: fucile laser di precisione con ottica (rotella del mouse mirando). Un colpo alla volta, 10 di riserva.",
+  "allowed_units": [
+    "imperium_guardsman_recruit"
+  ],
+  "scope_zoom_fov": 40.0
+}

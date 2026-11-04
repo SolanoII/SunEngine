@@ -1763,6 +1763,103 @@ namespace SunEngine {
         }
     }
 
+    // Cerchio verde a terra sotto ogni rinforzo evocato (vox caster): fa parte della squadra di chi l'ha chiamato
+    void GameLayer::RenderSummonRings(bool deferred) {
+        auto& reg = m_Scene.GetRegistry();
+        constexpr int kSegments = 28;
+        constexpr float kRadius = 0.6f;
+        const glm::vec4 color(0.2f, 0.95f, 0.3f, 1.0f);
+        const float segLen = 2.0f * glm::pi<float>() * kRadius / kSegments * 1.1f;
+        for (auto e : reg.view<SummonedComponent, TransformComponent>(entt::exclude<CorpseComponent>)) {
+            const auto& t = reg.get<TransformComponent>(e);
+            float footY = t.Position.y;
+            if (const auto* c = reg.try_get<ColliderComponent>(e)) footY = t.Position.y + (c->localCenterOffset.y - c->halfExtents.y) * t.Scale.y;
+            for (int i = 0; i < kSegments; ++i) {
+                const float a = 2.0f * glm::pi<float>() * (i + 0.5f) / kSegments;
+                const glm::vec3 p(t.Position.x + std::cos(a) * kRadius, footY + 0.03f, t.Position.z + std::sin(a) * kRadius);
+                glm::mat4 m = glm::translate(glm::mat4(1.0f), p);
+                m = glm::rotate(m, -a, glm::vec3(0.0f, 1.0f, 0.0f));
+                m = glm::scale(m, glm::vec3(0.06f, 0.012f, segLen));
+                if (deferred) m_DeferredRenderer.DrawCube(m, color, 0.4f, 0.0f, 0.8f);
+                else Renderer::DrawCube(m, color);
+            }
+        }
+    }
+
+    bool GameLayer::HasSummons() {
+        return m_Scene.GetRegistry().view<SummonedComponent>().size() > 0;
+    }
+
+    // Rinforzi chiamati col vox caster: il conto alla rovescia, poi l'unita' compare dietro chi l'ha chiamata.
+    // Se chi ha chiamato cade prima, i rinforzi non arrivano.
+    void GameLayer::UpdateSummons(float deltaTime) {
+        auto& reg = m_Scene.GetRegistry();
+        std::vector<std::pair<entt::entity, std::string>> arrivals;
+        for (auto e : reg.view<SummonRequestComponent>()) {
+            auto& req = reg.get<SummonRequestComponent>(e);
+            const auto* hp = reg.try_get<HealthComponent>(e);
+            if (!hp || hp->currentHealth <= 0.0f || reg.all_of<CorpseComponent>(e)) { req.pending.clear(); continue; }
+            for (auto it = req.pending.begin(); it != req.pending.end();) {
+                it->timer -= deltaTime;
+                if (it->timer <= 0.0f) { arrivals.emplace_back(e, it->unitId); it = req.pending.erase(it); }
+                else ++it;
+            }
+        }
+        for (const auto& [owner, unitId] : arrivals) SpawnSummon(owner, unitId);
+    }
+
+    entt::entity GameLayer::SpawnSummon(entt::entity owner, const std::string& unitId) {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(owner) || !reg.all_of<TransformComponent>(owner) || !BlueprintManager::Get().GetUnit(unitId)) return entt::null;
+        // Squadra del padrone (in modalita' orda il giocatore non ne ha: si usa la 0, quella degli alleati)
+        int team = 0;
+        if (const auto* tc = reg.try_get<TeamComponent>(owner)) team = tc->team;
+        else reg.emplace<TeamComponent>(owner, TeamComponent{ 0 });
+
+        int already = 0;
+        for (auto s : reg.view<SummonedComponent>(entt::exclude<CorpseComponent>)) if (reg.get<SummonedComponent>(s).owner == owner) ++already;
+        const float side = (already % 2 == 0) ? 1.0f : -1.0f;
+
+        const auto& ot = reg.get<TransformComponent>(owner);
+        float footY = ot.Position.y;
+        if (const auto* c = reg.try_get<ColliderComponent>(owner)) footY = ot.Position.y + (c->localCenterOffset.y - c->halfExtents.y) * ot.Scale.y;
+        const float yr = glm::radians(ot.AimYaw);
+        const glm::vec3 fwd(-std::sin(yr), 0.0f, -std::cos(yr)), right(std::cos(yr), 0.0f, -std::sin(yr));
+        glm::vec3 pos = glm::vec3(ot.Position.x, footY, ot.Position.z) - fwd * 2.0f + right * (side * 1.5f);
+        const glm::vec3 nav = m_NavQuery.GetNearestValidPoint(pos);
+        if (glm::length(glm::vec2(nav.x - pos.x, nav.z - pos.z)) < 4.0f) pos = nav;   // navmesh vicino: li' (a terra)
+
+        TrainedUnit u = MakeBotUnit(unitId, 0);
+        const entt::entity e = SpawnBot(u, team, pos, ot.AimYaw, -1);
+        if (e == entt::null) return entt::null;
+        m_VsBotUnits.erase(e);   // non e' un'unita' di una squadra del Vs Bot
+        reg.emplace<SummonedComponent>(e, SummonedComponent{ owner, side });
+        if (auto* brain = reg.try_get<BotBrainComponent>(e)) {
+            std::string ownerName = "te";
+            if (owner != m_PlayerEntity) if (const auto* ob = reg.try_get<BotBrainComponent>(owner)) ownerName = ob->displayName;
+            brain->displayName = u.customName + " (rinforzo di " + ownerName + ")";
+            brain->advanceSide = side;
+        }
+        if (auto* a = reg.try_get<AmmoComponent>(owner)) { a->feedback = "Rinforzo arrivato: " + u.customName; a->feedbackTimer = 2.5f; }
+        SUN_CORE_INFO("Rinforzo dal vox caster: {0}", u.customName);
+        return e;
+    }
+
+    // Fuori dalla partita: via i rinforzi e le chiamate in sospeso
+    void GameLayer::ClearSummons() {
+        auto& reg = m_Scene.GetRegistry();
+        std::vector<entt::entity> gone;
+        for (auto e : reg.view<SummonedComponent>()) gone.push_back(e);
+        for (auto e : gone) {
+            if (!reg.valid(e)) continue;
+            m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
+            m_Scene.DestroyEntity(e);
+        }
+        reg.clear<SummonRequestComponent>();
+        // In modalita' orda il giocatore riceve la squadra 0 col primo rinforzo: fuori dal Vs Bot la si toglie
+        if (!m_VsBotActive && reg.valid(m_PlayerEntity) && reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
+    }
+
     // Voce di un combo dell'equipaggiamento nel garage. Gli oggetti con un nodo di ricerca vanno prima ricercati
     // (voce disattivata) e poi comprati per questa unita' con energia: il primo click compra, poi si equipaggia.
     // Ritorna true se lo slot e' cambiato.
@@ -2147,6 +2244,7 @@ namespace SunEngine {
             PoseLib::Build(m_PlayerPose, m_PoseTime, ap->build, thigh, shin);
             PoseLib::Repair(m_PlayerPose, m_PoseTime, ap->repair);
             PoseLib::SelfHeal(m_PlayerPose, m_PoseTime, ap->medkit);
+            PoseLib::VoxCall(m_PlayerPose, ap->vox);
             PoseLib::Gunner(m_PlayerPose, ap->gunner, thigh, shin);
             if (ap->action == 1) PoseLib::Throw(m_PlayerPose, ap->time / ap->duration);
             else if (ap->action == 2) PoseLib::UseItem(m_PlayerPose, ap->time / ap->duration, thigh, shin);
@@ -2253,6 +2351,7 @@ namespace SunEngine {
                 if (type == "scrap_barricade" || type == "slit_wall") textRight(type == "slit_wall" ? "Costruzione muro... (resta fermo)" : "Costruzione barricata... (resta fermo)", baseSize, yellow);
                 else if (type == "turret") textRight("Montaggio... (resta fermo)", baseSize, yellow);
                 else if (type == "medkit") textRight("Medicazione...", baseSize, yellow);
+                else if (type == "vox_caster") textRight("Chiamata al vox...", baseSize, yellow);
                 else textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
             }
             if (type == "ammo_box")
@@ -2263,6 +2362,9 @@ namespace SunEngine {
             else if (type == "medkit")
                 textRight("Sinistro: curati di " + std::to_string(static_cast<int>(held->heal_amount)) + " salute in " +
                           std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s", baseSize, grey);
+            else if (type == "vox_caster")
+                textRight("Sinistro: chiama un rinforzo (" + std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) +
+                          " s di chiamata, arriva dopo " + std::to_string(static_cast<int>(std::lround(held->summon_delay))) + " s)", baseSize, grey);
             else if (type == "turret")
                 textRight("Tieni premuto sinistro da fermo per " + std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) +
                           " s: piazza " + held->displayName, baseSize, grey);
@@ -2970,6 +3072,7 @@ namespace SunEngine {
             m_SquigSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
             m_TurretSystem.Clear(m_Scene);
+            ClearSummons();
             if (m_GameState != GameState::MainMenu) UpdateAnimatedSkin();   // editor: via i pezzi della skin
             // Barricate e zaini di cibo appartengono alla partita
             std::vector<entt::entity> leftovers;
@@ -3291,7 +3394,8 @@ namespace SunEngine {
             m_WeightSystem.Update(m_Scene, deltaTime);
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
-            if (m_VsBotActive) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
+            UpdateSummons(deltaTime);
+            if (m_VsBotActive || HasSummons()) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
             m_MeleeCombat.Update(m_Scene, deltaTime);
             // Compagni squig (seguono il padrone e attaccano quello a cui spara) e riparazione con la chiave inglese
             if (!m_SquigSkeletonLoaded) {   // un solo tentativo: se manca il file lo squig resta un cubo
@@ -3845,6 +3949,7 @@ namespace SunEngine {
             UpdateBotVisuals();
             UpdateVsBot(deltaTime);
         }
+        else if (m_GameState == GameState::Gameplay && HasSummons()) UpdateBotVisuals();   // rinforzi del vox in modalita' orda
 
         auto orkWeaponView = m_Scene.GetRegistry().view<HordeAgentComponent, TransformComponent, SkeletonComponent>();
         for (auto orkEnt : orkWeaponView) {
@@ -3976,6 +4081,7 @@ namespace SunEngine {
             m_RenderSystem.RenderDeferred(m_Scene, m_DeferredRenderer);
             RenderParryRings(true);
             RenderHealZones(true);
+            RenderSummonRings(true);
             m_DeferredRenderer.EndGeometryPassAndPresent(m_Camera);
         }
         else {
@@ -3983,6 +4089,7 @@ namespace SunEngine {
             m_RenderSystem.Render(m_Scene);
             RenderParryRings(false);
             RenderHealZones(false);
+            RenderSummonRings(false);
         }
         m_ParticleSystem.Render(m_Scene);
         // (rimossi i due modelli di prova disegnati accanto al giocatore)
@@ -6077,6 +6184,19 @@ namespace SunEngine {
             if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_whiteshield_guard"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_whiteshield_guard"); }
             tryUpgrade(0.25f, u.equipmentSlots[1], "whiteshield_lascannon");
         }
+        else if (u.blueprintId == "imperium_guardsman_recruit") {
+            tryUpgrade(0.40f, u.primaryWeaponId, "guardsman_autogun");        // alternative base
+            tryUpgrade(0.35f, u.secondaryWeaponId, "guardsman_autopistol");
+            const float r = Random::Float01();                                  // armi speciali (una al massimo)
+            if (r < 0.10f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_shotgun");
+            else if (r < 0.19f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_flamer");
+            else if (r < 0.28f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_plasma");
+            else if (r < 0.36f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_melta");
+            else if (r < 0.44f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_long_las");
+            else if (r < 0.52f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_grenade_launcher");
+            tryUpgrade(0.25f, u.meleeWeaponId, "guardsman_chainsword");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "guardsman_vox_caster");
+        }
         else if (u.blueprintId == "imperium_conscript") {
             tryUpgrade(0.30f, u.equipmentSlots[0], "conscript_frag");
             tryUpgrade(0.25f, u.equipmentSlots[1], "conscript_medkit");
@@ -6410,6 +6530,7 @@ namespace SunEngine {
         }
         m_VsBotUnits.clear();
         m_VsBotPlayers.clear();
+        ClearSummons();
         ResetFactionBuff();
         if (reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
         m_VsBotActive = false;
@@ -6486,6 +6607,7 @@ namespace SunEngine {
     void GameLayer::UpdateVsBotWorld(float deltaTime) {
         m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);   // il cadavere del giocatore e' escluso
         m_EquipmentSystem.Update(m_Scene, deltaTime, &m_BlockModels);
+        UpdateSummons(deltaTime);
         m_ExplosiveSystem.Update(m_Scene, deltaTime);
         m_TurretSystem.Update(m_Scene, m_WeaponSystem, m_PhysicsSystem, m_PlayerEntity, false, deltaTime);
         m_PhysicsSystem.Update(m_Scene, deltaTime);

@@ -1,6 +1,6 @@
 {
   "id": "imperium_guardsman_recruit",
-  "displayName": "Guardsman Recruit",
+  "displayName": "Guardsman",
   "ai_role": "ranged",
   "point_cost": 10,
   "animated_body": "human",
@@ -17,5 +17,26 @@
   "suppression_threshold": 50,
   "vision_range": 120,
   "fov_degrees": 90,
-  "weight_capacity": 70.0
+  "weight_capacity": 70.0,
+  "comment": "Guardsman cadiano. Dotazione base: armatura completa, lasgun (20+80) o autogun (30+120), laspistol (10+50) o autopistola (12+60), coltello, 1 granata frag. Sbloccabili: fucile a pompa, spada a catena, lanciagranate, lanciafiamme, plasma, melta, long-las e vox caster (chiama un coscritto che ti segue).",
+  "default_loadout": {
+    "primary": "guardsman_lasgun",
+    "secondary": "guardsman_laspistol",
+    "melee": "guardsman_knife",
+    "equipment": [
+      "guardsman_frag",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "head_guardsman_helmet",
+      "torso": "torso_guardsman_flak",
+      "arm_l": "arm_l_guardsman_guard",
+      "arm_r": "arm_r_guardsman_guard",
+      "leg_l": "leg_l_guardsman_guard",
+      "leg_r": "leg_r_guardsman_guard"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 3
 }

@@ -15,6 +15,8 @@
 //   se' (collider statico: ferma colpi, linea di vista e movimento del giocatore). Muoversi azzera la canalizzazione.
 // Zaino di cibo ("food_pack"): click sinistro lo posa ai piedi; per effect_duration secondi cura heal_per_second
 //   ai compagni (stessa squadra) entro equipment_range metri.
+// Vox caster ("vox_caster"): click sinistro e equipment_use_time secondi di chiamata (ci si puo' muovere), poi
+//   dopo summon_delay secondi arriva un rinforzo summon_unit che segue chi l'ha chiamato (lo crea GameLayer).
 #include "Components.h"
 #include "../Scene/Scene.h"
 #include "../Core/Input.h"
@@ -223,6 +225,10 @@ namespace SunEngine {
                 }
                 if (held->equipment_type == "medkit") {
                     UpdateMedkit(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
+                    continue;
+                }
+                if (held->equipment_type == "vox_caster") {
+                    UpdateVoxCaster(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
                     continue;
                 }
 
@@ -434,6 +440,30 @@ namespace SunEngine {
             a.useSlot = slot;
             a.useTarget = e;
             Feedback(a, "Medicazione in corso...");
+        }
+
+        // Vox caster: chiamata di equipment_use_time secondi, poi il rinforzo e' in arrivo (SummonRequestComponent)
+        void UpdateVoxCaster(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slot, bool pressed, float dt) {
+            auto& reg = scene.GetRegistry();
+            const int slotIdx = slot - 4;
+            if (a.useTimer > 0.0f && a.useSlot == slot) {
+                a.useTimer -= dt;
+                if (a.useTimer > 0.0f) return;
+                a.useTimer = 0.0f; a.useSlot = -1;
+                a.equipmentUses[slotIdx] = std::max(0, a.equipmentUses[slotIdx] - 1);
+                if (bp.summon_unit.empty()) { Feedback(a, "Nessuno risponde al vox"); return; }
+                auto& req = reg.get_or_emplace<SummonRequestComponent>(e);
+                req.pending.push_back({ bp.summon_unit, std::max(0.0f, bp.summon_delay) });
+                Feedback(a, "Rinforzi in arrivo tra " + std::to_string(static_cast<int>(std::lround(bp.summon_delay))) + " s");
+                return;
+            }
+            if (!pressed) return;
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Vox caster gia' usato"); return; }
+            a.useDuration = std::max(0.1f, bp.equipment_use_time);
+            a.useTimer = a.useDuration;
+            a.useSlot = slot;
+            a.useTarget = e;
+            Feedback(a, "Chiamata al vox...");
         }
 
         void DropFood(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx, const BlockModelLibrary* models) {

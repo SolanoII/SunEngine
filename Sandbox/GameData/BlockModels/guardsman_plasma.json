@@ -1,0 +1,370 @@
+{
+  "id": "guardsman_plasma",
+  "comment": "Fucile al plasma del guardsman a blocchi: castello massiccio, bobine con prese d'aria azzurre, canna con alette di raffreddamento, fiasca del plasma. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.08,
+      0.1
+    ],
+    "grip_left": [
+      0,
+      -0.06,
+      -0.2
+    ],
+    "muzzle": [
+      0,
+      0.03,
+      -0.5
+    ]
+  },
+  "parts": [
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.01,
+        0.02
+      ],
+      "size": [
+        0.075,
+        0.1,
+        0.28
+      ],
+      "color": [
+        0.18,
+        0.19,
+        0.22,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "bobina",
+      "offset": [
+        0,
+        0.03,
+        -0.2
+      ],
+      "size": [
+        0.07,
+        0.07,
+        0.16
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.34,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.85
+    },
+    {
+      "name": "presa_1",
+      "offset": [
+        0.036,
+        0.03,
+        -0.24
+      ],
+      "size": [
+        0.004,
+        0.04,
+        0.02
+      ],
+      "color": [
+        0.25,
+        0.7,
+        1.0,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.0,
+      "emissive": 2.0
+    },
+    {
+      "name": "presa_2",
+      "offset": [
+        -0.036,
+        0.03,
+        -0.24
+      ],
+      "size": [
+        0.004,
+        0.04,
+        0.02
+      ],
+      "color": [
+        0.25,
+        0.7,
+        1.0,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.0,
+      "emissive": 2.0
+    },
+    {
+      "name": "presa_3",
+      "offset": [
+        0.036,
+        0.03,
+        -0.17
+      ],
+      "size": [
+        0.004,
+        0.04,
+        0.02
+      ],
+      "color": [
+        0.25,
+        0.7,
+        1.0,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.0,
+      "emissive": 2.0
+    },
+    {
+      "name": "presa_4",
+      "offset": [
+        -0.036,
+        0.03,
+        -0.17
+      ],
+      "size": [
+        0.004,
+        0.04,
+        0.02
+      ],
+      "color": [
+        0.25,
+        0.7,
+        1.0,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.0,
+      "emissive": 2.0
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.36
+      ],
+      "size": [
+        0.04,
+        0.04,
+        0.2
+      ],
+      "color": [
+        0.34,
+        0.34,
+        0.36,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "aletta_1",
+      "offset": [
+        0,
+        0.03,
+        -0.32
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.008
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "aletta_2",
+      "offset": [
+        0,
+        0.03,
+        -0.37
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.008
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "aletta_3",
+      "offset": [
+        0,
+        0.03,
+        -0.42
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.008
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0,
+        0.03,
+        -0.47
+      ],
+      "size": [
+        0.03,
+        0.03,
+        0.02
+      ],
+      "color": [
+        0.25,
+        0.7,
+        1.0,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.0,
+      "emissive": 2.5
+    },
+    {
+      "name": "fiasca",
+      "offset": [
+        0,
+        -0.07,
+        -0.06
+      ],
+      "size": [
+        0.06,
+        0.08,
+        0.09
+      ],
+      "color": [
+        0.15,
+        0.35,
+        0.5,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.4,
+      "emissive": 0.6
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0,
+        -0.035,
+        -0.2
+      ],
+      "size": [
+        0.05,
+        0.04,
+        0.12
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.08,
+        0.1
+      ],
+      "size": [
+        0.032,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.01,
+        0.27
+      ],
+      "size": [
+        0.045,
+        0.08,
+        0.22
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        -0.01,
+        0.385
+      ],
+      "size": [
+        0.05,
+        0.1,
+        0.014
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

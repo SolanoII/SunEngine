@@ -1,0 +1,345 @@
+{
+  "id": "guardsman_long_las",
+  "comment": "Long-las del guardsman a blocchi: canna laser molto lunga, ottica sopra, calcio lungo con poggiaguancia, bipiede chiuso. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.085,
+      0.12
+    ],
+    "grip_left": [
+      0,
+      -0.04,
+      -0.26
+    ],
+    "muzzle": [
+      0,
+      0.012,
+      -0.62
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.012,
+        -0.36
+      ],
+      "size": [
+        0.034,
+        0.034,
+        0.5
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "lente",
+      "offset": [
+        0,
+        0.012,
+        -0.61
+      ],
+      "size": [
+        0.026,
+        0.026,
+        0.02
+      ],
+      "color": [
+        1.0,
+        0.15,
+        0.1,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.2,
+      "emissive": 1.5
+    },
+    {
+      "name": "dissipatore_1",
+      "offset": [
+        0,
+        0.012,
+        -0.5
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.012
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "dissipatore_2",
+      "offset": [
+        0,
+        0.012,
+        -0.42
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.012
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.004,
+        0.04
+      ],
+      "size": [
+        0.06,
+        0.08,
+        0.24
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.3
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0,
+        -0.03,
+        -0.24
+      ],
+      "size": [
+        0.048,
+        0.04,
+        0.2
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.25
+    },
+    {
+      "name": "ottica",
+      "offset": [
+        0,
+        0.075,
+        0.02
+      ],
+      "size": [
+        0.036,
+        0.036,
+        0.22
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.6
+    },
+    {
+      "name": "lente_ottica",
+      "offset": [
+        0,
+        0.075,
+        -0.092
+      ],
+      "size": [
+        0.03,
+        0.03,
+        0.006
+      ],
+      "color": [
+        0.3,
+        0.6,
+        0.9,
+        1
+      ],
+      "roughness": 0.1,
+      "metallic": 0.3,
+      "emissive": 0.5
+    },
+    {
+      "name": "attacco_ottica",
+      "offset": [
+        0,
+        0.05,
+        0.02
+      ],
+      "size": [
+        0.02,
+        0.02,
+        0.08
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "cella",
+      "offset": [
+        0,
+        -0.088,
+        0.0
+      ],
+      "size": [
+        0.052,
+        0.1,
+        0.075
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.7
+    },
+    {
+      "name": "bipiede",
+      "offset": [
+        0,
+        -0.035,
+        -0.4
+      ],
+      "size": [
+        0.03,
+        0.02,
+        0.16
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.085,
+        0.12
+      ],
+      "size": [
+        0.034,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.1,
+      "rotation": [
+        -12,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.02,
+        0.3
+      ],
+      "size": [
+        0.044,
+        0.09,
+        0.28
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.0
+    },
+    {
+      "name": "poggiaguancia",
+      "offset": [
+        0,
+        0.035,
+        0.28
+      ],
+      "size": [
+        0.038,
+        0.025,
+        0.14
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.0
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        -0.02,
+        0.445
+      ],
+      "size": [
+        0.048,
+        0.1,
+        0.014
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

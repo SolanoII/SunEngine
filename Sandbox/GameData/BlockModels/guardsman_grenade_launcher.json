@@ -1,0 +1,269 @@
+{
+  "id": "guardsman_grenade_launcher",
+  "comment": "Lanciagranate del guardsman a blocchi: canna corta e larga, tamburo a 3 colpi, calcio e impugnatura anteriore. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.09,
+      0.12
+    ],
+    "grip_left": [
+      0,
+      -0.09,
+      -0.2
+    ],
+    "muzzle": [
+      0,
+      0.03,
+      -0.42
+    ]
+  },
+  "parts": [
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.26
+      ],
+      "size": [
+        0.07,
+        0.07,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.4
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0,
+        0.03,
+        -0.415
+      ],
+      "size": [
+        0.08,
+        0.08,
+        0.02
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "tamburo",
+      "offset": [
+        0,
+        -0.005,
+        -0.03
+      ],
+      "size": [
+        0.13,
+        0.13,
+        0.14
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85,
+      "rotation": [
+        0,
+        0,
+        45
+      ]
+    },
+    {
+      "name": "tamburo_asse",
+      "offset": [
+        0,
+        -0.005,
+        -0.03
+      ],
+      "size": [
+        0.03,
+        0.03,
+        0.17
+      ],
+      "color": [
+        0.34,
+        0.34,
+        0.36,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "granata_1",
+      "offset": [
+        0,
+        0.045,
+        -0.1
+      ],
+      "size": [
+        0.035,
+        0.035,
+        0.01
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.02,
+        0.1
+      ],
+      "size": [
+        0.06,
+        0.08,
+        0.12
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "mirino_ribaltabile",
+      "offset": [
+        0,
+        0.075,
+        -0.18
+      ],
+      "size": [
+        0.04,
+        0.03,
+        0.006
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "maniglia",
+      "offset": [
+        0,
+        -0.09,
+        -0.2
+      ],
+      "size": [
+        0.03,
+        0.09,
+        0.035
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        10,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.09,
+        0.12
+      ],
+      "size": [
+        0.032,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        0.0,
+        0.28
+      ],
+      "size": [
+        0.04,
+        0.07,
+        0.2
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        0.0,
+        0.385
+      ],
+      "size": [
+        0.045,
+        0.09,
+        0.014
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

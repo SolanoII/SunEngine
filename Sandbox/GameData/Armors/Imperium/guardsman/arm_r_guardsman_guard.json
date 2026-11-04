@@ -1,0 +1,113 @@
+{
+  "id": "arm_r_guardsman_guard",
+  "displayName": "Spallaccio Cadiano (dx)",
+  "comment": "Dotazione base del guardsman: spallaccio e parabraccio antischegge.",
+  "location": "RightArm",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_guardsman_recruit"
+  ],
+  "armor_rating": 7,
+  "coverage": 0.6,
+  "max_durability": 90.0,
+  "weight": 1.5,
+  "point_cost": 1,
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        0.25,
+        0
+      ],
+      "size": [
+        0.23,
+        0.14,
+        0.23
+      ],
+      "color": [
+        0.27,
+        0.3,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.25
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        -0.15,
+        0
+      ],
+      "size": [
+        0.19,
+        0.18,
+        0.19
+      ],
+      "color": [
+        0.27,
+        0.3,
+        0.2,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.25
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_arm_guard_r",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.78,
+        0.86
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.0144,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.82,
+        0.88,
+        0.72,
+        1
+      ]
+    },
+    {
+      "id": "guardsman_bracer_r",
+      "bones": [
+        "RightForeArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.76,
+        0.86
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.82,
+        0.88,
+        0.72,
+        1
+      ]
+    }
+  ]
+}

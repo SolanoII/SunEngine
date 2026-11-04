@@ -181,6 +181,10 @@ namespace SunEngine {
                 bp.fuse_time = j.value("fuse_time", 3.0f);
                 bp.throw_speed = j.value("throw_speed", 14.0f);
                 bp.trigger_radius = j.value("trigger_radius", 0.9f);
+                bp.launches_grenade = j.value("launches_grenade", false);
+                bp.melta_shot = j.value("melta_shot", false);
+                bp.summon_unit = j.value("summon_unit", std::string());
+                bp.summon_delay = j.value("summon_delay", 5.0f);
                 bp.explode_on_impact = j.value("explode_on_impact", false);
                 bp.structure_damage_multiplier = j.value("structure_damage_multiplier", 1.0f);
                 bp.structure_health = j.value("structure_health", 250.0f);

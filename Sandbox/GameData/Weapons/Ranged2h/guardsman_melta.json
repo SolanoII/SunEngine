@@ -1,0 +1,53 @@
+{
+  "id": "guardsman_melta",
+  "displayName": "Fucile Melta Cadiano",
+  "faction": "Imperium",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 6.0,
+  "point_cost": 7,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 5,
+  "reload_time_sec": 3.2,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 50.0,
+  "base_damage": 80.0,
+  "armor_penetration": 40,
+  "range_effective": 25.0,
+  "melta_range": 6.0,
+  "melta_multiplier": 2.5,
+  "spread_base": 0.01,
+  "recoil_force": 1.5,
+  "heat_capacity": 100.0,
+  "projectile_type": "laser",
+  "is_beam": true,
+  "primary_color": [
+    1.0,
+    0.5,
+    0.0,
+    1.0
+  ],
+  "projectile_width": 0.35,
+  "weapon_scale": [
+    0.2,
+    0.22,
+    0.75
+  ],
+  "hold_offset": [
+    0.4,
+    -0.1,
+    -0.2
+  ],
+  "spare_magazines": 5,
+  "damage_falloff_start": 10.0,
+  "damage_falloff_end": 25.0,
+  "melta_shot": true,
+  "comment": "Sbloccabile del guardsman: fucile melta a colpo singolo. Entro 6 m il danno raddoppia e mezzo e passa quasi ogni corazza; oltre i 25 m si disperde. 5 colpi e 25 di riserva.",
+  "allowed_units": [
+    "imperium_guardsman_recruit"
+  ]
+}

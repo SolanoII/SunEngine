@@ -321,6 +321,17 @@ namespace SunEngine {
         glm::vec3 useStartPos{ 0.0f }; // dove e' iniziata la canalizzazione (scrap: bisogna restare fermi)
     };
 
+    // Rinforzi chiamati col vox caster: arrivano dopo 'timer' secondi accanto a chi li ha chiamati (li crea GameLayer)
+    struct SummonRequestComponent {
+        struct Pending { std::string unitId; float timer = 5.0f; };
+        std::vector<Pending> pending;
+    };
+    // Unita' evocata (rinforzo del vox caster): segue il padrone e combatte con lui. Cerchio verde sotto i piedi.
+    struct SummonedComponent {
+        entt::entity owner = entt::null;
+        float side = 1.0f;             // da che lato del padrone si mette (-1 sinistra, +1 destra)
+    };
+
     // Zaino di cibo posato a terra: cura i compagni nel raggio finche' dura
     struct HealZoneComponent {
         entt::entity owner = entt::null;

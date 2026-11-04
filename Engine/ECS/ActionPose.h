@@ -23,6 +23,7 @@ namespace SunEngine {
         std::string unitId;              // cambio di unita' = si riparte (gli usi cambiano senza essere usati)
         float give = 0.0f, build = 0.0f, repair = 0.0f;   // azioni continue (pesi 0..1, transizione morbida)
         float medkit = 0.0f;             // medicazione in corso (medikit)
+        float vox = 0.0f;                // chiamata al vox caster (cornetta all'orecchio)
         float gunner = 0.0f;             // dentro una torretta: mani sull'arma
         bool repairing = false;          // lo imposta chi ripara (oggi RepairSystem per il giocatore)
         float loopTime = 0.0f;           // tempo per i movimenti ritmati
@@ -73,6 +74,7 @@ namespace SunEngine {
                 approach(ap.gunner, reg.all_of<TurretMountComponent>(e), 6.0f);
                 approach(ap.repair, ap.repairing, 6.0f);
                 approach(ap.medkit, using_ && held->equipment_type == "medkit", 6.0f);
+                approach(ap.vox, using_ && held->equipment_type == "vox_caster", 6.0f);
             }
         }
 
@@ -159,6 +161,10 @@ namespace SunEngine {
                     set("Arm_R", glm::vec3(60.0f + wrap, -35.0f, 0.0f), ap.medkit);
                     set("Head", glm::vec3(-25.0f, 0.0f, 0.0f), ap.medkit);
                     set("Torso", glm::vec3(-12.0f, 0.0f, 0.0f), ap.medkit);
+                }
+                if (ap.vox > 0.0f) {   // vox caster: cornetta all'orecchio con la sinistra, testa inclinata
+                    set("Arm_L", glm::vec3(150.0f, 35.0f, 0.0f), ap.vox);
+                    set("Head", glm::vec3(0.0f, 0.0f, 15.0f), ap.vox);
                 }
                 if (ap.build > 0.0f) {   // costruzione: chinato, le due braccia battono a turno
                     const float c = std::sin(lt * 6.0f);

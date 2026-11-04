@@ -1,0 +1,91 @@
+{
+  "id": "guardsman_vox_caster",
+  "displayName": "Vox Caster",
+  "comment": "Sbloccabile del guardsman: radio da spalla. Click sinistro e 1 secondo di chiamata (ci si puo' muovere): 5 secondi dopo arriva un coscritto che ti segue e combatte con te (cerchio verde sotto i piedi). 1 per partita.",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_guardsman_recruit"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "vox_caster",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 6.0,
+  "point_cost": 5,
+  "equipment_uses": 1,
+  "equipment_use_time": 1.0,
+  "summon_unit": "imperium_conscript",
+  "summon_delay": 5.0,
+  "weapon_scale": [
+    0.12,
+    0.18,
+    0.08
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.22,
+    0.25,
+    0.18,
+    1.0
+  ],
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.05,
+        0.2
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.02,
+        0.22
+      ],
+      "size": [
+        0.32,
+        0.38,
+        0.14
+      ],
+      "color": [
+        0.24,
+        0.27,
+        0.19,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.2
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.12,
+        0.3,
+        0.22
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.12,
+        0.25,
+        0.24
+      ],
+      "size": [
+        0.02,
+        0.4,
+        0.02
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.12,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    }
+  ]
+}

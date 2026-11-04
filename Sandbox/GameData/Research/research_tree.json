@@ -452,6 +452,94 @@
           "research_cost": 35000,
           "purchase_cost": 70000,
           "item": "whiteshield_lascannon"
+        },
+        {
+          "id": "ig_guardsman_item_shotgun",
+          "item": "guardsman_shotgun",
+          "name": "Fucile a Pompa",
+          "tier": 3,
+          "col": 3,
+          "row": 10,
+          "parent": "ig_guardsman",
+          "research_cost": 15000,
+          "purchase_cost": 25000
+        },
+        {
+          "id": "ig_guardsman_item_chainsword",
+          "item": "guardsman_chainsword",
+          "name": "Spada a Catena",
+          "tier": 3,
+          "col": 3,
+          "row": 11,
+          "parent": "ig_guardsman",
+          "research_cost": 20000,
+          "purchase_cost": 35000
+        },
+        {
+          "id": "ig_guardsman_item_grenade_launcher",
+          "item": "guardsman_grenade_launcher",
+          "name": "Lanciagranate",
+          "tier": 3,
+          "col": 3,
+          "row": 12,
+          "parent": "ig_guardsman",
+          "research_cost": 30000,
+          "purchase_cost": 55000
+        },
+        {
+          "id": "ig_guardsman_item_flamer",
+          "item": "guardsman_flamer",
+          "name": "Lanciafiamme",
+          "tier": 3,
+          "col": 3,
+          "row": 13,
+          "parent": "ig_guardsman",
+          "research_cost": 30000,
+          "purchase_cost": 55000
+        },
+        {
+          "id": "ig_guardsman_item_plasma",
+          "item": "guardsman_plasma",
+          "name": "Fucile al Plasma",
+          "tier": 3,
+          "col": 3,
+          "row": 14,
+          "parent": "ig_guardsman",
+          "research_cost": 40000,
+          "purchase_cost": 70000
+        },
+        {
+          "id": "ig_guardsman_item_melta",
+          "item": "guardsman_melta",
+          "name": "Fucile Melta",
+          "tier": 3,
+          "col": 3,
+          "row": 15,
+          "parent": "ig_guardsman",
+          "research_cost": 40000,
+          "purchase_cost": 70000
+        },
+        {
+          "id": "ig_guardsman_item_long_las",
+          "item": "guardsman_long_las",
+          "name": "Long-Las",
+          "tier": 3,
+          "col": 3,
+          "row": 16,
+          "parent": "ig_guardsman",
+          "research_cost": 35000,
+          "purchase_cost": 60000
+        },
+        {
+          "id": "ig_guardsman_item_vox",
+          "item": "guardsman_vox_caster",
+          "name": "Vox Caster",
+          "tier": 3,
+          "col": 3,
+          "row": 17,
+          "parent": "ig_guardsman",
+          "research_cost": 35000,
+          "purchase_cost": 60000
         }
       ]
     },
