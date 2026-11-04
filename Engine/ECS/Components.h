@@ -341,6 +341,7 @@ namespace SunEngine {
         entt::entity owner = entt::null;   // chi l'ha costruita (prende l'esperienza del danno assorbito)
         float xpGiven = 0.0f;              // esperienza gia' data per il danno assorbito (max = maxHp, anche se riparata)
         float xpPending = 0.0f;            // frazioni di punto non ancora date
+        float damageReduction = 0.0f;      // armatura della struttura (0.3 = -30% di danno, es. torretta)
     };
 
     // Danno a una struttura costruita: il padrone guadagna 1 punto per ogni punto di danno assorbito, ma in tutta
@@ -348,6 +349,7 @@ namespace SunEngine {
     inline bool DamageStructure(entt::registry& reg, entt::entity e, float amount) {
         auto* sh = reg.try_get<StructureHealthComponent>(e);
         if (!sh || amount <= 0.0f) return false;
+        amount *= 1.0f - std::clamp(sh->damageReduction, 0.0f, 0.95f);
         const float taken = std::min(amount, std::max(0.0f, sh->hp));
         sh->hp -= amount;
         const float xp = std::min(taken, std::max(0.0f, sh->maxHp - sh->xpGiven));
@@ -608,6 +610,13 @@ namespace SunEngine {
         glm::vec3 left{ 0.0f };
         bool hasRight = false;
         bool hasLeft = false;
+    };
+
+    // Sull'unita' che manovra una torretta: niente movimento, armi, dotazione e mischia finche' resta dentro
+    struct TurretMountComponent {
+        entt::entity turret = entt::null;
+        float exitHold = 0.0f;   // giocatore: secondi di E tenuto per uscire
+        float idle = 0.0f;       // bot: secondi senza bersagli
     };
 
     // Buff di fazione attivo sull'unita' (es. WAAAGH! degli orki): moltiplicatori letti da movimento, armi e mischia

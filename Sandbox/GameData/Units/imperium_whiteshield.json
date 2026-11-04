@@ -18,5 +18,25 @@
   "fov_degrees": 85,
   "weight_capacity": 65.0,
   "base_speed": 2.8,
-  "health": 85.0
+  "health": 85.0,
+  "default_loadout": {
+    "primary": "whiteshield_lasgun",
+    "secondary": "whiteshield_laspistol",
+    "melee": "whiteshield_knife",
+    "equipment": [
+      "whiteshield_frag",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "head_whiteshield_helmet",
+      "torso": "torso_whiteshield_flak",
+      "arm_l": "",
+      "arm_r": "",
+      "leg_l": "leg_l_whiteshield_fatigues",
+      "leg_r": "leg_r_whiteshield_fatigues"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 3
 }

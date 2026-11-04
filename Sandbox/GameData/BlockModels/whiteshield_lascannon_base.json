@@ -1,0 +1,217 @@
+{
+  "id": "whiteshield_lascannon_base",
+  "comment": "Treppiede del lascannon: colonna, tre gambe, scudo e cassa di energia a terra. Origine a terra (il perno dell'arma e' a 0,95 m). Metri.",
+  "anchors": {
+    "grip_right": [
+      0,
+      0.5,
+      0
+    ]
+  },
+  "parts": [
+    {
+      "name": "colonna",
+      "offset": [
+        0,
+        0.5,
+        0
+      ],
+      "size": [
+        0.07,
+        0.78,
+        0.07
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "forcella",
+      "offset": [
+        0,
+        0.89,
+        0
+      ],
+      "size": [
+        0.2,
+        0.06,
+        0.14
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.6
+    },
+    {
+      "name": "gamba_avanti",
+      "offset": [
+        0.0,
+        0.44,
+        -0.275
+      ],
+      "size": [
+        0.05,
+        1.0377,
+        0.05
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8,
+      "rotation": [
+        32.01,
+        0.0,
+        0
+      ]
+    },
+    {
+      "name": "gamba_sx",
+      "offset": [
+        0.24,
+        0.44,
+        0.15
+      ],
+      "size": [
+        0.05,
+        1.0463,
+        0.05
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8,
+      "rotation": [
+        32.75,
+        -122.01,
+        0
+      ]
+    },
+    {
+      "name": "gamba_dx",
+      "offset": [
+        -0.24,
+        0.44,
+        0.15
+      ],
+      "size": [
+        0.05,
+        1.0463,
+        0.05
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8,
+      "rotation": [
+        32.75,
+        122.01,
+        0
+      ]
+    },
+    {
+      "name": "scudo",
+      "offset": [
+        0,
+        0.78,
+        -0.32
+      ],
+      "size": [
+        0.62,
+        0.42,
+        0.03
+      ],
+      "color": [
+        0.26,
+        0.29,
+        0.19,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.4
+    },
+    {
+      "name": "scudo_bordo",
+      "offset": [
+        0,
+        0.99,
+        -0.32
+      ],
+      "size": [
+        0.64,
+        0.03,
+        0.04
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "cassa_energia",
+      "offset": [
+        0.36,
+        0.12,
+        0.25
+      ],
+      "size": [
+        0.34,
+        0.24,
+        0.24
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.3
+    },
+    {
+      "name": "cassa_maniglia",
+      "offset": [
+        0.36,
+        0.26,
+        0.25
+      ],
+      "size": [
+        0.2,
+        0.03,
+        0.03
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.12,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    }
+  ]
+}

@@ -1,0 +1,277 @@
+{
+  "id": "whiteshield_laspistol",
+  "comment": "Laspistol del whiteshield (modello della laspistol imperiale). Laspistol imperiale a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.0337,
+      0.0935
+    ],
+    "muzzle": [
+      0.0,
+      0.0383,
+      -0.1895
+    ]
+  },
+  "parts": [
+    {
+      "name": "barrel",
+      "offset": [
+        0.0,
+        0.0383,
+        -0.1265
+      ],
+      "size": [
+        0.026,
+        0.026,
+        0.12
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "emitter_lens",
+      "offset": [
+        0.0,
+        0.0383,
+        -0.1815
+      ],
+      "size": [
+        0.02,
+        0.02,
+        0.016
+      ],
+      "color": [
+        1.0,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.2,
+      "emissive": 1.4
+    },
+    {
+      "name": "vent_1",
+      "offset": [
+        0.0,
+        0.0383,
+        -0.1365
+      ],
+      "size": [
+        0.034,
+        0.034,
+        0.01
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "vent_2",
+      "offset": [
+        0.0,
+        0.0383,
+        -0.0965
+      ],
+      "size": [
+        0.034,
+        0.034,
+        0.01
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "body",
+      "offset": [
+        0.0,
+        0.0363,
+        0.0235
+      ],
+      "size": [
+        0.04,
+        0.06,
+        0.2
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.75
+    },
+    {
+      "name": "top_cap",
+      "offset": [
+        0.0,
+        0.0713,
+        0.0285
+      ],
+      "size": [
+        0.026,
+        0.012,
+        0.14
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "front_sight",
+      "offset": [
+        0.0,
+        0.0733,
+        -0.0615
+      ],
+      "size": [
+        0.008,
+        0.016,
+        0.01
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "rear_sight",
+      "offset": [
+        0.0,
+        0.0763,
+        0.0835
+      ],
+      "size": [
+        0.022,
+        0.012,
+        0.01
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "power_cell",
+      "offset": [
+        0.0,
+        0.0363,
+        0.1535
+      ],
+      "size": [
+        0.038,
+        0.058,
+        0.06
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.2,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.3
+    },
+    {
+      "name": "cell_indicator",
+      "offset": [
+        0.0,
+        0.0383,
+        0.1865
+      ],
+      "size": [
+        0.026,
+        0.03,
+        0.006
+      ],
+      "color": [
+        1.0,
+        0.12,
+        0.08,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.1,
+      "emissive": 1.1
+    },
+    {
+      "name": "grip",
+      "offset": [
+        0.0,
+        -0.0337,
+        0.0935
+      ],
+      "size": [
+        0.034,
+        0.09,
+        0.04
+      ],
+      "color": [
+        0.16,
+        0.11,
+        0.08,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.0,
+      "rotation": [
+        -14,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "trigger_guard",
+      "offset": [
+        0.0,
+        -0.0017,
+        0.0435
+      ],
+      "size": [
+        0.008,
+        0.014,
+        0.05
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    }
+  ]
+}

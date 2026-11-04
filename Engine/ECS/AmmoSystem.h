@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include "TurretCore.h"
 
 namespace SunEngine {
 
@@ -174,6 +175,7 @@ namespace SunEngine {
                 auto& a = view.get<AmmoComponent>(e);
                 const auto& inv = view.get<InventoryComponent>(e);
                 if (a.feedbackTimer > 0.0f) a.feedbackTimer -= dt;
+                if (reg.all_of<TurretMountComponent>(e)) { a.useTimer = 0.0f; a.useSlot = -1; continue; }   // dentro una torretta
 
                 const bool isPlayer = reg.all_of<PlayerTag>(e);
                 auto* trigger = reg.try_get<WeaponTriggerComponent>(e);
@@ -203,7 +205,7 @@ namespace SunEngine {
 
                 const int slotIdx = inv.currentSlot - 4;
 
-                if (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall") {
+                if (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall" || held->equipment_type == "turret") {
                     UpdateBarricade(scene, e, a, *held, inv.currentSlot, holdUse, wantSelf, dt, models);
                     continue;
                 }
@@ -323,6 +325,13 @@ namespace SunEngine {
             if (a.useTimer > 0.0f) return;
             a.useTimer = 0.0f; a.useSlot = -1;
 
+            if (bp.equipment_type == "turret") {
+                // Arma pesante (es. lascannon): torretta davanti, si manovra con E
+                Turret::Spawn(scene, e, bp, slot, FootY(reg, e), models);
+                a.equipmentUses[slotIdx] -= 1;
+                Feedback(a, bp.displayName + " piazzato: E per usarlo");
+                return;
+            }
             BuildStructure(scene, e, bp, models);
             EmitXp(e, XpCategory::Build, XpValues::Build);
             a.equipmentUses[slotIdx] -= 1;

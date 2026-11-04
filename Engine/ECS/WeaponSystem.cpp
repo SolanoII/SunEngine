@@ -178,7 +178,8 @@ namespace SunEngine {
             auto& wState = view.get<WeaponStateComponent>(entity);
             auto& inventory = view.get<InventoryComponent>(entity);
             auto& recoil = view.get<CameraRecoilComponent>(entity);
-            if (scene.GetRegistry().all_of<CorpseComponent>(entity)) continue;   // a terra non si spara (5v5: il mondo gira anche da morto)
+            if (scene.GetRegistry().all_of<CorpseComponent>(entity)) continue;   // a terra non si spara
+            if (scene.GetRegistry().all_of<TurretMountComponent>(entity)) { wState.wasFiringLastFrame = false; continue; }   // spara la torretta (5v5: il mondo gira anche da morto)
 
             // Munizioni limitate: ogni arma tiene il suo caricatore, cambiare arma non lo riempie
             auto* ammo = scene.GetRegistry().try_get<AmmoComponent>(entity);
@@ -712,9 +713,35 @@ namespace SunEngine {
         return dir;
     }
 
+    void WeaponSystem::FireHeavyBeam(Scene& scene, entt::entity shooter, entt::entity ignore, const glm::vec3& origin,
+        const glm::vec3& dir, const WeaponBlueprint& bp) {
+        auto& reg = scene.GetRegistry();
+        const RaycastResult hit = RaycastAll(scene, origin, dir, bp.range_effective, shooter, ignore);
+        const glm::vec3 end = hit.hit ? hit.point : origin + dir * bp.range_effective;
+        if (hit.hitUnit && hit.entity != entt::null && reg.all_of<UnitStatsComponent, HealthComponent>(hit.entity) &&
+            !DamageResolver::TryParryRanged(scene, hit.entity, dir)) {
+            auto& st = reg.get<UnitStatsComponent>(hit.entity);
+            auto& hp = reg.get<HealthComponent>(hit.entity);
+            const float before = hp.currentHealth;
+            DamageResolver::ResolveHit(bp.base_damage, bp.armor_penetration, hit.location, st, hp);
+            EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, before);
+        }
+        else if (hit.hit && !hit.hitUnit && hit.entity != entt::null && reg.valid(hit.entity) && reg.all_of<StructureHealthComponent>(hit.entity)) {
+            if (DamageStructure(reg, hit.entity, bp.base_damage * std::max(0.0f, bp.structure_damage_multiplier))) scene.DestroyEntity(hit.entity);
+        }
+        const entt::entity trail = scene.CreateEntity();
+        auto& tr = reg.emplace<TrailRequestComponent>(trail);
+        tr.start = origin; tr.end = end;
+        tr.color = bp.primary_color;
+        tr.isBeam = true;
+        tr.projectileWidth = std::max(0.08f, bp.projectile_width);
+        tr.travelTime = 0.04f;
+        tr.totalLife = 0.45f;
+    }
+
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,
         const glm::vec3& rayDir, float maxDist,
-        entt::entity shooter) {
+        entt::entity shooter, entt::entity ignore) {
         RaycastResult result;
         float closest = maxDist;
 
@@ -805,7 +832,7 @@ namespace SunEngine {
             entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
         );
         for (auto e : staticView) {
-            if (e == shooter) continue;
+            if (e == shooter || e == ignore) continue;
             const auto& trans = staticView.get<TransformComponent>(e);
             const auto& col = staticView.get<ColliderComponent>(e);
 

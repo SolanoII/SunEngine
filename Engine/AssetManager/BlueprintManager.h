@@ -190,6 +190,13 @@ namespace SunEngine {
         float heal_per_second = 0.0f;
         // Medikit ("medkit"): cura istantanea di heal_amount punti salute su se stessi dopo equipment_use_time secondi
         float heal_amount = 0.0f;
+        // Arma pesante piazzabile ("turret", es. lascannon): colpo caricato tenendo il click charge_time secondi;
+        // oltre overcharge_time la torretta perde overcharge_damage salute al secondo. structure_armor = armatura
+        // della torretta (riduzione del danno, 0..1); munizioni = magazine_size + magazine_size * spare_magazines.
+        float charge_time = 1.5f;
+        float overcharge_time = 3.0f;
+        float overcharge_damage = 20.0f;
+        float structure_armor = 0.0f;
         float effect_duration = 0.0f;
         // Granata ("grenade") e mina ("landmine"): explosion_radius / explosion_damage / armor_penetration.
         // fuse_time = miccia della granata o tempo per armare la mina; throw_speed = velocita' di lancio;

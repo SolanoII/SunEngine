@@ -33,6 +33,25 @@ namespace SunEngine {
 
         void Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime);
 
+        // --- Raycast ---
+        struct RaycastResult {
+            bool hit = false;
+            bool hitUnit = false;
+            entt::entity entity = entt::null;
+            HitboxLocation location = HitboxLocation::Torso;
+            float distance = 0.0f;
+            glm::vec3 point{ 0.0f };
+        };
+
+        // ignore: un'altra entity da attraversare (es. la torretta da cui si spara)
+        RaycastResult RaycastAll(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
+            float maxDist, entt::entity shooter, entt::entity ignore = entt::null);
+
+        // Colpo singolo di un'arma pesante (es. lascannon dalla torretta): raggio dalla bocca, danno pieno senza
+        // calo con la distanza, danno x structure_damage_multiplier alle strutture, scia del raggio.
+        void FireHeavyBeam(Scene& scene, entt::entity shooter, entt::entity ignore, const glm::vec3& origin,
+            const glm::vec3& dir, const WeaponBlueprint& bp);
+
     private:
         // --- Pool di suoni per path (fire-and-forget con volume/posizione individuali) ---
         struct WeaponSoundInstance {
@@ -67,18 +86,6 @@ namespace SunEngine {
         void FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP,
             const glm::vec3& origin, const glm::vec3& dir);
 
-        // --- Raycast ---
-        struct RaycastResult {
-            bool hit = false;
-            bool hitUnit = false;
-            entt::entity entity = entt::null;
-            HitboxLocation location = HitboxLocation::Torso;
-            float distance = 0.0f;
-            glm::vec3 point{ 0.0f };
-        };
-
-        RaycastResult RaycastAll(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
-            float maxDist, entt::entity shooter);
 
         // Direzione di tiro dalla bocca verso il punto inquadrato dal mirino (AimRayComponent). Senza raggio
         // del mirino (nemici) ritorna baseDir.

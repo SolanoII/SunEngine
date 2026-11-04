@@ -174,6 +174,14 @@ namespace SunEngine {
             p.Rotate("Spine", Rx(22.0f * amount)); p.Rotate("Spine1", Rx(8.0f * amount));
         }
 
+        // Dietro un'arma pesante: mezzo accovacciato, mani avanti sulle impugnature
+        inline void Gunner(ProceduralPose& p, float amount, float thighLen, float shinLen) {
+            if (amount <= 0.0f) return;
+            Crouch(p, 0.45f * amount, thighLen, shinLen);
+            p.Rotate("RightArm", Rx(-15.0f * amount)); p.Rotate("LeftArm", Rx(-15.0f * amount));
+            p.Rotate("Spine", Rx(12.0f * amount));
+        }
+
         // Medicazione (medikit): avambraccio sinistro sollevato davanti al petto, la destra lo fascia, testa china
         inline void SelfHeal(ProceduralPose& p, float time, float amount) {
             if (amount <= 0.0f) return;

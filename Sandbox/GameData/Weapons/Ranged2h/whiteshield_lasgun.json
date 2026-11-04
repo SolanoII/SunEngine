@@ -1,0 +1,50 @@
+{
+  "id": "whiteshield_lasgun",
+  "displayName": "Lasgun da Whiteshield",
+  "faction": "Imperium",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 3.2,
+  "point_cost": 2,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 20,
+  "reload_time_sec": 2.2,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 450.0,
+  "base_damage": 28.0,
+  "armor_penetration": 5,
+  "range_effective": 80.0,
+  "damage_falloff_start": 40.0,
+  "damage_falloff_end": 80.0,
+  "spread_base": 0.02,
+  "recoil_force": 0.15,
+  "heat_capacity": 100.0,
+  "projectile_type": "laser",
+  "is_beam": true,
+  "primary_color": [
+    1.0,
+    0.1,
+    0.1,
+    1.0
+  ],
+  "projectile_width": 0.04,
+  "weapon_scale": [
+    0.1,
+    0.1,
+    0.75
+  ],
+  "hold_offset": [
+    0.35,
+    -0.15,
+    -0.2
+  ],
+  "spare_magazines": 2,
+  "comment": "Dotazione base del whiteshield (in alternativa all'autogun): 20 colpi nel caricatore e 40 di riserva.",
+  "allowed_units": [
+    "imperium_whiteshield"
+  ]
+}

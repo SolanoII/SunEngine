@@ -143,6 +143,56 @@
           "parent": "ig_conscript_item_flak",
           "research_cost": 8000,
           "purchase_cost": 15000
+        },
+        {
+          "id": "ig_whiteshield_item_chainsword",
+          "name": "Spada a Catena",
+          "tier": 2,
+          "col": 2,
+          "row": 6,
+          "parent": "ig_whiteshield",
+          "research_cost": 20000,
+          "purchase_cost": 35000,
+          "item": "whiteshield_chainsword"
+        },
+        {
+          "id": "ig_whiteshield_item_arms",
+          "name": "Spallacci",
+          "tier": 2,
+          "col": 2,
+          "row": 7,
+          "parent": "ig_whiteshield",
+          "research_cost": 15000,
+          "purchase_cost": 25000,
+          "items": [
+            "arm_l_whiteshield_guard",
+            "arm_r_whiteshield_guard"
+          ]
+        },
+        {
+          "id": "ig_whiteshield_item_legs",
+          "name": "Gambali",
+          "tier": 2,
+          "col": 3,
+          "row": 7,
+          "parent": "ig_whiteshield_item_arms",
+          "research_cost": 15000,
+          "purchase_cost": 25000,
+          "items": [
+            "leg_l_whiteshield_guard",
+            "leg_r_whiteshield_guard"
+          ]
+        },
+        {
+          "id": "ig_whiteshield_item_lascannon",
+          "name": "Lascannon",
+          "tier": 2,
+          "col": 2,
+          "row": 8,
+          "parent": "ig_whiteshield",
+          "research_cost": 35000,
+          "purchase_cost": 70000,
+          "item": "whiteshield_lascannon"
         }
       ]
     },

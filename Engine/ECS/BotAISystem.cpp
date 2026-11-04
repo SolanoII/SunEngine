@@ -232,6 +232,13 @@ namespace SunEngine {
                 brain.lastKnownTargetPos = reg.get<TransformComponent>(brain.target).Position;
             }
 
+            // Dentro una torretta (es. lascannon): mira e spara TurretSystem, qui niente movimento/armi/mischia
+            if (reg.all_of<TurretMountComponent>(self)) {
+                auto& trig = reg.get_or_emplace<WeaponTriggerComponent>(self);
+                trig.fire = false; trig.reload = false; trig.holdEquipment = false;
+                brain.isMoving = false; brain.deploying = false; brain.holdStill = false; brain.resupplySlot = -1;
+                continue;
+            }
             Resupply(scene, self, brain, deltaTime);
             TryGrenade(scene, self, brain, deltaTime);
             TryDeploy(scene, self, brain, deltaTime);
@@ -760,6 +767,7 @@ namespace SunEngine {
     void BotAISystem::TryGrenade(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {
         auto& reg = scene.GetRegistry();
         brain.grenadeCooldown -= dt;
+        if (brain.deploying) return;   // sta piazzando una struttura/arma: niente granate a meta' lavoro
         const auto* inv = reg.try_get<InventoryComponent>(self);
         const auto* ammo = reg.try_get<AmmoComponent>(self);
         if (!inv || !ammo) return;
@@ -810,7 +818,8 @@ namespace SunEngine {
         for (int s = 4; s <= 6 && slot < 0; ++s) {
             const auto* b = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
             if (!b || ammo->equipmentUses[s - 4] <= 0) continue;
-            if (b->equipment_type == "landmine" || b->equipment_type == "scrap_barricade" || b->equipment_type == "slit_wall") { slot = s; bp = b; }
+            if (b->equipment_type == "landmine" || b->equipment_type == "scrap_barricade" || b->equipment_type == "slit_wall" ||
+                b->equipment_type == "turret") { slot = s; bp = b; }
         }
         auto& trigger = reg.get_or_emplace<WeaponTriggerComponent>(self);
         const bool isMine = bp && bp->equipment_type == "landmine";
@@ -841,7 +850,7 @@ namespace SunEngine {
             trigger.holdEquipment = true;
             brain.deployTimer += dt;
             const bool built = ammo->equipmentUses[slot - 4] < brain.deployUsesBefore;
-            if (built || brain.deployTimer > bp->equipment_use_time + 2.5f) {
+            if (built || brain.deployTimer > bp->equipment_use_time * 2.0f + 2.0f) {   // margine: una spinta dei compagni fa ripartire la canalizzazione
                 brain.deploying = false; brain.holdStill = false; trigger.holdEquipment = false;
                 brain.resupplySlot = -1;
                 brain.deployCooldown = built ? Random::Range(20.0f, 35.0f) : Random::Range(5.0f, 8.0f);
@@ -868,12 +877,14 @@ namespace SunEngine {
         }
         else {
             // Il loota (muro con feritoia, tiratore a lunga distanza) costruisce appena vede il nemico lontano
-            const float maxD = bp->equipment_type == "slit_wall" ? 70.0f : 35.0f;
-            const float minD = bp->equipment_type == "slit_wall" ? 14.0f : 10.0f;
+            // Arma pesante (lascannon): come il muro, appena vede un nemico lontano (poi ci entra e spara)
+            const bool farBuild = bp->equipment_type == "slit_wall" || bp->equipment_type == "turret";
+            const float maxD = farBuild ? 70.0f : 35.0f;
+            const float minD = farBuild ? 14.0f : 10.0f;
             if (!hasTarget || !brain.targetVisible || d < minD || d > maxD) return;
             // In mischia o in carica (es. yoof) si ferma a costruire solo se lo stanno colpendo da lontano
             if (meleeFight && (brain.intent == BotIntent::Melee || d < 15.0f || brain.recentDamage < 5.0f)) return;
-            if (bp->equipment_type != "slit_wall" && brain.recentDamage < 5.0f && !Random::Chance(0.15f)) { brain.deployCooldown = 3.0f; return; }   // la barricata meglio se sotto tiro
+            if (!farBuild && brain.recentDamage < 5.0f && !Random::Chance(0.15f)) { brain.deployCooldown = 3.0f; return; }   // la barricata meglio se sotto tiro
             if (!Random::Chance(0.5f)) { brain.deployCooldown = 4.0f; return; }
         }
         brain.deploying = true;

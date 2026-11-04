@@ -1,0 +1,47 @@
+{
+  "id": "whiteshield_lascannon",
+  "displayName": "Lascannon",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_whiteshield"
+  ],
+  "comment": "Sbloccabile del whiteshield: arma pesante da piazzare. In mano (tasti 4-6), fermo e col click sinistro tenuto per 5 secondi la monta davanti a se'. E vicino per entrarci (si resta fermi dietro l'arma, brandeggio +-60 gradi), E tenuto 1,5 s per uscire; fuori, il proprietario la smonta e la riprende tenendo E per 5 secondi. Click sinistro tenuto 1,5 s carica il colpo (barra), al rilascio spara; oltre i 3 secondi di carica l'arma si danneggia (1 punto ogni 50 ms). 1 colpo pronto + 10 di riserva, 250 di salute con un po' di armatura; se distrutta non si recupera. 1 per partita.",
+  "slot_type": "equipment",
+  "equipment_type": "turret",
+  "hand_type": "TwoHanded",
+  "is_melee": false,
+  "weight_kg": 9.0,
+  "point_cost": 8,
+  "equipment_uses": 1,
+  "equipment_use_time": 5.0,
+  "structure_health": 250.0,
+  "structure_armor": 0.3,
+  "magazine_size": 1,
+  "spare_magazines": 10,
+  "reload_time_sec": 3.0,
+  "charge_time": 1.5,
+  "overcharge_time": 3.0,
+  "overcharge_damage": 20.0,
+  "base_damage": 260.0,
+  "armor_penetration": 40,
+  "range_effective": 150.0,
+  "structure_damage_multiplier": 3.0,
+  "projectile_type": "laser",
+  "projectile_width": 0.12,
+  "primary_color": [
+    1.0,
+    0.25,
+    0.15,
+    1.0
+  ],
+  "weapon_scale": [
+    0.25,
+    0.2,
+    0.5
+  ],
+  "hold_offset": [
+    0.0,
+    -0.1,
+    0.1
+  ]
+}

@@ -21,6 +21,7 @@
 #include "Engine/ECS/SquigSystem.h"
 #include "Engine/ECS/RepairSystem.h"
 #include "Engine/ECS/ActionPose.h"
+#include "Engine/ECS/TurretSystem.h"
 #include "Engine/Scene/MapLoader.h"
 #include "Engine/Navigation/NavMeshQuery.h"
 #include "Engine/AssetManager/BlueprintManager.h"
@@ -312,6 +313,7 @@ namespace SunEngine {
         void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
         void RenderAmmoHUD();
         void RenderPlayerStatusHUD();
+        void RenderTurretHUD();
         void BuildPlayerPose(float deltaTime, RifleAnimationController& controller);   // animazioni procedurali                      // in alto a sinistra: salute, stamina, buff di fazione
         void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki
         void ResetFactionBuff();
@@ -399,7 +401,8 @@ namespace SunEngine {
         WeaponSystem m_WeaponSystem;
         EquipmentSystem m_EquipmentSystem;   // scatola di munizioni e altra dotazione tattica
         SquigSystem m_SquigSystem;           // compagni squig dei gretchin
-        ExplosiveSystem m_ExplosiveSystem;   // granate, mine, lampi delle esplosioni
+        ExplosiveSystem m_ExplosiveSystem;
+        TurretSystem m_TurretSystem;        // armi pesanti piazzabili e manovrate (lascannon)   // granate, mine, lampi delle esplosioni
         std::optional<SkeletonData> m_SquigSkeleton;   // scheletro a cubi dello squig (Skeletons/squig.json)
         bool m_SquigSkeletonLoaded = false;
         RepairSystem m_RepairSystem;         // chiave inglese: ripara veicoli, strutture, torrette

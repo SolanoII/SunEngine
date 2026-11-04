@@ -2147,8 +2147,64 @@ namespace SunEngine {
             PoseLib::Build(m_PlayerPose, m_PoseTime, ap->build, thigh, shin);
             PoseLib::Repair(m_PlayerPose, m_PoseTime, ap->repair);
             PoseLib::SelfHeal(m_PlayerPose, m_PoseTime, ap->medkit);
+            PoseLib::Gunner(m_PlayerPose, ap->gunner, thigh, shin);
             if (ap->action == 1) PoseLib::Throw(m_PlayerPose, ap->time / ap->duration);
             else if (ap->action == 2) PoseLib::UseItem(m_PlayerPose, ap->time / ap->duration, thigh, shin);
+        }
+    }
+
+    // HUD della torretta: dentro (carica del colpo, colpi, salute dell'arma, uscita) o vicino (entra / smonta)
+    void GameLayer::RenderTurretHUD() {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(m_PlayerEntity)) return;
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        const float cx = io.DisplaySize.x * 0.5f, by = io.DisplaySize.y * 0.70f;
+        auto centered = [&](float y, const char* txt, ImU32 col) {
+            const ImVec2 ts = ImGui::CalcTextSize(txt);
+            dl->AddText(ImVec2(cx - ts.x * 0.5f + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 200), txt);
+            dl->AddText(ImVec2(cx - ts.x * 0.5f, y), col, txt);
+        };
+        auto bar = [&](float y, float w, float frac, ImU32 col) {
+            dl->AddRectFilled(ImVec2(cx - w * 0.5f, y), ImVec2(cx + w * 0.5f, y + 10.0f), IM_COL32(20, 20, 20, 200), 2.0f);
+            dl->AddRectFilled(ImVec2(cx - w * 0.5f, y), ImVec2(cx - w * 0.5f + w * std::clamp(frac, 0.0f, 1.0f), y + 10.0f), col, 2.0f);
+            dl->AddRect(ImVec2(cx - w * 0.5f, y), ImVec2(cx + w * 0.5f, y + 10.0f), IM_COL32(0, 0, 0, 220), 2.0f);
+        };
+        if (const auto* m = reg.try_get<TurretMountComponent>(m_PlayerEntity); m && reg.valid(m->turret) && reg.all_of<TurretComponent>(m->turret)) {
+            const auto& t = reg.get<TurretComponent>(m->turret);
+            const auto* bp = BlueprintManager::Get().GetWeapon(t.itemId);
+            if (!bp) return;
+            char txt[160];
+            std::snprintf(txt, sizeof(txt), "%s   colpo: %s   riserva: %d", bp->displayName.c_str(),
+                t.loaded > 0 ? "PRONTO" : (t.reserve > 0 ? "ricarica..." : "finito"), t.reserve);
+            centered(by, txt, IM_COL32(230, 230, 230, 255));
+            // Carica: verde fino al colpo, poi rosso quando surriscalda
+            const float full = t.charge / std::max(0.01f, bp->charge_time);
+            const bool over = t.charge > bp->overcharge_time;
+            bar(by + 22.0f, 300.0f, full, over ? IM_COL32(230, 50, 40, 255) : (full >= 1.0f ? IM_COL32(80, 230, 90, 255) : IM_COL32(230, 200, 60, 255)));
+            if (t.loaded > 0 && t.charge <= 0.0f) centered(by + 38.0f, "Tieni premuto il sinistro per caricare, rilascia per sparare", IM_COL32(190, 190, 190, 230));
+            else if (over) centered(by + 38.0f, "SURRISCALDAMENTO! Rilascia o l'arma si danneggia", IM_COL32(255, 90, 70, 255));
+            else if (full >= 1.0f) centered(by + 38.0f, "CARICO: rilascia per sparare", IM_COL32(120, 255, 130, 255));
+            if (const auto* sh = reg.try_get<StructureHealthComponent>(m->turret)) {
+                std::snprintf(txt, sizeof(txt), "Arma: %.0f / %.0f", std::max(0.0f, sh->hp), sh->maxHp);
+                centered(by + 58.0f, txt, IM_COL32(200, 200, 200, 230));
+                bar(by + 76.0f, 160.0f, sh->hp / std::max(1.0f, sh->maxHp), IM_COL32(120, 170, 220, 255));
+            }
+            if (m_TurretSystem.exitProgress > 0.0f) { centered(by + 94.0f, "Uscita...", IM_COL32(230, 230, 230, 255)); bar(by + 112.0f, 160.0f, m_TurretSystem.exitProgress, IM_COL32(230, 230, 230, 255)); }
+            else centered(by + 94.0f, "Tieni premuto E per 1,5 s per uscire", IM_COL32(160, 160, 160, 220));
+            return;
+        }
+        if (m_TurretSystem.nearTurret != entt::null && reg.valid(m_TurretSystem.nearTurret)) {
+            const auto* t = reg.try_get<TurretComponent>(m_TurretSystem.nearTurret);
+            const auto* bp = t ? BlueprintManager::Get().GetWeapon(t->itemId) : nullptr;
+            char txt[160];
+            std::snprintf(txt, sizeof(txt), "E: usa %s%s", bp ? bp->displayName.c_str() : "l'arma",
+                m_TurretSystem.canDismantle ? "    |    tieni E 5 s: smonta e riprendi" : "");
+            centered(by, txt, IM_COL32(230, 230, 230, 255));
+            if (m_TurretSystem.dismantleProgress > 0.0f) {
+                centered(by + 20.0f, "Smontaggio...", IM_COL32(230, 200, 60, 255));
+                bar(by + 38.0f, 200.0f, m_TurretSystem.dismantleProgress, IM_COL32(230, 200, 60, 255));
+            }
         }
     }
 
@@ -2195,6 +2251,7 @@ namespace SunEngine {
                 dl->AddRectFilled(ImVec2(right - w, y), ImVec2(right - w + w * prog, y + h), IM_COL32(255, 200, 60, 255));
                 y -= 6.0f;
                 if (type == "scrap_barricade" || type == "slit_wall") textRight(type == "slit_wall" ? "Costruzione muro... (resta fermo)" : "Costruzione barricata... (resta fermo)", baseSize, yellow);
+                else if (type == "turret") textRight("Montaggio... (resta fermo)", baseSize, yellow);
                 else if (type == "medkit") textRight("Medicazione...", baseSize, yellow);
                 else textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
             }
@@ -2206,6 +2263,9 @@ namespace SunEngine {
             else if (type == "medkit")
                 textRight("Sinistro: curati di " + std::to_string(static_cast<int>(held->heal_amount)) + " salute in " +
                           std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s", baseSize, grey);
+            else if (type == "turret")
+                textRight("Tieni premuto sinistro da fermo per " + std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) +
+                          " s: piazza " + held->displayName, baseSize, grey);
             else if (type == "grenade")
                 textRight("Sinistro: lancia verso il mirino (scoppia dopo " + std::to_string(static_cast<int>(std::lround(held->fuse_time))) + " s)", baseSize, grey);
             else if (type == "landmine")
@@ -2909,6 +2969,7 @@ namespace SunEngine {
             XpEventLog().clear();   // eventi rimasti fuori partita: non contano
             m_SquigSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
+            m_TurretSystem.Clear(m_Scene);
             if (m_GameState != GameState::MainMenu) UpdateAnimatedSkin();   // editor: via i pezzi della skin
             // Barricate e zaini di cibo appartengono alla partita
             std::vector<entt::entity> leftovers;
@@ -3051,7 +3112,7 @@ namespace SunEngine {
                 UnitStatsComponent,
                 WeaponStateComponent,
                 WeaponBlueprintId
-            >(m_PlayerEntity))
+            >(m_PlayerEntity) && !m_Scene.GetRegistry().all_of<TurretMountComponent>(m_PlayerEntity))   // in torretta: comandi dell'arma pesante
             {
                 auto& inv = m_Scene.GetRegistry().get<InventoryComponent>(m_PlayerEntity);
                 auto& stats = m_Scene.GetRegistry().get<UnitStatsComponent>(m_PlayerEntity);
@@ -3221,6 +3282,7 @@ namespace SunEngine {
             m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);
             m_EquipmentSystem.Update(m_Scene, deltaTime, &m_BlockModels);
             m_ExplosiveSystem.Update(m_Scene, deltaTime);
+            m_TurretSystem.Update(m_Scene, m_WeaponSystem, m_PhysicsSystem, m_PlayerEntity, true, deltaTime);
             m_PhysicsSystem.Update(m_Scene, deltaTime);
             // FIX #2: despawn dei cadaveri dopo maxLifetime (ragdoll Jolt + entity)
             CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
@@ -4088,6 +4150,7 @@ namespace SunEngine {
                 RenderHitMarkers();
                 RenderAmmoHUD();
                 RenderPlayerStatusHUD();
+                RenderTurretHUD();
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {
                     // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
@@ -5982,6 +6045,13 @@ namespace SunEngine {
             if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_shoota_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_shoota_plate"); }
             tryUpgrade(0.20f, u.armorTorsoId, "torso_shoota_heavy");
         }
+        else if (u.blueprintId == "imperium_whiteshield") {
+            tryUpgrade(0.5f, u.primaryWeaponId, "whiteshield_autogun");     // alternativa base alla lasgun
+            tryUpgrade(0.30f, u.meleeWeaponId, "whiteshield_chainsword");
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_whiteshield_guard"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_whiteshield_guard"); }
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_whiteshield_guard"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_whiteshield_guard"); }
+            tryUpgrade(0.25f, u.equipmentSlots[1], "whiteshield_lascannon");
+        }
         else if (u.blueprintId == "imperium_conscript") {
             tryUpgrade(0.30f, u.equipmentSlots[0], "conscript_frag");
             tryUpgrade(0.25f, u.equipmentSlots[1], "conscript_medkit");
@@ -6392,6 +6462,7 @@ namespace SunEngine {
         m_WeaponSystem.Update(m_Scene, m_PhysicsSystem, deltaTime);   // il cadavere del giocatore e' escluso
         m_EquipmentSystem.Update(m_Scene, deltaTime, &m_BlockModels);
         m_ExplosiveSystem.Update(m_Scene, deltaTime);
+        m_TurretSystem.Update(m_Scene, m_WeaponSystem, m_PhysicsSystem, m_PlayerEntity, false, deltaTime);
         m_PhysicsSystem.Update(m_Scene, deltaTime);
         CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
         UpdateHitFeedback(deltaTime);

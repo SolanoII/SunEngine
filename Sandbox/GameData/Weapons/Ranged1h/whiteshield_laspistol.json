@@ -1,0 +1,70 @@
+{
+  "id": "whiteshield_laspistol",
+  "displayName": "Laspistol da Whiteshield",
+  "faction": "Imperium",
+  "slot_type": "secondary",
+  "hand_type": "OneHanded",
+  "weight_kg": 1.2,
+  "point_cost": 1,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 10,
+  "reload_time_sec": 1.2,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 300.0,
+  "base_damage": 16.0,
+  "armor_penetration": 1,
+  "impact_force": 10.0,
+  "toughness_bypass": 0.3,
+  "range_effective": 25.0,
+  "damage_falloff_start": 12.0,
+  "damage_falloff_end": 25.0,
+  "heat_capacity": 80.0,
+  "recoil_force": 0.5,
+  "shake_intensity": 0.02,
+  "fov_kick": 0.5,
+  "spread_base": 0.18,
+  "spread_auto_multiplier": 1.1,
+  "suppression_value": 2,
+  "projectile_type": "laser",
+  "is_beam": true,
+  "projectile_speed": 180.0,
+  "projectile_length": 30.0,
+  "projectile_width": 0.02,
+  "primary_color": [
+    0.9,
+    0.3,
+    0.1,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "weapon_scale": [
+    0.1,
+    0.1,
+    0.45
+  ],
+  "hold_offset": [
+    0.35,
+    0.05,
+    -0.4
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.25
+  ],
+  "heat_recoil_multiplier": 1.1,
+  "spare_magazines": 2,
+  "comment": "Arma secondaria base del whiteshield: 10 colpi nel caricatore e 20 di riserva.",
+  "allowed_units": [
+    "imperium_whiteshield"
+  ]
+}

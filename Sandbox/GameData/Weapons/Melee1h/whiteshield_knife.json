@@ -1,0 +1,155 @@
+{
+  "id": "whiteshield_knife",
+  "displayName": "Coltello da Whiteshield",
+  "faction": "Imperium",
+  "is_melee": true,
+  "hand_type": "OneHanded",
+  "slot_type": "Melee",
+  "weight_kg": 1.2,
+  "point_cost": 1,
+  "base_damage": 22.0,
+  "default_melee_type": "Light",
+  "weapon_scale": [
+    0.04,
+    0.08,
+    0.38
+  ],
+  "hold_offset": [
+    0.0,
+    -0.02,
+    0.18
+  ],
+  "primary_color": [
+    0.75,
+    0.75,
+    0.8,
+    1.0
+  ],
+  "moveset": {
+    "entry_node": "normal_1",
+    "nodes": {
+      "heavy_1": {
+        "damage_multiplier": 1.85,
+        "stamina_cost": 14.0,
+        "timings": {
+          "windup": 0.18,
+          "active": 0.12,
+          "recovery": 0.18
+        },
+        "combo_window": {
+          "start": 0.12,
+          "end": 0.35
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "normal_1": {
+        "damage_multiplier": 1.0,
+        "stamina_cost": 7.0,
+        "timings": {
+          "windup": 0.08,
+          "active": 0.12,
+          "recovery": 0.14
+        },
+        "combo_window": {
+          "start": 0.08,
+          "end": 0.3
+        },
+        "transitions": {
+          "F_CLICK": "normal_2",
+          "LMB": "normal_2",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "normal_2": {
+        "damage_multiplier": 1.15,
+        "stamina_cost": 8.0,
+        "timings": {
+          "windup": 0.09,
+          "active": 0.13,
+          "recovery": 0.15
+        },
+        "combo_window": {
+          "start": 0.08,
+          "end": 0.32
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "low_1": {
+        "damage_multiplier": 0.8,
+        "stamina_cost": 5.0,
+        "timings": {
+          "windup": 0.06,
+          "active": 0.1,
+          "recovery": 0.12
+        },
+        "combo_window": {
+          "start": 0.06,
+          "end": 0.25
+        },
+        "transitions": {
+          "C": "low_2",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "low_2": {
+        "damage_multiplier": 0.85,
+        "stamina_cost": 5.5,
+        "timings": {
+          "windup": 0.06,
+          "active": 0.1,
+          "recovery": 0.12
+        },
+        "combo_window": {
+          "start": 0.06,
+          "end": 0.25
+        },
+        "transitions": {
+          "C": "low_3",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "low_3": {
+        "damage_multiplier": 1.05,
+        "stamina_cost": 6.5,
+        "timings": {
+          "windup": 0.07,
+          "active": 0.12,
+          "recovery": 0.14
+        },
+        "combo_window": {
+          "start": 0.07,
+          "end": 0.28
+        },
+        "transitions": {
+          "C": "low_1",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      }
+    }
+  },
+  "allowed_units": [
+    "imperium_whiteshield"
+  ],
+  "comment": "Dotazione base del whiteshield: semplice coltello (come quello dei coscritti), senza bonus."
+}

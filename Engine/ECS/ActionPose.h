@@ -23,6 +23,7 @@ namespace SunEngine {
         std::string unitId;              // cambio di unita' = si riparte (gli usi cambiano senza essere usati)
         float give = 0.0f, build = 0.0f, repair = 0.0f;   // azioni continue (pesi 0..1, transizione morbida)
         float medkit = 0.0f;             // medicazione in corso (medikit)
+        float gunner = 0.0f;             // dentro una torretta: mani sull'arma
         bool repairing = false;          // lo imposta chi ripara (oggi RepairSystem per il giocatore)
         float loopTime = 0.0f;           // tempo per i movimenti ritmati
     };
@@ -67,7 +68,9 @@ namespace SunEngine {
                 const bool using_ = ammo.useTimer > 0.0f && held && held->is_equipment;
                 auto approach = [&](float& v, bool on, float rate) { v = std::clamp(v + (on ? 1.0f : -1.0f) * rate * dt, 0.0f, 1.0f); };
                 approach(ap.give, using_ && held->equipment_type == "ammo_box", 6.0f);
-                approach(ap.build, using_ && (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall"), 5.0f);
+                approach(ap.build, using_ && (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall" ||
+                                              held->equipment_type == "turret"), 5.0f);
+                approach(ap.gunner, reg.all_of<TurretMountComponent>(e), 6.0f);
                 approach(ap.repair, ap.repairing, 6.0f);
                 approach(ap.medkit, using_ && held->equipment_type == "medkit", 6.0f);
             }
@@ -144,6 +147,11 @@ namespace SunEngine {
                     set("Arm_R", glm::vec3(120.0f - 70.0f * hammer, 0.0f, 0.0f), ap.repair);
                     set("Arm_L", glm::vec3(35.0f, 0.0f, 0.0f), ap.repair);
                     set("Torso", glm::vec3(-20.0f, 0.0f, 0.0f), ap.repair);
+                }
+                if (ap.gunner > 0.0f) {   // manovra l'arma pesante: braccia avanti sull'impugnatura, chinato
+                    set("Arm_R", glm::vec3(70.0f, -10.0f, 0.0f), ap.gunner);
+                    set("Arm_L", glm::vec3(75.0f, 15.0f, 0.0f), ap.gunner);
+                    set("Torso", glm::vec3(-15.0f, 0.0f, 0.0f), ap.gunner);
                 }
                 if (ap.medkit > 0.0f) {   // medicazione: braccio sinistro piegato, la mano destra fascia
                     const float wrap = std::sin(lt * 5.0f) * 12.0f;

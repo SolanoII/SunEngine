@@ -1,0 +1,427 @@
+{
+  "id": "whiteshield_lascannon",
+  "comment": "Lascannon a blocchi (parte che ruota): involucro squadrato, canna con anelli di focalizzazione e lente, batteria dietro, due impugnature. Origine al perno, canna verso -Z. Metri.",
+  "anchors": {
+    "grip_right": [
+      0,
+      0.0,
+      0.3
+    ],
+    "muzzle": [
+      0,
+      0.04,
+      -1.15
+    ]
+  },
+  "parts": [
+    {
+      "name": "involucro",
+      "offset": [
+        0,
+        0.03,
+        -0.25
+      ],
+      "size": [
+        0.16,
+        0.16,
+        0.7
+      ],
+      "color": [
+        0.26,
+        0.29,
+        0.19,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.35
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.04,
+        -0.85
+      ],
+      "size": [
+        0.085,
+        0.085,
+        0.5
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "canna_45",
+      "offset": [
+        0,
+        0.04,
+        -0.85
+      ],
+      "size": [
+        0.085,
+        0.085,
+        0.5
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9,
+      "rotation": [
+        0,
+        0,
+        45
+      ]
+    },
+    {
+      "name": "anello_1",
+      "offset": [
+        0,
+        0.04,
+        -0.66
+      ],
+      "size": [
+        0.12,
+        0.12,
+        0.04
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "anello_2",
+      "offset": [
+        0,
+        0.04,
+        -0.92
+      ],
+      "size": [
+        0.11,
+        0.11,
+        0.035
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "anello_3",
+      "offset": [
+        0,
+        0.04,
+        -1.07
+      ],
+      "size": [
+        0.11,
+        0.11,
+        0.035
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "lente",
+      "offset": [
+        0,
+        0.04,
+        -1.12
+      ],
+      "size": [
+        0.1,
+        0.1,
+        0.05
+      ],
+      "color": [
+        0.85,
+        0.2,
+        0.12,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.3
+    },
+    {
+      "name": "lente_45",
+      "offset": [
+        0,
+        0.04,
+        -1.12
+      ],
+      "size": [
+        0.1,
+        0.1,
+        0.05
+      ],
+      "color": [
+        0.85,
+        0.2,
+        0.12,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.3,
+      "rotation": [
+        0,
+        0,
+        45
+      ]
+    },
+    {
+      "name": "batteria",
+      "offset": [
+        0,
+        0.0,
+        0.24
+      ],
+      "size": [
+        0.22,
+        0.24,
+        0.28
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.3
+    },
+    {
+      "name": "cavo",
+      "offset": [
+        0.1,
+        -0.05,
+        0.02
+      ],
+      "size": [
+        0.025,
+        0.025,
+        0.42
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.12,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "impugnatura_sx",
+      "offset": [
+        0.12,
+        -0.04,
+        0.36
+      ],
+      "size": [
+        0.03,
+        0.1,
+        0.03
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.12,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "impugnatura_dx",
+      "offset": [
+        -0.12,
+        -0.04,
+        0.36
+      ],
+      "size": [
+        0.03,
+        0.1,
+        0.03
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.12,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "traversa",
+      "offset": [
+        0,
+        -0.02,
+        0.36
+      ],
+      "size": [
+        0.27,
+        0.025,
+        0.025
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0.1,
+        0.13,
+        -0.1
+      ],
+      "size": [
+        0.045,
+        0.05,
+        0.13
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "perno",
+      "offset": [
+        0,
+        -0.07,
+        0
+      ],
+      "size": [
+        0.12,
+        0.07,
+        0.12
+      ],
+      "color": [
+        0.3,
+        0.3,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "aletta_0",
+      "offset": [
+        0,
+        0.12,
+        -0.45
+      ],
+      "size": [
+        0.17,
+        0.02,
+        0.03
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "aletta_1",
+      "offset": [
+        0,
+        0.12,
+        -0.33
+      ],
+      "size": [
+        0.17,
+        0.02,
+        0.03
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "aletta_2",
+      "offset": [
+        0,
+        0.12,
+        -0.21
+      ],
+      "size": [
+        0.17,
+        0.02,
+        0.03
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "aletta_3",
+      "offset": [
+        0,
+        0.12,
+        -0.09
+      ],
+      "size": [
+        0.17,
+        0.02,
+        0.03
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.15,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    }
+  ]
+}

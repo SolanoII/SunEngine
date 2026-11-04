@@ -410,6 +410,7 @@ public:
                 ProcessVaulting(scene, physicsSystem, entity, deltaTime);
                 continue;
             }
+            if (scene.GetRegistry().all_of<TurretMountComponent>(entity)) continue;   // dentro una torretta: la posizione la tiene TurretSystem
 
             // Accovacciamento: CTRL tenuto (transizione di ~0,15 s)
             auto& crouch = scene.GetRegistry().get_or_emplace<CrouchComponent>(entity);
