@@ -1,0 +1,113 @@
+{
+  "id": "arm_r_aspirant_guard",
+  "displayName": "Protezione Leggera del Braccio (dx)",
+  "comment": "Dotazione base dell'aspirante: spallaccio e parabraccio leggeri.",
+  "location": "RightArm",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_neophyte"
+  ],
+  "armor_rating": 4,
+  "coverage": 0.6,
+  "max_durability": 60.0,
+  "weight": 0.8,
+  "point_cost": 1,
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.0,
+        0.3,
+        0.0
+      ],
+      "size": [
+        0.289,
+        0.144,
+        0.289
+      ],
+      "color": [
+        0.22,
+        0.22,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.15
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.0,
+        -0.18,
+        0.0
+      ],
+      "size": [
+        0.274,
+        0.216,
+        0.274
+      ],
+      "color": [
+        0.22,
+        0.22,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.15
+    }
+  ],
+  "garments": [
+    {
+      "id": "aspirant_arm_guard_r",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.78,
+        0.86
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.0096,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.55,
+        0.55,
+        0.6,
+        1
+      ]
+    },
+    {
+      "id": "aspirant_bracer_r",
+      "bones": [
+        "RightForeArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.76,
+        0.86
+      ],
+      "inflate": 0.008,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.55,
+        0.55,
+        0.6,
+        1
+      ]
+    }
+  ]
+}

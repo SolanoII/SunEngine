@@ -644,7 +644,7 @@
           "row": 1.5,
           "parent": "",
           "research_cost": 0,
-          "purchase_cost": 65000,
+          "purchase_cost": 20000,
           "default_name": "Aspirante Corvo",
           "color": [
             0.92,
@@ -1060,6 +1060,39 @@
             0.25,
             1
           ]
+        },
+        {
+          "id": "sm_aspirant_item_shotgun",
+          "item": "aspirant_shotgun",
+          "name": "Fucile a Pompa",
+          "tier": 1,
+          "col": 1,
+          "row": 10,
+          "parent": "sm_aspirant",
+          "research_cost": 8000,
+          "purchase_cost": 15000
+        },
+        {
+          "id": "sm_aspirant_item_laspistol",
+          "item": "aspirant_laspistol",
+          "name": "Laspistol",
+          "tier": 1,
+          "col": 2,
+          "row": 10,
+          "parent": "sm_aspirant_item_shotgun",
+          "research_cost": 6000,
+          "purchase_cost": 10000
+        },
+        {
+          "id": "sm_aspirant_item_chainsword",
+          "item": "aspirant_chainsword",
+          "name": "Spada a Catena da Space Marine",
+          "tier": 1,
+          "col": 3,
+          "row": 10,
+          "parent": "sm_aspirant_item_laspistol",
+          "research_cost": 12000,
+          "purchase_cost": 22000
         }
       ]
     },

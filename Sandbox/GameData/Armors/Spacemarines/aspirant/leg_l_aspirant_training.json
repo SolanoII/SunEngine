@@ -1,0 +1,153 @@
+{
+  "id": "leg_l_aspirant_training",
+  "displayName": "Pantaloni d'Addestramento (sx)",
+  "comment": "Dotazione base dell'aspirante: pantaloni d'addestramento rinforzati, stivali e ginocchiera leggera.",
+  "location": "LeftLeg",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_neophyte"
+  ],
+  "armor_rating": 4,
+  "coverage": 0.65,
+  "max_durability": 70.0,
+  "weight": 1.0,
+  "point_cost": 1,
+  "skin_blocks": {
+    "Leg_L": [
+      0.34,
+      0.33,
+      0.31,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Leg_L",
+      "offset": [
+        0.0,
+        -0.141,
+        -0.147
+      ],
+      "size": [
+        0.252,
+        0.375,
+        0.042
+      ],
+      "color": [
+        0.22,
+        0.22,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.15
+    },
+    {
+      "block": "Leg_L",
+      "offset": [
+        0.0,
+        0.023,
+        -0.154
+      ],
+      "size": [
+        0.224,
+        0.094,
+        0.056
+      ],
+      "color": [
+        0.22,
+        0.22,
+        0.24,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.15
+    }
+  ],
+  "garments": [
+    {
+      "id": "aspirant_pants_l",
+      "bones": [
+        "Hips",
+        "LeftUpLeg",
+        "LeftLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.07,
+        0.6
+      ],
+      "side": 1,
+      "inflate": 0.0045,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/guard_fatigues.png",
+      "tex_tiles": 6,
+      "color": [
+        0.62,
+        0.6,
+        0.58,
+        1
+      ],
+      "roughness": 0.9
+    },
+    {
+      "id": "aspirant_boot_l",
+      "bones": [
+        "LeftFoot",
+        "LeftToeBase",
+        "LeftToe_End",
+        "LeftLeg"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.0,
+        0.11
+      ],
+      "side": 1,
+      "inflate": 0.0048,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 6,
+      "color": [
+        0.55,
+        0.55,
+        0.6,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.05
+    },
+    {
+      "id": "aspirant_leg_guard_l",
+      "bones": [
+        "LeftLeg",
+        "LeftUpLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.1,
+        0.42
+      ],
+      "side": 1,
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.15,
+      "inflate": 0.0096,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.55,
+        0.55,
+        0.6,
+        1
+      ]
+    }
+  ]
+}

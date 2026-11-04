@@ -1,0 +1,144 @@
+{
+  "id": "aspirant_frag",
+  "comment": "Granata dell'aspirante. Granata frag del whiteshield. Granata frag imperiale a blocchi: corpo cilindrico verde scuro con fascia gialla, spoletta, leva e anello. Metri.",
+  "anchors": {
+    "grip_right": [
+      0,
+      0,
+      0
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.06,
+        0.09,
+        0.06
+      ],
+      "color": [
+        0.22,
+        0.27,
+        0.18,
+        1
+      ],
+      "roughness": 0.65,
+      "metallic": 0.4
+    },
+    {
+      "name": "corpo_45",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.06,
+        0.09,
+        0.06
+      ],
+      "color": [
+        0.2,
+        0.25,
+        0.17,
+        1
+      ],
+      "roughness": 0.65,
+      "metallic": 0.4,
+      "rotation": [
+        0,
+        45,
+        0
+      ]
+    },
+    {
+      "name": "fascia",
+      "offset": [
+        0,
+        0.02,
+        0
+      ],
+      "size": [
+        0.066,
+        0.012,
+        0.066
+      ],
+      "color": [
+        0.8,
+        0.65,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.3
+    },
+    {
+      "name": "spoletta",
+      "offset": [
+        0,
+        0.058,
+        0
+      ],
+      "size": [
+        0.026,
+        0.026,
+        0.026
+      ],
+      "color": [
+        0.35,
+        0.34,
+        0.32,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "leva",
+      "offset": [
+        0.022,
+        0.03,
+        0
+      ],
+      "size": [
+        0.008,
+        0.07,
+        0.018
+      ],
+      "color": [
+        0.35,
+        0.34,
+        0.32,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "anello",
+      "offset": [
+        -0.022,
+        0.07,
+        0
+      ],
+      "size": [
+        0.02,
+        0.02,
+        0.004
+      ],
+      "color": [
+        0.75,
+        0.72,
+        0.65,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    }
+  ]
+}

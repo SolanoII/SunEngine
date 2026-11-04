@@ -6511,6 +6511,12 @@ namespace SunEngine {
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_schola_carapace"); }
             tryUpgrade(0.30f, u.equipmentSlots[1], "schola_ammo_crate");
         }
+        else if (u.blueprintId == "spacemarines_neophyte") {
+            tryUpgrade(0.50f, u.primaryWeaponId, "aspirant_autogun");      // alternativa base al lasrifle
+            tryUpgrade(0.25f, u.primaryWeaponId, "aspirant_shotgun");
+            tryUpgrade(0.35f, u.secondaryWeaponId, "aspirant_laspistol");
+            tryUpgrade(0.30f, u.meleeWeaponId, "aspirant_chainsword");
+        }
         else if (u.blueprintId == "imperium_conscript") {
             tryUpgrade(0.30f, u.equipmentSlots[0], "conscript_frag");
             tryUpgrade(0.25f, u.equipmentSlots[1], "conscript_medkit");

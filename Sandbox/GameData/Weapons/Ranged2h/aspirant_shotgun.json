@@ -1,0 +1,51 @@
+{
+  "id": "aspirant_shotgun",
+  "displayName": "Fucile a Pompa",
+  "faction": "SpaceMarines",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 4.0,
+  "point_cost": 3,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 6,
+  "reload_time_sec": 2.8,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 90.0,
+  "base_damage": 12.0,
+  "armor_penetration": 5,
+  "pellet_count": 8,
+  "range_effective": 25.0,
+  "damage_falloff_start": 10.0,
+  "damage_falloff_end": 25.0,
+  "spread_base": 0.18,
+  "recoil_force": 0.6,
+  "heat_capacity": 100.0,
+  "projectile_type": "ballistic",
+  "is_beam": false,
+  "primary_color": [
+    1.0,
+    0.8,
+    0.3,
+    1.0
+  ],
+  "projectile_width": 0.06,
+  "weapon_scale": [
+    0.12,
+    0.15,
+    0.7
+  ],
+  "hold_offset": [
+    0.35,
+    -0.12,
+    -0.2
+  ],
+  "spare_magazines": 4,
+  "comment": "Sbloccabile dell'aspirante: fucile a pompa, 8 pallettoni per colpo. 6 colpi e 24 di riserva.",
+  "allowed_units": [
+    "spacemarines_neophyte"
+  ]
+}

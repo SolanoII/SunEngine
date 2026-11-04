@@ -1,0 +1,70 @@
+{
+  "id": "aspirant_autogun",
+  "displayName": "Autogun d'Addestramento",
+  "faction": "SpaceMarines",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 3.8,
+  "point_cost": 2,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 30,
+  "reload_time_sec": 2.1,
+  "fire_modes": [
+    "auto"
+  ],
+  "rate_of_fire": 550.0,
+  "base_damage": 18.0,
+  "armor_penetration": 2,
+  "impact_force": 24.0,
+  "toughness_bypass": 0.05,
+  "range_effective": 40.0,
+  "damage_falloff_start": 20.0,
+  "damage_falloff_end": 40.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 1.6,
+  "shake_intensity": 0.08,
+  "fov_kick": 1.2,
+  "spread_base": 0.22,
+  "spread_auto_multiplier": 1.6,
+  "suppression_value": 7,
+  "projectile_type": "ballistic",
+  "is_beam": false,
+  "projectile_speed": 160.0,
+  "projectile_length": 0.6,
+  "projectile_width": 0.06,
+  "primary_color": [
+    1.0,
+    0.7,
+    0.2,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    0.9,
+    0.6,
+    1.0
+  ],
+  "weapon_scale": [
+    0.12,
+    0.12,
+    0.8
+  ],
+  "hold_offset": [
+    0.45,
+    0.1,
+    -0.55
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.45
+  ],
+  "heat_recoil_multiplier": 1.0,
+  "spare_magazines": 2,
+  "comment": "Dotazione base dell'aspirante (in alternativa al lasrifle): 30 colpi e 60 di riserva.",
+  "allowed_units": [
+    "spacemarines_neophyte"
+  ]
+}
