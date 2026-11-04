@@ -313,6 +313,7 @@ namespace SunEngine {
 
         // Dotazione tattica (slot 4-6)
         int equipmentUses[3] = { 0, 0, 0 };
+        float equipmentCooldown[3] = { 0.0f, 0.0f, 0.0f };   // dotazione a ricarica (es. zaino energetico): secondi rimasti
         float useTimer = 0.0f;         // >0: rifornimento in corso
         float useDuration = 0.0f;
         int useSlot = -1;              // slot equipaggiamento in uso (4-6)
@@ -320,6 +321,18 @@ namespace SunEngine {
         float feedbackTimer = 0.0f;    // messaggio a schermo dopo l'uso
         std::string feedback;
         glm::vec3 useStartPos{ 0.0f }; // dove e' iniziata la canalizzazione (scrap: bisogna restare fermi)
+    };
+
+    // Spinta dello zaino energetico (firstborn): velocita' x mult per timeLeft secondi
+    struct SpeedBoostComponent {
+        float timeLeft = 0.0f;
+        float mult = 1.0f;
+    };
+    // Aura dell'insegna imperiale: chi e' vicino a un'insegna della sua squadra ha il morale alto (+10%), che oggi
+    // vuol dire mani piu' ferme: -10% di dispersione. Rinnovata ogni frame da EquipmentSystem.
+    struct MoraleAuraComponent {
+        float timeLeft = 0.0f;
+        float bonus = 0.1f;
     };
 
     // Mimetismo (camo cloak degli scout): il corpo diventa un liquido trasparente che rifrange cio' che ha dietro.

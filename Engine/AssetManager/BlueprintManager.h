@@ -227,6 +227,12 @@ namespace SunEngine {
         int ammo_per_shot = 1;
         // Cassa di munizioni ("ammo_crate"): posata a terra, E vicino = un caricatore dell'arma in mano, crate_charges volte
         int crate_charges = 3;
+        // Dotazione a ricarica ("power_pack"): click = effetto per effect_duration secondi, poi equipment_cooldown secondi
+        // di ricarica; move_speed_bonus = +velocita' (0.1 = +10%)
+        float equipment_cooldown = 0.0f;
+        float move_speed_bonus = 0.0f;
+        // Insegna ("insignia"): passiva, morale +morale_bonus a chi della squadra e' entro equipment_range metri (anche chi la porta)
+        float morale_bonus = 0.0f;
         float companion_health = 30.0f;      // lo squig si puo' uccidere: poca salute...
         float companion_evasion = 0.30f;     // ...ma schiva il 30% dei colpi
 

@@ -1,0 +1,207 @@
+{
+  "id": "firstborn_knife",
+  "comment": "Coltello del firstborn. Coltello dello scout. Coltello da combattimento a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.0044,
+      0.1155
+    ],
+    "muzzle": [
+      0.0,
+      -0.0077,
+      -0.1925
+    ]
+  },
+  "parts": [
+    {
+      "name": "blade",
+      "offset": [
+        0.0,
+        0.0,
+        -0.0495
+      ],
+      "size": [
+        0.0077,
+        0.0352,
+        0.176
+      ],
+      "color": [
+        0.78,
+        0.8,
+        0.84,
+        1
+      ],
+      "roughness": 0.25,
+      "metallic": 0.95
+    },
+    {
+      "name": "blade_tip",
+      "offset": [
+        0.0,
+        -0.0077,
+        -0.165
+      ],
+      "size": [
+        0.0066,
+        0.0198,
+        0.055
+      ],
+      "color": [
+        0.78,
+        0.8,
+        0.84,
+        1
+      ],
+      "roughness": 0.25,
+      "metallic": 0.95
+    },
+    {
+      "name": "fuller",
+      "offset": [
+        0.0039,
+        0.0033,
+        -0.055
+      ],
+      "size": [
+        0.0022,
+        0.0088,
+        0.11
+      ],
+      "color": [
+        0.55,
+        0.57,
+        0.6,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.9
+    },
+    {
+      "name": "guard",
+      "offset": [
+        0.0,
+        0.0,
+        0.044
+      ],
+      "size": [
+        0.0154,
+        0.055,
+        0.0132
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.1,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.7
+    },
+    {
+      "name": "handle",
+      "offset": [
+        0.0,
+        -0.0044,
+        0.1155
+      ],
+      "size": [
+        0.0264,
+        0.0374,
+        0.121
+      ],
+      "color": [
+        0.07,
+        0.07,
+        0.08,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "name": "ring_1",
+      "offset": [
+        0.0,
+        -0.0044,
+        0.0847
+      ],
+      "size": [
+        0.0308,
+        0.0418,
+        0.0066
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.7
+    },
+    {
+      "name": "ring_2",
+      "offset": [
+        0.0,
+        -0.0044,
+        0.1177
+      ],
+      "size": [
+        0.0308,
+        0.0418,
+        0.0066
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.7
+    },
+    {
+      "name": "ring_3",
+      "offset": [
+        0.0,
+        -0.0044,
+        0.1507
+      ],
+      "size": [
+        0.0308,
+        0.0418,
+        0.0066
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.7
+    },
+    {
+      "name": "pommel",
+      "offset": [
+        0.0,
+        -0.0044,
+        0.1815
+      ],
+      "size": [
+        0.0308,
+        0.0418,
+        0.022
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    }
+  ]
+}

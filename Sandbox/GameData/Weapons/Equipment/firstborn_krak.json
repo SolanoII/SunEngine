@@ -1,0 +1,39 @@
+{
+  "id": "firstborn_krak",
+  "displayName": "Granata Krak",
+  "comment": "Sbloccabile del firstborn: granata anticarro. Scoppia all'impatto, raggio piccolo (2 m) ma 220 danni che passano le corazze; distrugge strutture e mezzi. 1 per partita.",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_battle_brother"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "grenade",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 0.8,
+  "point_cost": 4,
+  "equipment_uses": 1,
+  "fuse_time": 2.5,
+  "throw_speed": 15.0,
+  "explode_on_impact": true,
+  "explosion_radius": 2.0,
+  "explosion_damage": 220.0,
+  "armor_penetration": 30,
+  "weapon_scale": [
+    0.08,
+    0.1,
+    0.08
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.25,
+    0.25,
+    0.3,
+    1.0
+  ],
+  "structure_damage_multiplier": 4.0
+}

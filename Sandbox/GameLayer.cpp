@@ -2439,6 +2439,16 @@ namespace SunEngine {
             dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(0, 0, 0, 200), 2.0f, 0, 1.0f);
             y += bh + 8.0f;
         }
+        // Effetti in corso della dotazione (zaino energetico, insegna imperiale vicina)
+        if (const auto* boost = reg.try_get<SpeedBoostComponent>(m_PlayerEntity)) {
+            char t[64]; std::snprintf(t, sizeof(t), "Zaino energetico: +%d%% velocita'  %.0f s", static_cast<int>(std::lround((boost->mult - 1.0f) * 100.0f)), std::ceil(boost->timeLeft));
+            dl->AddText(ImVec2(x, y), IM_COL32(120, 200, 255, 255), t); y += 16.0f;
+        }
+        if (const auto* aura = reg.try_get<MoraleAuraComponent>(m_PlayerEntity)) {
+            char t[64]; std::snprintf(t, sizeof(t), "Insegna imperiale: morale +%d%%", static_cast<int>(std::lround(aura->bonus * 100.0f)));
+            dl->AddText(ImVec2(x, y), IM_COL32(255, 215, 90, 255), t); y += 16.0f;
+        }
+        if (reg.any_of<SpeedBoostComponent, MoraleAuraComponent>(m_PlayerEntity)) y += 4.0f;
 
         if (m_FactionBuffFaction == "imperium") {
             // "FOLLOW ORDERS": le lettere si accendono d'oro da sinistra a destra man mano che la barra si carica
@@ -2702,6 +2712,15 @@ namespace SunEngine {
             else if (type == "medkit")
                 textRight("Sinistro: curati di " + std::to_string(static_cast<int>(held->heal_amount)) + " salute in " +
                           std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s", baseSize, grey);
+            else if (type == "power_pack") {
+                const float cd = (slotIdx >= 0 && slotIdx < 3) ? ammo->equipmentCooldown[slotIdx] : 0.0f;
+                textRight("Sinistro: +" + std::to_string(static_cast<int>(std::lround(held->move_speed_bonus * 100.0f))) + "% velocita' per " +
+                          std::to_string(static_cast<int>(std::lround(held->effect_duration))) + " s (ricarica " + std::to_string(static_cast<int>(held->equipment_cooldown)) + " s)", baseSize, grey);
+                textRight(cd > 0.0f ? "Ricarica: " + std::to_string(static_cast<int>(std::ceil(cd))) + " s" : std::string("PRONTO"), baseSize * 2.0f, cd > 0.0f ? red : white);
+            }
+            else if (type == "insignia")
+                textRight("Passiva: morale +" + std::to_string(static_cast<int>(std::lround(held->morale_bonus * 100.0f))) + "% a te e ai compagni entro " +
+                          std::to_string(static_cast<int>(held->equipment_range)) + " m", baseSize, grey);
             else if (type == "camo_cloak")
                 textRight("Sinistro: mimetizzati per " + std::to_string(static_cast<int>(std::lround(held->effect_duration))) +
                           " s (sparare o colpire lo interrompe)", baseSize, grey);
@@ -2722,7 +2741,7 @@ namespace SunEngine {
             else if (type == "food_pack")
                 textRight("Sinistro: posa lo zaino (cura " + std::to_string(static_cast<int>(held->heal_per_second)) + " HP/s entro " +
                           std::to_string(static_cast<int>(held->equipment_range)) + " m per " + std::to_string(static_cast<int>(held->effect_duration)) + " s)", baseSize, grey);
-            if (type != "auspex")   // l'auspex e' passivo: niente usi
+            if (type != "auspex" && type != "power_pack" && type != "insignia")   // passivi o a ricarica: niente usi
                 textRight("Usi: " + std::to_string(uses) + " / " + std::to_string(held->equipment_uses), baseSize * 2.0f, uses > 0 ? white : red);
             textRight(held->displayName, baseSize * 1.15f, grey);
         }
@@ -6588,6 +6607,13 @@ namespace SunEngine {
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_schola_carapace"); }
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_schola_carapace"); }
             tryUpgrade(0.30f, u.equipmentSlots[1], "schola_ammo_crate");
+        }
+        else if (u.blueprintId == "spacemarines_battle_brother") {
+            tryUpgrade(0.40f, u.primaryWeaponId, "firstborn_auto_bolt_rifle");   // alternative base
+            tryUpgrade(0.30f, u.meleeWeaponId, "firstborn_knife");
+            tryUpgrade(0.25f, u.primaryWeaponId, "firstborn_heavy_bolter");
+            tryUpgrade(0.30f, u.equipmentSlots[0], "firstborn_krak");
+            tryUpgrade(0.30f, u.equipmentSlots[2], "firstborn_insignia");
         }
         else if (u.blueprintId == "spacemarines_scout") {
             tryUpgrade(0.30f, u.primaryWeaponId, "scout_shotgun");          // alternative base

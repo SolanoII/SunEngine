@@ -1,0 +1,102 @@
+{
+  "id": "head_firstborn_mk7",
+  "displayName": "Elmo Mk VII",
+  "comment": "Dotazione base del firstborn: Power Armour Mark VII 'Aquila'. Elmo con griglia vocale e lenti verdi; finche' regge annulla il bonus del colpo in testa.",
+  "location": "Head",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_battle_brother"
+  ],
+  "armor_rating": 20,
+  "coverage": 0.8,
+  "max_durability": 180.0,
+  "weight": 0.0,
+  "point_cost": 3,
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.0,
+        0
+      ],
+      "size": [
+        0.37,
+        0.37,
+        0.37
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.4,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        -0.09,
+        -0.19
+      ],
+      "size": [
+        0.17,
+        0.11,
+        0.04
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.14,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "block": "Head",
+      "offset": [
+        -0.075,
+        0.04,
+        -0.188
+      ],
+      "size": [
+        0.09,
+        0.045,
+        0.02
+      ],
+      "color": [
+        0.2,
+        0.9,
+        0.3,
+        1
+      ],
+      "roughness": 0.1,
+      "metallic": 0.2
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.075,
+        0.04,
+        -0.188
+      ],
+      "size": [
+        0.09,
+        0.045,
+        0.02
+      ],
+      "color": [
+        0.2,
+        0.9,
+        0.3,
+        1
+      ],
+      "roughness": 0.1,
+      "metallic": 0.2
+    }
+  ],
+  "blocks_headshot_bonus": true
+}

@@ -1,0 +1,311 @@
+{
+  "id": "firstborn_boltgun",
+  "comment": "Boltgun del firstborn (caricatore lungo da 30). Boltgun da scout a blocchi: castello squadrato, caricatore a cassetta, canna corta e grossa con freno di bocca, aquila d'ottone. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.088,
+      0.11
+    ],
+    "grip_left": [
+      0.0,
+      -0.055,
+      -0.22
+    ],
+    "muzzle": [
+      0.0,
+      0.033,
+      -0.55
+    ]
+  },
+  "parts": [
+    {
+      "name": "castello",
+      "offset": [
+        0.0,
+        0.011,
+        0.0
+      ],
+      "size": [
+        0.088,
+        0.121,
+        0.352
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "coperchio",
+      "offset": [
+        0.0,
+        0.077,
+        0.0
+      ],
+      "size": [
+        0.077,
+        0.022,
+        0.308
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0.0,
+        0.033,
+        -0.352
+      ],
+      "size": [
+        0.055,
+        0.055,
+        0.286
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.85
+    },
+    {
+      "name": "freno_bocca",
+      "offset": [
+        0.0,
+        0.033,
+        -0.517
+      ],
+      "size": [
+        0.0715,
+        0.0715,
+        0.066
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0.0,
+        0.0,
+        -0.22
+      ],
+      "size": [
+        0.0935,
+        0.077,
+        0.132
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "aquila",
+      "offset": [
+        0.0462,
+        0.033,
+        -0.044
+      ],
+      "size": [
+        0.0044,
+        0.044,
+        0.088
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "caricatore",
+      "offset": [
+        0.0,
+        -0.121,
+        -0.044
+      ],
+      "size": [
+        0.055,
+        0.143,
+        0.077
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7,
+      "rotation": [
+        8,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0.0,
+        -0.088,
+        0.11
+      ],
+      "size": [
+        0.0396,
+        0.11,
+        0.0495
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ponticello",
+      "offset": [
+        0.0,
+        -0.055,
+        0.066
+      ],
+      "size": [
+        0.011,
+        0.0176,
+        0.066
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0.0,
+        -0.011,
+        0.286
+      ],
+      "size": [
+        0.055,
+        0.099,
+        0.22
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.4
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0.0,
+        -0.011,
+        0.4015
+      ],
+      "size": [
+        0.0605,
+        0.11,
+        0.0154
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.3
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0.0,
+        0.099,
+        -0.11
+      ],
+      "size": [
+        0.022,
+        0.022,
+        0.044
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "caricatore_lungo",
+      "offset": [
+        0,
+        -0.19,
+        -0.05
+      ],
+      "size": [
+        0.055,
+        0.12,
+        0.075
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7,
+      "rotation": [
+        14,
+        0,
+        0
+      ]
+    }
+  ]
+}

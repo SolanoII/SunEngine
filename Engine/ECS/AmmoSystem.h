@@ -18,6 +18,10 @@
 // Cassa di munizioni ("ammo_crate"): click sinistro la posa a terra davanti; poi chiunque della squadra, vicino e
 //   premendo E, recupera un caricatore dell'arma che ha in mano (crate_charges volte in tutto, poi la cassa sparisce).
 //   I bot vicini la usano da soli quando hanno la riserva bassa.
+// Zaino energetico ("power_pack"): click sinistro = +move_speed_bonus di velocita' per effect_duration secondi, poi
+//   equipment_cooldown secondi di ricarica (nessun limite di usi).
+// Insegna imperiale ("insignia"): passiva, basta averla in uno slot: morale alto a chi della squadra e' entro
+//   equipment_range metri, portatore compreso (MoraleAuraComponent).
 // Mantello mimetico ("camo_cloak"): click sinistro per effect_duration secondi il corpo diventa un liquido trasparente
 //   (CloakComponent); i nemici IA non lo vedono oltre 6 m. Sparare o colpire in mischia lo interrompe.
 // Auspex ("auspex"): in mano mostra un sonar coi nemici entro equipment_range metri (lo disegna GameLayer).
@@ -181,6 +185,7 @@ namespace SunEngine {
             UpdateHealZones(scene, dt);
             UpdateCrates(scene, dt);
             UpdateCloaks(scene, dt);
+            UpdateBoostsAndAuras(scene, dt);
             auto view = reg.view<AmmoComponent, InventoryComponent, TransformComponent>(entt::exclude<CorpseComponent>);
             for (auto e : view) {
                 auto& a = view.get<AmmoComponent>(e);
@@ -234,6 +239,20 @@ namespace SunEngine {
                 }
                 if (held->equipment_type == "medkit") {
                     UpdateMedkit(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
+                    continue;
+                }
+                if (held->equipment_type == "power_pack") {
+                    if (wantSelf) {
+                        if (a.equipmentCooldown[slotIdx] > 0.0f) Feedback(a, "Zaino energetico in ricarica: " + std::to_string(static_cast<int>(std::ceil(a.equipmentCooldown[slotIdx]))) + " s");
+                        else {
+                            auto& b = reg.get_or_emplace<SpeedBoostComponent>(e);
+                            b.timeLeft = std::max(0.5f, held->effect_duration);
+                            b.mult = 1.0f + held->move_speed_bonus;
+                            a.equipmentCooldown[slotIdx] = held->equipment_cooldown;
+                            Feedback(a, "Zaino energetico: +" + std::to_string(static_cast<int>(std::lround(held->move_speed_bonus * 100.0f))) + "% velocita' per " +
+                                        std::to_string(static_cast<int>(std::lround(held->effect_duration))) + " s");
+                        }
+                    }
                     continue;
                 }
                 if (held->equipment_type == "camo_cloak") {
@@ -461,6 +480,56 @@ namespace SunEngine {
             a.useSlot = slot;
             a.useTarget = e;
             Feedback(a, "Medicazione in corso...");
+        }
+
+        // Ricariche della dotazione, spinte dello zaino energetico e aure delle insegne
+        void UpdateBoostsAndAuras(Scene& scene, float dt) {
+            auto& reg = scene.GetRegistry();
+            for (auto e : reg.view<AmmoComponent>()) {
+                auto& a = reg.get<AmmoComponent>(e);
+                for (float& c : a.equipmentCooldown) c = std::max(0.0f, c - dt);
+            }
+            std::vector<entt::entity> ended;
+            for (auto e : reg.view<SpeedBoostComponent>()) {
+                auto& b = reg.get<SpeedBoostComponent>(e);
+                b.timeLeft -= dt;
+                if (b.timeLeft <= 0.0f || reg.all_of<CorpseComponent>(e)) ended.push_back(e);
+            }
+            for (auto e : ended) reg.remove<SpeedBoostComponent>(e);
+            ended.clear();
+            for (auto e : reg.view<MoraleAuraComponent>()) {
+                auto& m = reg.get<MoraleAuraComponent>(e);
+                m.timeLeft -= dt;
+                if (m.timeLeft <= 0.0f) ended.push_back(e);
+            }
+            for (auto e : ended) reg.remove<MoraleAuraComponent>(e);
+            // Insegne: chi la porta (vivo) rinnova l'aura a se' e ai compagni vicini
+            auto holders = reg.view<InventoryComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+            for (auto h : holders) {
+                if (holders.get<HealthComponent>(h).currentHealth <= 0.0f) continue;
+                const auto& inv = holders.get<InventoryComponent>(h);
+                const WeaponBlueprint* insignia = nullptr;
+                for (int s = 4; s <= 6 && !insignia; ++s) {
+                    const auto* bp = BlueprintManager::Get().GetWeapon(inv.GetSlotItemId(s));
+                    if (bp && bp->equipment_type == "insignia") insignia = bp;
+                }
+                if (!insignia) continue;
+                const glm::vec3 c = holders.get<TransformComponent>(h).Position;
+                const auto* team = reg.try_get<TeamComponent>(h);
+                auto give = [&](entt::entity u) {
+                    auto& m = reg.get_or_emplace<MoraleAuraComponent>(u);
+                    m.timeLeft = 0.25f;
+                    m.bonus = std::max(m.bonus, insignia->morale_bonus);
+                };
+                give(h);
+                if (!team) continue;
+                auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+                for (auto u : mates) {
+                    if (u == h || mates.get<TeamComponent>(u).team != team->team || mates.get<HealthComponent>(u).currentHealth <= 0.0f) continue;
+                    const glm::vec3 p = mates.get<TransformComponent>(u).Position;
+                    if (glm::length(glm::vec2(p.x - c.x, p.z - c.z)) <= insignia->equipment_range) give(u);
+                }
+            }
         }
 
         // Mantello mimetico: attivato per effect_duration secondi

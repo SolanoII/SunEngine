@@ -1,0 +1,52 @@
+{
+  "id": "firstborn_heavy_bolter",
+  "displayName": "Heavy Bolter",
+  "faction": "SpaceMarines",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 18.0,
+  "point_cost": 10,
+  "has_scope": false,
+  "scope_zoom_fov": 18.0,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 50,
+  "reload_time_sec": 4.5,
+  "fire_modes": [
+    "auto"
+  ],
+  "rate_of_fire": 450.0,
+  "base_damage": 60.0,
+  "armor_penetration": 14,
+  "range_effective": 90.0,
+  "damage_falloff_start": 50.0,
+  "damage_falloff_end": 90.0,
+  "spread_base": 0.08,
+  "recoil_force": 1.1,
+  "heat_capacity": 700.0,
+  "projectile_type": "bolt",
+  "is_beam": false,
+  "primary_color": [
+    1.0,
+    0.7,
+    0.25,
+    1.0
+  ],
+  "projectile_width": 0.06,
+  "weapon_scale": [
+    0.15,
+    0.18,
+    0.85
+  ],
+  "hold_offset": [
+    0.4,
+    -0.1,
+    -0.25
+  ],
+  "spare_magazines": 2,
+  "suppression_value": 14,
+  "comment": "Sbloccabile del firstborn: arma pesante per il fuoco di soppressione, raffiche di cartucce bolt. 50 colpi e 100 di riserva.",
+  "allowed_units": [
+    "spacemarines_battle_brother"
+  ]
+}

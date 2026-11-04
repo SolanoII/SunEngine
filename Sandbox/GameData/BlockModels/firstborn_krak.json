@@ -1,0 +1,76 @@
+{
+  "id": "firstborn_krak",
+  "comment": "Granata krak a blocchi: cilindro scuro con fascia gialla e spoletta. +Y alto.",
+  "anchors": {
+    "grip_right": [
+      0,
+      0,
+      0
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.08,
+        0.12,
+        0.08
+      ],
+      "color": [
+        0.22,
+        0.22,
+        0.26,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "fascia",
+      "offset": [
+        0,
+        0.02,
+        0
+      ],
+      "size": [
+        0.085,
+        0.02,
+        0.085
+      ],
+      "color": [
+        0.85,
+        0.7,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.2
+    },
+    {
+      "name": "spoletta",
+      "offset": [
+        0,
+        0.075,
+        0
+      ],
+      "size": [
+        0.04,
+        0.03,
+        0.04
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    }
+  ]
+}

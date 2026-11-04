@@ -1,0 +1,149 @@
+{
+  "id": "firstborn_bolt_pistol",
+  "comment": "Bolt pistol del firstborn. Bolt pistol a blocchi: corpo massiccio, canna corta e grossa, caricatore nell'impugnatura. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.077,
+      0.055
+    ],
+    "muzzle": [
+      0.0,
+      0.0275,
+      -0.22
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0.0,
+        0.022,
+        -0.044
+      ],
+      "size": [
+        0.066,
+        0.088,
+        0.242
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "carrello",
+      "offset": [
+        0.0,
+        0.0715,
+        -0.044
+      ],
+      "size": [
+        0.0605,
+        0.022,
+        0.22
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0.0,
+        0.0275,
+        -0.187
+      ],
+      "size": [
+        0.044,
+        0.044,
+        0.066
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.85
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0.0,
+        -0.077,
+        0.055
+      ],
+      "size": [
+        0.044,
+        0.121,
+        0.055
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -12,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "fondello",
+      "offset": [
+        0.0,
+        -0.143,
+        0.066
+      ],
+      "size": [
+        0.0495,
+        0.022,
+        0.0605
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "ponticello",
+      "offset": [
+        0.0,
+        -0.033,
+        0.0
+      ],
+      "size": [
+        0.011,
+        0.0154,
+        0.055
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    }
+  ]
+}

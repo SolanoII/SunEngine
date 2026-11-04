@@ -568,6 +568,9 @@ namespace SunEngine {
         }
         float totalSpread = spreadBase + wState.currentSpread;
         if (orderBuff) totalSpread *= orderBuff->spreadMult;
+        // Insegna imperiale vicina: morale alto, mani piu' ferme
+        if (const auto* aura = scene.GetRegistry().try_get<MoraleAuraComponent>(shooter); aura && aura->timeLeft > 0.0f)
+            totalSpread *= std::max(0.0f, 1.0f - aura->bonus);
         // Elmetto con visiera (es. scout): mira piu' precisa
         if (const auto* helm = BlueprintManager::Get().GetArmorPiece(stats.armorSet.head.id); helm && helm->aim_bonus > 0.0f)
             totalSpread *= std::max(0.0f, 1.0f - helm->aim_bonus);

@@ -1,0 +1,127 @@
+{
+  "displayName": "Insegna Imperiale",
+  "slot_type": "equipment",
+  "equipment_type": "insignia",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 0.5,
+  "point_cost": 3,
+  "equipment_uses": 0,
+  "equipment_range": 12.0,
+  "morale_bonus": 0.1,
+  "weapon_scale": [
+    0.12,
+    0.1,
+    0.03
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.85,
+    0.68,
+    0.25,
+    1.0
+  ],
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.18,
+        -0.305
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        0.05,
+        -0.2
+      ],
+      "size": [
+        0.08,
+        0.1,
+        0.02
+      ],
+      "color": [
+        0.85,
+        0.68,
+        0.25,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.9
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.1,
+        0.21,
+        -0.305
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        -0.1,
+        0.08,
+        -0.2
+      ],
+      "size": [
+        0.14,
+        0.05,
+        0.02
+      ],
+      "color": [
+        0.85,
+        0.68,
+        0.25,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.9,
+      "rotation": [
+        0,
+        0,
+        -15
+      ]
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.1,
+        0.21,
+        -0.305
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.1,
+        0.08,
+        -0.2
+      ],
+      "size": [
+        0.14,
+        0.05,
+        0.02
+      ],
+      "color": [
+        0.85,
+        0.68,
+        0.25,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.9,
+      "rotation": [
+        0,
+        0,
+        15
+      ]
+    }
+  ],
+  "comment": "Sbloccabile del firstborn: aquila imperiale sul petto (va in uno slot della dotazione). Passiva: morale +10% a chi la porta e ai compagni entro 12 m.",
+  "id": "firstborn_insignia",
+  "allowed_units": [
+    "spacemarines_battle_brother"
+  ],
+  "faction": "SpaceMarines"
+}

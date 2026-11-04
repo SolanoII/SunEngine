@@ -546,6 +546,7 @@ namespace SunEngine {
                     float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * brain.moveSpeedFactor;
                     if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
+                    if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
                     t.Position += dir / dist * std::min(dist, speed * dt);
                     brain.isMoving = true;
                 }
@@ -750,6 +751,22 @@ namespace SunEngine {
                 brain.resupplySlot = s;
             }
             if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+            return;
+        }
+
+        // Zaino energetico: spinta quando carica in mischia o si riposiziona sotto pressione (se e' carico)
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!bp || bp->equipment_type != "power_pack" || ammo->equipmentCooldown[s - 4] > 0.0f) continue;
+            if (brain.resupplySlot != s) {
+                const bool rush = brain.intent == BotIntent::Charge || (brain.intent == BotIntent::Reposition && brain.recentDamage > 10.0f);
+                if (!rush || reg.all_of<SpeedBoostComponent>(self)) break;
+                brain.resupplySlot = s;
+            }
+            if (inv->currentSlot == s) {
+                reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+                brain.equipReleaseSlot = s; brain.equipReleaseTimer = 0.2f;
+            }
             return;
         }
 

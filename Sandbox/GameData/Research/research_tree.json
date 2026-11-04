@@ -1137,6 +1137,39 @@
           "parent": "sm_scout",
           "research_cost": 25000,
           "purchase_cost": 50000
+        },
+        {
+          "id": "sm_firstborn_item_heavy_bolter",
+          "item": "firstborn_heavy_bolter",
+          "name": "Heavy Bolter",
+          "tier": 3,
+          "col": 3,
+          "row": 20,
+          "parent": "sm_firstborn",
+          "research_cost": 35000,
+          "purchase_cost": 70000
+        },
+        {
+          "id": "sm_firstborn_item_krak",
+          "item": "firstborn_krak",
+          "name": "Granata Krak",
+          "tier": 3,
+          "col": 3,
+          "row": 21,
+          "parent": "sm_firstborn",
+          "research_cost": 20000,
+          "purchase_cost": 40000
+        },
+        {
+          "id": "sm_firstborn_item_insignia",
+          "item": "firstborn_insignia",
+          "name": "Insegna Imperiale",
+          "tier": 3,
+          "col": 3,
+          "row": 22,
+          "parent": "sm_firstborn",
+          "research_cost": 25000,
+          "purchase_cost": 50000
         }
       ]
     },

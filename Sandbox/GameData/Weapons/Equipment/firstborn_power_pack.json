@@ -1,0 +1,118 @@
+{
+  "displayName": "Zaino Energetico",
+  "slot_type": "equipment",
+  "equipment_type": "power_pack",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 0.0,
+  "point_cost": 2,
+  "equipment_uses": 0,
+  "effect_duration": 5.0,
+  "equipment_cooldown": 30.0,
+  "move_speed_bonus": 0.1,
+  "weapon_scale": [
+    0.12,
+    0.06,
+    0.12
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.3,
+    0.32,
+    0.38,
+    1.0
+  ],
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.1,
+        0.37
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        0.0,
+        0.26
+      ],
+      "size": [
+        0.55,
+        0.55,
+        0.2
+      ],
+      "color": [
+        0.3,
+        0.32,
+        0.38,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.6
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.15,
+        0.48,
+        0.4
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        -0.14,
+        0.3,
+        0.3
+      ],
+      "size": [
+        0.09,
+        0.18,
+        0.09
+      ],
+      "color": [
+        0.18,
+        0.18,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.7
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.15,
+        0.48,
+        0.4
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.14,
+        0.3,
+        0.3
+      ],
+      "size": [
+        0.09,
+        0.18,
+        0.09
+      ],
+      "color": [
+        0.18,
+        0.18,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.7
+    }
+  ],
+  "comment": "Dotazione base del firstborn: zaino energetico che alimenta armatura e sistemi ausiliari. Click sinistro: +10% di velocita' per 5 secondi, poi 30 secondi di ricarica. Senza limite di usi.",
+  "id": "firstborn_power_pack",
+  "allowed_units": [
+    "spacemarines_battle_brother"
+  ],
+  "faction": "SpaceMarines"
+}

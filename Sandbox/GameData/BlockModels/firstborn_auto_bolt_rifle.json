@@ -1,0 +1,290 @@
+{
+  "id": "firstborn_auto_bolt_rifle",
+  "comment": "Auto bolt rifle a blocchi: corpo lungo e liscio, caricatore curvo, canna con camicia forata, calcio integrato. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.09,
+      0.12
+    ],
+    "grip_left": [
+      0,
+      -0.06,
+      -0.24
+    ],
+    "muzzle": [
+      0,
+      0.035,
+      -0.62
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0,
+        0.02,
+        0.0
+      ],
+      "size": [
+        0.09,
+        0.12,
+        0.42
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.7
+    },
+    {
+      "name": "dorso",
+      "offset": [
+        0,
+        0.09,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.025,
+        0.38
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "camicia",
+      "offset": [
+        0,
+        0.035,
+        -0.36
+      ],
+      "size": [
+        0.06,
+        0.06,
+        0.2
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "foro_1",
+      "offset": [
+        0.031,
+        0.035,
+        -0.33
+      ],
+      "size": [
+        0.002,
+        0.025,
+        0.04
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "foro_2",
+      "offset": [
+        0.031,
+        0.035,
+        -0.4
+      ],
+      "size": [
+        0.002,
+        0.025,
+        0.04
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.035,
+        -0.53
+      ],
+      "size": [
+        0.035,
+        0.035,
+        0.16
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.85
+    },
+    {
+      "name": "caricatore_1",
+      "offset": [
+        0,
+        -0.09,
+        -0.08
+      ],
+      "size": [
+        0.055,
+        0.09,
+        0.08
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7,
+      "rotation": [
+        10,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "caricatore_2",
+      "offset": [
+        0,
+        -0.17,
+        -0.1
+      ],
+      "size": [
+        0.055,
+        0.08,
+        0.075
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7,
+      "rotation": [
+        24,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.09,
+        0.12
+      ],
+      "size": [
+        0.04,
+        0.11,
+        0.05
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.01,
+        0.3
+      ],
+      "size": [
+        0.06,
+        0.11,
+        0.2
+      ],
+      "color": [
+        0.16,
+        0.17,
+        0.19,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "aquila",
+      "offset": [
+        0.047,
+        0.03,
+        -0.1
+      ],
+      "size": [
+        0.004,
+        0.05,
+        0.09
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0,
+        0.115,
+        -0.05
+      ],
+      "size": [
+        0.03,
+        0.03,
+        0.08
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    }
+  ]
+}
