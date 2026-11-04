@@ -219,6 +219,10 @@ namespace SunEngine {
                     if (wantSelf) PlaceMine(scene, e, a, *held, slotIdx, models);
                     continue;
                 }
+                if (held->equipment_type == "medkit") {
+                    UpdateMedkit(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
+                    continue;
+                }
 
                 // Rifornimento in corso
                 if (a.useTimer > 0.0f) {
@@ -395,6 +399,34 @@ namespace SunEngine {
         }
 
         // Zaino di cibo: posato ai piedi, cura chi e' nel cerchio
+        // Medikit: click e 'equipment_use_time' secondi col medikit in mano (ci si puo' muovere), poi +heal_amount
+        // salute. Cambiare oggetto lo annulla (vedi 'holding' in Update).
+        void UpdateMedkit(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slot, bool pressed, float dt) {
+            auto& reg = scene.GetRegistry();
+            const int slotIdx = slot - 4;
+            auto* hp = reg.try_get<HealthComponent>(e);
+            if (!hp) return;
+            if (a.useTimer > 0.0f && a.useSlot == slot) {
+                a.useTimer -= dt;
+                if (a.useTimer > 0.0f) return;
+                a.useTimer = 0.0f; a.useSlot = -1;
+                const float before = hp->currentHealth;
+                hp->currentHealth = std::min(hp->maxHealth, hp->currentHealth + bp.heal_amount);
+                a.equipmentUses[slotIdx] = std::max(0, a.equipmentUses[slotIdx] - 1);
+                EmitXp(e, XpCategory::Heal, XpValues::HealTick);
+                Feedback(a, "Medicato: +" + std::to_string(static_cast<int>(hp->currentHealth - before)) + " salute");
+                return;
+            }
+            if (!pressed) return;
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Medikit gia' usato"); return; }
+            if (hp->currentHealth >= hp->maxHealth) { Feedback(a, "Salute gia' piena"); return; }
+            a.useDuration = std::max(0.1f, bp.equipment_use_time);
+            a.useTimer = a.useDuration;
+            a.useSlot = slot;
+            a.useTarget = e;
+            Feedback(a, "Medicazione in corso...");
+        }
+
         void DropFood(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx, const BlockModelLibrary* models) {
             auto& reg = scene.GetRegistry();
             if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Zaino di cibo gia' usato"); return; }

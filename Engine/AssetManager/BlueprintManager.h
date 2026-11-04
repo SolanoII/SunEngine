@@ -188,6 +188,8 @@ namespace SunEngine {
         // Zaino di cibo ("food_pack"): click sinistro lo posa a terra; per effect_duration secondi cura
         // heal_per_second ai compagni entro equipment_range metri.
         float heal_per_second = 0.0f;
+        // Medikit ("medkit"): cura istantanea di heal_amount punti salute su se stessi dopo equipment_use_time secondi
+        float heal_amount = 0.0f;
         float effect_duration = 0.0f;
         // Granata ("grenade") e mina ("landmine"): explosion_radius / explosion_damage / armor_penetration.
         // fuse_time = miccia della granata o tempo per armare la mina; throw_speed = velocita' di lancio;

@@ -174,6 +174,17 @@ namespace SunEngine {
             p.Rotate("Spine", Rx(22.0f * amount)); p.Rotate("Spine1", Rx(8.0f * amount));
         }
 
+        // Medicazione (medikit): avambraccio sinistro sollevato davanti al petto, la destra lo fascia, testa china
+        inline void SelfHeal(ProceduralPose& p, float time, float amount) {
+            if (amount <= 0.0f) return;
+            const float wrap = std::sin(time * 5.0f) * 12.0f;
+            p.Rotate("LeftArm", Rx(-45.0f * amount)); p.Rotate("LeftArm", Ry(-30.0f * amount));
+            p.Rotate("LeftForeArm", Rx(-60.0f * amount));
+            p.Rotate("RightArm", Rx((-35.0f + wrap) * amount)); p.Rotate("RightArm", Ry(30.0f * amount));
+            p.Rotate("RightForeArm", Rx(-45.0f * amount));
+            p.Rotate("Head", Rx(25.0f * amount)); p.Rotate("Spine", Rx(8.0f * amount));
+        }
+
         // Costruzione (barricate, muri): mezzo accovacciato, le due braccia che battono a turno
         inline void Build(ProceduralPose& p, float time, float amount, float thighLen, float shinLen) {
             if (amount <= 0.0f) return;

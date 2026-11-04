@@ -1,0 +1,34 @@
+{
+  "id": "conscript_medkit",
+  "displayName": "Medikit",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_conscript"
+  ],
+  "comment": "Sbloccabile del coscritto: click sinistro e 3 secondi con il medikit in mano per curarsi di 50 punti salute. Cambiare oggetto annulla. 1 per partita.",
+  "slot_type": "equipment",
+  "equipment_type": "medkit",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 0.6,
+  "point_cost": 3,
+  "equipment_uses": 1,
+  "equipment_use_time": 3.0,
+  "heal_amount": 50.0,
+  "weapon_scale": [
+    0.16,
+    0.1,
+    0.06
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.3,
+    0.33,
+    0.22,
+    1.0
+  ]
+}

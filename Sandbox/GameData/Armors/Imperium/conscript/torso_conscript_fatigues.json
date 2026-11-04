@@ -1,0 +1,63 @@
+{
+  "id": "torso_conscript_fatigues",
+  "displayName": "Divisa da Coscritto",
+  "comment": "Dotazione base del coscritto: giubba di tela, nessuna armatura, solo aspetto.",
+  "location": "Torso",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_conscript"
+  ],
+  "armor_rating": 0,
+  "coverage": 0.0,
+  "max_durability": 0.0,
+  "weight": 0.8,
+  "point_cost": 0,
+  "skin_blocks": {
+    "Torso": [
+      0.36,
+      0.38,
+      0.25,
+      1
+    ],
+    "Arm_L": [
+      0.36,
+      0.38,
+      0.25,
+      1
+    ],
+    "Arm_R": [
+      0.36,
+      0.38,
+      0.25,
+      1
+    ]
+  },
+  "garments": [
+    {
+      "id": "conscript_shirt",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftArm",
+        "RightArm",
+        "LeftForeArm",
+        "RightForeArm"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.5,
+        0.835
+      ],
+      "inflate": 0.0065,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/guard_fatigues.png",
+      "tex_tiles": 6,
+      "roughness": 0.9
+    }
+  ]
+}

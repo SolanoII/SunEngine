@@ -173,6 +173,7 @@ namespace SunEngine {
                 if (j.contains("barricade_size") && j["barricade_size"].is_array() && j["barricade_size"].size() >= 3)
                     bp.barricade_size = glm::vec3(j["barricade_size"][0].get<float>(), j["barricade_size"][1].get<float>(), j["barricade_size"][2].get<float>());
                 bp.heal_per_second = j.value("heal_per_second", 0.0f);
+                bp.heal_amount = j.value("heal_amount", 0.0f);
                 bp.fuse_time = j.value("fuse_time", 3.0f);
                 bp.throw_speed = j.value("throw_speed", 14.0f);
                 bp.trigger_radius = j.value("trigger_radius", 0.9f);

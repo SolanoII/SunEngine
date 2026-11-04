@@ -22,6 +22,7 @@ namespace SunEngine {
         int prevUses[3] = { -1, -1, -1 };
         std::string unitId;              // cambio di unita' = si riparte (gli usi cambiano senza essere usati)
         float give = 0.0f, build = 0.0f, repair = 0.0f;   // azioni continue (pesi 0..1, transizione morbida)
+        float medkit = 0.0f;             // medicazione in corso (medikit)
         bool repairing = false;          // lo imposta chi ripara (oggi RepairSystem per il giocatore)
         float loopTime = 0.0f;           // tempo per i movimenti ritmati
     };
@@ -68,6 +69,7 @@ namespace SunEngine {
                 approach(ap.give, using_ && held->equipment_type == "ammo_box", 6.0f);
                 approach(ap.build, using_ && (held->equipment_type == "scrap_barricade" || held->equipment_type == "slit_wall"), 5.0f);
                 approach(ap.repair, ap.repairing, 6.0f);
+                approach(ap.medkit, using_ && held->equipment_type == "medkit", 6.0f);
             }
         }
 
@@ -142,6 +144,13 @@ namespace SunEngine {
                     set("Arm_R", glm::vec3(120.0f - 70.0f * hammer, 0.0f, 0.0f), ap.repair);
                     set("Arm_L", glm::vec3(35.0f, 0.0f, 0.0f), ap.repair);
                     set("Torso", glm::vec3(-20.0f, 0.0f, 0.0f), ap.repair);
+                }
+                if (ap.medkit > 0.0f) {   // medicazione: braccio sinistro piegato, la mano destra fascia
+                    const float wrap = std::sin(lt * 5.0f) * 12.0f;
+                    set("Arm_L", glm::vec3(70.0f, 30.0f, 0.0f), ap.medkit);
+                    set("Arm_R", glm::vec3(60.0f + wrap, -35.0f, 0.0f), ap.medkit);
+                    set("Head", glm::vec3(-25.0f, 0.0f, 0.0f), ap.medkit);
+                    set("Torso", glm::vec3(-12.0f, 0.0f, 0.0f), ap.medkit);
                 }
                 if (ap.build > 0.0f) {   // costruzione: chinato, le due braccia battono a turno
                     const float c = std::sin(lt * 6.0f);

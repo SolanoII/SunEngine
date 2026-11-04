@@ -99,6 +99,50 @@
             0.18,
             1
           ]
+        },
+        {
+          "id": "ig_conscript_item_frag",
+          "item": "conscript_frag",
+          "name": "Granata Frag",
+          "tier": 1,
+          "col": 1,
+          "row": 3,
+          "parent": "ig_conscript",
+          "research_cost": 10000,
+          "purchase_cost": 20000
+        },
+        {
+          "id": "ig_conscript_item_medkit",
+          "item": "conscript_medkit",
+          "name": "Medikit",
+          "tier": 1,
+          "col": 1,
+          "row": 4,
+          "parent": "ig_conscript",
+          "research_cost": 15000,
+          "purchase_cost": 25000
+        },
+        {
+          "id": "ig_conscript_item_flak",
+          "item": "torso_conscript_flak",
+          "name": "Corpetto Antischegge",
+          "tier": 1,
+          "col": 1,
+          "row": 5,
+          "parent": "ig_conscript",
+          "research_cost": 10000,
+          "purchase_cost": 20000
+        },
+        {
+          "id": "ig_conscript_item_helmet",
+          "item": "head_conscript_helmet",
+          "name": "Elmetto",
+          "tier": 1,
+          "col": 2,
+          "row": 5,
+          "parent": "ig_conscript_item_flak",
+          "research_cost": 8000,
+          "purchase_cost": 15000
         }
       ]
     },

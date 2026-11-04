@@ -2146,6 +2146,7 @@ namespace SunEngine {
             PoseLib::Give(m_PlayerPose, m_PoseTime, ap->give);
             PoseLib::Build(m_PlayerPose, m_PoseTime, ap->build, thigh, shin);
             PoseLib::Repair(m_PlayerPose, m_PoseTime, ap->repair);
+            PoseLib::SelfHeal(m_PlayerPose, m_PoseTime, ap->medkit);
             if (ap->action == 1) PoseLib::Throw(m_PlayerPose, ap->time / ap->duration);
             else if (ap->action == 2) PoseLib::UseItem(m_PlayerPose, ap->time / ap->duration, thigh, shin);
         }
@@ -2194,6 +2195,7 @@ namespace SunEngine {
                 dl->AddRectFilled(ImVec2(right - w, y), ImVec2(right - w + w * prog, y + h), IM_COL32(255, 200, 60, 255));
                 y -= 6.0f;
                 if (type == "scrap_barricade" || type == "slit_wall") textRight(type == "slit_wall" ? "Costruzione muro... (resta fermo)" : "Costruzione barricata... (resta fermo)", baseSize, yellow);
+                else if (type == "medkit") textRight("Medicazione...", baseSize, yellow);
                 else textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
             }
             if (type == "ammo_box")
@@ -2201,6 +2203,9 @@ namespace SunEngine {
             else if (type == "scrap_barricade" || type == "slit_wall")
                 textRight("Tieni premuto sinistro da fermo per " + std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s: " +
                           (type == "slit_wall" ? "muro con feritoia" : "barricata"), baseSize, grey);
+            else if (type == "medkit")
+                textRight("Sinistro: curati di " + std::to_string(static_cast<int>(held->heal_amount)) + " salute in " +
+                          std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s", baseSize, grey);
             else if (type == "grenade")
                 textRight("Sinistro: lancia verso il mirino (scoppia dopo " + std::to_string(static_cast<int>(std::lround(held->fuse_time))) + " s)", baseSize, grey);
             else if (type == "landmine")
@@ -5976,6 +5981,12 @@ namespace SunEngine {
             if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_shoota_plate"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_shoota_plate"); }
             if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_shoota_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_shoota_plate"); }
             tryUpgrade(0.20f, u.armorTorsoId, "torso_shoota_heavy");
+        }
+        else if (u.blueprintId == "imperium_conscript") {
+            tryUpgrade(0.30f, u.equipmentSlots[0], "conscript_frag");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "conscript_medkit");
+            tryUpgrade(0.35f, u.armorTorsoId, "torso_conscript_flak");
+            tryUpgrade(0.35f, u.armorHeadId, "head_conscript_helmet");
         }
         else if (u.blueprintId == "orks_loota") {
             const float r = Random::Float01();

@@ -674,6 +674,28 @@ namespace SunEngine {
         if (!inv || !ammo) { brain.resupplySlot = -1; return; }
         if (ammo->useTimer > 0.0f) return;   // rifornimento in corso: tiene la scatola in mano
 
+        // Medikit (cura se stesso in 3 s): sotto il 50% di salute e senza nemici entro 10 m, perche' per tutta la
+        // medicazione non spara. Una volta deciso lo tiene in mano finche' la medicazione non finisce.
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!bp || bp->heal_amount <= 0.0f || ammo->equipmentUses[s - 4] <= 0) continue;
+            const auto& h = reg.get<HealthComponent>(self);
+            if (brain.resupplySlot != s) {
+                if (h.maxHealth <= 0.0f || h.currentHealth >= h.maxHealth * 0.5f) break;
+                const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+                bool enemyNear = false;
+                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                for (auto o : all) {
+                    if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                    if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 10.0f) { enemyNear = true; break; }
+                }
+                if (enemyNear) break;
+                brain.resupplySlot = s;
+            }
+            if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+            return;
+        }
+
         // Cura (zaino di cibo e altri oggetti che curano): ogni ~0,6 s valuta se curare o continuare l'attacco
         for (int s = 4; s <= 6; ++s) {
             const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
