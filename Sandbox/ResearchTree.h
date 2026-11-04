@@ -24,6 +24,10 @@ namespace SunEngine {
     //  - Nodi OGGETTO ("item": id di un'arma o dotazione): si ricercano coi punti studio della prima unita'
     //    risalendo l'albero (es. la chiave inglese sotto il Gretchin usa i punti studio del Gretchin) e poi si
     //    comprano nel garage, unita' per unita'. Gli oggetti senza nodo (dotazione base) sono sempre disponibili.
+    //  - Maestria (stellina dorata): un'unita' e' "padroneggiata" quando ha completato tutte le ricerche pagate coi
+    //    suoi punti studio (oggetti e unita' successive). Un nodo puo' chiedere la maestria di piu' unita'
+    //    ("requires_mastered"), cosi' due rami si riuniscono (es. Commissar Cadet: Kasrkin E Tempestor con la stellina).
+    //  - "renamed_from": vecchi id del nodo, per non perdere le ricerche dei salvataggi quando un nodo cambia id.
     // Solo dati e regole: la UI sta in GameLayer. Dati in GameData/Research/research_tree.json.
     struct ResearchNode {
         std::string id;
@@ -31,7 +35,9 @@ namespace SunEngine {
         std::string itemId;        // id del blueprint dell'arma/dotazione/armatura (nodi oggetto)
         std::vector<std::string> itemIds;   // tutti gli oggetti sbloccati dal nodo ("item" e/o "items")
         std::string name;          // nome mostrato nell'albero
-        std::string parentId;      // vuoto = radice
+        std::string parentId;      // vuoto = radice (il padre paga la ricerca e disegna il ramo)
+        std::vector<std::string> requiresMastered;   // unita' da padroneggiare (stellina) prima di poterlo ricercare
+        std::vector<std::string> renamedFrom;        // vecchi id (migrazione dei salvataggi)
         std::string defaultName = "Recluta";   // nome dato alle nuove unita' acquistate
         std::array<float, 4> color{ 0.6f, 0.6f, 0.6f, 1.0f };
         int tier = 1;
@@ -52,7 +58,8 @@ namespace SunEngine {
         Researched,        // sbloccato
         Researchable,      // sbloccabile adesso
         LockedParent,      // il padre non e' ancora sbloccato
-        LockedPoints       // padre sbloccato ma punti studio insufficienti
+        LockedPoints,      // padre sbloccato ma punti studio insufficienti
+        LockedMastery      // manca la maestria (stellina) di un'unita' richiesta
     };
 
     class ResearchTree {
@@ -91,6 +98,12 @@ namespace SunEngine {
                         if (n.itemId.empty() && !n.itemIds.empty()) n.itemId = n.itemIds.front();
                         n.name = jn.value("name", n.unitId.empty() ? n.itemId : n.unitId);
                         n.parentId = jn.value("parent", std::string());
+                        auto readList = [&](const char* key, std::vector<std::string>& out) {
+                            if (jn.contains(key) && jn[key].is_array())
+                                for (const auto& v : jn[key]) if (v.is_string()) out.push_back(v.get<std::string>());
+                        };
+                        readList("requires_mastered", n.requiresMastered);
+                        readList("renamed_from", n.renamedFrom);
                         n.defaultName = jn.value("default_name", std::string("Recluta"));
                         n.tier = jn.value("tier", 1);
                         n.col = jn.value("col", 0.0f);
@@ -117,6 +130,12 @@ namespace SunEngine {
                         if (it == m_ById.end()) return fail("padre inesistente '" + cur->parentId + "' per il nodo " + kv.first);
                         if (depth > 64) return fail("ciclo nell'albero vicino al nodo " + kv.first);
                         cur = &it->second;
+                    }
+                    for (const auto& req : kv.second.requiresMastered) {
+                        auto it = m_ById.find(req);
+                        if (it == m_ById.end()) return fail("requires_mastered inesistente '" + req + "' per il nodo " + kv.first);
+                        if (it->second.unitId.empty()) return fail("requires_mastered deve indicare un'unita': '" + req + "' nel nodo " + kv.first);
+                        if (req == kv.first) return fail("il nodo " + kv.first + " richiede la propria maestria");
                     }
                 }
             }
@@ -168,11 +187,41 @@ namespace SunEngine {
             return p.researchedNodes.count(n.id) > 0;
         }
 
+        // Ricerche pagate coi punti studio dell'unita' (oggetti e unita' successive). Esclusi i nodi che chiedono la
+        // maestria di questa stessa unita': altrimenti la stellina richiederebbe se stessa.
+        std::vector<const ResearchNode*> ResearchesOf(const ResearchNode& unitNode) const {
+            std::vector<const ResearchNode*> out;
+            for (const auto& f : m_Factions) for (const auto& n : f.nodes) {
+                const ResearchNode* src = FindStudySource(n);
+                if (!src || src->id != unitNode.id) continue;
+                if (std::find(n.requiresMastered.begin(), n.requiresMastered.end(), unitNode.id) != n.requiresMastered.end()) continue;
+                out.push_back(FindNode(n.id));
+            }
+            return out;
+        }
+
+        // Maestria (stellina dorata): unita' sbloccata e tutte le sue ricerche completate
+        bool IsMastered(const PlayerProfile& p, const ResearchNode& unitNode) const {
+            if (unitNode.unitId.empty() || !IsResearched(p, unitNode)) return false;
+            const auto list = ResearchesOf(unitNode);
+            if (list.empty()) return false;
+            for (const auto* n : list) if (!IsResearched(p, *n)) return false;
+            return true;
+        }
+        bool RequirementsMastered(const PlayerProfile& p, const ResearchNode& n) const {
+            for (const auto& req : n.requiresMastered) {
+                const ResearchNode* r = FindNode(req);
+                if (!r || !IsMastered(p, *r)) return false;
+            }
+            return true;
+        }
+
         ResearchStatus GetStatus(const PlayerProfile& p, const ResearchNode& n) const {
             if (IsResearched(p, n)) return ResearchStatus::Researched;
             const ResearchNode* parent = FindParent(n);
             if (!parent) return ResearchStatus::Researchable;          // radice
             if (!IsResearched(p, *parent)) return ResearchStatus::LockedParent;
+            if (!RequirementsMastered(p, n)) return ResearchStatus::LockedMastery;
             const ResearchNode* source = FindStudySource(n);
             if (source && GetStudyPoints(p, source->unitId) < n.researchCost) return ResearchStatus::LockedPoints;
             return ResearchStatus::Researchable;
@@ -211,6 +260,19 @@ namespace SunEngine {
                     p.researchedNodes.insert(n->id);
                     n = FindParent(*n);
                 }
+            }
+        }
+
+        // Salvataggi vecchi: gli id rinominati diventano quelli nuovi, e i nodi sbloccati trascinano i loro antenati
+        // (un albero riordinato non deve lasciare unita' sbloccate sotto un padre bloccato).
+        void MigrateProfile(PlayerProfile& p) const {
+            for (const auto& kv : m_ById)
+                for (const auto& old : kv.second.renamedFrom)
+                    if (p.researchedNodes.erase(old)) p.researchedNodes.insert(kv.first);
+            const std::vector<std::string> done(p.researchedNodes.begin(), p.researchedNodes.end());
+            for (const auto& id : done) {
+                const ResearchNode* n = FindNode(id);
+                for (n = n ? FindParent(*n) : nullptr; n; n = FindParent(*n)) p.researchedNodes.insert(n->id);
             }
         }
 

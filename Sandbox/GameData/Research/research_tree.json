@@ -16,7 +16,7 @@
           "name": "Conscripts",
           "tier": 1,
           "col": 0,
-          "row": 1,
+          "row": 2.5,
           "parent": "",
           "research_cost": 0,
           "purchase_cost": 15000,
@@ -34,7 +34,7 @@
           "name": "Whiteshields",
           "tier": 2,
           "col": 1,
-          "row": 1,
+          "row": 2.5,
           "parent": "ig_conscript",
           "research_cost": 15000,
           "purchase_cost": 15000,
@@ -52,7 +52,7 @@
           "name": "Guardsman",
           "tier": 3,
           "col": 2,
-          "row": 0,
+          "row": 1,
           "parent": "ig_whiteshield",
           "research_cost": 25000,
           "purchase_cost": 30000,
@@ -65,13 +65,31 @@
           ]
         },
         {
+          "id": "ig_special_weapon_team",
+          "unit": "imperium_special_weapon_team",
+          "name": "Special Weapon Team",
+          "tier": 4,
+          "col": 3,
+          "row": 1,
+          "parent": "ig_guardsman",
+          "research_cost": 35000,
+          "purchase_cost": 45000,
+          "default_name": "Artigliere Bren",
+          "color": [
+            0.5,
+            0.48,
+            0.32,
+            1
+          ]
+        },
+        {
           "id": "ig_ogryn",
           "unit": "imperium_ogryn",
           "name": "Ogryn",
-          "tier": 3,
-          "col": 2,
-          "row": 1,
-          "parent": "ig_whiteshield",
+          "tier": 5,
+          "col": 4,
+          "row": 0,
+          "parent": "ig_special_weapon_team",
           "research_cost": 45000,
           "purchase_cost": 120000,
           "default_name": "Ogryn Bruto",
@@ -83,20 +101,261 @@
           ]
         },
         {
-          "id": "ig_tempestus",
+          "id": "ig_bone_ead",
+          "unit": "imperium_bone_ead",
+          "name": "Bone 'ead",
+          "tier": 6,
+          "col": 5,
+          "row": 0,
+          "parent": "ig_ogryn",
+          "research_cost": 70000,
+          "purchase_cost": 150000,
+          "default_name": "Bone 'ead Grukk",
+          "color": [
+            0.62,
+            0.5,
+            0.32,
+            1
+          ]
+        },
+        {
+          "id": "ig_bullgryn",
+          "unit": "imperium_bullgryn",
+          "name": "Bullgryn",
+          "tier": 7,
+          "col": 6,
+          "row": 0,
+          "parent": "ig_bone_ead",
+          "research_cost": 100000,
+          "purchase_cost": 200000,
+          "default_name": "Bullgryn Torr",
+          "color": [
+            0.45,
+            0.4,
+            0.3,
+            1
+          ]
+        },
+        {
+          "id": "ig_kasrkin",
           "unit": "imperium_kasrkin",
-          "name": "Tempestus Scion",
-          "tier": 3,
-          "col": 2,
+          "name": "Kasrkin",
+          "tier": 5,
+          "col": 4,
           "row": 2,
-          "parent": "ig_whiteshield",
-          "research_cost": 40000,
-          "purchase_cost": 55000,
-          "default_name": "Scion Thorne",
+          "parent": "ig_special_weapon_team",
+          "research_cost": 45000,
+          "purchase_cost": 60000,
+          "default_name": "Kasrkin Thorne",
           "color": [
             0.35,
             0.25,
             0.18,
+            1
+          ],
+          "renamed_from": [
+            "ig_tempestus"
+          ]
+        },
+        {
+          "id": "ig_captain",
+          "unit": "imperium_captain",
+          "name": "Captain",
+          "tier": 6,
+          "col": 5,
+          "row": 2,
+          "parent": "ig_kasrkin",
+          "research_cost": 70000,
+          "purchase_cost": 90000,
+          "default_name": "Capitano Aldric",
+          "color": [
+            0.4,
+            0.32,
+            0.2,
+            1
+          ]
+        },
+        {
+          "id": "ig_colonel",
+          "unit": "imperium_colonel",
+          "name": "Colonnello",
+          "tier": 7,
+          "col": 6,
+          "row": 2,
+          "parent": "ig_captain",
+          "research_cost": 100000,
+          "purchase_cost": 130000,
+          "default_name": "Colonnello Halvek",
+          "color": [
+            0.45,
+            0.36,
+            0.22,
+            1
+          ]
+        },
+        {
+          "id": "ig_lord_general",
+          "unit": "imperium_lord_general",
+          "name": "Lord General",
+          "tier": 8,
+          "col": 7,
+          "row": 2,
+          "parent": "ig_colonel",
+          "research_cost": 150000,
+          "purchase_cost": 200000,
+          "default_name": "Lord General Varro",
+          "color": [
+            0.7,
+            0.55,
+            0.25,
+            1
+          ]
+        },
+        {
+          "id": "ig_commissar_cadet",
+          "unit": "imperium_commissar_cadet",
+          "name": "Commissar Cadet",
+          "tier": 7,
+          "col": 6,
+          "row": 3,
+          "parent": "ig_tempestor",
+          "research_cost": 80000,
+          "purchase_cost": 100000,
+          "default_name": "Cadetto Kell",
+          "color": [
+            0.2,
+            0.2,
+            0.22,
+            1
+          ],
+          "requires_mastered": [
+            "ig_kasrkin",
+            "ig_tempestor"
+          ]
+        },
+        {
+          "id": "ig_commissar",
+          "unit": "imperium_commissar",
+          "name": "Commissar",
+          "tier": 8,
+          "col": 7,
+          "row": 3,
+          "parent": "ig_commissar_cadet",
+          "research_cost": 110000,
+          "purchase_cost": 140000,
+          "default_name": "Commissario Raik",
+          "color": [
+            0.15,
+            0.15,
+            0.17,
+            1
+          ]
+        },
+        {
+          "id": "ig_lord_commissar",
+          "unit": "imperium_lord_commissar",
+          "name": "Lord Commissar",
+          "tier": 9,
+          "col": 8,
+          "row": 3,
+          "parent": "ig_commissar",
+          "research_cost": 160000,
+          "purchase_cost": 220000,
+          "default_name": "Lord Commissario Kordan",
+          "color": [
+            0.12,
+            0.1,
+            0.1,
+            1
+          ]
+        },
+        {
+          "id": "ig_schola_cadet",
+          "unit": "imperium_schola_cadet",
+          "name": "Schola Progenium Cadet",
+          "tier": 3,
+          "col": 2,
+          "row": 4,
+          "parent": "ig_whiteshield",
+          "research_cost": 25000,
+          "purchase_cost": 30000,
+          "default_name": "Progena Ilse",
+          "color": [
+            0.3,
+            0.3,
+            0.36,
+            1
+          ]
+        },
+        {
+          "id": "ig_tempestus_scion",
+          "unit": "imperium_tempestus_scion",
+          "name": "Tempestus Scions",
+          "tier": 4,
+          "col": 3,
+          "row": 4,
+          "parent": "ig_schola_cadet",
+          "research_cost": 35000,
+          "purchase_cost": 50000,
+          "default_name": "Scion Darro",
+          "color": [
+            0.25,
+            0.28,
+            0.24,
+            1
+          ]
+        },
+        {
+          "id": "ig_tempestus_specialist",
+          "unit": "imperium_tempestus_specialist",
+          "name": "Tempestus Specialist",
+          "tier": 5,
+          "col": 4,
+          "row": 4,
+          "parent": "ig_tempestus_scion",
+          "research_cost": 50000,
+          "purchase_cost": 70000,
+          "default_name": "Specialista Moira",
+          "color": [
+            0.22,
+            0.26,
+            0.22,
+            1
+          ]
+        },
+        {
+          "id": "ig_tempestor",
+          "unit": "imperium_tempestor",
+          "name": "Tempestor",
+          "tier": 6,
+          "col": 5,
+          "row": 4,
+          "parent": "ig_tempestus_specialist",
+          "research_cost": 70000,
+          "purchase_cost": 90000,
+          "default_name": "Tempestor Hask",
+          "color": [
+            0.2,
+            0.24,
+            0.2,
+            1
+          ]
+        },
+        {
+          "id": "ig_tempestor_prime",
+          "unit": "imperium_tempestor_prime",
+          "name": "Tempestor Prime",
+          "tier": 7,
+          "col": 6,
+          "row": 4,
+          "parent": "ig_tempestor",
+          "research_cost": 110000,
+          "purchase_cost": 150000,
+          "default_name": "Tempestor Prime Vell",
+          "color": [
+            0.18,
+            0.2,
+            0.16,
             1
           ]
         },

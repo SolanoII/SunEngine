@@ -1939,8 +1939,8 @@ namespace SunEngine {
                         if (m_ResearchTree.IsResearched(m_Profile, n)) continue;
                         const ResearchNode* src = m_ResearchTree.FindStudySource(n);
                         if (!src || src->unitId != unitId) continue;
-                        const ResearchNode* parent = m_ResearchTree.FindParent(n);
-                        if (parent && !m_ResearchTree.IsResearched(m_Profile, *parent)) continue;   // non ancora disponibile
+                        const ResearchStatus rst = m_ResearchTree.GetStatus(m_Profile, n);
+                        if (rst == ResearchStatus::LockedParent || rst == ResearchStatus::LockedMastery) continue;   // non ancora disponibile
                         any = true;
                         const float frac = n.researchCost > 0 ? std::clamp(static_cast<float>(now) / static_cast<float>(n.researchCost), 0.0f, 1.0f) : 1.0f;
                         char overlay[96];
@@ -4350,6 +4350,7 @@ namespace SunEngine {
             return;
         }
         m_ResearchTree.EnsureRootsResearched(m_Profile);
+        m_ResearchTree.MigrateProfile(m_Profile);   // id rinominati e rami riordinati
         if (m_PlayerRoster.empty()) BuildStarterRoster();
         std::vector<std::string> owned;
         for (const auto& u : m_PlayerRoster) owned.push_back(u.blueprintId);
@@ -4457,21 +4458,9 @@ namespace SunEngine {
         if (selected && selected->unitId.empty()) selectedUnit = m_ResearchTree.FindStudySource(*selected);
 
         // Ricerche che si pagano coi punti studio di un personaggio (oggetti e personaggi successivi)
-        auto researchesOf = [&](const ResearchNode& unitNode) {
-            std::vector<const ResearchNode*> out;
-            for (const auto& n : faction.nodes) {
-                const ResearchNode* src = m_ResearchTree.FindStudySource(n);
-                if (src && src->id == unitNode.id) out.push_back(&n);
-            }
-            return out;
-        };
+        auto researchesOf = [&](const ResearchNode& unitNode) { return m_ResearchTree.ResearchesOf(unitNode); };
         // Maestria: tutte le ricerche legate al personaggio completate (stellina dorata)
-        auto isMastered = [&](const ResearchNode& unitNode) {
-            const auto list = researchesOf(unitNode);
-            if (list.empty() || !m_ResearchTree.IsResearched(m_Profile, unitNode)) return false;
-            for (const auto* n : list) if (!m_ResearchTree.IsResearched(m_Profile, *n)) return false;
-            return true;
-        };
+        auto isMastered = [&](const ResearchNode& unitNode) { return m_ResearchTree.IsMastered(m_Profile, unitNode); };
         auto drawStar = [](ImDrawList* d, ImVec2 c, float r, ImU32 fill, ImU32 edge) {
             ImVec2 pts[10];
             for (int i = 0; i < 10; ++i) {
@@ -4505,6 +4494,24 @@ namespace SunEngine {
             dl->AddLine(a, ImVec2(midX, a.y), lc, 2.0f);
             dl->AddLine(ImVec2(midX, a.y), ImVec2(midX, b.y), lc, 2.0f);
             dl->AddLine(ImVec2(midX, b.y), b, lc, 2.0f);
+        }
+        // Rami che si riuniscono: dall'unita' da padroneggiare scende (o sale) una linea dorata fino alla riga del
+        // nodo e poi entra da sinistra. Dorata piena = stellina ottenuta.
+        for (const auto& n : faction.nodes) {
+            if (n.unitId.empty()) continue;
+            for (const auto& reqId : n.requiresMastered) {
+                if (reqId == n.parentId) continue;   // gia' collegato dal ramo normale
+                const ResearchNode* req = m_ResearchTree.FindNode(reqId);
+                if (!req) continue;
+                const ImVec2 rp = nodePos(*req), cp = nodePos(n);
+                const bool down = cp.y > rp.y;
+                const ImVec2 a(rp.x + nodeW * 0.5f, down ? rp.y + nodeH : rp.y);
+                const ImVec2 b(cp.x, cp.y + nodeH * 0.5f);
+                const ImU32 lc = isMastered(*req) ? col32(1.0f, 0.82f, 0.15f) : col32(0.55f, 0.45f, 0.20f);
+                dl->AddLine(a, ImVec2(a.x, b.y), lc, 2.0f);
+                dl->AddLine(ImVec2(a.x, b.y), b, lc, 2.0f);
+                drawStar(dl, ImVec2(a.x, (a.y + b.y) * 0.5f), 7.0f, lc, col32(0.3f, 0.2f, 0.0f));
+            }
         }
 
         // Nodi (solo personaggi)
@@ -4551,7 +4558,12 @@ namespace SunEngine {
             }
             dl->AddText(ImVec2(tx, p.y + 30.0f), col32(0.65f, 0.80f, 1.0f), line2);
             char line3[96];
-            if (!hasBp) std::snprintf(line3, sizeof(line3), "BLUEPRINT MANCANTE");
+            if (!hasBp && isItem) std::snprintf(line3, sizeof(line3), "BLUEPRINT MANCANTE");
+            else if (!hasBp && st == ResearchStatus::Researched) std::snprintf(line3, sizeof(line3), "IN ARRIVO   (sbloccata)");
+            else if (!hasBp && st == ResearchStatus::Researchable) std::snprintf(line3, sizeof(line3), "IN ARRIVO   ricerca: %lld PS", static_cast<long long>(n.researchCost));
+            else if (st == ResearchStatus::LockedMastery) std::snprintf(line3, sizeof(line3), "SERVE MAESTRIA");
+            else if (!hasBp && st == ResearchStatus::LockedPoints) std::snprintf(line3, sizeof(line3), "IN ARRIVO   servono %lld PS", static_cast<long long>(n.researchCost));
+            else if (!hasBp) std::snprintf(line3, sizeof(line3), "IN ARRIVO");
             else if (st == ResearchStatus::Researched && isItem) std::snprintf(line3, sizeof(line3), "SBLOCCATO   comprato da: %d", owned);
             else if (st == ResearchStatus::Researched) std::snprintf(line3, sizeof(line3), "SBLOCCATA   in garage: %d", owned);
             else if (st == ResearchStatus::Researchable) std::snprintf(line3, sizeof(line3), "RICERCA: %lld PS", static_cast<long long>(n.researchCost));
@@ -4621,7 +4633,9 @@ namespace SunEngine {
                 ImGui::Text("Costo in punti squadra: %d (+ equipaggiamento)", bp->point_cost);
             }
             else {
-                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Blueprint '%s' non trovato in GameData/Units.", n.unitId.c_str());
+                ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "UNITA' IN ARRIVO");
+                ImGui::TextWrapped("Non ancora giocabile ('%s' non e' in GameData/Units): si puo' gia' ricercare per proseguire "
+                                   "nel ramo, ma non ancora acquistare.", n.unitId.c_str());
             }
             if (!isItem) ImGui::Text("Punti studio di questa unita': %lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
             ImGui::NextColumn();
@@ -4643,6 +4657,18 @@ namespace SunEngine {
                 }
                 if (st == ResearchStatus::LockedParent && parent) {
                     ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Sblocca prima: %s", parent->name.c_str());
+                }
+                // Maestria richiesta (rami che si riuniscono): ogni unita' va completata fino alla stellina
+                for (const auto& reqId : n.requiresMastered) {
+                    const ResearchNode* req = m_ResearchTree.FindNode(reqId);
+                    if (!req) continue;
+                    const bool ok = isMastered(*req);
+                    ImGui::TextColored(ok ? ImVec4(1.0f, 0.82f, 0.15f, 1.0f) : ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s Maestria di %s",
+                        ok ? "[*]" : "[ ]", req->name.c_str());
+                    if (!ok) {
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton(("vai##req_" + reqId).c_str())) m_ResearchSelectedNode = reqId;
+                    }
                 }
                 char label[96];
                 std::snprintf(label, sizeof(label), "RICERCA  (-%lld PS)", static_cast<long long>(n.researchCost));
