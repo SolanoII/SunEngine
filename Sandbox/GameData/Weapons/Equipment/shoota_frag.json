@@ -1,7 +1,7 @@
 {
   "id": "shoota_frag",
   "displayName": "Granata Frag",
-  "comment": "Dotazione base dello shoota boy: granata a frammentazione classica. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4.5 metri di raggio). 2 per partita.",
+  "comment": "Dotazione base dello shoota boy: granata a frammentazione classica. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4.5 metri di raggio). 1 per partita.",
   "faction": "Orks",
   "allowed_units": [
     "orks_shoota_boy"
@@ -12,7 +12,7 @@
   "is_melee": false,
   "weight_kg": 0.8,
   "point_cost": 2,
-  "equipment_uses": 2,
+  "equipment_uses": 1,
   "fuse_time": 3.0,
   "throw_speed": 15.0,
   "explode_on_impact": false,

@@ -1,7 +1,7 @@
 {
   "id": "yoof_scrap",
   "displayName": "Scrap",
-  "comment": "Dotazione base dello yoof: in mano (tasto 4), fermo e col click sinistro tenuto per 3 secondi costruisce una barricata davanti a se' (ferma colpi, linea di vista e passaggio). 2 per partita. La barricata ha 250 di salute: la rompono le esplosioni, la ripara la chiave inglese.",
+  "comment": "Dotazione base dello yoof: in mano (tasto 4), fermo e col click sinistro tenuto per 3 secondi costruisce una barricata davanti a se' (ferma colpi, linea di vista e passaggio). 1 per partita. La barricata ha 250 di salute: la rompono le esplosioni, la ripara la chiave inglese.",
   "faction": "Orks",
   "allowed_units": [
     "orks_yoof"
@@ -12,7 +12,7 @@
   "is_melee": false,
   "weight_kg": 3.0,
   "point_cost": 1,
-  "equipment_uses": 2,
+  "equipment_uses": 1,
   "equipment_use_time": 3.0,
   "barricade_size": [
     2.0,

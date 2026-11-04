@@ -1,7 +1,7 @@
 {
   "id": "loota_tankbusta",
   "displayName": "Bomba Anti-Struttura",
-  "comment": "Dotazione base del loota: granata pesante fatta per strutture e mezzi. Contro la fanteria fa poco (60 danni, 3 metri), ma a barricate, muri, veicoli e torrette fa x8 (un pezzo di muro salta anche a un metro). Scoppia dopo 2.5 secondi. 2 per partita.",
+  "comment": "Dotazione base del loota: granata pesante fatta per strutture e mezzi. Contro la fanteria fa poco (60 danni, 3 metri), ma a barricate, muri, veicoli e torrette fa x8 (un pezzo di muro salta anche a un metro). Scoppia dopo 2.5 secondi. 1 per partita.",
   "faction": "Orks",
   "allowed_units": [
     "orks_loota"
@@ -12,7 +12,7 @@
   "is_melee": false,
   "weight_kg": 2.0,
   "point_cost": 2,
-  "equipment_uses": 2,
+  "equipment_uses": 1,
   "fuse_time": 2.5,
   "throw_speed": 12.0,
   "explode_on_impact": false,
