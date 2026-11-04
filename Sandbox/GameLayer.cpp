@@ -4658,10 +4658,9 @@ namespace SunEngine {
                 if (st == ResearchStatus::LockedParent && parent) {
                     ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Sblocca prima: %s", parent->name.c_str());
                 }
-                // Maestria richiesta (rami che si riuniscono): ogni unita' va completata fino alla stellina
-                for (const auto& reqId : n.requiresMastered) {
-                    const ResearchNode* req = m_ResearchTree.FindNode(reqId);
-                    if (!req) continue;
+                // Maestria richiesta: il personaggio padre (e i rami che si riuniscono) completati fino alla stellina
+                for (const ResearchNode* req : m_ResearchTree.MasteryRequirements(n)) {
+                    const std::string& reqId = req->id;
                     const bool ok = isMastered(*req);
                     ImGui::TextColored(ok ? ImVec4(1.0f, 0.82f, 0.15f, 1.0f) : ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s Maestria di %s",
                         ok ? "[*]" : "[ ]", req->name.c_str());

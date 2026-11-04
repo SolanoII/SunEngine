@@ -24,9 +24,10 @@ namespace SunEngine {
     //  - Nodi OGGETTO ("item": id di un'arma o dotazione): si ricercano coi punti studio della prima unita'
     //    risalendo l'albero (es. la chiave inglese sotto il Gretchin usa i punti studio del Gretchin) e poi si
     //    comprano nel garage, unita' per unita'. Gli oggetti senza nodo (dotazione base) sono sempre disponibili.
-    //  - Maestria (stellina dorata): un'unita' e' "padroneggiata" quando ha completato tutte le ricerche pagate coi
-    //    suoi punti studio (oggetti e unita' successive). Un nodo puo' chiedere la maestria di piu' unita'
-    //    ("requires_mastered"), cosi' due rami si riuniscono (es. Commissar Cadet: Kasrkin E Tempestor con la stellina).
+    //  - Maestria (stellina dorata): un'unita' e' "padroneggiata" quando tutti i suoi OGGETTI sono ricercati.
+    //    Per ricercare il personaggio successivo serve la maestria del personaggio padre (tutte le fazioni).
+    //    Un nodo puo' chiedere la maestria di altre unita' ("requires_mastered"), cosi' due rami si riuniscono
+    //    (es. Commissar Cadet: Kasrkin E Tempestus Specialist con la stellina).
     //  - "renamed_from": vecchi id del nodo, per non perdere le ricerche dei salvataggi quando un nodo cambia id.
     // Solo dati e regole: la UI sta in GameLayer. Dati in GameData/Research/research_tree.json.
     struct ResearchNode {
@@ -200,19 +201,24 @@ namespace SunEngine {
             return out;
         }
 
-        // Maestria (stellina dorata): unita' sbloccata e tutte le sue ricerche completate
+        // Maestria (stellina dorata): unita' sbloccata e tutti i suoi oggetti ricercati (senza oggetti basta sbloccarla)
         bool IsMastered(const PlayerProfile& p, const ResearchNode& unitNode) const {
             if (unitNode.unitId.empty() || !IsResearched(p, unitNode)) return false;
-            const auto list = ResearchesOf(unitNode);
-            if (list.empty()) return false;
-            for (const auto* n : list) if (!IsResearched(p, *n)) return false;
+            for (const auto* n : ResearchesOf(unitNode)) if (n->unitId.empty() && !IsResearched(p, *n)) return false;
             return true;
         }
-        bool RequirementsMastered(const PlayerProfile& p, const ResearchNode& n) const {
+        // Unita' da padroneggiare prima di ricercare il nodo: per un personaggio il padre, piu' quelle di "requires_mastered"
+        std::vector<const ResearchNode*> MasteryRequirements(const ResearchNode& n) const {
+            std::vector<const ResearchNode*> out;
+            if (!n.unitId.empty()) if (const ResearchNode* par = FindParent(n)) if (!par->unitId.empty()) out.push_back(par);
             for (const auto& req : n.requiresMastered) {
                 const ResearchNode* r = FindNode(req);
-                if (!r || !IsMastered(p, *r)) return false;
+                if (r && std::find(out.begin(), out.end(), r) == out.end()) out.push_back(r);
             }
+            return out;
+        }
+        bool RequirementsMastered(const PlayerProfile& p, const ResearchNode& n) const {
+            for (const auto* r : MasteryRequirements(n)) if (!IsMastered(p, *r)) return false;
             return true;
         }
 

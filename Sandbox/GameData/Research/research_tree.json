@@ -1,5 +1,5 @@
 {
-  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Valori di costo provvisori. Nodi con 'item' al posto di 'unit' = oggetti: si ricercano coi punti studio della prima unita' risalendo l'albero e si comprano nel garage per ogni unita'. Costi in migliaia (un'uccisione = 500 PS, un secondo in vita = 50 PS).",
+  "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Per ricercare un personaggio serve la maestria (tutti gli oggetti ricercati) del personaggio padre; 'requires_mastered' aggiunge altre unita' da padroneggiare. Valori di costo provvisori. Nodi con 'item' al posto di 'unit' = oggetti: si ricercano coi punti studio della prima unita' risalendo l'albero e si comprano nel garage per ogni unita'. Costi in migliaia (un'uccisione = 500 PS, un secondo in vita = 50 PS).",
   "factions": [
     {
       "id": "imperium",
@@ -215,12 +215,12 @@
           "id": "ig_commissar_cadet",
           "unit": "imperium_commissar_cadet",
           "name": "Commissar Cadet",
-          "tier": 7,
-          "col": 6,
+          "tier": 6,
+          "col": 5,
           "row": 3,
-          "parent": "ig_tempestor",
-          "research_cost": 80000,
-          "purchase_cost": 100000,
+          "parent": "ig_tempestus_specialist",
+          "research_cost": 70000,
+          "purchase_cost": 90000,
           "default_name": "Cadetto Kell",
           "color": [
             0.2,
@@ -230,19 +230,19 @@
           ],
           "requires_mastered": [
             "ig_kasrkin",
-            "ig_tempestor"
+            "ig_tempestus_specialist"
           ]
         },
         {
           "id": "ig_commissar",
           "unit": "imperium_commissar",
           "name": "Commissar",
-          "tier": 8,
-          "col": 7,
+          "tier": 7,
+          "col": 6,
           "row": 3,
           "parent": "ig_commissar_cadet",
-          "research_cost": 110000,
-          "purchase_cost": 140000,
+          "research_cost": 100000,
+          "purchase_cost": 130000,
           "default_name": "Commissario Raik",
           "color": [
             0.15,
@@ -255,12 +255,12 @@
           "id": "ig_lord_commissar",
           "unit": "imperium_lord_commissar",
           "name": "Lord Commissar",
-          "tier": 9,
-          "col": 8,
+          "tier": 8,
+          "col": 7,
           "row": 3,
           "parent": "ig_commissar",
-          "research_cost": 160000,
-          "purchase_cost": 220000,
+          "research_cost": 150000,
+          "purchase_cost": 200000,
           "default_name": "Lord Commissario Kordan",
           "color": [
             0.12,
