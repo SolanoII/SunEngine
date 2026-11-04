@@ -1,0 +1,55 @@
+{
+  "id": "scout_camo_cloak",
+  "comment": "Mantello mimetico ripiegato (in mano). +Y alto.",
+  "anchors": {
+    "grip_right": [
+      0,
+      0,
+      0
+    ]
+  },
+  "parts": [
+    {
+      "name": "rotolo",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.22,
+        0.1,
+        0.14
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.26,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    {
+      "name": "cinghia",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.23,
+        0.11,
+        0.02
+      ],
+      "color": [
+        0.2,
+        0.15,
+        0.1,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    }
+  ]
+}

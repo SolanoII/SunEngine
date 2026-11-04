@@ -1,0 +1,285 @@
+{
+  "id": "scout_boltgun",
+  "comment": "Boltgun da scout a blocchi: castello squadrato, caricatore a cassetta, canna corta e grossa con freno di bocca, aquila d'ottone. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.08,
+      0.1
+    ],
+    "grip_left": [
+      0,
+      -0.05,
+      -0.2
+    ],
+    "muzzle": [
+      0,
+      0.03,
+      -0.5
+    ]
+  },
+  "parts": [
+    {
+      "name": "castello",
+      "offset": [
+        0,
+        0.01,
+        0.0
+      ],
+      "size": [
+        0.08,
+        0.11,
+        0.32
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "coperchio",
+      "offset": [
+        0,
+        0.07,
+        0.0
+      ],
+      "size": [
+        0.07,
+        0.02,
+        0.28
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0,
+        0.03,
+        -0.32
+      ],
+      "size": [
+        0.05,
+        0.05,
+        0.26
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.85
+    },
+    {
+      "name": "freno_bocca",
+      "offset": [
+        0,
+        0.03,
+        -0.47
+      ],
+      "size": [
+        0.065,
+        0.065,
+        0.06
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.8
+    },
+    {
+      "name": "guardamano",
+      "offset": [
+        0,
+        0.0,
+        -0.2
+      ],
+      "size": [
+        0.085,
+        0.07,
+        0.12
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.5
+    },
+    {
+      "name": "aquila",
+      "offset": [
+        0.042,
+        0.03,
+        -0.04
+      ],
+      "size": [
+        0.004,
+        0.04,
+        0.08
+      ],
+      "color": [
+        0.6,
+        0.45,
+        0.2,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    },
+    {
+      "name": "caricatore",
+      "offset": [
+        0,
+        -0.11,
+        -0.04
+      ],
+      "size": [
+        0.05,
+        0.13,
+        0.07
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7,
+      "rotation": [
+        8,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.08,
+        0.1
+      ],
+      "size": [
+        0.036,
+        0.1,
+        0.045
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ponticello",
+      "offset": [
+        0,
+        -0.05,
+        0.06
+      ],
+      "size": [
+        0.01,
+        0.016,
+        0.06
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0,
+        -0.01,
+        0.26
+      ],
+      "size": [
+        0.05,
+        0.09,
+        0.2
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.4
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0,
+        -0.01,
+        0.365
+      ],
+      "size": [
+        0.055,
+        0.1,
+        0.014
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.3
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0,
+        0.09,
+        -0.1
+      ],
+      "size": [
+        0.02,
+        0.02,
+        0.04
+      ],
+      "color": [
+        0.25,
+        0.25,
+        0.27,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    }
+  ]
+}

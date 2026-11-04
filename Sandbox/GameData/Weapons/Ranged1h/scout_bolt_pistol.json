@@ -1,0 +1,70 @@
+{
+  "id": "scout_bolt_pistol",
+  "displayName": "Bolt Pistol",
+  "faction": "SpaceMarines",
+  "slot_type": "secondary",
+  "hand_type": "OneHanded",
+  "weight_kg": 2.4,
+  "point_cost": 3,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 6,
+  "reload_time_sec": 1.8,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 300.0,
+  "base_damage": 45.0,
+  "armor_penetration": 8,
+  "impact_force": 14.0,
+  "toughness_bypass": 0.0,
+  "range_effective": 35.0,
+  "damage_falloff_start": 20.0,
+  "damage_falloff_end": 35.0,
+  "heat_capacity": 100.0,
+  "recoil_force": 1.4,
+  "shake_intensity": 0.06,
+  "fov_kick": 0.7,
+  "spread_base": 0.06,
+  "spread_auto_multiplier": 1.8,
+  "suppression_value": 4,
+  "projectile_type": "bolt",
+  "is_beam": false,
+  "projectile_speed": 140.0,
+  "projectile_length": 0.4,
+  "projectile_width": 0.045,
+  "primary_color": [
+    1.0,
+    0.7,
+    0.25,
+    1.0
+  ],
+  "core_color": [
+    1.0,
+    0.9,
+    0.6,
+    1.0
+  ],
+  "weapon_scale": [
+    0.1,
+    0.1,
+    0.4
+  ],
+  "hold_offset": [
+    0.35,
+    0.05,
+    -0.4
+  ],
+  "barrel_offset": [
+    0.0,
+    0.0,
+    -0.25
+  ],
+  "heat_recoil_multiplier": 1.0,
+  "spare_magazines": 5,
+  "comment": "Secondaria base dello scout: pistola bolt, cartucce a razzo esplosive. 6 colpi e 30 di riserva.",
+  "allowed_units": [
+    "spacemarines_scout"
+  ]
+}

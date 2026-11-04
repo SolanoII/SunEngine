@@ -1,0 +1,38 @@
+{
+  "id": "scout_frag",
+  "displayName": "Granata Frag",
+  "comment": "Dotazione base dello scout: granata a frammentazione (110 danni al centro, 4,5 m). 1 per partita.",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "slot_type": "equipment",
+  "equipment_type": "grenade",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 0.8,
+  "point_cost": 2,
+  "equipment_uses": 1,
+  "fuse_time": 3.0,
+  "throw_speed": 15.0,
+  "explode_on_impact": false,
+  "explosion_radius": 4.5,
+  "explosion_damage": 110.0,
+  "armor_penetration": 2,
+  "weapon_scale": [
+    0.08,
+    0.1,
+    0.08
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.25,
+    0.3,
+    0.2,
+    1.0
+  ]
+}

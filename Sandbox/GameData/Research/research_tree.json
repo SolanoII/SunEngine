@@ -1093,6 +1093,50 @@
           "parent": "sm_aspirant_item_laspistol",
           "research_cost": 12000,
           "purchase_cost": 22000
+        },
+        {
+          "id": "sm_scout_item_sniper",
+          "item": "scout_sniper",
+          "name": "Fucile di Precisione",
+          "tier": 2,
+          "col": 2,
+          "row": 12,
+          "parent": "sm_scout",
+          "research_cost": 20000,
+          "purchase_cost": 40000
+        },
+        {
+          "id": "sm_scout_item_heavy_bolter",
+          "item": "scout_heavy_bolter",
+          "name": "Heavy Bolter",
+          "tier": 2,
+          "col": 2,
+          "row": 13,
+          "parent": "sm_scout",
+          "research_cost": 30000,
+          "purchase_cost": 60000
+        },
+        {
+          "id": "sm_scout_item_visor",
+          "item": "head_scout_visor",
+          "name": "Elmetto con Visiera",
+          "tier": 2,
+          "col": 2,
+          "row": 14,
+          "parent": "sm_scout",
+          "research_cost": 12000,
+          "purchase_cost": 25000
+        },
+        {
+          "id": "sm_scout_item_camo_cloak",
+          "item": "scout_camo_cloak",
+          "name": "Mantello Mimetico",
+          "tier": 2,
+          "col": 2,
+          "row": 15,
+          "parent": "sm_scout",
+          "research_cost": 25000,
+          "purchase_cost": 50000
         }
       ]
     },

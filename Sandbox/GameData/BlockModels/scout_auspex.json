@@ -1,0 +1,98 @@
+{
+  "id": "scout_auspex",
+  "comment": "Auspex a blocchi: scanner portatile con schermo verde e antenna. +Y alto, schermo verso +Z (verso chi lo tiene).",
+  "anchors": {
+    "grip_right": [
+      0,
+      -0.04,
+      0.04
+    ]
+  },
+  "parts": [
+    {
+      "name": "corpo",
+      "offset": [
+        0,
+        0,
+        0
+      ],
+      "size": [
+        0.12,
+        0.05,
+        0.18
+      ],
+      "color": [
+        0.2,
+        0.22,
+        0.24,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "schermo",
+      "offset": [
+        0,
+        0.027,
+        0.02
+      ],
+      "size": [
+        0.09,
+        0.004,
+        0.1
+      ],
+      "color": [
+        0.2,
+        0.9,
+        0.35,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.1,
+      "emissive": 1.5
+    },
+    {
+      "name": "antenna",
+      "offset": [
+        0.045,
+        0.04,
+        -0.08
+      ],
+      "size": [
+        0.012,
+        0.06,
+        0.012
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0,
+        -0.04,
+        0.06
+      ],
+      "size": [
+        0.05,
+        0.04,
+        0.08
+      ],
+      "color": [
+        0.12,
+        0.12,
+        0.13,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.2
+    }
+  ]
+}

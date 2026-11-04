@@ -325,7 +325,9 @@ namespace SunEngine {
         void ResetFactionBuff();
         void ApplyOrderBuff();                             // effetti dell'ordine attivo sul giocatore
         void ScanFactionEnemies();                         // nemici in vista davanti / alle spalle (per i buff)
-        void RenderOrdersRadial();                         // selettore radiale degli ordini (tasto V tenuto)
+        void RenderOrdersRadial();
+        void SyncCloakVisuals();                           // mimetismo copiato su arma in mano e modello animato
+        void RenderAuspex();                               // sonar dell'auspex (scout) quando e' in mano                         // selettore radiale degli ordini (tasto V tenuto)
 
         // --- Esperienza di partita (punti studio) e riepilogo di fine partita ---
         struct MatchXpLine { int count = 0; int64_t xp = 0; };

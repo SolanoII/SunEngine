@@ -1,0 +1,51 @@
+{
+  "id": "scout_boltgun",
+  "displayName": "Boltgun da Scout",
+  "faction": "SpaceMarines",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 7.5,
+  "point_cost": 5,
+  "has_scope": false,
+  "scope_zoom_fov": 18.0,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 12,
+  "reload_time_sec": 2.4,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 360.0,
+  "base_damage": 55.0,
+  "armor_penetration": 12,
+  "range_effective": 80.0,
+  "damage_falloff_start": 45.0,
+  "damage_falloff_end": 80.0,
+  "spread_base": 0.025,
+  "recoil_force": 0.9,
+  "heat_capacity": 100.0,
+  "projectile_type": "bolt",
+  "is_beam": false,
+  "primary_color": [
+    1.0,
+    0.7,
+    0.25,
+    1.0
+  ],
+  "projectile_width": 0.05,
+  "weapon_scale": [
+    0.15,
+    0.18,
+    0.85
+  ],
+  "hold_offset": [
+    0.4,
+    -0.1,
+    -0.25
+  ],
+  "spare_magazines": 5,
+  "comment": "Dotazione base dello scout (in alternativa al fucile a pompa): boltgun da ricognizione. Spara cartucce bolt, enormi proiettili a razzo che esplodono nel bersaglio. 12 colpi e 60 di riserva.",
+  "allowed_units": [
+    "spacemarines_scout"
+  ]
+}

@@ -270,6 +270,7 @@ namespace SunEngine {
             if (o == self || reg.get<HealthComponent>(o).currentHealth <= 0.0f) return;
             const glm::vec3 op = reg.get<TransformComponent>(o).Position;
             const float d = HorizontalDist(op, t.Position);
+            if (const auto* ck = reg.try_get<CloakComponent>(o); ck && ck->amount > 0.5f && d > 6.0f) return;   // mimetizzato: si vede solo da vicino
             if (d > std::max(20.0f, stats.visionRange)) return;
             glm::vec3 dir = op - t.Position; dir.y = 0.0f;
             const bool inFov = d < kCloseAwareness || (glm::length(dir) > 1e-3f &&
@@ -749,6 +750,26 @@ namespace SunEngine {
                 brain.resupplySlot = s;
             }
             if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+            return;
+        }
+
+        // Mantello mimetico: lo attiva quando sa dov'e' un nemico ma non lo vede (per avvicinarsi o aggirarlo) o
+        // quando e' ferito sotto il 40% (per sganciarsi)
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!bp || bp->equipment_type != "camo_cloak" || ammo->equipmentUses[s - 4] <= 0) continue;
+            if (brain.resupplySlot != s) {
+                if (reg.all_of<CloakComponent>(self)) break;
+                const auto& h = reg.get<HealthComponent>(self);
+                const bool hurt = h.maxHealth > 0.0f && h.currentHealth < h.maxHealth * 0.4f && brain.target != entt::null;
+                const bool stalking = brain.target != entt::null && !brain.targetVisible;
+                if (!hurt && !stalking) break;
+                brain.resupplySlot = s;
+            }
+            if (inv->currentSlot == s) {
+                reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+                brain.equipReleaseSlot = s; brain.equipReleaseTimer = 0.3f;
+            }
             return;
         }
 

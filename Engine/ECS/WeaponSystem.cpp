@@ -568,6 +568,9 @@ namespace SunEngine {
         }
         float totalSpread = spreadBase + wState.currentSpread;
         if (orderBuff) totalSpread *= orderBuff->spreadMult;
+        // Elmetto con visiera (es. scout): mira piu' precisa
+        if (const auto* helm = BlueprintManager::Get().GetArmorPiece(stats.armorSet.head.id); helm && helm->aim_bonus > 0.0f)
+            totalSpread *= std::max(0.0f, 1.0f - helm->aim_bonus);
 
         glm::vec3 rightDir = glm::normalize(glm::cross(baseDir, glm::vec3(0.0f, 1.0f, 0.0f)));
         if (glm::length(rightDir) < 0.001f) {
@@ -654,6 +657,18 @@ namespace SunEngine {
             bulletTrail.projectileWidth = isShotgun ? 0.035f : wpBP.projectile_width;
             bulletTrail.travelTime = (wpBP.projectile_type == ProjectileType::Laser) ? 0.05f : 0.12f;
             bulletTrail.totalLife = 0.20f;
+            // Proiettili veri: tracciante sottile e veloce. Bolt: cartuccia grossa a razzo, piu' lenta da seguire con
+            // l'occhio, che scoppia nel punto colpito.
+            if (wpBP.projectile_type == ProjectileType::Ballistic) {
+                bulletTrail.style = 1;
+                bulletTrail.travelTime = std::clamp(glm::length(hitPoint - barrelOrigin) / 260.0f, 0.03f, 0.14f);
+                bulletTrail.totalLife = bulletTrail.travelTime + 0.02f;
+            }
+            else if (wpBP.projectile_type == ProjectileType::Bolt) {
+                bulletTrail.style = 2;
+                bulletTrail.travelTime = std::clamp(glm::length(hitPoint - barrelOrigin) / 140.0f, 0.05f, 0.3f);
+                bulletTrail.totalLife = bulletTrail.travelTime + (hit.hit ? 0.28f : 0.05f);   // scoppio solo se colpisce qualcosa
+            }
         }
         // Suono positional: sorgente = bocca di fuoco, listener = posizione del player
 // (il player è sempre l'ascoltatore; per ora solo il player spara, quindi dist=0)

@@ -94,7 +94,24 @@ namespace SunEngine {
             float texScale = 1.0f,
             float alphaCut = 0.0f);
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
+
+        // Mimetismo (camo cloak): fra BeginCloak ed EndCloak i cubi e le mesh skinnate non vanno nel G-Buffer ma in
+        // una coda; dopo l'illuminazione vengono disegnati come "liquido trasparente": rifrangono la scena dietro
+        // (copia dell'immagine HDR, spostata lungo la normale) con un leggero bordo luminoso. amount 0..1 = intensita'.
+        void BeginCloak(float amount) { m_CloakCapture = amount > 0.001f; m_CloakAmount = amount; }
+        void EndCloak() { m_CloakCapture = false; }
     private:
+        void RunCloakPass();
+        struct CloakCube { glm::mat4 model; float amount; };
+        struct CloakSkinned { const SkinnedMesh* mesh; glm::mat4 model; std::vector<glm::mat4> bones; float amount; };
+        bool m_CloakCapture = false;
+        float m_CloakAmount = 0.0f;
+        float m_CloakTime = 0.0f;
+        std::vector<CloakCube> m_CloakCubes;
+        std::vector<CloakSkinned> m_CloakSkinned;
+        Framebuffer m_CloakCopy;                       // copia della scena illuminata (da rifrangere)
+        std::unique_ptr<Shader> m_CloakShader;
+        std::unique_ptr<Shader> m_CloakSkinnedShader;
         void RunLightingPass();
         void RunTonemapPass();
         void UploadLights();

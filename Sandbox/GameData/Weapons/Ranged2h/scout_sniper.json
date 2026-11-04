@@ -1,0 +1,51 @@
+{
+  "id": "scout_sniper",
+  "displayName": "Fucile di Precisione da Scout",
+  "faction": "SpaceMarines",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 7.0,
+  "point_cost": 6,
+  "has_scope": true,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 5,
+  "reload_time_sec": 2.6,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 45.0,
+  "base_damage": 150.0,
+  "armor_penetration": 22,
+  "range_effective": 250.0,
+  "damage_falloff_start": 0.0,
+  "damage_falloff_end": 0.0,
+  "spread_base": 0.0,
+  "recoil_force": 0.5,
+  "heat_capacity": 100.0,
+  "projectile_type": "ballistic",
+  "is_beam": false,
+  "primary_color": [
+    1.0,
+    0.9,
+    0.6,
+    1.0
+  ],
+  "projectile_width": 0.025,
+  "weapon_scale": [
+    0.1,
+    0.1,
+    0.75
+  ],
+  "hold_offset": [
+    0.35,
+    -0.15,
+    -0.2
+  ],
+  "spare_magazines": 6,
+  "comment": "Sbloccabile dello scout: fucile di precisione con ottica (rotella del mouse mirando) per la lunga distanza. 5 colpi e 30 di riserva.",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "scope_zoom_fov": 45.0
+}

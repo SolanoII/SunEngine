@@ -1,0 +1,89 @@
+{
+  "displayName": "Mantello Mimetico",
+  "slot_type": "equipment",
+  "equipment_type": "camo_cloak",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 2.0,
+  "point_cost": 4,
+  "equipment_uses": 1,
+  "effect_duration": 20.0,
+  "weapon_scale": [
+    0.2,
+    0.08,
+    0.2
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.3,
+    0.33,
+    0.26,
+    1.0
+  ],
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.0,
+        0.21
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        -0.1,
+        0.2
+      ],
+      "size": [
+        0.6,
+        0.8,
+        0.04
+      ],
+      "color": [
+        0.3,
+        0.33,
+        0.26,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.36,
+        0.14
+      ],
+      "bone": "mixamorig1:Spine2",
+      "bone_offset": [
+        0.0,
+        0.25,
+        0.12
+      ],
+      "size": [
+        0.62,
+        0.1,
+        0.16
+      ],
+      "color": [
+        0.27,
+        0.3,
+        0.23,
+        1
+      ],
+      "roughness": 0.95,
+      "metallic": 0.0
+    }
+  ],
+  "comment": "Sbloccabile dello scout: mantello mimetico. Click sinistro: per 20 secondi il corpo diventa come un liquido trasparente e i nemici non ti vedono oltre 6 metri. Sparare o colpire in mischia lo interrompe. 1 per partita.",
+  "id": "scout_camo_cloak",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "faction": "SpaceMarines"
+}

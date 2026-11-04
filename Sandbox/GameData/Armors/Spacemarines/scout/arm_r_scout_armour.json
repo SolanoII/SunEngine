@@ -1,0 +1,113 @@
+{
+  "id": "arm_r_scout_armour",
+  "displayName": "Spallaccio da Scout (dx)",
+  "comment": "Dotazione base dello scout: spallaccio e parabraccio in carapace.",
+  "location": "RightArm",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "armor_rating": 7,
+  "coverage": 0.6,
+  "max_durability": 100.0,
+  "weight": 1.5,
+  "point_cost": 1,
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.0,
+        0.3,
+        0.0
+      ],
+      "size": [
+        0.332,
+        0.168,
+        0.332
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.0,
+        -0.18,
+        0.0
+      ],
+      "size": [
+        0.274,
+        0.216,
+        0.274
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    }
+  ],
+  "garments": [
+    {
+      "id": "scout_arm_guard_r",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.78,
+        0.86
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.0144,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.5,
+      "metallic": 0.35,
+      "color": [
+        0.5,
+        0.55,
+        0.75,
+        1
+      ]
+    },
+    {
+      "id": "scout_bracer_r",
+      "bones": [
+        "RightForeArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.76,
+        0.86
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.5,
+      "metallic": 0.35,
+      "color": [
+        0.5,
+        0.55,
+        0.75,
+        1
+      ]
+    }
+  ]
+}

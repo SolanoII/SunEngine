@@ -27,7 +27,8 @@ namespace SunEngine {
         Flamer,
         ContinuousBeam,
         Grav,
-        Psychic
+        Psychic,
+        Bolt            // armi bolt: cartucce enormi a razzo che esplodono nel bersaglio (scia e scoppio piu' grossi)
     };
 
     enum class WeaponSlotType {
@@ -325,6 +326,7 @@ namespace SunEngine {
         // Elmetto: finche' regge, annulla il moltiplicatore del colpo in testa (es. elmetto di ferraglia del
         // gretchin: un colpo di lasgun in testa non lo uccide piu' al primo colpo)
         bool blocks_headshot_bonus = false;
+        float aim_bonus = 0.0f;              // elmetto con visiera: dispersione dei colpi ridotta (0.1 = -10%)
 
         // Skin sul campo: colore di alcuni blocchi dello scheletro ("skin_blocks": {"Torso": [r,g,b]}) e
         // pezzi aggiunti ("skin_parts"), es. vesti e elmetto del gretchin

@@ -1,0 +1,259 @@
+{
+  "id": "scout_shotgun",
+  "comment": "Fucile a pompa Astartes (piu' grande di quello umano). Fucile a pompa del guardsman a blocchi: canna lunga con serbatoio tubolare sotto, pompa in legno, calcio. Canna verso -Z.",
+  "anchors": {
+    "grip_right": [
+      0.0,
+      -0.0805,
+      0.115
+    ],
+    "grip_left": [
+      0.0,
+      -0.046,
+      -0.253
+    ],
+    "muzzle": [
+      0.0,
+      0.023,
+      -0.575
+    ]
+  },
+  "parts": [
+    {
+      "name": "castello",
+      "offset": [
+        0.0,
+        0.0,
+        0.0345
+      ],
+      "size": [
+        0.069,
+        0.092,
+        0.253
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "canna",
+      "offset": [
+        0.0,
+        0.023,
+        -0.3105
+      ],
+      "size": [
+        0.0391,
+        0.0391,
+        0.529
+      ],
+      "color": [
+        0.34,
+        0.34,
+        0.36,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.9
+    },
+    {
+      "name": "serbatoio",
+      "offset": [
+        0.0,
+        -0.0287,
+        -0.253
+      ],
+      "size": [
+        0.0345,
+        0.0345,
+        0.414
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.85
+    },
+    {
+      "name": "pompa",
+      "offset": [
+        0.0,
+        -0.0403,
+        -0.253
+      ],
+      "size": [
+        0.0575,
+        0.0517,
+        0.161
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "mirino",
+      "offset": [
+        0.0,
+        0.0517,
+        -0.552
+      ],
+      "size": [
+        0.0092,
+        0.0207,
+        0.0115
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "bocca",
+      "offset": [
+        0.0,
+        0.023,
+        -0.5692
+      ],
+      "size": [
+        0.046,
+        0.046,
+        0.023
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.8
+    },
+    {
+      "name": "finestra",
+      "offset": [
+        0.0356,
+        0.0115,
+        0.023
+      ],
+      "size": [
+        0.0046,
+        0.0345,
+        0.092
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "impugnatura",
+      "offset": [
+        0.0,
+        -0.0805,
+        0.115
+      ],
+      "size": [
+        0.0368,
+        0.1035,
+        0.046
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0,
+      "rotation": [
+        -15,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "ponticello",
+      "offset": [
+        0.0,
+        -0.0517,
+        0.069
+      ],
+      "size": [
+        0.0115,
+        0.0172,
+        0.069
+      ],
+      "color": [
+        0.2,
+        0.2,
+        0.22,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "name": "calcio",
+      "offset": [
+        0.0,
+        -0.023,
+        0.3105
+      ],
+      "size": [
+        0.0517,
+        0.092,
+        0.276
+      ],
+      "color": [
+        0.42,
+        0.26,
+        0.14,
+        1
+      ],
+      "roughness": 0.8,
+      "metallic": 0.0
+    },
+    {
+      "name": "calciolo",
+      "offset": [
+        0.0,
+        -0.023,
+        0.4542
+      ],
+      "size": [
+        0.0575,
+        0.115,
+        0.0161
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    }
+  ]
+}

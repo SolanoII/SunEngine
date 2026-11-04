@@ -1,0 +1,33 @@
+{
+  "displayName": "Auspex",
+  "slot_type": "equipment",
+  "equipment_type": "auspex",
+  "hand_type": "OneHanded",
+  "is_melee": false,
+  "weight_kg": 1.5,
+  "point_cost": 2,
+  "equipment_uses": 0,
+  "equipment_range": 30.0,
+  "weapon_scale": [
+    0.12,
+    0.06,
+    0.18
+  ],
+  "hold_offset": [
+    0.0,
+    -0.05,
+    0.1
+  ],
+  "primary_color": [
+    0.2,
+    0.22,
+    0.24,
+    1.0
+  ],
+  "comment": "Dotazione base dello scout: scanner. Tenuto in mano mostra un sonar coi nemici entro 30 metri (pallini rossi). Passivo, senza usi.",
+  "id": "scout_auspex",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "faction": "SpaceMarines"
+}

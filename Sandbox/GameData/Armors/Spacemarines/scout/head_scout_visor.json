@@ -1,0 +1,128 @@
+{
+  "id": "head_scout_visor",
+  "displayName": "Elmetto con Visiera",
+  "comment": "Sbloccabile dello scout: elmetto con visiera di puntamento. Finche' regge annulla il bonus del colpo in testa e riduce la dispersione dei colpi del 10%.",
+  "location": "Head",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "armor_rating": 10,
+  "coverage": 0.75,
+  "max_durability": 110.0,
+  "weight": 1.8,
+  "point_cost": 2,
+  "blocks_headshot_bonus": true,
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.137,
+        0.0
+      ],
+      "size": [
+        0.346,
+        0.114,
+        0.346
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.086,
+        0.0
+      ],
+      "size": [
+        0.381,
+        0.029,
+        0.381
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0.0,
+        0.057,
+        0.15
+      ],
+      "size": [
+        0.346,
+        0.091,
+        0.046
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.02,
+        -0.16
+      ],
+      "size": [
+        0.28,
+        0.07,
+        0.03
+      ],
+      "color": [
+        0.15,
+        0.55,
+        0.25,
+        1
+      ],
+      "roughness": 0.15,
+      "metallic": 0.5
+    }
+  ],
+  "garments": [
+    {
+      "id": "scout_helmet",
+      "bones": [
+        "Head",
+        "HeadTop_End"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.915,
+        1.0
+      ],
+      "inflate": 0.0138,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.5,
+      "metallic": 0.35,
+      "color": [
+        0.5,
+        0.55,
+        0.75,
+        1
+      ]
+    }
+  ],
+  "aim_bonus": 0.1
+}

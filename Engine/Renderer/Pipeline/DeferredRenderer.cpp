@@ -352,6 +352,35 @@ void main() {
 }
     )";
 
+    // Mimetismo: la superficie mostra la scena dietro, spostata lungo la normale (rifrazione), con un'increspatura
+    // che scorre e un bordo di Fresnel azzurrino. Test di profondita' a mano col depth del G-Buffer.
+    static const char* k_CloakFragSrc = R"(
+#version 410 core
+in vec3 v_WorldPos;
+in vec3 v_Normal;
+out vec4 out_Color;
+uniform sampler2D u_Scene;
+uniform sampler2D u_Depth;
+uniform vec2  u_Viewport;
+uniform mat4  u_View;
+uniform vec3  u_CameraPos;
+uniform float u_Amount;
+uniform float u_Time;
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_Viewport;
+    if (gl_FragCoord.z > texture(u_Depth, uv).r + 0.00002) discard;   // dietro a qualcosa di solido
+    vec3 n = normalize(v_Normal);
+    vec3 vn = normalize(mat3(u_View) * n);
+    float ripple = 0.5 * sin(v_WorldPos.y * 18.0 + u_Time * 4.0) + 0.5 * sin((v_WorldPos.x + v_WorldPos.z) * 14.0 - u_Time * 3.0);
+    vec2 off = vn.xy * (0.022 + 0.008 * ripple) * u_Amount;
+    vec3 refr = texture(u_Scene, clamp(uv + off, vec2(0.001), vec2(0.999))).rgb;
+    vec3 V = normalize(u_CameraPos - v_WorldPos);
+    float fres = pow(1.0 - max(dot(n, V), 0.0), 3.0);
+    vec3 col = refr * mix(vec3(1.0), vec3(0.9, 0.97, 1.05), u_Amount) + vec3(0.55, 0.72, 0.9) * fres * 0.3 * u_Amount;
+    out_Color = vec4(col, 1.0);
+}
+)";
+
     // ============================================================
     // Impl
     // ============================================================
@@ -470,6 +499,12 @@ void main() {
             SUN_CORE_ERROR("DeferredRenderer: gbuffer skinned shader fallito");
             return false;
         }
+        // Mimetismo (non bloccante: senza, le unita' mimetizzate restano solo invisibili)
+        m_CloakShader = std::make_unique<Shader>();
+        if (!m_CloakShader->LoadFromSource(k_GBufferVertSrc, k_CloakFragSrc, "Cloak")) SUN_CORE_WARN("DeferredRenderer: shader mimetismo fallito");
+        m_CloakSkinnedShader = std::make_unique<Shader>();
+        if (!m_CloakSkinnedShader->LoadFromSource(k_GBufferSkinnedVertSrc, k_CloakFragSrc, "CloakSkinned")) SUN_CORE_WARN("DeferredRenderer: shader mimetismo skinnato fallito");
+        m_CloakCopy.Create(width, height, { TextureFormat::RGBA16F }, /*hasDepth*/ false, TextureFilter::Linear);
         m_LightingShader = std::make_unique<Shader>();
         if (!m_LightingShader->LoadFromSource(k_LightingVertSrc, k_LightingFragSrc, "Lighting")) {
             SUN_CORE_ERROR("DeferredRenderer: lighting shader fallito");
@@ -559,6 +594,7 @@ void main() {
         m_Height = height;
         m_GBuffer.Resize(width, height);
         m_HDRTarget.Resize(width, height);
+        m_CloakCopy.Resize(width, height);
         if (m_BloomEnabled) m_Bloom.Resize(width, height);
         if (m_AutoExposureEnabled) m_AutoExposure.Resize(width, height);
         // FIX #8: nessun FBO lasciato bindato (Resize puo' arrivare durante il frame ImGui)
@@ -635,7 +671,11 @@ void main() {
 
     Shader* DeferredRenderer::BeginGeometryPass(const Camera& camera) {
         m_ViewProjection = camera.GetViewProjection();
+        m_View = camera.GetView();
         m_CameraPos = camera.GetPosition();
+        m_CloakCubes.clear();
+        m_CloakSkinned.clear();
+        m_CloakCapture = false;
 
         // --- SHADOW PASS ---
         // Calcola le light-space matrices, poi il chiamante disegna
@@ -680,6 +720,9 @@ void main() {
 
         // 1. Lighting pass
         RunLightingPass();
+
+        // 1b. Unita' mimetizzate: rifrangono la scena appena illuminata
+        RunCloakPass();
 
         // 2. Tonemap pass
         RunTonemapPass();
@@ -799,6 +842,7 @@ void main() {
     void DeferredRenderer::DrawCube(const glm::mat4& transform,
         const glm::vec4& color,
         float roughness, float metallic, float emissive) {
+        if (m_CloakCapture) { m_CloakCubes.push_back({ transform, m_CloakAmount }); return; }   // mimetizzato
         m_GBufferShader->Bind();
         m_GBufferShader->SetMat4("u_Model", transform);
         m_GBufferShader->SetMat4("u_ViewProjection", m_ViewProjection);
@@ -862,6 +906,7 @@ void main() {
         const GpuTexture* texture, float texScale, float alphaCut)
     {
         if (!m_GBufferSkinnedShader || !m_GBufferSkinnedShader->IsValid()) return;
+        if (m_CloakCapture) { m_CloakSkinned.push_back({ &mesh, model, boneMatrices, m_CloakAmount }); return; }   // mimetizzato
 
         m_GBufferSkinnedShader->Bind();
         // Strato di vestito: texture triplanare (unita' 0) e soglia per i buchi
@@ -894,5 +939,61 @@ void main() {
         }
 
         mesh.Draw();
+    }
+    // Disegna le unita' mimetizzate sopra l'immagine HDR illuminata: la scena viene prima copiata (non si puo'
+    // leggere e scrivere la stessa texture), poi ogni superficie mostra la copia spostata lungo la sua normale.
+    void DeferredRenderer::RunCloakPass() {
+        if (m_CloakCubes.empty() && m_CloakSkinned.empty()) return;
+        m_CloakTime += m_LastFrameDelta;
+        if (!m_CloakShader || !m_CloakShader->IsValid() || !m_CloakSkinnedShader || !m_CloakSkinnedShader->IsValid()) {
+            m_CloakCubes.clear(); m_CloakSkinned.clear();
+            return;
+        }
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_HDRTarget.GetID());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_CloakCopy.GetID());
+        glBlitFramebuffer(0, 0, m_Width, m_Height, 0, 0, m_Width, m_Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+        m_HDRTarget.Bind();
+        glViewport(0, 0, m_Width, m_Height);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_BLEND);
+
+        auto setup = [&](Shader& sh) {
+            sh.Bind();
+            m_CloakCopy.BindColorTexture(0, 0);
+            if (GpuTexture* depth = m_GBuffer.GetDepth()) depth->Bind(1);
+            sh.SetInt("u_Scene", 0);
+            sh.SetInt("u_Depth", 1);
+            sh.SetVec2("u_Viewport", glm::vec2(static_cast<float>(m_Width), static_cast<float>(m_Height)));
+            sh.SetMat4("u_View", m_View);
+            sh.SetMat4("u_ViewProjection", m_ViewProjection);
+            sh.SetVec3("u_CameraPos", m_CameraPos);
+            sh.SetFloat("u_Time", m_CloakTime);
+        };
+
+        setup(*m_CloakShader);
+        glBindVertexArray(m_TestCubeVAO);
+        for (const auto& c : m_CloakCubes) {
+            m_CloakShader->SetMat4("u_Model", c.model);
+            m_CloakShader->SetFloat("u_Amount", c.amount);
+            glDrawElements(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0);
+        }
+        glBindVertexArray(0);
+
+        setup(*m_CloakSkinnedShader);
+        const GLint bonesLoc = glGetUniformLocation(m_CloakSkinnedShader->GetID(), "u_BoneMatrices");
+        static std::vector<glm::mat4> s_Identity(MAX_BONES, glm::mat4(1.0f));
+        for (const auto& s : m_CloakSkinned) {
+            if (!s.mesh) continue;
+            m_CloakSkinnedShader->SetMat4("u_Model", s.model);
+            m_CloakSkinnedShader->SetFloat("u_Amount", s.amount);
+            const int count = std::min(static_cast<int>(s.bones.size()), MAX_BONES);
+            if (count > 0) glUniformMatrix4fv(bonesLoc, count, GL_FALSE, glm::value_ptr(s.bones[0]));
+            else glUniformMatrix4fv(bonesLoc, MAX_BONES, GL_FALSE, glm::value_ptr(s_Identity[0]));
+            s.mesh->Draw();
+        }
+        m_CloakCubes.clear();
+        m_CloakSkinned.clear();
     }
 }

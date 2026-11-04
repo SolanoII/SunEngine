@@ -18,5 +18,26 @@
   "fov_degrees": 100,
   "weight_capacity": 120.0,
   "base_speed": 3.84,
-  "health": 230.0
+  "health": 230.0,
+  "comment": "Scout: ha gia' ricevuto gran parte degli impianti genetici Astartes ed e' addestrato al combattimento, ma non indossa ancora l'armatura potenziata. Dotazione base: boltgun (12+60) o fucile a pompa, bolt pistol (6+30), coltello o spada a catena, 1 frag, armatura da scout (petto, braccia, gambe), auspex. Sbloccabili: fucile di precisione, heavy bolter, elmetto con visiera, mantello mimetico.",
+  "default_loadout": {
+    "primary": "scout_boltgun",
+    "secondary": "scout_bolt_pistol",
+    "melee": "scout_knife",
+    "equipment": [
+      "scout_frag",
+      "scout_auspex",
+      ""
+    ],
+    "armor": {
+      "head": "",
+      "torso": "torso_scout_armour",
+      "arm_l": "arm_l_scout_armour",
+      "arm_r": "arm_r_scout_armour",
+      "leg_l": "leg_l_scout_armour",
+      "leg_r": "leg_r_scout_armour"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 3
 }

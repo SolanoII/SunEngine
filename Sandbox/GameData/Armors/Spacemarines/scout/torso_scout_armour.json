@@ -1,0 +1,204 @@
+{
+  "id": "torso_scout_armour",
+  "displayName": "Corazza da Scout",
+  "comment": "Dotazione base dello scout: corazza in carapace leggera su petto, schiena e spalle, sopra la tuta.",
+  "location": "Torso",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "spacemarines_scout"
+  ],
+  "armor_rating": 14,
+  "coverage": 0.9,
+  "max_durability": 220.0,
+  "weight": 7.0,
+  "point_cost": 3,
+  "skin_blocks": {
+    "Torso": [
+      0.28,
+      0.3,
+      0.27,
+      1
+    ],
+    "Arm_L": [
+      0.28,
+      0.3,
+      0.27,
+      1
+    ],
+    "Arm_R": [
+      0.28,
+      0.3,
+      0.27,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.048,
+        -0.21
+      ],
+      "size": [
+        0.552,
+        0.556,
+        0.054
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        0.048,
+        0.21
+      ],
+      "size": [
+        0.552,
+        0.556,
+        0.054
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.235,
+        0.327,
+        0.0
+      ],
+      "size": [
+        0.166,
+        0.073,
+        0.407
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.235,
+        0.327,
+        0.0
+      ],
+      "size": [
+        0.166,
+        0.073,
+        0.407
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.0,
+        -0.266,
+        -0.204
+      ],
+      "size": [
+        0.47,
+        0.169,
+        0.054
+      ],
+      "color": [
+        0.18,
+        0.22,
+        0.32,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.35
+    }
+  ],
+  "garments": [
+    {
+      "id": "scout_shirt",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftArm",
+        "RightArm",
+        "LeftForeArm",
+        "RightForeArm"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.5,
+        0.835
+      ],
+      "inflate": 0.0065,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/guard_fatigues.png",
+      "tex_tiles": 6,
+      "roughness": 0.9,
+      "color": [
+        0.72,
+        0.74,
+        0.68,
+        1
+      ]
+    },
+    {
+      "id": "scout_flak",
+      "bones": [
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.55,
+        0.835
+      ],
+      "inflate": 0.0149,
+      "plate_cells": 4,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.5,
+      "metallic": 0.35,
+      "color": [
+        0.5,
+        0.55,
+        0.75,
+        1
+      ]
+    }
+  ]
+}

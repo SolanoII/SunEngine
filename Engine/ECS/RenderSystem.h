@@ -43,10 +43,19 @@ namespace SunEngine {
         void RenderDeferred(Scene& scene, DeferredRenderer& deferred) {
             auto view = scene.GetRegistry().view<TransformComponent, ColorComponent>();
 
+            // Mimetismo: per tutta l'entita' i disegni vanno nella coda del liquido trasparente
+            struct CloakScope {
+                DeferredRenderer& d; bool on;
+                CloakScope(DeferredRenderer& r, float amount) : d(r), on(amount > 0.001f) { if (on) d.BeginCloak(amount); }
+                ~CloakScope() { if (on) d.EndCloak(); }
+            };
             for (auto entity : view) {
                 auto& transform = view.get<TransformComponent>(entity);
                 auto& color = view.get<ColorComponent>(entity);
                 const glm::vec4 baseColor = color.Color;
+                const auto* cloak = scene.GetRegistry().try_get<CloakComponent>(entity);
+                const bool cloakable = cloak && !scene.GetRegistry().all_of<RagdollComponent>(entity);
+                CloakScope cloakScope(deferred, cloakable ? cloak->amount : 0.0f);
 
                 // 0. MODELLO SKINNATO FBX (nuova priorità più alta)
                 if (auto* skinnedInst = scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(entity)) {

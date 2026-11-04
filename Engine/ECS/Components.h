@@ -322,6 +322,14 @@ namespace SunEngine {
         glm::vec3 useStartPos{ 0.0f }; // dove e' iniziata la canalizzazione (scrap: bisogna restare fermi)
     };
 
+    // Mimetismo (camo cloak degli scout): il corpo diventa un liquido trasparente che rifrange cio' che ha dietro.
+    // amount 0..1 (transizione morbida). Sulle entita' solo visive (arma in mano, modello animato) lo copia GameLayer.
+    struct CloakComponent {
+        float amount = 0.0f;
+        float timeLeft = 0.0f;         // >0: mimetismo attivo (solo sull'unita')
+        bool owner = false;            // true = e' l'unita' che l'ha attivato (non una copia per la grafica)
+    };
+
     // Cassa di munizioni posata a terra (schola progenium): E vicino = un caricatore dell'arma in mano, 'charges' volte
     struct AmmoCrateComponent {
         entt::entity owner = entt::null;
@@ -431,6 +439,7 @@ namespace SunEngine {
         bool isBeam = true;
         float projectileLength = 0.5f;
         float projectileWidth = 0.05f;
+        int style = 0;                 // 0 = scia classica, 1 = proiettile (tracciante sottile), 2 = bolt (cartuccia a razzo + scoppio)
     };
 
     // Raggio del mirino (centro dello schermo) pubblicato ogni frame dalla telecamera di gioco. La telecamera

@@ -91,6 +91,7 @@ namespace SunEngine {
                     for (const auto& u : j["allowed_units"]) if (u.is_string()) bp.allowed_units.push_back(u.get<std::string>());
                 }
                 bp.blocks_headshot_bonus = j.value("blocks_headshot_bonus", false);
+                bp.aim_bonus = j.value("aim_bonus", 0.0f);
 
                 ParseSkin(j, bp.skinBlockColors, bp.skinParts, &bp.garments);
 
@@ -257,6 +258,7 @@ namespace SunEngine {
                 else if (typeStr == "continuous_beam" || typeStr == "melta") bp.projectile_type = ProjectileType::ContinuousBeam;
                 else if (typeStr == "grav") bp.projectile_type = ProjectileType::Grav;
                 else if (typeStr == "psychic") bp.projectile_type = ProjectileType::Psychic;
+                else if (typeStr == "bolt") bp.projectile_type = ProjectileType::Bolt;
                 else bp.projectile_type = ProjectileType::Laser;
 
                 if (j.contains("primary_color") && j["primary_color"].is_array() && j["primary_color"].size() >= 3) {

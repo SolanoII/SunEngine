@@ -18,6 +18,9 @@
 // Cassa di munizioni ("ammo_crate"): click sinistro la posa a terra davanti; poi chiunque della squadra, vicino e
 //   premendo E, recupera un caricatore dell'arma che ha in mano (crate_charges volte in tutto, poi la cassa sparisce).
 //   I bot vicini la usano da soli quando hanno la riserva bassa.
+// Mantello mimetico ("camo_cloak"): click sinistro per effect_duration secondi il corpo diventa un liquido trasparente
+//   (CloakComponent); i nemici IA non lo vedono oltre 6 m. Sparare o colpire in mischia lo interrompe.
+// Auspex ("auspex"): in mano mostra un sonar coi nemici entro equipment_range metri (lo disegna GameLayer).
 // Vox caster ("vox_caster"): click sinistro e equipment_use_time secondi di chiamata (ci si puo' muovere), poi
 //   dopo summon_delay secondi arriva un rinforzo summon_unit che segue chi l'ha chiamato (lo crea GameLayer).
 #include "Components.h"
@@ -32,6 +35,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <unordered_map>
 #include "TurretCore.h"
 
 namespace SunEngine {
@@ -176,6 +180,7 @@ namespace SunEngine {
             auto& reg = scene.GetRegistry();
             UpdateHealZones(scene, dt);
             UpdateCrates(scene, dt);
+            UpdateCloaks(scene, dt);
             auto view = reg.view<AmmoComponent, InventoryComponent, TransformComponent>(entt::exclude<CorpseComponent>);
             for (auto e : view) {
                 auto& a = view.get<AmmoComponent>(e);
@@ -229,6 +234,10 @@ namespace SunEngine {
                 }
                 if (held->equipment_type == "medkit") {
                     UpdateMedkit(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
+                    continue;
+                }
+                if (held->equipment_type == "camo_cloak") {
+                    if (wantSelf) ActivateCloak(scene, e, a, *held, slotIdx);
                     continue;
                 }
                 if (held->equipment_type == "ammo_crate") {
@@ -298,6 +307,7 @@ namespace SunEngine {
     private:
         bool m_PlayerLmbWasDown = true;   // true: il click che ha avviato la partita non conta
         bool m_PlayerEWasDown = true;
+        std::unordered_map<entt::entity, int> m_CloakAmmo;   // colpi in canna al frame prima (sparare interrompe il mimetismo)
         bool m_PlayerRmbWasDown = true;
 
         static float FootY(entt::registry& reg, entt::entity e) {
@@ -451,6 +461,48 @@ namespace SunEngine {
             a.useSlot = slot;
             a.useTarget = e;
             Feedback(a, "Medicazione in corso...");
+        }
+
+        // Mantello mimetico: attivato per effect_duration secondi
+        void ActivateCloak(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx) {
+            auto& reg = scene.GetRegistry();
+            if (const auto* c = reg.try_get<CloakComponent>(e); c && c->timeLeft > 0.0f) { Feedback(a, "Mantello gia' attivo"); return; }
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Mantello mimetico gia' usato"); return; }
+            auto& c = reg.get_or_emplace<CloakComponent>(e);
+            c.owner = true;
+            c.timeLeft = std::max(1.0f, bp.effect_duration);
+            a.equipmentUses[slotIdx] -= 1;
+            m_CloakAmmo[e] = -1;
+            Feedback(a, "Mimetizzato per " + std::to_string(static_cast<int>(std::lround(c.timeLeft))) + " s (sparare o colpire lo interrompe)");
+        }
+
+        // Mimetismo: tempo, transizione morbida, interruzione quando si spara o si colpisce in mischia
+        void UpdateCloaks(Scene& scene, float dt) {
+            auto& reg = scene.GetRegistry();
+            std::vector<entt::entity> done;
+            for (auto e : reg.view<CloakComponent>()) {
+                auto& c = reg.get<CloakComponent>(e);
+                if (!c.owner) continue;   // copie per la grafica: le aggiorna GameLayer
+                const auto* hp = reg.try_get<HealthComponent>(e);
+                if (!hp || hp->currentHealth <= 0.0f || reg.all_of<CorpseComponent>(e)) { done.push_back(e); continue; }
+                if (c.timeLeft > 0.0f) {
+                    c.timeLeft -= dt;
+                    bool attacked = false;
+                    if (const auto* ws = reg.try_get<WeaponStateComponent>(e)) {
+                        int& prev = m_CloakAmmo[e];
+                        if (prev >= 0 && ws->currentAmmo < prev) attacked = true;
+                        prev = ws->currentAmmo;
+                    }
+                    if (const auto* m = reg.try_get<MeleeStateComponent>(e); m && (m->currentPhase == MeleePhase::Windup || m->currentPhase == MeleePhase::Active)) attacked = true;
+                    if (attacked) {
+                        c.timeLeft = 0.0f;
+                        if (auto* a = reg.try_get<AmmoComponent>(e)) Feedback(*a, "Mimetismo interrotto");
+                    }
+                }
+                c.amount = std::clamp(c.amount + (c.timeLeft > 0.0f ? 3.0f : -3.0f) * dt, 0.0f, 1.0f);
+                if (c.timeLeft <= 0.0f && c.amount <= 0.0f) done.push_back(e);
+            }
+            for (auto e : done) { if (reg.valid(e)) reg.remove<CloakComponent>(e); m_CloakAmmo.erase(e); }
         }
 
         // Cassa di munizioni: posata un metro davanti, a terra

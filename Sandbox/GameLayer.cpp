@@ -1763,6 +1763,76 @@ namespace SunEngine {
         }
     }
 
+    // Mimetismo: l'unita' ha il CloakComponent "vero"; le entita' solo visive che la rappresentano (arma in mano,
+    // modello animato del giocatore) ne ricevono una copia, cosi' anche loro diventano trasparenti.
+    void GameLayer::SyncCloakVisuals() {
+        auto& reg = m_Scene.GetRegistry();
+        auto mirror = [&](entt::entity visual, float amount) {
+            if (visual == entt::null || !reg.valid(visual)) return;
+            if (amount > 0.001f) { auto& c = reg.get_or_emplace<CloakComponent>(visual); c.amount = amount; c.owner = false; }
+            else if (auto* c = reg.try_get<CloakComponent>(visual); c && !c->owner) reg.remove<CloakComponent>(visual);
+        };
+        float playerAmount = 0.0f;
+        if (reg.valid(m_PlayerEntity)) if (const auto* c = reg.try_get<CloakComponent>(m_PlayerEntity)) playerAmount = c->amount;
+        mirror(m_AnimatedPlayerEntity, playerAmount);
+        mirror(m_WeaponEntity, playerAmount);
+        mirror(m_LeftWeaponEntity, playerAmount);
+        for (auto e : reg.view<BotBrainComponent>()) {
+            const auto* c = reg.try_get<CloakComponent>(e);
+            mirror(reg.get<BotBrainComponent>(e).weaponEntity, c ? c->amount : 0.0f);
+        }
+    }
+
+    // Auspex in mano: sonar in basso a sinistra, nemici entro la portata come pallini rossi (in alto = davanti)
+    void GameLayer::RenderAuspex() {
+        auto& reg = m_Scene.GetRegistry();
+        const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
+        if (!inv) return;
+        const auto* held = BlueprintManager::Get().GetWeapon(inv->GetActiveWeaponId());
+        if (!held || held->equipment_type != "auspex") return;
+        const float range = std::max(5.0f, held->equipment_range);
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        const float R = 110.0f;
+        const ImVec2 c(30.0f + R, io.DisplaySize.y - 30.0f - R);
+        const float t = static_cast<float>(ImGui::GetTime());
+        dl->AddCircleFilled(c, R, IM_COL32(8, 30, 14, 200), 64);
+        for (int i = 1; i <= 3; ++i) dl->AddCircle(c, R * i / 3.0f, IM_COL32(60, 200, 90, 110), 64, 1.0f);
+        dl->AddLine(ImVec2(c.x - R, c.y), ImVec2(c.x + R, c.y), IM_COL32(60, 200, 90, 80));
+        dl->AddLine(ImVec2(c.x, c.y - R), ImVec2(c.x, c.y + R), IM_COL32(60, 200, 90, 80));
+        // Lancetta che gira (2 s per giro) con una scia
+        const float sweep = std::fmod(t * 3.14159f, 6.28318f);
+        for (int k = 0; k < 12; ++k) {
+            const float a = sweep - k * 0.05f;
+            dl->AddLine(c, ImVec2(c.x + std::sin(a) * R, c.y - std::cos(a) * R), IM_COL32(90, 255, 120, 150 - k * 12), 2.0f);
+        }
+        const auto& pt = reg.get<TransformComponent>(m_PlayerEntity);
+        const float yr = glm::radians(pt.AimYaw);
+        const glm::vec2 fwd(-std::sin(yr), -std::cos(yr)), right(std::cos(yr), -std::sin(yr));
+        const auto* myTeam = reg.try_get<TeamComponent>(m_PlayerEntity);
+        auto view = reg.view<TransformComponent, HealthComponent, UnitStatsComponent>(entt::exclude<CorpseComponent, PlayerTag>);
+        for (auto o : view) {
+            if (view.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+            bool enemy;
+            if (const auto* ot = reg.try_get<TeamComponent>(o)) enemy = !myTeam || ot->team != myTeam->team;
+            else enemy = reg.any_of<HordeAgentComponent, TrainingDummyComponent>(o);
+            if (!enemy) continue;
+            const glm::vec3 op = view.get<TransformComponent>(o).Position;
+            const glm::vec2 rel(op.x - pt.Position.x, op.z - pt.Position.z);
+            if (glm::length(rel) > range) continue;
+            const float x = glm::dot(rel, right) / range * R, y = glm::dot(rel, fwd) / range * R;
+            // il pallino si accende quando ci passa la lancetta e poi sfuma
+            float ang = std::atan2(x, y); if (ang < 0.0f) ang += 6.28318f;
+            float since = std::fmod(sweep - ang + 6.28318f, 6.28318f) / 6.28318f;   // 0 = appena passata
+            const int alpha = static_cast<int>(255 * (1.0f - 0.7f * since));
+            dl->AddCircleFilled(ImVec2(c.x + x, c.y - y), 5.0f, IM_COL32(255, 50, 40, alpha), 12);
+        }
+        dl->AddTriangleFilled(ImVec2(c.x, c.y - 7.0f), ImVec2(c.x - 5.0f, c.y + 5.0f), ImVec2(c.x + 5.0f, c.y + 5.0f), IM_COL32(120, 255, 140, 255));
+        dl->AddCircle(c, R, IM_COL32(90, 255, 120, 220), 64, 2.0f);
+        char txt[48]; std::snprintf(txt, sizeof(txt), "AUSPEX  %d m", static_cast<int>(range));
+        dl->AddText(ImVec2(c.x - R, c.y - R - 18.0f), IM_COL32(120, 255, 140, 255), txt);
+    }
+
     // Cerchio verde a terra sotto ogni rinforzo evocato (vox caster): fa parte della squadra di chi l'ha chiamato
     void GameLayer::RenderSummonRings(bool deferred) {
         auto& reg = m_Scene.GetRegistry();
@@ -2632,6 +2702,11 @@ namespace SunEngine {
             else if (type == "medkit")
                 textRight("Sinistro: curati di " + std::to_string(static_cast<int>(held->heal_amount)) + " salute in " +
                           std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s", baseSize, grey);
+            else if (type == "camo_cloak")
+                textRight("Sinistro: mimetizzati per " + std::to_string(static_cast<int>(std::lround(held->effect_duration))) +
+                          " s (sparare o colpire lo interrompe)", baseSize, grey);
+            else if (type == "auspex")
+                textRight("Sonar attivo: nemici entro " + std::to_string(static_cast<int>(held->equipment_range)) + " m", baseSize, grey);
             else if (type == "ammo_crate")
                 textRight("Sinistro: posa la cassa a terra (" + std::to_string(held->crate_charges) + " caricatori, E vicino per prenderne uno)", baseSize, grey);
             else if (type == "vox_caster")
@@ -2647,7 +2722,8 @@ namespace SunEngine {
             else if (type == "food_pack")
                 textRight("Sinistro: posa lo zaino (cura " + std::to_string(static_cast<int>(held->heal_per_second)) + " HP/s entro " +
                           std::to_string(static_cast<int>(held->equipment_range)) + " m per " + std::to_string(static_cast<int>(held->effect_duration)) + " s)", baseSize, grey);
-            textRight("Usi: " + std::to_string(uses) + " / " + std::to_string(held->equipment_uses), baseSize * 2.0f, uses > 0 ? white : red);
+            if (type != "auspex")   // l'auspex e' passivo: niente usi
+                textRight("Usi: " + std::to_string(uses) + " / " + std::to_string(held->equipment_uses), baseSize * 2.0f, uses > 0 ? white : red);
             textRight(held->displayName, baseSize * 1.15f, grey);
         }
         else if (rangedIdx >= 0 && held) {
@@ -4223,6 +4299,7 @@ namespace SunEngine {
         }
 
         SyncWeaponAttachment();
+        SyncCloakVisuals();
         if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // WAAAGH! (anche mentre sei a terra: il contatore resta)
         if (m_VsBotActive) {
             UpdateBotVisuals();
@@ -4537,6 +4614,7 @@ namespace SunEngine {
                 RenderAmmoHUD();
                 RenderPlayerStatusHUD();
                 RenderOrdersRadial();
+                RenderAuspex();
                 RenderTurretHUD();
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {
@@ -6510,6 +6588,15 @@ namespace SunEngine {
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_schola_carapace"); }
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_schola_carapace"); }
             tryUpgrade(0.30f, u.equipmentSlots[1], "schola_ammo_crate");
+        }
+        else if (u.blueprintId == "spacemarines_scout") {
+            tryUpgrade(0.30f, u.primaryWeaponId, "scout_shotgun");          // alternative base
+            tryUpgrade(0.30f, u.meleeWeaponId, "scout_chainsword");
+            const float r = Random::Float01();
+            if (r < 0.20f) tryUpgrade(1.0f, u.primaryWeaponId, "scout_sniper");
+            else if (r < 0.38f) tryUpgrade(1.0f, u.primaryWeaponId, "scout_heavy_bolter");
+            tryUpgrade(0.30f, u.armorHeadId, "head_scout_visor");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "scout_camo_cloak");      // al posto dell'auspex (inutile per l'IA)
         }
         else if (u.blueprintId == "spacemarines_neophyte") {
             tryUpgrade(0.50f, u.primaryWeaponId, "aspirant_autogun");      // alternativa base al lasrifle
