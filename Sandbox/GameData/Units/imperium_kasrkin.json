@@ -4,7 +4,7 @@
   "ai_role": "ranged",
   "point_cost": 18,
   "animated_body": "human",
-  "base_speed": 4.0,
+  "base_speed": 3.2,
   "stamina": 140.0,
   "stamina_regen": 15.0,
   "health": 130.0,

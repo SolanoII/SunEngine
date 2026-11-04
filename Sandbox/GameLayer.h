@@ -291,6 +291,7 @@ namespace SunEngine {
         // --- Modalita' Vs Bot: 5 contro 5 contro l'IA, tre code a punteggio ---
         void RenderVsBotQueues();                          // i 3 bottoni delle code con l'idoneita' della squadra
         bool StartVsBotMatch(int tierIdx);
+        std::string SquadTypeCapProblem() const;          // "" se la squadra rispetta il massimo per tipo
         TrainedUnit MakeBotUnit(const std::string& unitId, int number) const;
         void AddBotExtras(TrainedUnit& u, int& budget) const;   // oggetti ricercabili a caso, entro il budget della coda
         entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex);
@@ -464,7 +465,6 @@ namespace SunEngine {
         // Punti battaglia della squadra = somma dei costi delle UNITA' (l'equipaggiamento non conta, come il tier
         // dei carri in WoT). Massimo 5 unita' e 300 punti, cioe' il cap della coda piu' alta della modalita' Vs Bot.
         const int MAX_SQUAD_POINTS = 300;
-        const int MAX_SQUAD_SIZE = 5;
         int m_SelectedEventIndex = 0;
         std::string m_SelectedMapId = "warzone_sector4";
 

@@ -16,6 +16,6 @@
   "vision_range": 100,
   "fov_degrees": 85,
   "weight_capacity": 260.0,
-  "base_speed": 3.3,
+  "base_speed": 2.64,
   "health": 400.0
 }

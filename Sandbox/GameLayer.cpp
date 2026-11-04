@@ -5292,8 +5292,10 @@ namespace SunEngine {
         ImGui::Begin("SELEZIONE COMPONENTI SQUADRA", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
         int squadPoints = CalculateSquadPoints();
-        ImGui::Text("Punti Battaglia: %d / %d   (unita': %d / %d)", squadPoints, MAX_SQUAD_POINTS,
-            static_cast<int>(m_SelectedSquadIndices.size()), MAX_SQUAD_SIZE);
+        // Nessun limite di unita': ogni unita' e' un rientro in partita. Limiti: i punti e il massimo per tipo.
+        ImGui::Text("Punti Battaglia: %d / %d   (unita': %d)", squadPoints, MAX_SQUAD_POINTS,
+            static_cast<int>(m_SelectedSquadIndices.size()));
+        ImGui::TextDisabled("Ogni unita' in squadra e' un rientro in partita.");
         ImGui::ProgressBar(static_cast<float>(squadPoints) / static_cast<float>(MAX_SQUAD_POINTS), ImVec2(-1, 15), "");
         ImGui::Separator(); ImGui::Spacing();
 
@@ -5317,8 +5319,12 @@ namespace SunEngine {
                     }
                 }
                 else {
-                    if (static_cast<int>(m_SelectedSquadIndices.size()) >= MAX_SQUAD_SIZE) {
-                        SUN_CORE_WARN("Squadra al completo: massimo {0} unita'", MAX_SQUAD_SIZE);
+                    int sameType = 0;
+                    for (int idx : m_SelectedSquadIndices)
+                        if (idx >= 0 && idx < static_cast<int>(m_PlayerRoster.size()) && m_PlayerRoster[idx].blueprintId == m_PlayerRoster[i].blueprintId) ++sameType;
+                    const int maxType = unitBpForCost ? unitBpForCost->max_per_squad : 5;
+                    if (sameType >= maxType) {
+                        SUN_CORE_WARN("Massimo {0} unita' di tipo {1} per squadra", maxType, unitBpForCost ? unitBpForCost->displayName : m_PlayerRoster[i].blueprintId);
                     }
                     else if (squadPoints + cost <= MAX_SQUAD_POINTS) {
                         m_SelectedSquadIndices.push_back(i);
@@ -5334,8 +5340,9 @@ namespace SunEngine {
             }
             if (ImGui::IsItemHovered()) {
                 const int withGear = m_PlayerRoster[i].CalculateTotalPoints();
-                ImGui::SetTooltip("%s\nBlueprint: %s\nPunti battaglia: %d (unita' + equipaggiamento gia' rivisto)\nValore totale col vecchio equipaggiamento: %d",
-                    m_PlayerRoster[i].customName.c_str(), m_PlayerRoster[i].blueprintId.c_str(), cost, withGear);
+                ImGui::SetTooltip("%s\nBlueprint: %s\nPunti battaglia: %d (unita' + equipaggiamento gia' rivisto)\nValore totale col vecchio equipaggiamento: %d\nMassimo per squadra: %d",
+                    m_PlayerRoster[i].customName.c_str(), m_PlayerRoster[i].blueprintId.c_str(), cost, withGear,
+                    unitBpForCost ? unitBpForCost->max_per_squad : 5);
             }
             ImGui::PopStyleColor();
         }
@@ -5679,13 +5686,15 @@ namespace SunEngine {
         const int n = static_cast<int>(m_SelectedSquadIndices.size());
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "VS BOT - SCEGLI LA CODA");
         ImGui::Text("La tua squadra: %d punti battaglia, %d unita'", pts, n);
-        ImGui::TextWrapped("Conta solo il costo delle unita'. I posti liberi fino a 5 li occupano alleati IA, scelti "
-            "senza superare il cap della coda; anche la squadra avversaria si avvicina al cap senza mai superarlo.");
+        ImGui::TextWrapped("5 contro 5: tu e 4 alleati IA contro 5 avversari IA. Ogni giocatore porta una squadra entro il cap "
+            "della coda (unita' + equipaggiamento) e rientra con un'altra unita' quando quella in campo cade.");
         ImGui::Spacing();
 
+        const std::string capProblem = SquadTypeCapProblem();
+        if (!capProblem.empty()) ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", capProblem.c_str());
         for (int i = 0; i < 3; ++i) {
             const auto& tier = kVsBotTiers[i];
-            const bool ok = VsBotEligible(pts, n, tier);
+            const bool ok = VsBotEligible(pts, n, tier) && capProblem.empty();
             char label[96];
             if (tier.minExclusive <= 0) std::snprintf(label, sizeof(label), "%s\nfino a %d punti", tier.name, tier.cap);
             else std::snprintf(label, sizeof(label), "%s\nda %d a %d punti", tier.name, tier.minExclusive + 1, tier.cap);
@@ -5693,7 +5702,7 @@ namespace SunEngine {
             char status[128];
             if (ok) std::snprintf(status, sizeof(status), "IDONEA: la tua squadra vale %d / %d", pts, tier.cap);
             else if (n < 1) std::snprintf(status, sizeof(status), "Seleziona almeno un'unita'");
-            else if (n > kVsBotTeamSize) std::snprintf(status, sizeof(status), "Massimo %d unita'", kVsBotTeamSize);
+            else if (!capProblem.empty()) std::snprintf(status, sizeof(status), "NON IDONEA: troppe unita' dello stesso tipo");
             else if (pts > tier.cap) std::snprintf(status, sizeof(status), "NON IDONEA: squadra troppo forte (%d > %d)", pts, tier.cap);
             else std::snprintf(status, sizeof(status), "NON IDONEA: servono piu' di %d punti (hai %d)", tier.minExclusive, pts);
 
@@ -5870,19 +5879,33 @@ namespace SunEngine {
         return e;
     }
 
+    // Massimo per tipo di unita' ("max_per_squad", es. 4 boyz): le squadre salvate prima della regola
+    // potrebbero superarlo, quindi lo si ricontrolla prima di entrare in coda.
+    std::string GameLayer::SquadTypeCapProblem() const {
+        std::unordered_map<std::string, int> count;
+        for (int idx : m_SelectedSquadIndices)
+            if (idx >= 0 && idx < static_cast<int>(m_PlayerRoster.size())) ++count[m_PlayerRoster[idx].blueprintId];
+        for (const auto& [id, n] : count) {
+            const auto* bp = BlueprintManager::Get().GetUnit(id);
+            const int maxType = bp ? bp->max_per_squad : 5;
+            if (n > maxType) return "Troppi " + (bp ? bp->displayName : id) + " in squadra: " + std::to_string(n) + " (massimo " + std::to_string(maxType) + ")";
+        }
+        return "";
+    }
+
     bool GameLayer::StartVsBotMatch(int tierIdx) {
         m_VsBotMessage.clear();
         if (tierIdx < 0 || tierIdx > 2 || m_SelectedSquadIndices.empty()) return false;
         const VsBotQueueTier& tier = kVsBotTiers[tierIdx];
         const int squadPoints = CalculateSquadPoints();
         const int squadSize = static_cast<int>(m_SelectedSquadIndices.size());
-        if (!VsBotEligible(squadPoints, squadSize, tier)) return false;
+        if (!VsBotEligible(squadPoints, squadSize, tier) || !SquadTypeCapProblem().empty()) return false;
 
         // Squadre: ogni giocatore IA (4 alleati + 5 avversari) porta quante piu' unita' possibile senza sforare
         // il cap della coda. Alleati della fazione del capo squadra se possibile, avversari tutti di una fazione.
         std::vector<VsBotCandidate> all;
         // Costo di un candidato = unita' con la sua dotazione base (punti battaglia)
-        for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id) });
+        for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id), bp.max_per_squad });
         std::sort(all.begin(), all.end(), [](const VsBotCandidate& a, const VsBotCandidate& b) { return a.unitId < b.unitId; });
         std::mt19937 rng(std::random_device{}());
         const TrainedUnit& leader = m_PlayerRoster[m_SelectedSquadIndices[0]];
@@ -6445,7 +6468,7 @@ namespace SunEngine {
         ImGui::Begin("VsBotScoreboard", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings);
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        const float iconR = 11.0f, iconStep = 30.0f, rowH = 30.0f;
+        const float iconR = 10.0f, iconStep = 28.0f, rowH = 30.0f;
         const int secs = std::max(0, static_cast<int>(m_VsBotTimeLimit - m_VsBotTime));
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "%s  -  cap squadra %d pti", tier.name, tier.cap);
         ImGui::SameLine(ImGui::GetWindowWidth() - 120.0f); ImGui::Text("%02d:%02d", secs / 60, secs % 60);
@@ -6465,17 +6488,24 @@ namespace SunEngine {
             for (const auto& p : m_VsBotPlayers) {
                 if (p.team != team) continue;
                 const ImVec2 row = ImGui::GetCursorScreenPos();
-                if (p.human) dl->AddRectFilled(row, ImVec2(row.x + ImGui::GetContentRegionAvail().x, row.y + rowH), IM_COL32(60, 110, 160, 70), 3.0f);
+                // Squadre senza limite di unita': le icone vanno a capo (12 per riga) e la riga si allunga
+                int toShow = 0;
+                for (const auto& s : p.squad) if (ally || s.state == VsBotSlotState::Fallen) ++toShow;
+                const int perLine = 12;
+                const int lines = std::max(1, (toShow + perLine - 1) / perLine);
+                const float h = std::max(rowH, lines * iconStep + 4.0f);
+                if (p.human) dl->AddRectFilled(row, ImVec2(row.x + ImGui::GetContentRegionAvail().x, row.y + h), IM_COL32(60, 110, 160, 70), 3.0f);
                 const bool out = p.CountState(VsBotSlotState::InField) + p.CountState(VsBotSlotState::Reserve) == 0;
                 const ImU32 nameCol = out ? IM_COL32(130, 130, 135, 255) : (ally ? IM_COL32(150, 220, 255, 255) : IM_COL32(255, 150, 135, 255));
-                dl->AddText(ImVec2(row.x + 6.0f, row.y + rowH * 0.5f - 7.0f), nameCol, p.name.c_str());
-                float x = row.x + 190.0f;
                 const float cy = row.y + rowH * 0.5f;
+                dl->AddText(ImVec2(row.x + 6.0f, cy - 7.0f), nameCol, p.name.c_str());
+                float x = row.x + 190.0f;
                 int shown = 0;
                 for (const auto& s : p.squad) {
                     if (!ally && s.state != VsBotSlotState::Fallen) continue;   // dei nemici si vede solo chi e' caduto
-                    DrawVsBotUnitIcon(dl, ImVec2(x + iconR, cy), iconR, s.unit, s.state);
-                    x += iconStep; ++shown;
+                    const int line = shown / perLine, col = shown % perLine;
+                    DrawVsBotUnitIcon(dl, ImVec2(row.x + 190.0f + col * iconStep + iconR, cy + line * iconStep), iconR, s.unit, s.state);
+                    ++shown;
                 }
                 if (!ally && shown == 0) dl->AddText(ImVec2(x, cy - 7.0f), IM_COL32(140, 140, 150, 255), "nessuna unita' abbattuta");
                 char info[160];
@@ -6489,7 +6519,7 @@ namespace SunEngine {
                     std::snprintf(info, sizeof(info), "usati %d pti   rimanenti fino a %d pti", used, std::max(0, tier.cap - used));
                 }
                 dl->AddText(ImVec2(row.x + 540.0f, cy - 7.0f), IM_COL32(220, 220, 225, 255), info);
-                ImGui::Dummy(ImVec2(0.0f, rowH));
+                ImGui::Dummy(ImVec2(0.0f, h));
             }
         };
         drawTeam(0);

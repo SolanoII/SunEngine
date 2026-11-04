@@ -15,7 +15,7 @@ namespace SunEngine {
         int cap;            // ...e AL MASSIMO questo
     };
 
-    inline constexpr int kVsBotTeamSize = 5;
+    inline constexpr int kVsBotTeamSize = 5;   // giocatori per parte (5 contro 5); le squadre non hanno limite di unita'
     inline constexpr VsBotQueueTier kVsBotTiers[3] = {
         { "CODA I",   0,  20 },
         { "CODA II",  20, 100 },
@@ -26,6 +26,7 @@ namespace SunEngine {
         std::string unitId;
         int cost = 0;
         std::string faction;   // "imperium", "spacemarines", "orks"
+        int maxCount = 5;      // massimo di questo tipo in una squadra ("max_per_squad")
     };
 
     inline std::string VsBotFactionOf(const std::string& unitId) {
@@ -33,9 +34,10 @@ namespace SunEngine {
         return us == std::string::npos ? unitId : unitId.substr(0, us);
     }
 
-    // Idoneita' della squadra del giocatore a una coda: punteggio nell'intervallo e non piu' di 5 unita'.
+    // Idoneita' della squadra del giocatore a una coda: almeno un'unita' e punteggio nell'intervallo
+    // (nessun limite al numero di unita': lo frenano il cap e il massimo per tipo).
     inline bool VsBotEligible(int squadPoints, int squadSize, const VsBotQueueTier& tier) {
-        return squadSize >= 1 && squadSize <= kVsBotTeamSize && squadPoints > tier.minExclusive && squadPoints <= tier.cap;
+        return squadSize >= 1 && squadPoints > tier.minExclusive && squadPoints <= tier.cap;
     }
 
     // Sceglie 'slots' unita' da 'pool' (ripetizioni ammesse) con costo totale <= budget e il piu' vicino possibile
@@ -141,27 +143,44 @@ namespace SunEngine {
         return {};
     }
 
-    // Squadra di un giocatore IA: quante piu' unita' possibile (fino a 5) con somma <= cap della coda e sopra
-    // il minimo. A parita' di unita' VsBotFillTeam cerca il totale piu' vicino al cap. Prima solo la fazione
-    // indicata; se strictFaction e' falso e la fazione da sola non ci riesce, mescola (preferendo la fazione).
+    // Squadra di un giocatore IA: quante piu' unita' possibile con somma <= cap della coda (e sopra il minimo),
+    // senza superare il massimo per tipo ("max_per_squad" del blueprint, es. 5 gretchin, 4 boyz). Non c'e' un
+    // limite al numero di unita': ogni unita' e' un rientro in partita, quindi gli eserciti d'orda (tante unita'
+    // economiche) hanno piu' rientri di chi porta poche unita' d'elite.
+    // Riempimento casuale ripetuto: ogni tentativo aggiunge unita' a caso finche' ne entra almeno una; vince il
+    // totale piu' vicino al cap, a parita' quello con piu' unita'. Prima solo la fazione indicata; se
+    // strictFaction e' falso e la fazione da sola non arriva sopra il minimo, mescola le fazioni.
     inline std::vector<std::string> VsBotBuildSquad(const std::vector<VsBotCandidate>& all, const std::string& faction,
-                                                    const VsBotQueueTier& tier, std::mt19937& rng, bool strictFaction) {
+                                                    const VsBotQueueTier& tier, std::mt19937& rng, bool strictFaction,
+                                                    int tries = 400) {
         std::vector<VsBotCandidate> own;
         for (const auto& c : all) if (c.faction == faction) own.push_back(c);
-        auto attempt = [&](const std::vector<VsBotCandidate>& pool, const std::string& pref) -> std::vector<std::string> {
-            for (int slots = kVsBotTeamSize; slots > 0; --slots) {
-                const auto idx = VsBotFillTeam(pool, slots, tier.cap, rng, 3000, pref);
-                int sum = 0; for (int i : idx) sum += pool[i].cost;
-                if (!idx.empty() && sum > tier.minExclusive) {
-                    std::vector<std::string> out;
-                    for (int i : idx) out.push_back(pool[i].unitId);
-                    return out;
+        auto attempt = [&](const std::vector<VsBotCandidate>& pool) -> std::vector<std::string> {
+            std::vector<int> best;
+            int bestSum = -1;
+            std::vector<int> pick, count(pool.size()), allowed;
+            for (int t = 0; t < tries; ++t) {
+                pick.clear();
+                std::fill(count.begin(), count.end(), 0);
+                int remaining = tier.cap;
+                for (;;) {
+                    allowed.clear();
+                    for (int i = 0; i < static_cast<int>(pool.size()); ++i)
+                        if (pool[i].cost > 0 && pool[i].cost <= remaining && count[i] < std::max(1, pool[i].maxCount)) allowed.push_back(i);
+                    if (allowed.empty()) break;
+                    const int c = allowed[rng() % allowed.size()];
+                    pick.push_back(c); ++count[c]; remaining -= pool[c].cost;
                 }
+                const int sum = tier.cap - remaining;
+                if (sum <= tier.minExclusive) continue;
+                if (sum > bestSum || (sum == bestSum && pick.size() > best.size())) { bestSum = sum; best = pick; }
             }
-            return {};
+            std::vector<std::string> out;
+            for (int i : best) out.push_back(pool[i].unitId);
+            return out;
         };
-        auto out = attempt(own, "");
-        if (out.empty() && !strictFaction) out = attempt(all, faction);
+        auto out = attempt(own);
+        if (out.empty() && !strictFaction) out = attempt(all);
         return out;
     }
 

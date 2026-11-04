@@ -770,6 +770,7 @@ namespace SunEngine {
         // Dotazione tattica (scatola di munizioni): slot in mano mentre rifornisce se' o un compagno (-1 = no)
         int resupplySlot = -1;
         float resupplyCheck = 0.0f;
+        float healCheck = 0.0f;                 // prossima valutazione "curare o attaccare"
 
         // Granate: tempo prima della prossima e lancio in preparazione (granata gia' in mano)
         float grenadeCooldown = 4.0f;

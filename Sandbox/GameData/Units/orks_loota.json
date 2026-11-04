@@ -17,7 +17,7 @@
   "vision_range": 120,
   "fov_degrees": 85,
   "weight_capacity": 160.0,
-  "base_speed": 3.9,
+  "base_speed": 3.12,
   "health": 170.0,
   "base_skin": {
     "skin_blocks": {
@@ -214,5 +214,6 @@
       "leg_r": ""
     }
   },
-  "strict_loadout": true
+  "strict_loadout": true,
+  "max_per_squad": 4
 }

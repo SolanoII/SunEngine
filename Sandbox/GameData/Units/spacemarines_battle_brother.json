@@ -4,7 +4,7 @@
   "ai_role": "versatile",
   "point_cost": 55,
   "animated_body": "astartes",
-  "base_speed": 4.5,
+  "base_speed": 3.6,
   "stamina": 350.0,
   "stamina_regen": 28.0,
   "health": 450.0,

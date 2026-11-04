@@ -16,7 +16,7 @@
   "vision_range": 110,
   "fov_degrees": 90,
   "weight_capacity": 35.0,
-  "base_speed": 5.0,
+  "base_speed": 4.0,
   "health": 40.0,
   "ammo_multiplier": 1.0,
   "default_loadout": {
@@ -39,5 +39,6 @@
   },
   "strict_loadout": true,
   "climb_height": 2.5,
-  "climb_speed": 0.6
+  "climb_speed": 0.6,
+  "max_per_squad": 5
 }

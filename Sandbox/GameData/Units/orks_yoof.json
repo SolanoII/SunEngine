@@ -19,7 +19,7 @@
   "vision_range": 100,
   "fov_degrees": 85,
   "weight_capacity": 90.0,
-  "base_speed": 4.5,
+  "base_speed": 3.6,
   "health": 110.0,
   "ammo_multiplier": 1.0,
   "default_loadout": {
@@ -41,5 +41,6 @@
     }
   },
   "loadout_version": 3,
-  "strict_loadout": true
+  "strict_loadout": true,
+  "max_per_squad": 5
 }

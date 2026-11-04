@@ -346,6 +346,7 @@ namespace SunEngine {
                 bp.model_scale = j.value("model_scale", 1.0f);
                 bp.ai_role = j.value("ai_role", std::string());
                 bp.point_cost = j.value("point_cost", 15);
+                bp.max_per_squad = j.value("max_per_squad", 5);
                 bp.base_speed = j.value("base_speed", 5.0f);
                 bp.stamina = j.value("stamina", 100.0f);
                 bp.stamina_regen = j.value("stamina_regen", 15.0f);

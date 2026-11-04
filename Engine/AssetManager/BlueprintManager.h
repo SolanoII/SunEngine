@@ -233,6 +233,7 @@ namespace SunEngine {
         // Comportamento dei bot: "ranged" (tiratore), "versatile", "melee" (vuoto = versatile)
         std::string ai_role;
         int point_cost = 10;
+        int max_per_squad = 5;   // quante unita' di questo tipo puo' avere una squadra ("max_per_squad")
         float base_speed = 0.0f;
         float stamina = 0.0f;
         float stamina_regen = 0.0f;

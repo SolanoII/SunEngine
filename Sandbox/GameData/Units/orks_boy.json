@@ -4,7 +4,7 @@
   "ai_role": "melee",
   "point_cost": 18,
   "animated_body": "ork",
-  "base_speed": 4.2,
+  "base_speed": 3.36,
   "stamina": 170.0,
   "stamina_regen": 14.0,
   "health": 160.0,
@@ -211,5 +211,6 @@
       }
     ]
   },
-  "strict_loadout": true
+  "strict_loadout": true,
+  "max_per_squad": 4
 }

@@ -615,6 +615,55 @@ namespace SunEngine {
         }
     }
 
+    // Curare o attaccare? (solo per chi ha un oggetto che cura, es. zaino di cibo dello yoof: cura tutti nel
+    // raggio, lui compreso)
+    //  - in mischia (nemico entro 3 m) non cura mai: posare il cibo adesso vorrebbe dire prendere colpi gratis;
+    //  - un compagno nel raggio sotto il 50%: cura quasi sempre (90%);
+    //  - compagni sotto il 75%: confronta il valore della cura (vita mancante x forza dei feriti, cioe' il loro
+    //    costo in punti) con quello di continuare l'attacco (forza del bersaglio, piu' alta se e' gia' ferito e
+    //    a tiro): cura se la cura vale di piu'.
+    bool BotAISystem::ShouldHeal(Scene& scene, entt::entity self, BotBrainComponent& brain, const WeaponBlueprint& item) {
+        auto& reg = scene.GetRegistry();
+        const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+        auto unitValue = [&](entt::entity u) {
+            const auto* uid = reg.try_get<UnitBlueprintId>(u);
+            const auto* ubp = uid ? BlueprintManager::Get().GetUnit(uid->id) : nullptr;
+            return ubp ? static_cast<float>(std::max(1, ubp->point_cost)) : 10.0f;
+        };
+        // In mischia con qualcuno?
+        auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+        for (auto o : all) {
+            if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+            if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 3.0f) return false;
+        }
+        const float radius = std::max(1.0f, item.equipment_range * 0.85f);
+        float healValue = 0.0f;
+        bool critical = false, anyHurt = false;
+        for (auto o : all) {
+            if (!SameTeam(reg, self, o) && o != self) continue;
+            const auto& h = all.get<HealthComponent>(o);
+            if (h.currentHealth <= 0.0f || h.maxHealth <= 0.0f) continue;
+            if (HorizontalDist(all.get<TransformComponent>(o).Position, me) > radius) continue;
+            const float frac = h.currentHealth / h.maxHealth;
+            if (frac >= 0.75f) continue;
+            anyHurt = true;
+            if (frac < 0.5f) critical = true;
+            healValue += (1.0f - frac) * unitValue(o);
+        }
+        if (!anyHurt) return false;
+        if (critical) return Random::Chance(0.9f);
+        // Valore dell'attacco in corso: bersaglio in vista, vale di piu' se gia' ferito e vicino (lo si puo' finire)
+        float pushValue = 0.0f;
+        if (brain.target != entt::null && Alive(reg, brain.target) && brain.targetVisible) {
+            const auto& th = reg.get<HealthComponent>(brain.target);
+            const float tFrac = th.maxHealth > 0.0f ? th.currentHealth / th.maxHealth : 1.0f;
+            const float d = HorizontalDist(reg.get<TransformComponent>(brain.target).Position, me);
+            const float reach = d < 12.0f ? 1.0f : (d < 25.0f ? 0.6f : 0.3f);
+            pushValue = unitValue(brain.target) * (0.5f + (1.0f - tFrac)) * reach;
+        }
+        return healValue >= pushValue;
+    }
+
     // Scatola di munizioni: quando non sta combattendo, la prende in mano e rifornisce se' stesso (riserva quasi
     // finita) o il compagno entro la portata che ne ha piu' bisogno. Appena vede un nemico torna alle armi.
     void BotAISystem::Resupply(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt) {
@@ -623,29 +672,24 @@ namespace SunEngine {
         const auto* ammo = reg.try_get<AmmoComponent>(self);
         if (!inv || !ammo) { brain.resupplySlot = -1; return; }
         if (ammo->useTimer > 0.0f) return;   // rifornimento in corso: tiene la scatola in mano
-        const bool notFighting = !(brain.targetVisible || brain.intent == BotIntent::Charge || brain.intent == BotIntent::Melee);
 
-        // Zaino di cibo: lo posa quando lui o un compagno vicino e' sotto meta' salute e non sta combattendo
-        for (int s = 4; s <= 6 && notFighting; ++s) {
+        // Cura (zaino di cibo e altri oggetti che curano): ogni ~0,6 s valuta se curare o continuare l'attacco
+        for (int s = 4; s <= 6; ++s) {
             const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
-            if (!bp || bp->equipment_type != "food_pack" || ammo->equipmentUses[s - 4] <= 0) continue;
-            auto lowHp = [&](entt::entity u) {
-                const auto* h = reg.try_get<HealthComponent>(u);
-                return h && h->currentHealth > 0.0f && h->maxHealth > 0.0f && h->currentHealth < h->maxHealth * 0.5f;
-            };
-            bool need = lowHp(self);
-            if (!need) {
-                const glm::vec3 me = reg.get<TransformComponent>(self).Position;
-                auto view = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
-                for (auto o : view) {
-                    if (o == self || !SameTeam(reg, self, o)) continue;
-                    if (HorizontalDist(view.get<TransformComponent>(o).Position, me) <= bp->equipment_range * 0.8f && lowHp(o)) { need = true; break; }
-                }
+            if (!bp || bp->heal_per_second <= 0.0f || ammo->equipmentUses[s - 4] <= 0) continue;
+            if (brain.resupplySlot == s) {   // gia' deciso: la tiene in mano e la usa appena e' in mano
+                if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+                return;
             }
-            if (!need) break;
-            brain.resupplySlot = s;
-            if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
-            return;
+            brain.healCheck -= dt;
+            if (brain.healCheck > 0.0f) break;
+            brain.healCheck = 0.6f;
+            if (ShouldHeal(scene, self, brain, *bp)) {
+                brain.resupplySlot = s;
+                if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+                return;
+            }
+            break;
         }
 
         int boxSlot = -1;
