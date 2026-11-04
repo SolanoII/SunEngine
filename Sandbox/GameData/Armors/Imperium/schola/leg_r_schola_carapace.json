@@ -1,0 +1,153 @@
+{
+  "id": "leg_r_schola_carapace",
+  "displayName": "Gambale in Carapace (dx)",
+  "comment": "Sbloccabile della Schola Progenium: armatura in carapace, molto piu' resistente della flak del guardsman.",
+  "location": "RightLeg",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_schola_cadet"
+  ],
+  "armor_rating": 11,
+  "coverage": 0.65,
+  "max_durability": 130.0,
+  "weight": 2.6,
+  "point_cost": 2,
+  "skin_blocks": {
+    "Leg_R": [
+      0.3,
+      0.32,
+      0.21,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Leg_R",
+      "offset": [
+        0,
+        -0.12,
+        -0.105
+      ],
+      "size": [
+        0.18,
+        0.32,
+        0.03
+      ],
+      "color": [
+        0.18,
+        0.2,
+        0.17,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.45
+    },
+    {
+      "block": "Leg_R",
+      "offset": [
+        0,
+        0.02,
+        -0.11
+      ],
+      "size": [
+        0.16,
+        0.08,
+        0.04
+      ],
+      "color": [
+        0.18,
+        0.2,
+        0.17,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.45
+    }
+  ],
+  "garments": [
+    {
+      "id": "schola_pants_r",
+      "bones": [
+        "Hips",
+        "RightUpLeg",
+        "RightLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.07,
+        0.6
+      ],
+      "side": -1,
+      "inflate": 0.0045,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/guard_fatigues.png",
+      "tex_tiles": 6,
+      "color": [
+        0.9,
+        0.9,
+        0.85,
+        1
+      ],
+      "roughness": 0.9
+    },
+    {
+      "id": "schola_boot_r",
+      "bones": [
+        "RightFoot",
+        "RightToeBase",
+        "RightToe_End",
+        "RightLeg"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.0,
+        0.11
+      ],
+      "side": -1,
+      "inflate": 0.0086,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 6,
+      "color": [
+        0.6,
+        0.66,
+        0.58,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.45
+    },
+    {
+      "id": "schola_leg_guard_r",
+      "bones": [
+        "RightLeg",
+        "RightUpLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.1,
+        0.42
+      ],
+      "side": -1,
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.15,
+      "inflate": 0.0172,
+      "plate_cells": 5,
+      "plate_step": 0.004,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.45,
+      "metallic": 0.45,
+      "color": [
+        0.6,
+        0.66,
+        0.58,
+        1
+      ]
+    }
+  ]
+}

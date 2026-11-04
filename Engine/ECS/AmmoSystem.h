@@ -15,6 +15,9 @@
 //   se' (collider statico: ferma colpi, linea di vista e movimento del giocatore). Muoversi azzera la canalizzazione.
 // Zaino di cibo ("food_pack"): click sinistro lo posa ai piedi; per effect_duration secondi cura heal_per_second
 //   ai compagni (stessa squadra) entro equipment_range metri.
+// Cassa di munizioni ("ammo_crate"): click sinistro la posa a terra davanti; poi chiunque della squadra, vicino e
+//   premendo E, recupera un caricatore dell'arma che ha in mano (crate_charges volte in tutto, poi la cassa sparisce).
+//   I bot vicini la usano da soli quando hanno la riserva bassa.
 // Vox caster ("vox_caster"): click sinistro e equipment_use_time secondi di chiamata (ci si puo' muovere), poi
 //   dopo summon_delay secondi arriva un rinforzo summon_unit che segue chi l'ha chiamato (lo crea GameLayer).
 #include "Components.h"
@@ -172,6 +175,7 @@ namespace SunEngine {
         void Update(Scene& scene, float dt, const BlockModelLibrary* models = nullptr) {
             auto& reg = scene.GetRegistry();
             UpdateHealZones(scene, dt);
+            UpdateCrates(scene, dt);
             auto view = reg.view<AmmoComponent, InventoryComponent, TransformComponent>(entt::exclude<CorpseComponent>);
             for (auto e : view) {
                 auto& a = view.get<AmmoComponent>(e);
@@ -225,6 +229,10 @@ namespace SunEngine {
                 }
                 if (held->equipment_type == "medkit") {
                     UpdateMedkit(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
+                    continue;
+                }
+                if (held->equipment_type == "ammo_crate") {
+                    if (wantSelf) PlaceCrate(scene, e, a, *held, slotIdx, models);
                     continue;
                 }
                 if (held->equipment_type == "vox_caster") {
@@ -285,8 +293,11 @@ namespace SunEngine {
             }
         }
 
+        entt::entity nearCrate = entt::null;   // cassa di munizioni a portata del giocatore (per l'HUD)
+
     private:
         bool m_PlayerLmbWasDown = true;   // true: il click che ha avviato la partita non conta
+        bool m_PlayerEWasDown = true;
         bool m_PlayerRmbWasDown = true;
 
         static float FootY(entt::registry& reg, entt::entity e) {
@@ -440,6 +451,103 @@ namespace SunEngine {
             a.useSlot = slot;
             a.useTarget = e;
             Feedback(a, "Medicazione in corso...");
+        }
+
+        // Cassa di munizioni: posata un metro davanti, a terra
+        void PlaceCrate(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Cassa gia' posata"); return; }
+            const auto& t = reg.get<TransformComponent>(e);
+            const float yr = glm::radians(t.AimYaw);
+            glm::vec3 pos = glm::vec3(t.Position.x, FootY(reg, e), t.Position.z) + glm::vec3(-std::sin(yr), 0.0f, -std::cos(yr)) * 1.0f;
+            if (const auto g = GetGroundHeightAt(scene, pos, pos.y + 0.3f, 0.05f)) pos.y = *g;
+            const entt::entity c = Explosives::MakeVisual(scene, pos, t.AimYaw, bp.id, models, bp.primary_color, glm::vec3(0.6f, 0.35f, 0.4f));
+            if (!models || !models->Find(bp.id)) reg.get<TransformComponent>(c).Position.y += 0.175f;   // cubo: appoggiato a terra
+            AmmoCrateComponent crate;
+            crate.owner = e;
+            if (const auto* team = reg.try_get<TeamComponent>(e)) crate.team = team->team;
+            crate.charges = crate.maxCharges = bp.crate_charges;
+            reg.emplace<AmmoCrateComponent>(c, crate);
+            a.equipmentUses[slotIdx] -= 1;
+            Feedback(a, "Cassa di munizioni a terra: E vicino per un caricatore (" + std::to_string(crate.charges) + " in tutto)");
+        }
+
+        // Un caricatore dell'arma in mano dalla cassa (nella riserva, fino al massimo). false = niente preso.
+        bool TakeFromCrate(Scene& scene, entt::entity e, entt::entity crateEntity, bool feedback) {
+            auto& reg = scene.GetRegistry();
+            auto& crate = reg.get<AmmoCrateComponent>(crateEntity);
+            auto* a = reg.try_get<AmmoComponent>(e);
+            const auto* inv = reg.try_get<InventoryComponent>(e);
+            if (!a || !inv || crate.charges <= 0) return false;
+            const int idx = Ammo::HeldRangedIndex(*inv);
+            const WeaponBlueprint* w = idx >= 0 ? Ammo::RangedAt(*inv, idx) : nullptr;
+            if (!w) { if (feedback) Feedback(*a, "Prendi in mano l'arma da ricaricare"); return false; }
+            const int room = a->maxReserve[idx] - a->reserve[idx];
+            if (room <= 0) { if (feedback) Feedback(*a, "Riserva di " + w->displayName + " gia' piena"); return false; }
+            const int got = std::min(room, w->magazine_size);
+            a->reserve[idx] += got;
+            crate.charges -= 1;
+            if (crate.owner != e && reg.valid(crate.owner)) EmitXp(crate.owner, XpCategory::AmmoAlly, XpValues::AmmoAlly);
+            else EmitXp(e, XpCategory::AmmoSelf, XpValues::AmmoSelf);
+            if (feedback) Feedback(*a, "+" + std::to_string(got) + " colpi per " + w->displayName + " (cassa: " +
+                                       std::to_string(crate.charges) + "/" + std::to_string(crate.maxCharges) + ")");
+            if (crate.charges <= 0) scene.DestroyEntity(crateEntity);   // vuota: sparisce
+            return true;
+        }
+
+        // Casse: il giocatore preme E vicino; i bot della squadra la usano passandoci accanto con la riserva bassa
+        void UpdateCrates(Scene& scene, float dt) {
+            auto& reg = scene.GetRegistry();
+            nearCrate = entt::null;
+            const bool eDown = Input::IsKeyPressed(GLFW_KEY_E);
+            const bool ePressed = eDown && !m_PlayerEWasDown;
+            m_PlayerEWasDown = eDown;
+            auto crates = reg.view<AmmoCrateComponent, TransformComponent>();
+            if (crates.begin() == crates.end()) return;
+            constexpr float kReach = 2.0f;
+            auto usable = [&](const AmmoCrateComponent& c, entt::entity u) {
+                if (c.owner == u) return true;
+                if (c.team < 0) return false;
+                const auto* t = reg.try_get<TeamComponent>(u);
+                return t && t->team == c.team;
+            };
+            auto nearest = [&](entt::entity u) {
+                entt::entity best = entt::null;
+                float bestD = kReach;
+                const auto& p = reg.get<TransformComponent>(u).Position;
+                for (auto c : crates) {
+                    const auto& cc = crates.get<AmmoCrateComponent>(c);
+                    if (cc.charges <= 0 || !usable(cc, u)) continue;
+                    const auto& cp = crates.get<TransformComponent>(c).Position;
+                    const float d = glm::length(glm::vec2(p.x - cp.x, p.z - cp.z));
+                    if (d < bestD) { bestD = d; best = c; }
+                }
+                return best;
+            };
+            for (auto c : crates) { auto& cc = crates.get<AmmoCrateComponent>(c); cc.cooldown = std::max(0.0f, cc.cooldown - dt); }
+
+            std::vector<std::pair<entt::entity, entt::entity>> takes;   // (unita', cassa)
+            auto units = reg.view<AmmoComponent, InventoryComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+            for (auto u : units) {
+                if (units.get<HealthComponent>(u).currentHealth <= 0.0f || reg.all_of<TurretMountComponent>(u)) continue;
+                const bool isPlayer = reg.all_of<PlayerTag>(u);
+                if (!isPlayer && !reg.all_of<WeaponTriggerComponent>(u)) continue;
+                const entt::entity c = nearest(u);
+                if (c == entt::null) continue;
+                if (isPlayer) {
+                    nearCrate = c;
+                    if (ePressed) takes.emplace_back(u, c);
+                }
+                else if (crates.get<AmmoCrateComponent>(c).cooldown <= 0.0f && Ammo::ReserveFraction(reg, u) <= 0.6f) {
+                    takes.emplace_back(u, c);
+                }
+            }
+            for (auto [u, c] : takes) {
+                if (!reg.valid(c)) continue;   // svuotata da un prelievo prima
+                const bool isPlayer = reg.all_of<PlayerTag>(u);
+                if (TakeFromCrate(scene, u, c, isPlayer) && reg.valid(c)) reg.get<AmmoCrateComponent>(c).cooldown = 1.0f;
+            }
+            if (nearCrate != entt::null && !reg.valid(nearCrate)) nearCrate = entt::null;
         }
 
         // Vox caster: chiamata di equipment_use_time secondi, poi il rinforzo e' in arrivo (SummonRequestComponent)

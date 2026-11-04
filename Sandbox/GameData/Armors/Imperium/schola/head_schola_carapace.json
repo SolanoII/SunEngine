@@ -1,0 +1,127 @@
+{
+  "id": "head_schola_carapace",
+  "displayName": "Elmo in Carapace",
+  "comment": "Sbloccabile della Schola Progenium: armatura in carapace, molto piu' resistente della flak del guardsman.",
+  "location": "Head",
+  "faction": "Imperium",
+  "allowed_units": [
+    "imperium_schola_cadet"
+  ],
+  "armor_rating": 16,
+  "coverage": 0.8,
+  "max_durability": 140.0,
+  "weight": 2.6,
+  "point_cost": 3,
+  "blocks_headshot_bonus": true,
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.12,
+        0
+      ],
+      "size": [
+        0.3,
+        0.1,
+        0.3
+      ],
+      "color": [
+        0.18,
+        0.2,
+        0.17,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.45
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.075,
+        0
+      ],
+      "size": [
+        0.33,
+        0.025,
+        0.33
+      ],
+      "color": [
+        0.18,
+        0.2,
+        0.17,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.45
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.05,
+        0.13
+      ],
+      "size": [
+        0.3,
+        0.08,
+        0.04
+      ],
+      "color": [
+        0.18,
+        0.2,
+        0.17,
+        1
+      ],
+      "roughness": 0.45,
+      "metallic": 0.45
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.02,
+        -0.135
+      ],
+      "size": [
+        0.24,
+        0.05,
+        0.02
+      ],
+      "color": [
+        0.08,
+        0.08,
+        0.09,
+        1
+      ],
+      "roughness": 0.2,
+      "metallic": 0.6
+    }
+  ],
+  "garments": [
+    {
+      "id": "schola_helmet",
+      "bones": [
+        "Head",
+        "HeadTop_End"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.915,
+        1.0
+      ],
+      "inflate": 0.0179,
+      "texture": "Textures/Garments/guard_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.45,
+      "metallic": 0.45,
+      "color": [
+        0.6,
+        0.66,
+        0.58,
+        1
+      ]
+    }
+  ]
+}

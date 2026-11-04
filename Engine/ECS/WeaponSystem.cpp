@@ -316,7 +316,7 @@ namespace SunEngine {
             }
 
             if (wantsToShootThisFrame && wState.fireCooldown <= 0.0f && !wState.isOverheating) {
-                if (wState.currentAmmo > 0) {
+                if (wState.currentAmmo >= std::max(1, wpBP->ammo_per_shot)) {   // hot-shot: 2 colpi per sparo
                     FireWeapon(scene, entity, wState, recoil, *wpBP, trans, stats);
                     if (effectiveMode == "burst" && wState.burstRemaining > 0) {
                         wState.burstRemaining--;
@@ -454,7 +454,7 @@ namespace SunEngine {
         WeaponStateComponent& wState, CameraRecoilComponent& recoil,
         const WeaponBlueprint& wpBP, TransformComponent& trans,
         UnitStatsComponent& stats) {
-        wState.currentAmmo--;
+        wState.currentAmmo = std::max(0, wState.currentAmmo - std::max(1, wpBP.ammo_per_shot));
         wState.fireCooldown = (wpBP.rate_of_fire > 0.0f) ? (60.0f / wpBP.rate_of_fire) : 0.15f;
 
         wState.currentHeat += 12.0f;

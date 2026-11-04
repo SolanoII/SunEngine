@@ -1,0 +1,202 @@
+{
+  "id": "schola_ammo_crate",
+  "comment": "Cassa di munizioni della Schola Progenium a blocchi: cassa verde con rinforzi, maniglie e aquila stampata. Origine al centro della base (posata a terra), +Y alto.",
+  "anchors": {
+    "grip_right": [
+      0,
+      0.36,
+      0
+    ]
+  },
+  "parts": [
+    {
+      "name": "cassa",
+      "offset": [
+        0,
+        0.17,
+        0
+      ],
+      "size": [
+        0.6,
+        0.34,
+        0.38
+      ],
+      "color": [
+        0.28,
+        0.31,
+        0.21,
+        1
+      ],
+      "roughness": 0.75,
+      "metallic": 0.1
+    },
+    {
+      "name": "coperchio",
+      "offset": [
+        0,
+        0.355,
+        0
+      ],
+      "size": [
+        0.62,
+        0.03,
+        0.4
+      ],
+      "color": [
+        0.24,
+        0.27,
+        0.18,
+        1
+      ],
+      "roughness": 0.7,
+      "metallic": 0.15
+    },
+    {
+      "name": "rinforzo_sx",
+      "offset": [
+        -0.27,
+        0.17,
+        0
+      ],
+      "size": [
+        0.04,
+        0.35,
+        0.4
+      ],
+      "color": [
+        0.14,
+        0.14,
+        0.15,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "rinforzo_dx",
+      "offset": [
+        0.27,
+        0.17,
+        0
+      ],
+      "size": [
+        0.04,
+        0.35,
+        0.4
+      ],
+      "color": [
+        0.14,
+        0.14,
+        0.15,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "maniglia_sx",
+      "offset": [
+        -0.31,
+        0.24,
+        0
+      ],
+      "size": [
+        0.02,
+        0.04,
+        0.14
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "maniglia_dx",
+      "offset": [
+        0.31,
+        0.24,
+        0
+      ],
+      "size": [
+        0.02,
+        0.04,
+        0.14
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.1,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.7
+    },
+    {
+      "name": "aquila",
+      "offset": [
+        0,
+        0.2,
+        -0.193
+      ],
+      "size": [
+        0.2,
+        0.08,
+        0.006
+      ],
+      "color": [
+        0.8,
+        0.7,
+        0.35,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.6
+    },
+    {
+      "name": "striscia",
+      "offset": [
+        0,
+        0.09,
+        -0.193
+      ],
+      "size": [
+        0.5,
+        0.03,
+        0.006
+      ],
+      "color": [
+        0.85,
+        0.65,
+        0.1,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.1
+    },
+    {
+      "name": "chiusura",
+      "offset": [
+        0,
+        0.33,
+        -0.2
+      ],
+      "size": [
+        0.06,
+        0.05,
+        0.02
+      ],
+      "color": [
+        0.6,
+        0.5,
+        0.25,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.8
+    }
+  ]
+}

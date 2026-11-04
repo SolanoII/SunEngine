@@ -222,6 +222,10 @@ namespace SunEngine {
         // un'unita' summon_unit che segue chi l'ha chiamata e combatte con lui (cerchio verde sotto i piedi).
         std::string summon_unit;
         float summon_delay = 5.0f;
+        // Colpi consumati da ogni sparo (es. hot-shot: 2). Con meno colpi di questi nel caricatore si ricarica.
+        int ammo_per_shot = 1;
+        // Cassa di munizioni ("ammo_crate"): posata a terra, E vicino = un caricatore dell'arma in mano, crate_charges volte
+        int crate_charges = 3;
         float companion_health = 30.0f;      // lo squig si puo' uccidere: poca salute...
         float companion_evasion = 0.30f;     // ...ma schiva il 30% dei colpi
 

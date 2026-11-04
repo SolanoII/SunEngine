@@ -5,7 +5,8 @@
   "location": "Head",
   "faction": "Imperium",
   "allowed_units": [
-    "imperium_guardsman_recruit"
+    "imperium_guardsman_recruit",
+    "imperium_schola_cadet"
   ],
   "armor_rating": 12,
   "coverage": 0.75,

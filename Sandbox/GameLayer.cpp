@@ -2293,6 +2293,14 @@ namespace SunEngine {
             else centered(by + 94.0f, "Tieni premuto E per 1,5 s per uscire", IM_COL32(160, 160, 160, 220));
             return;
         }
+        // Cassa di munizioni a portata
+        if (m_EquipmentSystem.nearCrate != entt::null && reg.valid(m_EquipmentSystem.nearCrate)) {
+            if (const auto* c = reg.try_get<AmmoCrateComponent>(m_EquipmentSystem.nearCrate)) {
+                char txt[128];
+                std::snprintf(txt, sizeof(txt), "E: prendi un caricatore dell'arma in mano   (cassa %d/%d)", c->charges, c->maxCharges);
+                centered(by - 26.0f, txt, IM_COL32(255, 210, 90, 255));
+            }
+        }
         if (m_TurretSystem.nearTurret != entt::null && reg.valid(m_TurretSystem.nearTurret)) {
             const auto* t = reg.try_get<TurretComponent>(m_TurretSystem.nearTurret);
             const auto* bp = t ? BlueprintManager::Get().GetWeapon(t->itemId) : nullptr;
@@ -2363,6 +2371,8 @@ namespace SunEngine {
             else if (type == "medkit")
                 textRight("Sinistro: curati di " + std::to_string(static_cast<int>(held->heal_amount)) + " salute in " +
                           std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) + " s", baseSize, grey);
+            else if (type == "ammo_crate")
+                textRight("Sinistro: posa la cassa a terra (" + std::to_string(held->crate_charges) + " caricatori, E vicino per prenderne uno)", baseSize, grey);
             else if (type == "vox_caster")
                 textRight("Sinistro: chiama un rinforzo (" + std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) +
                           " s di chiamata, arriva dopo " + std::to_string(static_cast<int>(std::lround(held->summon_delay))) + " s)", baseSize, grey);
@@ -3079,6 +3089,7 @@ namespace SunEngine {
             std::vector<entt::entity> leftovers;
             for (auto e : m_Scene.GetRegistry().view<BarricadeTag>()) leftovers.push_back(e);
             for (auto e : m_Scene.GetRegistry().view<HealZoneComponent>()) leftovers.push_back(e);
+            for (auto e : m_Scene.GetRegistry().view<AmmoCrateComponent>()) leftovers.push_back(e);
             for (auto e : leftovers) if (m_Scene.GetRegistry().valid(e)) m_Scene.DestroyEntity(e);
         }
 
@@ -6220,6 +6231,17 @@ namespace SunEngine {
             else if (r < 0.52f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_grenade_launcher");
             tryUpgrade(0.25f, u.meleeWeaponId, "guardsman_chainsword");
             tryUpgrade(0.25f, u.equipmentSlots[1], "guardsman_vox_caster");
+        }
+        else if (u.blueprintId == "imperium_schola_cadet") {
+            tryUpgrade(0.40f, u.primaryWeaponId, "guardsman_autogun");          // alternative base (come il guardsman)
+            tryUpgrade(0.35f, u.secondaryWeaponId, "guardsman_autopistol");
+            tryUpgrade(0.35f, u.primaryWeaponId, "schola_hotshot_lasgun");
+            tryUpgrade(0.30f, u.secondaryWeaponId, "schola_hotshot_laspistol");
+            tryUpgrade(0.30f, u.armorTorsoId, "torso_schola_carapace");
+            tryUpgrade(0.30f, u.armorHeadId, "head_schola_carapace");
+            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_schola_carapace"); }
+            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_schola_carapace"); }
+            tryUpgrade(0.30f, u.equipmentSlots[1], "schola_ammo_crate");
         }
         else if (u.blueprintId == "imperium_conscript") {
             tryUpgrade(0.30f, u.equipmentSlots[0], "conscript_frag");

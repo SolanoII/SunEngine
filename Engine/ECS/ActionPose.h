@@ -57,7 +57,7 @@ namespace SunEngine {
                         const auto* bp = BlueprintManager::Get().GetWeapon(inv.GetSlotItemId(4 + s));
                         // Il lancio parte gia' quasi caricato: la granata esce subito al comando
                         if (bp && bp->equipment_type == "grenade") { ap.action = 1; ap.time = 0.30f; ap.duration = 0.75f; }
-                        else if (bp && (bp->equipment_type == "food_pack" || bp->equipment_type == "landmine")) { ap.action = 2; ap.time = 0.15f; ap.duration = 0.9f; }
+                        else if (bp && (bp->equipment_type == "food_pack" || bp->equipment_type == "landmine" || bp->equipment_type == "ammo_crate")) { ap.action = 2; ap.time = 0.15f; ap.duration = 0.9f; }
                     }
                     ap.prevUses[s] = uses;
                 }

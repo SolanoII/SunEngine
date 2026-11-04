@@ -1,0 +1,57 @@
+{
+  "id": "schola_hotshot_lasgun",
+  "displayName": "Hot-shot Lasgun",
+  "faction": "Imperium",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 3.6,
+  "point_cost": 5,
+  "has_scope": false,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 40,
+  "reload_time_sec": 2.2,
+  "fire_modes": [
+    "semi"
+  ],
+  "rate_of_fire": 600.0,
+  "base_damage": 45.0,
+  "armor_penetration": 10,
+  "range_effective": 80.0,
+  "damage_falloff_start": 40.0,
+  "damage_falloff_end": 80.0,
+  "spread_base": 0.02,
+  "recoil_force": 0.15,
+  "heat_capacity": 100.0,
+  "projectile_type": "laser",
+  "is_beam": true,
+  "primary_color": [
+    1.0,
+    0.55,
+    0.1,
+    1.0
+  ],
+  "projectile_width": 0.08,
+  "weapon_scale": [
+    0.1,
+    0.1,
+    0.75
+  ],
+  "hold_offset": [
+    0.35,
+    -0.15,
+    -0.2
+  ],
+  "spare_magazines": 2,
+  "comment": "Sbloccabile della Schola Progenium: lasgun a colpi sovraccaricati, una volta e mezza il danno di una lasgun e piu' rapida. Raggi arancioni e piu' grossi. Caricatore da 40 e 80 di riserva, ma ogni colpo ne consuma 2.",
+  "allowed_units": [
+    "imperium_schola_cadet"
+  ],
+  "ammo_per_shot": 2,
+  "core_color": [
+    1.0,
+    0.85,
+    0.5,
+    1.0
+  ]
+}

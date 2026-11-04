@@ -321,6 +321,15 @@ namespace SunEngine {
         glm::vec3 useStartPos{ 0.0f }; // dove e' iniziata la canalizzazione (scrap: bisogna restare fermi)
     };
 
+    // Cassa di munizioni posata a terra (schola progenium): E vicino = un caricatore dell'arma in mano, 'charges' volte
+    struct AmmoCrateComponent {
+        entt::entity owner = entt::null;
+        int team = -1;                 // squadra di chi l'ha posata (-1 = nessuna: solo il padrone)
+        int charges = 3;
+        int maxCharges = 3;
+        float cooldown = 0.0f;         // fra un prelievo e l'altro dei bot
+    };
+
     // Rinforzi chiamati col vox caster: arrivano dopo 'timer' secondi accanto a chi li ha chiamati (li crea GameLayer)
     struct SummonRequestComponent {
         struct Pending { std::string unitId; float timer = 5.0f; };

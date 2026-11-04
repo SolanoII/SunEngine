@@ -752,6 +752,34 @@ namespace SunEngine {
             return;
         }
 
+        // Cassa di munizioni: la posa quando lui o un compagno vicino ha la riserva bassa e nessun nemico e' a 10 m
+        // (poi ci passa accanto e la usa, vedi EquipmentSystem::UpdateCrates)
+        for (int s = 4; s <= 6; ++s) {
+            const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
+            if (!bp || bp->equipment_type != "ammo_crate" || ammo->equipmentUses[s - 4] <= 0) continue;
+            if (brain.resupplySlot != s) {
+                const glm::vec3 me = reg.get<TransformComponent>(self).Position;
+                bool need = Ammo::ReserveFraction(reg, self) <= 0.5f;
+                auto mates = reg.view<AmmoComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+                for (auto o : mates) {
+                    if (need) break;
+                    if (o == self || !SameTeam(reg, self, o) || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                    if (HorizontalDist(mates.get<TransformComponent>(o).Position, me) <= 6.0f && Ammo::ReserveFraction(reg, o) <= 0.4f) need = true;
+                }
+                if (!need) break;
+                bool enemyNear = false;
+                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                for (auto o : all) {
+                    if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                    if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 10.0f) { enemyNear = true; break; }
+                }
+                if (enemyNear) break;
+                brain.resupplySlot = s;
+            }
+            if (inv->currentSlot == s) reg.get_or_emplace<WeaponTriggerComponent>(self).useEquipment = true;
+            return;
+        }
+
         // Medikit (cura se stesso in 3 s): sotto il 50% di salute e senza nemici entro 10 m, perche' per tutta la
         // medicazione non spara. Una volta deciso lo tiene in mano finche' la medicazione non finisce.
         for (int s = 4; s <= 6; ++s) {

@@ -185,6 +185,8 @@ namespace SunEngine {
                 bp.melta_shot = j.value("melta_shot", false);
                 bp.summon_unit = j.value("summon_unit", std::string());
                 bp.summon_delay = j.value("summon_delay", 5.0f);
+                bp.ammo_per_shot = std::max(1, j.value("ammo_per_shot", 1));
+                bp.crate_charges = std::max(1, j.value("crate_charges", 3));
                 bp.explode_on_impact = j.value("explode_on_impact", false);
                 bp.structure_damage_multiplier = j.value("structure_damage_multiplier", 1.0f);
                 bp.structure_health = j.value("structure_health", 250.0f);

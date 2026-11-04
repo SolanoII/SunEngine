@@ -540,6 +540,89 @@
           "parent": "ig_guardsman",
           "research_cost": 35000,
           "purchase_cost": 60000
+        },
+        {
+          "id": "ig_schola_item_hotshot_lasgun",
+          "item": "schola_hotshot_lasgun",
+          "name": "Hot-shot Lasgun",
+          "tier": 3,
+          "col": 3,
+          "row": 20,
+          "parent": "ig_schola_cadet",
+          "research_cost": 30000,
+          "purchase_cost": 55000
+        },
+        {
+          "id": "ig_schola_item_hotshot_laspistol",
+          "item": "schola_hotshot_laspistol",
+          "name": "Hot-shot Laspistol",
+          "tier": 3,
+          "col": 3,
+          "row": 21,
+          "parent": "ig_schola_cadet",
+          "research_cost": 20000,
+          "purchase_cost": 35000
+        },
+        {
+          "id": "ig_schola_item_ammo_crate",
+          "item": "schola_ammo_crate",
+          "name": "Cassa di Munizioni",
+          "tier": 3,
+          "col": 3,
+          "row": 22,
+          "parent": "ig_schola_cadet",
+          "research_cost": 25000,
+          "purchase_cost": 45000
+        },
+        {
+          "id": "ig_schola_item_carapace_torso",
+          "item": "torso_schola_carapace",
+          "name": "Corazza in Carapace",
+          "tier": 3,
+          "col": 3,
+          "row": 23,
+          "parent": "ig_schola_cadet",
+          "research_cost": 30000,
+          "purchase_cost": 50000
+        },
+        {
+          "id": "ig_schola_item_carapace_head",
+          "item": "head_schola_carapace",
+          "name": "Elmo in Carapace",
+          "tier": 3,
+          "col": 3,
+          "row": 24,
+          "parent": "ig_schola_item_carapace_torso",
+          "research_cost": 20000,
+          "purchase_cost": 35000
+        },
+        {
+          "id": "ig_schola_item_carapace_arms",
+          "items": [
+            "arm_l_schola_carapace",
+            "arm_r_schola_carapace"
+          ],
+          "name": "Spallacci in Carapace",
+          "tier": 3,
+          "col": 3,
+          "row": 25,
+          "parent": "ig_schola_item_carapace_torso",
+          "research_cost": 20000,
+          "purchase_cost": 35000
+        },
+        {
+          "id": "ig_schola_item_carapace_legs",
+          "items": [
+            "leg_l_schola_carapace",
+            "leg_r_schola_carapace"
+          ],
+          "name": "Gambali in Carapace",
+          "tier": 3,
+          "col": 3,
+          "row": 26,
+          "parent": "ig_schola_item_carapace_arms",
+          "research_cost": 20000,
+          "purchase_cost": 35000
         }
       ]
     },
