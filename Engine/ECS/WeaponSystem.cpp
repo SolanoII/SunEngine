@@ -11,6 +11,7 @@
 #include "RaycastUtils.h"          // <-- AGGIUNGI
 #include "HitUtils.h"
 #include "AmmoSystem.h"
+#include "Marksmanship.h"
 #include "../Core/Random.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -213,6 +214,31 @@ namespace SunEngine {
             }
             bool wantsToFire = isPlayer ? Input::IsMouseButtonPressed(0) : trigger->fire;
             const bool wantsReload = isPlayer ? Input::IsKeyPressed(GLFW_KEY_R) : trigger->reload;
+
+            // Preparazione del tiro: fermi la mira si assesta (piu' in fretta con buona capacita' di tiro e
+            // accovacciati); dal fianco si arriva al massimo a meta' strada, muovendosi poco, correndo per niente.
+            {
+                const float skill = Marksmanship::Skill01(stats);
+                float speed = 0.0f;
+                if (wState.hasLastPos && deltaTime > 0.0f) {
+                    const glm::vec2 d(trans.Position.x - wState.lastPos.x, trans.Position.z - wState.lastPos.z);
+                    speed = glm::length(d) / deltaTime;
+                }
+                wState.lastPos = trans.Position; wState.hasLastPos = true;
+                float cap = 1.0f;
+                if (stats.sprinting) cap = 0.0f;
+                else if (speed > 0.6f && speed < 30.0f) cap = 0.3f;
+                if (isPlayer && !Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT)) cap = std::min(cap, 0.6f);
+                float rate = 1.0f / Marksmanship::SettleTime(skill);
+                if (const auto* cr = scene.GetRegistry().try_get<CrouchComponent>(entity); cr && cr->amount > 0.5f) rate *= 1.5f;
+                if (wState.aimSteady < cap) wState.aimSteady = std::min(cap, wState.aimSteady + rate * deltaTime);
+                else wState.aimSteady = std::max(cap, wState.aimSteady - 3.0f * deltaTime);
+                wState.sinceShot += deltaTime;
+                // Rinculo: durante la raffica recupera piano (la mira sale); chi tira bene lo tiene giu' meglio.
+                // I bot "tirano giu'" da soli un po' di piu', non avendo il mouse.
+                if (wState.sinceShot < 0.3f) recoil.recoverySpeed = isPlayer ? (2.0f + 3.0f * skill) : (4.0f + 8.0f * skill);
+                else recoil.recoverySpeed = 10.0f;
+            }
 
             // -------- ARMI A RAGGIO CONTINUO (MELTA GUN) --------
             // Restano "auto finché tieni premuto": non ha senso semi/burst su un beam.
@@ -474,13 +500,33 @@ namespace SunEngine {
             SUN_CORE_WARN("ARMA SURRISCALDATA!");
         }
 
-        // Accovacciato: posizione piu' stabile, rinculo e dispersione ridotti fino al 35%
-        float crouchSteady = 1.0f;
+        // Stabilita' del tiratore: accovacciato (fino a -35%), ordine "Take AIM!", insegna imperiale vicina,
+        // elmetto con visiera. Riduce rinculo, ventaglio, deviazione e colpi di striscio.
+        const float skill = Marksmanship::Skill01(stats);
+        float steadyMult = 1.0f;
         if (const auto* cr = scene.GetRegistry().try_get<CrouchComponent>(shooter))
-            crouchSteady = 1.0f - 0.35f * std::clamp(cr->amount, 0.0f, 1.0f);
-        recoil.recoilPitch += wpBP.recoil_force * crouchSteady;
-        recoil.recoilYaw += (Random::Float01() - 0.5f) * wpBP.recoil_force * 0.5f * crouchSteady;
-        glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
+            steadyMult *= 1.0f - 0.35f * std::clamp(cr->amount, 0.0f, 1.0f);
+        if (orderBuff) steadyMult *= orderBuff->spreadMult;
+        if (const auto* aura = scene.GetRegistry().try_get<MoraleAuraComponent>(shooter); aura && aura->timeLeft > 0.0f)
+            steadyMult *= std::max(0.0f, 1.0f - aura->bonus);
+        if (const auto* helm = BlueprintManager::Get().GetArmorPiece(stats.armorSet.head.id); helm && helm->aim_bonus > 0.0f)
+            steadyMult *= std::max(0.0f, 1.0f - helm->aim_bonus);
+        const float shotSteady = wState.aimSteady;   // assestamento al momento del colpo
+        wState.aimSteady = std::max(0.0f, wState.aimSteady - Marksmanship::kSteadyLossPerShot);
+        wState.sinceShot = 0.0f;
+
+        // Rinculo di QUESTO colpo: si applica dopo averlo sparato (il primo colpo va dove punti). Spinge la mira
+        // verso l'alto lungo un raggio a caso di un arco largo quanto e' scarsa la capacita' di tiro.
+        struct KickOnExit {
+            CameraRecoilComponent& r; float pitch, yaw;
+            ~KickOnExit() { r.recoilPitch = std::min(r.recoilPitch + pitch, Marksmanship::kMaxRecoilPitch); r.recoilYaw += yaw; }
+        };
+        const float kick = wpBP.recoil_force * Marksmanship::KickMult(skill) * steadyMult;
+        const float arcHalf = glm::radians(Marksmanship::SprayArcDeg(skill) * 0.5f) * steadyMult;
+        const float theta = Random::Range(-arcHalf, arcHalf);
+        KickOnExit kickGuard{ recoil, kick * std::cos(theta), kick * std::sin(theta) };
+
+        glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw + recoil.recoilYaw), glm::vec3(0.0f, 1.0f, 0.0f));
         rotMat = glm::rotate(rotMat, glm::radians(trans.AimPitch + recoil.recoilPitch), glm::vec3(1.0f, 0.0f, 0.0f));
         glm::vec3 baseDir = glm::normalize(glm::vec3(rotMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
 
@@ -578,20 +624,26 @@ namespace SunEngine {
         if (spreadBase <= 0.001f && isShotgun) {
             spreadBase = 0.09f;
         }
-        float totalSpread = (spreadBase + wState.currentSpread) * (isShotgun ? 1.0f : crouchSteady);   // la rosa dei pallettoni non cambia
-        if (orderBuff) totalSpread *= orderBuff->spreadMult;
-        // Insegna imperiale vicina: morale alto, mani piu' ferme
-        if (const auto* aura = scene.GetRegistry().try_get<MoraleAuraComponent>(shooter); aura && aura->timeLeft > 0.0f)
-            totalSpread *= std::max(0.0f, 1.0f - aura->bonus);
-        // Elmetto con visiera (es. scout): mira piu' precisa
-        if (const auto* helm = BlueprintManager::Get().GetArmorPiece(stats.armorSet.head.id); helm && helm->aim_bonus > 0.0f)
-            totalSpread *= std::max(0.0f, 1.0f - helm->aim_bonus);
+        // Rosa dei pallettoni (solo fucili a pompa): e' il disegno dell'arma, non dipende dal tiratore
+        const float totalSpread = isShotgun ? spreadBase : 0.0f;
 
         glm::vec3 rightDir = glm::normalize(glm::cross(baseDir, glm::vec3(0.0f, 1.0f, 0.0f)));
         if (glm::length(rightDir) < 0.001f) {
             rightDir = glm::normalize(glm::cross(baseDir, glm::vec3(1.0f, 0.0f, 0.0f)));
         }
         glm::vec3 upDir = glm::normalize(glm::cross(rightDir, baseDir));
+
+        // Mira non assestata (dal fianco, muovendosi, appena dopo un colpo): un po' di deviazione casuale,
+        // uguale per tutti i pallettoni. A mira assestata e' zero: il colpo va esattamente sul mirino.
+        {
+            const float cone = Marksmanship::UnsteadyCone(skill, isShotgun ? 0.0f : spreadBase, shotSteady) * steadyMult;
+            if (cone > 1e-5f) {
+                const float r = std::sqrt(Random::Float01()) * cone;
+                const float a = Random::Range(0.0f, 6.28318530718f);
+                baseDir = glm::normalize(baseDir + (rightDir * std::cos(a) + upDir * std::sin(a)) * r);
+            }
+        }
+        const float grazeChance = Marksmanship::GrazeChance(skill, shotSteady) * steadyMult;
 
         for (int p = 0; p < numProjectiles; ++p) {
             glm::vec3 shootDir = baseDir;
@@ -623,6 +675,9 @@ namespace SunEngine {
                 float finalDamage = isUnderbarrelShotgun ? 15.0f : wpBP.base_damage;
                 int effectiveAP = isUnderbarrelShotgun ? 5 : wpBP.armor_penetration;
                 const float healthBefore = targetHealth.currentHealth;
+                // Di striscio: con scarsa capacita' di tiro il colpo prende solo di lato (meno danno)
+                const bool graze = Random::Chance(grazeChance);
+                if (graze) finalDamage *= Marksmanship::kGrazeDamage;
 
                 finalDamage = CalculateDamageWithFalloff(finalDamage, hit.distance,
                     wpBP.damage_falloff_start,
@@ -649,7 +704,7 @@ namespace SunEngine {
                     DamageResolver::ResolveHit(finalDamage, effectiveAP, hit.location,
                         targetStats, targetHealth);
                 }
-                EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore);
+                EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore, graze);
             }
             // Colpo su una struttura costruita (barricata, muro): meta' danno, puo' romperla
             else if (!parried && hit.hit && !hit.hitUnit && hit.entity != entt::null && scene.GetRegistry().valid(hit.entity) &&

@@ -332,6 +332,12 @@ namespace SunEngine {
         //   Quando e' 0, serve un nuovo click per ripartire (burst non auto-ripetente).
         bool wasFiringLastFrame = false;
         int  burstRemaining = 0;
+
+        // Preparazione del tiro (vedi Marksmanship.h): 0 = mira scomposta, 1 = assestata (colpo sul mirino)
+        float aimSteady = 0.0f;
+        float sinceShot = 10.0f;          // secondi dall'ultimo colpo (rinculo che recupera piano durante la raffica)
+        glm::vec3 lastPos{ 0.0f };        // per capire se ci si sta muovendo
+        bool hasLastPos = false;
     };
 
     // Munizioni limitate. Il caricatore dell'arma a distanza in mano vive in WeaponStateComponent::currentAmmo;
@@ -649,6 +655,7 @@ namespace SunEngine {
         float damage = 0.0f;             // danno REALE inflitto (dopo armatura/robustezza), sommato per raffica
         float targetMaxHealth = 100.0f;
         bool killed = false;
+        bool graze = false;              // ultimo colpo preso di striscio (danno ridotto)
         float age = 0.0f;
     };
 

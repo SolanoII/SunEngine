@@ -87,7 +87,7 @@ namespace SunEngine {
     inline float& PlayerDamageDealtAccum() { static float v = 0.0f; return v; }
 
     inline void EmitHitFeedback(Scene& scene, entt::entity shooter, entt::entity target,
-        const glm::vec3& hitPoint, HitboxLocation location, float healthBefore) {
+        const glm::vec3& hitPoint, HitboxLocation location, float healthBefore, bool graze = false) {
         auto& reg = scene.GetRegistry();
         if (!reg.valid(shooter) || !reg.all_of<PlayerTag>(shooter)) return;
         if (!reg.valid(target)) return;
@@ -130,6 +130,7 @@ namespace SunEngine {
         }
         marker->damage += dealt;
         marker->killed = marker->killed || killed;
+        marker->graze = graze;
         marker->localOffset = hitPoint - tTrans->Position;
         marker->worldPoint = hitPoint;
 

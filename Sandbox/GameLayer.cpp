@@ -3274,6 +3274,10 @@ namespace SunEngine {
                 dl->AddLine(ImVec2(center.x - s, center.y - s), ImVec2(center.x + s, center.y + s), col, 2.5f);
                 dl->AddLine(ImVec2(center.x - s, center.y + s), ImVec2(center.x + s, center.y - s), col, 2.5f);
             }
+            else if (m.graze) {   // preso di striscio: danno ridotto
+                const ImU32 gc = ImGui::GetColorU32(ImVec4(0.85f, 0.85f, 0.85f, alpha));
+                dl->AddText(ImVec2(center.x + radius * grow + 4.0f, center.y - 7.0f), gc, "di striscio");
+            }
         }
     }
 
@@ -4925,7 +4929,25 @@ namespace SunEngine {
 
             float dotSize = 4.0f;
             glm::vec2 dotPos = center - glm::vec2(dotSize * 0.5f);
-            Renderer::DrawQuadUI(dotPos, glm::vec2(dotSize, dotSize), glm::vec4(1.0f, 1.0f, 1.0f, 0.9f), screen);
+            // Preparazione del tiro: quattro tacche che si stringono attorno al punto man mano che la mira si
+            // assesta; a mira assestata il punto diventa verde (il prossimo colpo va esattamente li').
+            float steady = 0.0f;
+            bool rangedInHand = false;
+            if (const auto* ws = m_Scene.GetRegistry().try_get<WeaponStateComponent>(m_PlayerEntity)) steady = ws->aimSteady;
+            if (const auto* inv = m_Scene.GetRegistry().try_get<InventoryComponent>(m_PlayerEntity)) {
+                const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetActiveWeaponId());
+                rangedInHand = bp && !bp->is_melee && !bp->is_equipment;
+            }
+            const bool settled = rangedInHand && steady >= 0.98f;
+            if (rangedInHand) {
+                const float gap = 4.0f + (1.0f - steady) * 14.0f, len = 5.0f, th = 2.0f;
+                const glm::vec4 tc = settled ? glm::vec4(0.4f, 1.0f, 0.5f, 0.9f) : glm::vec4(1.0f, 1.0f, 1.0f, 0.55f + 0.35f * steady);
+                Renderer::DrawQuadUI(center + glm::vec2(-th * 0.5f, -gap - len), glm::vec2(th, len), tc, screen);   // su
+                Renderer::DrawQuadUI(center + glm::vec2(-th * 0.5f, gap), glm::vec2(th, len), tc, screen);          // giu'
+                Renderer::DrawQuadUI(center + glm::vec2(-gap - len, -th * 0.5f), glm::vec2(len, th), tc, screen);   // sinistra
+                Renderer::DrawQuadUI(center + glm::vec2(gap, -th * 0.5f), glm::vec2(len, th), tc, screen);          // destra
+            }
+            Renderer::DrawQuadUI(dotPos, glm::vec2(dotSize, dotSize), settled ? glm::vec4(0.4f, 1.0f, 0.5f, 1.0f) : glm::vec4(1.0f, 1.0f, 1.0f, 0.9f), screen);
 
             if (m_Scene.GetRegistry().all_of<MeleeStateComponent>(m_PlayerEntity)) {
                 auto& melee = m_Scene.GetRegistry().get<MeleeStateComponent>(m_PlayerEntity);

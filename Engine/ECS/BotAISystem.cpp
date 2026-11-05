@@ -601,12 +601,13 @@ namespace SunEngine {
                                                 brain.role == BotRole::Melee || rangedSlot < 0);
         SetActiveSlot(reg, self, resupplying ? brain.resupplySlot : (meleeMode ? 2 : rangedSlot));
 
-        // Errore di mira: dipende da accuracy_skill, aumenta muovendosi e quando si viene colpiti
+        // Errore di mira (la "mano" del bot): dipende da accuracy_skill, aumenta muovendosi e quando si viene colpiti.
+        // Piu' piccolo di prima: la capacita' di tiro ora pesa anche su rinculo, ventaglio e colpi di striscio.
         brain.aimErrorTimer -= dt;
         if (brain.aimErrorTimer <= 0.0f) {
             brain.aimErrorTimer = Random::Range(0.25f, 0.5f);
             const float skill = std::clamp(stats.accuracySkill / 100.0f, 0.0f, 1.0f);
-            float spread = glm::mix(6.5f, 0.6f, skill);
+            float spread = glm::mix(4.0f, 0.5f, skill);
             if (brain.isMoving) spread *= 1.6f;
             spread *= 1.0f + std::min(1.5f, brain.recentDamage / std::max(1.0f, stats.maxHealth) * 3.0f);
             brain.aimError = glm::vec2(Random::Range(-1.0f, 1.0f), Random::Range(-1.0f, 1.0f)) * spread;
