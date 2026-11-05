@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Components.h"
+#include "VfxEvents.h"
 #include "../Scene/Scene.h"
 #include "../Core/Input.h"
 #include "../Core/Logger/Log.h"
@@ -20,6 +21,8 @@ namespace SunEngine {
 
     class WeaponSystem {
     public:
+        // Aspetto del colpo di un'arma (lampo, proiettile in volo, impatto): vedi VfxEvents.h
+        static WeaponFx FxFor(const WeaponBlueprint& w, bool underbarrelShotgun = false);
         WeaponSystem() = default;
         ~WeaponSystem();
 

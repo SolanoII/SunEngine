@@ -121,6 +121,8 @@ namespace SunEngine {
         // Scala usata per convertire la velocita' incisa nelle clip (cm) in m/s
         void SetModelScale(float scale) { m_ModelScale = scale; }
         void SetPlaybackRateLimits(float minRate, float maxRate) { m_MinRate = minRate; m_MaxRate = maxRate; }
+        // Ritmo della razza (RaceMotion.h): il gretchin fa passi piu' corti e rapidi, l'ogryn piu' lenti
+        void SetStyleRate(float rate) { m_StyleRate = std::clamp(rate, 0.5f, 2.0f); }
 
         bool GetBoneModelTransform(const std::string& boneName, glm::mat4& out) const {
             return m_Animator.GetBoneModelTransform(boneName, out);
@@ -167,11 +169,11 @@ namespace SunEngine {
                 || m_CurrentState == RifleAnimState::CrouchWalk
                 || m_CurrentState == RifleAnimState::StrafeLeft || m_CurrentState == RifleAnimState::StrafeRight
                 || m_CurrentState == RifleAnimState::Sprint);
-            if (!locomotion || in.groundSpeed < 0.2f) return 1.0f;
+            if (!locomotion || in.groundSpeed < 0.2f) return m_StyleRate;
 
             float clipSpeed = clip.GetRootTravelSpeed() * m_ModelScale;   // m/s inciti nella clip
-            if (clipSpeed < 0.2f) return 1.0f;
-            return std::clamp(in.groundSpeed / clipSpeed, m_MinRate, m_MaxRate);
+            if (clipSpeed < 0.2f) return m_StyleRate;
+            return std::clamp(in.groundSpeed / clipSpeed * m_StyleRate, m_MinRate, m_MaxRate * std::max(1.0f, m_StyleRate));
         }
 
         RifleAnimState DetermineState(const RifleAnimInput& in) const {
@@ -208,5 +210,6 @@ namespace SunEngine {
         float m_ModelScale = 0.01f;   // modello in centimetri
         float m_MinRate = 0.7f;
         float m_MaxRate = 1.8f;
+        float m_StyleRate = 1.0f;
     };
 }

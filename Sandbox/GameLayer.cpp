@@ -1789,6 +1789,7 @@ namespace SunEngine {
             if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
         }
         m_UnitAnims.clear();
+        m_RaceMotion.clear();
     }
 
     void GameLayer::UpdateUnitAnimations(float deltaTime) {
@@ -1807,6 +1808,7 @@ namespace SunEngine {
             for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
             if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
             m_UnitAnims.erase(e);
+            m_RaceMotion.erase(e);
         }
         if (!enabled) return;
 
@@ -2911,6 +2913,54 @@ namespace SunEngine {
         BuildUnitPose(m_PlayerEntity, m_PlayerPose, controller, m_PoseTime, m_PoseClimb, deltaTime);
     }
 
+    RaceMotionKind GameLayer::RaceMotionOf(AnimatedBodyKind k) {
+        switch (k) {
+        case AnimatedBodyKind::Ork: return RaceMotionKind::Ork;
+        case AnimatedBodyKind::Gretchin: return RaceMotionKind::Gretchin;
+        case AnimatedBodyKind::Astartes: return RaceMotionKind::Astartes;
+        case AnimatedBodyKind::Neophyte: return RaceMotionKind::Neophyte;
+        case AnimatedBodyKind::Ogryn: return RaceMotionKind::Ogryn;
+        default: return RaceMotionKind::Human;
+        }
+    }
+
+    // Stile di movimento della razza (RaceMotion.h) per un'unita' animata: velocita' dal suo spostamento, mira,
+    // corsa, accovacciato e "urlo" (carica, WAAAGH!, colpo pesante). Imposta anche il ritmo delle clip.
+    void GameLayer::ApplyRaceStyle(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float legLen, float deltaTime) {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(e) || !reg.all_of<TransformComponent>(e)) return;
+        const std::string unitId = AnimUnitIdOf(reg, e);
+        const AnimatedBodyKind kind = e == m_PlayerEntity ? CurrentAnimatedBodyKind() : BodyKindForUnit(unitId);
+        auto& slot = m_RaceMotion[e];
+        const auto& t = reg.get<TransformComponent>(e);
+        RaceMotionInput in;
+        in.dt = deltaTime;
+        if (slot.has && deltaTime > 0.0f) {
+            glm::vec3 d = t.Position - slot.lastPos; d.y = 0.0f;
+            in.speed = glm::length(d) / deltaTime;
+            if (in.speed > 15.0f) in.speed = 0.0f;   // teletrasporto / rientro
+        }
+        slot.lastPos = t.Position; slot.has = true;
+        in.legLen = legLen;
+        float unitScale = 1.0f;
+        if (const auto* ubp = BlueprintManager::Get().GetUnit(unitId); ubp && ubp->model_scale > 0.05f) unitScale = ubp->model_scale;
+        in.modelUnitsPerMeter = 1.0f / std::max(1e-4f, m_AnimatedModelScale * unitScale);
+        in.yaw = t.Rotation.y;
+        const auto* st = reg.try_get<UnitStatsComponent>(e);
+        in.sprinting = st && (st->sprinting || in.speed > std::max(1.0f, st->baseSpeed) * 1.25f);
+        if (const auto* cr = reg.try_get<CrouchComponent>(e)) in.crouching = cr->amount > 0.5f;
+        if (e == m_PlayerEntity) in.aiming = m_PlayerAimingNow;
+        else if (const auto* brain = reg.try_get<BotBrainComponent>(e)) in.aiming = brain->isAiming;
+        // Urlo: chi corre all'assalto (non gli astartes, che hanno l'elmo), la WAAAGH! attiva, il colpo pesante
+        const auto* buff = reg.try_get<FactionBuffComponent>(e);
+        const auto* melee = reg.try_get<MeleeStateComponent>(e);
+        const bool heavy = melee && melee->currentAttack == MeleeAttackType::Heavy &&
+            (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active);
+        in.roar = heavy || (buff && buff->moveSpeedMult > 1.01f) || (in.sprinting && kind != AnimatedBodyKind::Human);
+        const float rate = ApplyRaceMotion(pose, GetRaceMotionProfile(RaceMotionOf(kind)), slot.state, in);
+        controller.SetStyleRate(rate);
+    }
+
     // Pose procedurali di un'unita' (giocatore, bot, orda) sopra la clip in corso: accovacciato, arrampicata,
     // mischia e parata, dotazione (lancio, oggetti posati, scatola, chiave inglese, costruzione, medikit, vox, torretta).
     void GameLayer::BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime) {
@@ -2931,6 +2981,9 @@ namespace SunEngine {
             if (bonePos("LeftUpLeg", a) && bonePos("LeftLeg", k) && bonePos("LeftFoot", f)) { thigh = glm::distance(a, k); shin = glm::distance(k, f); }
         }
         auto approach = [&](float& v, bool on, float rate) { v = std::clamp(v + (on ? 1.0f : -1.0f) * rate * deltaTime, 0.0f, 1.0f); };
+
+        // Modo di muoversi della razza: postura, passo, testa, respiro, ossa in piu' (sotto le azioni)
+        ApplyRaceStyle(e, pose, controller, thigh + shin, deltaTime);
 
         // Accovacciato (solo se non ci sono le clip "crouch idle/walking")
         if (const auto* crouch = reg.try_get<CrouchComponent>(e); crouch && !controller.HasCrouchClips())
@@ -3319,6 +3372,7 @@ namespace SunEngine {
         // Corsa vera (MovementSystem: SHIFT + avanti con fiato), non il solo tasto premuto
         if (const auto* st = m_Scene.GetRegistry().try_get<UnitStatsComponent>(m_PlayerEntity)) in.sprinting = st->sprinting;
         in.aiming = isAiming;
+        m_PlayerAimingNow = isAiming;
 
         auto& reg = m_Scene.GetRegistry();
         if (reg.valid(m_PlayerEntity)) {
@@ -3389,6 +3443,12 @@ namespace SunEngine {
                 body.model.meshes.emplace_back(std::move(verts), std::move(idx));
                 SUN_CORE_INFO("Corpo {0}: adattato dal corpo umano base", label);
             }
+        }
+        // Ossa in piu' della razza (orecchie e mascella del gretchin, mascella dell'ork, mascella e pancia
+        // dell'ogryn, spallacci dell'astartes): prima delle clip, che le ereditano dalla gerarchia del modello
+        if (body.modelLoaded) {
+            const int extra = AddExtraBones(body.model, RaceExtraBones(bodyLabel));
+            if (extra > 0) SUN_CORE_INFO("Corpo {0}: {1} ossa in piu' (vedi ExtraBones.h)", label, extra);
         }
         const std::string animsDir = FindValidDir("Animations");
         if (!body.modelLoaded || animsDir.empty()) return;
@@ -3898,7 +3958,8 @@ namespace SunEngine {
             XpEventLog().clear();   // eventi rimasti fuori partita: non contano
             m_SquigSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
-            m_ParticleSystem.Clear();
+            const bool showcase = m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Showcase;
+            if (!showcase) m_ParticleSystem.Clear();   // la vetrina usa gli effetti (lampi, scie dei fendenti)
             m_TurretSystem.Clear(m_Scene);
             ClearSummons();
             if (!m_UnitAnims.empty()) ClearUnitAnimations();
@@ -3945,6 +4006,12 @@ namespace SunEngine {
 
         auto& transform = m_Scene.GetRegistry().get<TransformComponent>(m_PlayerEntity);
 
+        // Vetrina: via gli attori quando si esce
+        if (!(m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Showcase) && !m_ShowcaseActors.empty()) ClearShowcase();
+        if (m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Showcase) {
+            UpdateShowcase(deltaTime);
+            return;
+        }
         if (m_GameState == GameState::MainMenu) {
             m_GarageCameraAngle += deltaTime * 25.0f;
             if (m_GarageCameraAngle >= 360.0f) m_GarageCameraAngle -= 360.0f;
@@ -5101,6 +5168,9 @@ namespace SunEngine {
             else if (m_CurrentTab == MenuTab::Shop) {
                 RenderShopUI();
             }
+            else if (m_CurrentTab == MenuTab::Showcase) {
+                RenderShowcaseUI();
+            }
 
             RenderRecruitModal();
             RenderOptionsMenu();
@@ -5259,6 +5329,13 @@ namespace SunEngine {
         if (navButton("NEGOZIO", 100, inMenu && m_CurrentTab == MenuTab::Shop, ImVec4(0.55f, 0.30f, 0.80f, 1.0f))) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Shop;
+        }
+
+        if (navButton("VETRINA", 100, inMenu && m_CurrentTab == MenuTab::Showcase, ImVec4(0.75f, 0.55f, 0.15f, 1.0f))) {
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Showcase;
+            m_ShowcaseFocusUnit.clear();
+            m_ShowcaseFromResearch = false;
         }
 
         if (navButton("EDITOR", 90, m_GameState == GameState::MapEditor, ImVec4(0.8f, 0.4f, 0.0f, 1.0f))) {
@@ -5621,6 +5698,8 @@ namespace SunEngine {
                 ImGui::Text("Salute: %.0f   Velocita': %.1f   Armatura: %d", bp->health, bp->base_speed, bp->armor_rating);
                 ImGui::Text("Forza: %.0f   Mischia: %.0f   Mira: %.0f", bp->strength, bp->melee_skill, bp->accuracy_skill);
                 ImGui::Text("Costo in punti squadra: %d (+ equipaggiamento)", bp->point_cost);
+                // Anteprima 3D: l'unita' nella vetrina con la sua dotazione base e il suo modo di muoversi
+                if (ImGui::Button("ANTEPRIMA 3D", ImVec2(200, 30))) OpenShowcasePreview(n.unitId);
             }
             else {
                 ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "UNITA' IN ARRIVO");

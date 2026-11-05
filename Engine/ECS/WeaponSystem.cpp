@@ -162,7 +162,7 @@ namespace SunEngine {
         ma_sound_start(&inst->sound);
     }
     // Aspetto del colpo in base all'arma (lampo, proiettile in volo, impatto)
-    static WeaponFx FxForWeapon(const WeaponBlueprint& w, bool underbarrelShotgun) {
+    WeaponFx WeaponSystem::FxFor(const WeaponBlueprint& w, bool underbarrelShotgun) {
         if (underbarrelShotgun || w.pellet_count > 1) return WeaponFx::Shotgun;
         switch (w.projectile_type) {
         case ProjectileType::Laser:
@@ -663,7 +663,7 @@ namespace SunEngine {
             }
         }
         const float grazeChance = Marksmanship::GrazeChance(skill, shotSteady) * steadyMult;
-        const WeaponFx fx = FxForWeapon(wpBP, isUnderbarrelShotgun);
+        const WeaponFx fx = FxFor(wpBP, isUnderbarrelShotgun);
         { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = fx; mz.pos = barrelOrigin; mz.dir = baseDir; mz.color = wpBP.primary_color; EmitVfx(mz); }
 
         for (int p = 0; p < numProjectiles; ++p) {

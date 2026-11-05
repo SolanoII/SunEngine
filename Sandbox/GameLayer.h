@@ -8,6 +8,8 @@
 #include "Engine/ECS/WeightSystem.h"
 #include "Engine/ECS/HealthRegenSystem.h"
 #include "Engine/Renderer/BodyFit.h"
+#include "Engine/Renderer/ExtraBones.h"
+#include "Engine/Renderer/RaceMotion.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
 #include "Engine/ECS/BotAISystem.h"
@@ -60,7 +62,8 @@ namespace SunEngine {
         StasisVault,
         Deployment,
         Research,   // albero di ricerca delle unita'
-        Shop        // negozio (Pietra Nera): per ora WIP
+        Shop,       // negozio (Pietra Nera): per ora WIP
+        Showcase    // vetrina: razze affiancate (o un'unita' dall'albero di ricerca) con le loro animazioni
     };
 
     enum class EditorGizmoMode {
@@ -416,6 +419,43 @@ namespace SunEngine {
         };
         std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
         bool m_FitBodiesFromHuman = true;   // corpi delle altre razze ricavati dal corpo umano base (BodyFit.h)
+        // Modo di muoversi della razza (RaceMotion.h): stato per unita' (fase del passo, sguardo, molle)
+        struct RaceMotionSlot { RaceMotionState state; glm::vec3 lastPos{ 0.0f }; bool has = false; };
+        std::unordered_map<entt::entity, RaceMotionSlot> m_RaceMotion;
+        bool m_PlayerAimingNow = false;
+
+        // --- Vetrina (GameLayerShowcase.cpp) ---
+        enum class ShowcaseAnim { Idle = 0, Aim, Walk, Run, Fire, MeleeNormal, MeleeLow, MeleeHeavy, Parry, Stunned, Roar, Count };
+        struct ShowcaseActor {
+            std::string unitId, weaponId, meleeId;
+            AnimatedBodyKind kind = AnimatedBodyKind::Human;
+            std::unique_ptr<RifleAnimationController> ctrl;
+            ProceduralPose pose;
+            RaceMotionState motion;
+            entt::entity visual = entt::null, weapon = entt::null;
+            glm::vec3 pos{ 0.0f };
+            float facing = 0.0f, scale = 1.0f, legLen = 0.0f, time = 0.0f, shotTimer = 0.0f;
+            int lastMeleePhase = -1;
+        };
+        std::vector<ShowcaseActor> m_ShowcaseActors;
+        std::string m_ShowcaseFocusUnit;            // vuoto = tutte le razze in fila; altrimenti anteprima di un'unita'
+        std::string m_ShowcaseBuiltFor = "#";       // per cosa sono stati creati gli attori
+        bool m_ShowcaseFromResearch = false;
+        bool m_ShowcaseStyle = true;                // stile di movimento della razza acceso/spento (per confrontare)
+        bool m_ShowcaseAutoRotate = true;
+        bool m_ShowcaseCycle = false;               // tutte le animazioni in sequenza
+        int m_ShowcaseAnim = 0;
+        float m_ShowcaseCycleTimer = 0.0f, m_ShowcaseYaw = 0.0f, m_ShowcasePitch = -8.0f, m_ShowcaseZoom = 1.0f;
+        glm::vec3 m_ShowcaseCenter{ 0.0f };
+        float m_ShowcaseExtent = 4.0f;
+        void UpdateShowcase(float deltaTime);
+        void BuildShowcase();
+        void ClearShowcase();
+        void RenderShowcaseUI();
+        void OpenShowcasePreview(const std::string& unitId);
+        void UpdateShowcaseActor(ShowcaseActor& a, float deltaTime);
+        static RaceMotionKind RaceMotionOf(AnimatedBodyKind k);
+        void ApplyRaceStyle(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float legLen, float deltaTime);
         void UpdateUnitAnimations(float deltaTime);
         void ClearUnitAnimations();
         void BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime);
