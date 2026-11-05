@@ -43,6 +43,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 namespace SunEngine {
 
@@ -386,6 +387,28 @@ namespace SunEngine {
         // Corpo animato da usare per l'unita' del giocatore (umano, ork, ogryn) e relativi accessori
         enum class AnimatedBodyKind { Human = 0, Ork, Ogryn, Neophyte, Astartes, Gretchin, Count };
         AnimatedBodyKind CurrentAnimatedBodyKind();
+        AnimatedBodyKind BodyKindForUnit(const std::string& unitId) const;   // corpo animato di un tipo di unita'
+
+        // Corpi animati di tutte le unita' (bot, orda, manichini): ognuna ha il suo controller (clip condivise col
+        // corpo), la sua entita' visiva e i pezzi della skin sulle ossa; i cubi restano come hitbox, nascosti.
+        struct UnitAnimInstance {
+            std::unique_ptr<RifleAnimationController> ctrl;
+            ProceduralPose pose;
+            float poseTime = 0.0f, climb = 0.0f;
+            entt::entity visual = entt::null;
+            AnimatedBodyKind kind = AnimatedBodyKind::Human;
+            glm::vec3 lastPos{ 0.0f };
+            bool hasLast = false;
+            int lastAmmo = -1;
+            bool bindPose = false;                 // manichini del campo da tiro: posa in T come le hitbox
+            std::vector<entt::entity> skinParts;   // pezzi della skin agganciati alle ossa
+        };
+        std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
+        void UpdateUnitAnimations(float deltaTime);
+        void ClearUnitAnimations();
+        void BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime);
+        void RenderHitboxOverlay();                        // campo da tiro: hitbox trasparenti sopra il corpo 3D
+        bool PlaceBotWeaponOnHand(entt::entity bot, TransformComponent& weaponTransform, const BlockModel* model);
         bool AnimatedBodyReady(AnimatedBodyKind kind) const;
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
         RifleAnimationController& AnimatedBodyController(AnimatedBodyKind kind);

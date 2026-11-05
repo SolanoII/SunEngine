@@ -957,6 +957,7 @@ void main() {
         glViewport(0, 0, m_Width, m_Height);
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
+        const GLboolean blendWasOn = glIsEnabled(GL_BLEND);   // il renderer forward conta sul blending acceso
         glDisable(GL_BLEND);
 
         auto setup = [&](Shader& sh) {
@@ -995,5 +996,6 @@ void main() {
         }
         m_CloakCubes.clear();
         m_CloakSkinned.clear();
+        if (blendWasOn) glEnable(GL_BLEND);
     }
 }

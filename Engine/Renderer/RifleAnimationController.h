@@ -61,8 +61,8 @@ namespace SunEngine {
                 if (std::filesystem::exists(animsDir + "crouch walking.fbx", ec)) LoadClip(RifleAnimState::CrouchWalk, animsDir + "crouch walking.fbx", model);
             }
 
-            auto it = m_Clips.find(m_CurrentState);
-            if (it != m_Clips.end()) {
+            auto it = Clips().find(m_CurrentState);
+            if (it != Clips().end()) {
                 m_Animator.PlayAnimation(&it->second);
             }
 
@@ -84,7 +84,7 @@ namespace SunEngine {
             // Fuoco: la clip e' UN colpo di rinculo che parte e torna all'idle. Va rilanciata a ogni
             // colpo (non messa in loop, altrimenti si vede "abbassa il fucile / rialza" tra due spari).
             const bool restartFiring = in.shotFired && !in.isMoving && !in.vaulting && !in.climbing
-                && m_Clips.find(RifleAnimState::Firing) != m_Clips.end();
+                && Clips().find(RifleAnimState::Firing) != Clips().end();
             if (restartFiring) {
                 desired = RifleAnimState::Firing;
             }
@@ -94,8 +94,8 @@ namespace SunEngine {
             }
 
             if (desired != m_CurrentState || restartFiring) {
-                auto it = m_Clips.find(desired);
-                if (it != m_Clips.end()) {
+                auto it = Clips().find(desired);
+                if (it != Clips().end()) {
                     // crossfade breve: niente "scatti" tra una clip e l'altra
                     float blend = (desired == RifleAnimState::Firing) ? 0.04f : 0.18f;
                     const bool loop = !(desired == RifleAnimState::Firing
@@ -109,6 +109,15 @@ namespace SunEngine {
             m_Animator.UpdateAnimation(deltaTime);
         }
 
+        // Un controller per ogni unita' animata (bot, manichini): usa le clip gia' caricate da 'src' (stesso corpo),
+        // con un suo Animator (tempo, blend e posa propri). src deve restare vivo finche' si usa questo controller.
+        void ShareClipsFrom(RifleAnimationController& src) {
+            m_SharedClips = &src.Clips();
+            m_ModelScale = src.m_ModelScale; m_MinRate = src.m_MinRate; m_MaxRate = src.m_MaxRate;
+            auto it = Clips().find(m_CurrentState);
+            if (it != Clips().end()) m_Animator.PlayAnimation(&it->second);
+        }
+
         // Scala usata per convertire la velocita' incisa nelle clip (cm) in m/s
         void SetModelScale(float scale) { m_ModelScale = scale; }
         void SetPlaybackRateLimits(float minRate, float maxRate) { m_MinRate = minRate; m_MaxRate = maxRate; }
@@ -120,25 +129,27 @@ namespace SunEngine {
         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_Animator.GetFinalBoneMatrices(); }
         void SetProceduralPose(const ProceduralPose* pose) { m_Animator.SetProceduralPose(pose); }
         // Clip vere da accovacciato caricate? (altrimenti l'accovacciamento lo fa la posa procedurale)
-        bool HasCrouchClips() const { return m_Clips.count(RifleAnimState::CrouchIdle) > 0; }
+        bool HasCrouchClips() const { return Clips().count(RifleAnimState::CrouchIdle) > 0; }
         RifleAnimState GetCurrentState() const { return m_CurrentState; }
 
     private:
+        std::unordered_map<RifleAnimState, Animation>& Clips() { return m_SharedClips ? *m_SharedClips : m_OwnClips; }
+        const std::unordered_map<RifleAnimState, Animation>& Clips() const { return m_SharedClips ? *m_SharedClips : m_OwnClips; }
         bool LoadClip(RifleAnimState state, const std::string& path, SkinnedModel* model) {
             Animation anim;
             if (!anim.LoadFromFile(path, model)) {
                 SUN_CORE_ERROR("RifleAnimationController: impossibile caricare {0}", path);
                 return false;
             }
-            m_Clips[state] = std::move(anim);
+            Clips()[state] = std::move(anim);
             return true;
         }
 
         // Velocita' di riproduzione: locomozione agganciata alla velocita' reale (meno "pattinamento" dei
         // piedi); scavalcamento adattato alla durata del vault; il resto a velocita' normale.
         float ComputePlaybackRate(const RifleAnimInput& in) const {
-            auto it = m_Clips.find(m_CurrentState);
-            if (it == m_Clips.end()) return 1.0f;
+            auto it = Clips().find(m_CurrentState);
+            if (it == Clips().end()) return 1.0f;
             const Animation& clip = it->second;
 
             if (m_CurrentState == RifleAnimState::JumpForward || m_CurrentState == RifleAnimState::JumpBackward) {
@@ -168,8 +179,8 @@ namespace SunEngine {
             }
             if (in.crouching) {
                 const RifleAnimState c = in.isMoving ? RifleAnimState::CrouchWalk : RifleAnimState::CrouchIdle;
-                if (m_Clips.count(c)) return c;
-                if (m_Clips.count(RifleAnimState::CrouchIdle)) return RifleAnimState::CrouchIdle;
+                if (Clips().count(c)) return c;
+                if (Clips().count(RifleAnimState::CrouchIdle)) return RifleAnimState::CrouchIdle;
             }
 
             // Fermo: idle. Il rinculo di fuoco e' un one-shot gestito in Update (vedi restartFiring); se si
@@ -187,7 +198,8 @@ namespace SunEngine {
             return RifleAnimState::AimIdle;
         }
 
-        std::unordered_map<RifleAnimState, Animation> m_Clips;
+        std::unordered_map<RifleAnimState, Animation> m_OwnClips;
+        std::unordered_map<RifleAnimState, Animation>* m_SharedClips = nullptr;   // clip di un altro controller (stesso corpo)
         Animator m_Animator;
         RifleAnimState m_CurrentState = RifleAnimState::AimIdle;
         float m_ModelScale = 0.01f;   // modello in centimetri

@@ -1763,6 +1763,223 @@ namespace SunEngine {
         }
     }
 
+    // ===================== CORPI ANIMATI DI TUTTE LE UNITA' =====================
+    // Bot, orki dell'orda e manichini del campo da tiro usano il corpo 3D animato della loro unita' (come il
+    // giocatore); i cubi dello scheletro restano come hitbox ma non si disegnano (HideProceduralVisualTag).
+    // Ogni unita' ha il suo controller con le clip condivise del corpo, quindi cammina, mira e spara per conto suo.
+    // F2 (cubi) vale per tutti. Alla morte il corpo animato sparisce e resta il ragdoll a cubi.
+    static std::string AnimUnitIdOf(entt::registry& reg, entt::entity e) {
+        if (const auto* uid = reg.try_get<UnitBlueprintId>(e)) return uid->id;
+        if (const auto* d = reg.try_get<TrainingDummyComponent>(e)) return d->unitId;
+        if (reg.all_of<HordeAgentComponent>(e)) return "orks_boy";
+        return std::string();
+    }
+
+    static float FootYOf(entt::registry& reg, entt::entity e) {
+        const auto& t = reg.get<TransformComponent>(e);
+        if (const auto* c = reg.try_get<ColliderComponent>(e)) return t.Position.y + (c->localCenterOffset.y - c->halfExtents.y) * t.Scale.y;
+        return t.Position.y;
+    }
+
+    void GameLayer::ClearUnitAnimations() {
+        auto& reg = m_Scene.GetRegistry();
+        for (auto& [e, inst] : m_UnitAnims) {
+            if (reg.valid(inst.visual)) m_Scene.DestroyEntity(inst.visual);
+            for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
+            if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
+        }
+        m_UnitAnims.clear();
+    }
+
+    void GameLayer::UpdateUnitAnimations(float deltaTime) {
+        auto& reg = m_Scene.GetRegistry();
+        const bool enabled = m_UseAnimatedPlayer && m_GameState == GameState::Gameplay;
+        // Via le istanze di unita' sparite, morte (ragdoll) o se si vogliono i cubi
+        std::vector<entt::entity> drop;
+        for (auto& [e, inst] : m_UnitAnims) {
+            const bool ok = enabled && reg.valid(e) && reg.all_of<TransformComponent, SkeletonComponent>(e)
+                && !reg.any_of<CorpseComponent, RagdollComponent>(e);
+            if (!ok) drop.push_back(e);
+        }
+        for (auto e : drop) {
+            auto& inst = m_UnitAnims[e];
+            if (reg.valid(inst.visual)) m_Scene.DestroyEntity(inst.visual);
+            for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
+            if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
+            m_UnitAnims.erase(e);
+        }
+        if (!enabled) return;
+
+        static const std::vector<glm::mat4> s_BindPose(ANIMATOR_MAX_BONES, glm::mat4(1.0f));   // posa in T del file
+        std::vector<entt::entity> units;
+        for (auto e : reg.view<SkeletonComponent, TransformComponent>(entt::exclude<PlayerTag, CorpseComponent, RagdollComponent, SquigComponent>)) units.push_back(e);
+        for (auto e : units) {
+            const std::string unitId = AnimUnitIdOf(reg, e);
+            if (unitId.empty()) continue;
+            const AnimatedBodyKind kind = BodyKindForUnit(unitId);
+            if (!AnimatedBodyReady(kind)) continue;
+            auto it = m_UnitAnims.find(e);
+            if (it != m_UnitAnims.end() && it->second.kind != kind) {   // cambio di corpo: si ricrea
+                if (reg.valid(it->second.visual)) m_Scene.DestroyEntity(it->second.visual);
+                for (auto p : it->second.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
+                m_UnitAnims.erase(it);
+                it = m_UnitAnims.end();
+            }
+            if (it == m_UnitAnims.end()) {
+                UnitAnimInstance inst;
+                inst.kind = kind;
+                inst.bindPose = reg.all_of<TrainingDummyComponent>(e);
+                inst.ctrl = std::make_unique<RifleAnimationController>();
+                inst.ctrl->ShareClipsFrom(AnimatedBodyController(kind));
+                inst.poseTime = Random::Range(0.0f, 3.0f);
+                inst.visual = m_Scene.CreateEntity();
+                reg.emplace<TransformComponent>(inst.visual);
+                reg.emplace<ColorComponent>(inst.visual);
+                auto& sk = reg.emplace<SkinnedModelInstanceComponent>(inst.visual);
+                sk.sourceModel = &AnimatedBodyModel(kind);
+                sk.boneMatrices = inst.bindPose ? &s_BindPose : &inst.ctrl->GetFinalBoneMatrices();
+                it = m_UnitAnims.emplace(e, std::move(inst)).first;
+            }
+            UnitAnimInstance& inst = it->second;
+            if (!reg.all_of<HideProceduralVisualTag>(e)) reg.emplace<HideProceduralVisualTag>(e);
+            const auto& t = reg.get<TransformComponent>(e);
+
+            // Comandi dell'animazione dedotti da come si muove l'unita'
+            if (!inst.bindPose && deltaTime > 0.0f) {
+                RifleAnimInput in;
+                glm::vec3 v(0.0f);
+                if (inst.hasLast) v = (t.Position - inst.lastPos) / deltaTime;
+                inst.lastPos = t.Position; inst.hasLast = true;
+                v.y = 0.0f;
+                float speed = glm::length(v);
+                if (speed > 15.0f) speed = 0.0f, v = glm::vec3(0.0f);   // teletrasporto (rientro): niente corsa
+                const float yr = glm::radians(t.Rotation.y);
+                const glm::vec3 fwd(-std::sin(yr), 0.0f, -std::cos(yr)), right(std::cos(yr), 0.0f, -std::sin(yr));
+                const float f = glm::dot(v, fwd), sd = glm::dot(v, right);
+                in.isMoving = speed > 0.35f;
+                if (in.isMoving) {
+                    if (std::abs(f) >= std::abs(sd)) { in.forward = f > 0.0f; in.backward = f < 0.0f; }
+                    else { in.right = sd > 0.0f; in.left = sd < 0.0f; }
+                }
+                if (const auto* st = reg.try_get<UnitStatsComponent>(e)) in.sprinting = speed > std::max(1.0f, st->baseSpeed) * 1.12f;
+                in.groundSpeed = speed;
+                if (const auto* brain = reg.try_get<BotBrainComponent>(e)) in.aiming = brain->isAiming;
+                if (const auto* ws = reg.try_get<WeaponStateComponent>(e)) {
+                    in.shotFired = inst.lastAmmo >= 0 && ws->currentAmmo < inst.lastAmmo;
+                    in.firing = in.shotFired;
+                    inst.lastAmmo = ws->currentAmmo;
+                }
+                if (const auto* cr = reg.try_get<CrouchComponent>(e)) in.crouching = cr->amount > 0.5f;
+                inst.poseTime += deltaTime;
+                BuildUnitPose(e, inst.pose, *inst.ctrl, inst.poseTime, inst.climb, deltaTime);
+                inst.ctrl->SetProceduralPose(&inst.pose);
+                inst.ctrl->Update(deltaTime, in);
+            }
+
+            // Entita' visiva: ai piedi dell'unita', girata come il corpo
+            float unitScale = 1.0f;
+            if (const auto* ubp = BlueprintManager::Get().GetUnit(unitId); ubp && ubp->model_scale > 0.05f) unitScale = ubp->model_scale;
+            auto& vt = reg.get<TransformComponent>(inst.visual);
+            vt.Position = glm::vec3(t.Position.x, FootYOf(reg, e), t.Position.z);
+            vt.Rotation = glm::vec3(0.0f, t.Rotation.y + m_AnimatedYawOffset, 0.0f);
+            vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
+            auto& sk = reg.get<SkinnedModelInstanceComponent>(inst.visual);
+            if (const auto* uc = reg.try_get<ColorComponent>(e)) sk.albedo = uc->BaseColor;
+            // Vestiti e armature (stesse ossa del corpo)
+            sk.garments.clear();
+            const auto* skin = reg.try_get<SkinComponent>(e);
+            if (skin && sk.sourceModel) {
+                for (const auto& d : skin->garments) {
+                    GarmentDraw draw;
+                    if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);
+                }
+            }
+            // Pezzi della skin agganciati alle ossa (elmetti, zaini, mantelli...)
+            std::vector<const SkinPart*> parts;
+            if (skin && !inst.bindPose) for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
+            while (inst.skinParts.size() > parts.size()) { if (reg.valid(inst.skinParts.back())) m_Scene.DestroyEntity(inst.skinParts.back()); inst.skinParts.pop_back(); }
+            while (inst.skinParts.size() < parts.size()) {
+                const entt::entity pe = m_Scene.CreateEntity();
+                reg.emplace<TransformComponent>(pe);
+                reg.emplace<MeshComponent>(pe, 0u);
+                reg.emplace<ColorComponent>(pe);
+                inst.skinParts.push_back(pe);
+            }
+            const glm::mat4 yawRot = glm::rotate(glm::mat4(1.0f), glm::radians(t.Rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            for (size_t i = 0; i < parts.size(); ++i) {
+                auto& pt = reg.get<TransformComponent>(inst.skinParts[i]);
+                glm::mat4 bone(1.0f);
+                if (!inst.ctrl->GetBoneModelTransform(parts[i]->bone, bone)) { pt.Scale = glm::vec3(0.0f); continue; }
+                const glm::vec3 bonePos = glm::vec3((vt.GetTransform() * bone)[3]);
+                pt.Position = bonePos + glm::vec3(yawRot * glm::vec4(parts[i]->boneOffset * unitScale, 0.0f));
+                pt.Rotation = glm::vec3(0.0f, t.Rotation.y, 0.0f);
+                pt.Scale = parts[i]->size * unitScale;
+                auto& c = reg.get<ColorComponent>(inst.skinParts[i]);
+                c.Color = parts[i]->color; c.BaseColor = c.Color;
+            }
+        }
+    }
+
+    // Arma del bot nella mano destra del suo corpo animato (a due mani: fra le due mani), puntata dove mira
+    bool GameLayer::PlaceBotWeaponOnHand(entt::entity bot, TransformComponent& wt, const BlockModel* model) {
+        auto it = m_UnitAnims.find(bot);
+        auto& reg = m_Scene.GetRegistry();
+        if (it == m_UnitAnims.end() || it->second.bindPose || !reg.valid(it->second.visual)) return false;
+        const auto& inst = it->second;
+        glm::mat4 boneR(1.0f), boneL(1.0f);
+        if (!inst.ctrl->GetBoneModelTransform("mixamorig1:RightHand", boneR)) return false;
+        const auto& vt = reg.get<TransformComponent>(inst.visual);
+        const auto& t = reg.get<TransformComponent>(bot);
+        const glm::vec3 handR = glm::vec3((vt.GetTransform() * boneR)[3]);
+        glm::mat4 aimRot = glm::rotate(glm::mat4(1.0f), glm::radians(t.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
+        aimRot = glm::rotate(aimRot, glm::radians(t.AimPitch * m_WeaponPitchFactor), glm::vec3(1.0f, 0.0f, 0.0f));
+        const glm::vec3 aimDir = glm::normalize(glm::vec3(aimRot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+        glm::vec3 anchorWorld = handR, anchorLocal(0.0f);
+        if (model && model->hasGripRight) anchorLocal = model->gripRight;
+        if (model && model->hasGripRight && model->hasGripLeft && inst.ctrl->GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
+            anchorWorld = (handR + glm::vec3((vt.GetTransform() * boneL)[3])) * 0.5f;
+            anchorLocal = (model->gripRight + model->gripLeft) * 0.5f;
+        }
+        const glm::vec3 zAxis = -aimDir;
+        glm::vec3 xAxis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), zAxis);
+        if (glm::length(xAxis) < 1e-3f) xAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+        xAxis = glm::normalize(xAxis);
+        const glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+        glm::mat4 basis(1.0f);
+        basis[0] = glm::vec4(xAxis, 0.0f); basis[1] = glm::vec4(yAxis, 0.0f); basis[2] = glm::vec4(zAxis, 0.0f);
+        if (!model) anchorLocal = glm::vec3(0.0f, 0.0f, 0.30f);   // cubo: impugnato a un'estremita'
+        wt.Position = anchorWorld - glm::vec3(basis * glm::vec4(anchorLocal, 0.0f));
+        float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+        glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);
+        wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+        return true;
+    }
+
+    // Campo da tiro: le hitbox dei manichini (i cubi dello scheletro) disegnate trasparenti sopra il corpo 3D,
+    // con gli spigoli, per vedere subito se sono troppo grandi o troppo piccole rispetto al modello.
+    // Testa rossa, busto azzurro, braccia e gambe verdi. Si vedono attraverso tutto (disegno dopo la scena).
+    void GameLayer::RenderHitboxOverlay() {
+        auto& reg = m_Scene.GetRegistry();
+        auto view = reg.view<TrainingDummyComponent, SkeletonComponent, TransformComponent>();
+        if (view.begin() == view.end()) return;
+        static const glm::vec3 corners[8] = {
+            { -0.5f, -0.5f, -0.5f }, { 0.5f, -0.5f, -0.5f }, { 0.5f, 0.5f, -0.5f }, { -0.5f, 0.5f, -0.5f },
+            { -0.5f, -0.5f, 0.5f }, { 0.5f, -0.5f, 0.5f }, { 0.5f, 0.5f, 0.5f }, { -0.5f, 0.5f, 0.5f } };
+        static const int edges[12][2] = { {0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},{0,4},{1,5},{2,6},{3,7} };
+        for (auto e : view) {
+            const auto& skel = view.get<SkeletonComponent>(e);
+            const auto& t = view.get<TransformComponent>(e);
+            const auto mats = skel.data.ComputeWorldTransforms(t.Position, t.Rotation, skel.scale);
+            for (size_t i = 0; i < mats.size() && i < skel.data.blocks.size(); ++i) {
+                const std::string& n = skel.data.blocks[i].name;
+                glm::vec3 c = n == "Head" ? glm::vec3(1.0f, 0.35f, 0.3f) : (n == "Torso" ? glm::vec3(0.3f, 0.8f, 1.0f) : glm::vec3(0.4f, 1.0f, 0.45f));
+                Renderer::DrawCube(mats[i], glm::vec4(c, 0.16f));
+                for (const auto& ed : edges)
+                    Renderer::DrawLine(glm::vec3(mats[i] * glm::vec4(corners[ed[0]], 1.0f)), glm::vec3(mats[i] * glm::vec4(corners[ed[1]], 1.0f)), glm::vec4(c, 0.95f));
+            }
+        }
+    }
+
     // Mimetismo: l'unita' ha il CloakComponent "vero"; le entita' solo visive che la rappresentano (arma in mano,
     // modello animato del giocatore) ne ricevono una copia, cosi' anche loro diventano trasparenti.
     void GameLayer::SyncCloakVisuals() {
@@ -1780,6 +1997,11 @@ namespace SunEngine {
         for (auto e : reg.view<BotBrainComponent>()) {
             const auto* c = reg.try_get<CloakComponent>(e);
             mirror(reg.get<BotBrainComponent>(e).weaponEntity, c ? c->amount : 0.0f);
+        }
+        for (auto& [e, inst] : m_UnitAnims) {
+            const auto* c = reg.valid(e) ? reg.try_get<CloakComponent>(e) : nullptr;
+            mirror(inst.visual, c ? c->amount : 0.0f);
+            for (auto p : inst.skinParts) mirror(p, c ? c->amount : 0.0f);
         }
     }
 
@@ -2529,10 +2751,16 @@ namespace SunEngine {
     // arrampicata lenta, colpi in mischia e parata, lancio delle granate, oggetti posati a terra (cibo, mine),
     // scatola di munizioni, chiave inglese e costruzione di strutture. Si sommano alla clip in corso.
     void GameLayer::BuildPlayerPose(float deltaTime, RifleAnimationController& controller) {
-        m_PlayerPose.Clear();
-        auto& reg = m_Scene.GetRegistry();
-        if (!reg.valid(m_PlayerEntity)) return;
         m_PoseTime += deltaTime;
+        BuildUnitPose(m_PlayerEntity, m_PlayerPose, controller, m_PoseTime, m_PoseClimb, deltaTime);
+    }
+
+    // Pose procedurali di un'unita' (giocatore, bot, orda) sopra la clip in corso: accovacciato, arrampicata,
+    // mischia e parata, dotazione (lancio, oggetti posati, scatola, chiave inglese, costruzione, medikit, vox, torretta).
+    void GameLayer::BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime) {
+        pose.Clear();
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(e)) return;
 
         // Lunghezze di coscia e stinco (unita' del modello) dalla posa del frame precedente
         float thigh = 0.0f, shin = 0.0f;
@@ -2549,23 +2777,23 @@ namespace SunEngine {
         auto approach = [&](float& v, bool on, float rate) { v = std::clamp(v + (on ? 1.0f : -1.0f) * rate * deltaTime, 0.0f, 1.0f); };
 
         // Accovacciato (solo se non ci sono le clip "crouch idle/walking")
-        if (const auto* crouch = reg.try_get<CrouchComponent>(m_PlayerEntity); crouch && !controller.HasCrouchClips())
-            PoseLib::Crouch(m_PlayerPose, crouch->amount, thigh, shin);
+        if (const auto* crouch = reg.try_get<CrouchComponent>(e); crouch && !controller.HasCrouchClips())
+            PoseLib::Crouch(pose, crouch->amount, thigh, shin);
 
         // Arrampicata lenta (scavalcamento piu' lungo di 1,2 s)
-        const auto* vault = reg.try_get<VaultComponent>(m_PlayerEntity);
-        approach(m_PoseClimb, vault && vault->isVaulting && vault->vaultDuration > 1.2f, 6.0f);
-        PoseLib::Climb(m_PlayerPose, m_PoseTime, m_PoseClimb);
+        const auto* vault = reg.try_get<VaultComponent>(e);
+        approach(climb, vault && vault->isVaulting && vault->vaultDuration > 1.2f, 6.0f);
+        PoseLib::Climb(pose, poseTime, climb);
 
         // Mischia: fasi dell'attacco dalla macchina a stati della mischia
-        if (const auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
-            if (melee->currentPhase == MeleePhase::Stunned) PoseLib::Stunned(m_PlayerPose, 1.0f);
+        if (const auto* melee = reg.try_get<MeleeStateComponent>(e)) {
+            if (melee->currentPhase == MeleePhase::Stunned) PoseLib::Stunned(pose, 1.0f);
             else if (melee->currentAttack == MeleeAttackType::Parry) {
                 const float t = melee->stateTimer;
-                PoseLib::Parry(m_PlayerPose, t < 0.08f ? t / 0.08f : (t < 0.28f ? 1.0f : std::max(0.0f, (0.48f - t) / 0.2f)));
+                PoseLib::Parry(pose, t < 0.08f ? t / 0.08f : (t < 0.28f ? 1.0f : std::max(0.0f, (0.48f - t) / 0.2f)));
             }
             else if (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active || melee->currentPhase == MeleePhase::Recovery) {
-                const auto* wbp = DamageResolver::ResolveMeleeWeapon(reg, m_PlayerEntity);
+                const auto* wbp = DamageResolver::ResolveMeleeWeapon(reg, e);
                 MeleeTiming tm;
                 if (wbp && wbp->hasMoveset) {
                     auto it = wbp->moveset.nodes.find(melee->currentAttackNode);
@@ -2574,22 +2802,22 @@ namespace SunEngine {
                 const int phase = melee->currentPhase == MeleePhase::Windup ? 0 : (melee->currentPhase == MeleePhase::Active ? 1 : 2);
                 const float dur = phase == 0 ? tm.windup : (phase == 1 ? tm.active : tm.recovery);
                 const int type = melee->currentAttack == MeleeAttackType::Light ? 0 : (melee->currentAttack == MeleeAttackType::Heavy ? 2 : 1);
-                PoseLib::Melee(m_PlayerPose, type, phase, melee->stateTimer / std::max(0.01f, dur),
+                PoseLib::Melee(pose, type, phase, melee->stateTimer / std::max(0.01f, dur),
                                wbp && wbp->hand_type == HandType::TwoHanded);
             }
         }
 
         // Dotazione: stato rilevato da ActionPose (lo stesso usato per gli scheletri a blocchi dei bot)
-        const auto* ap = reg.try_get<ActionPoseComponent>(m_PlayerEntity);
+        const auto* ap = reg.try_get<ActionPoseComponent>(e);
         if (ap && m_GameState == GameState::Gameplay) {   // nel garage lo stato delle azioni non si aggiorna
-            PoseLib::Give(m_PlayerPose, m_PoseTime, ap->give);
-            PoseLib::Build(m_PlayerPose, m_PoseTime, ap->build, thigh, shin);
-            PoseLib::Repair(m_PlayerPose, m_PoseTime, ap->repair);
-            PoseLib::SelfHeal(m_PlayerPose, m_PoseTime, ap->medkit);
-            PoseLib::VoxCall(m_PlayerPose, ap->vox);
-            PoseLib::Gunner(m_PlayerPose, ap->gunner, thigh, shin);
-            if (ap->action == 1) PoseLib::Throw(m_PlayerPose, ap->time / ap->duration);
-            else if (ap->action == 2) PoseLib::UseItem(m_PlayerPose, ap->time / ap->duration, thigh, shin);
+            PoseLib::Give(pose, poseTime, ap->give);
+            PoseLib::Build(pose, poseTime, ap->build, thigh, shin);
+            PoseLib::Repair(pose, poseTime, ap->repair);
+            PoseLib::SelfHeal(pose, poseTime, ap->medkit);
+            PoseLib::VoxCall(pose, ap->vox);
+            PoseLib::Gunner(pose, ap->gunner, thigh, shin);
+            if (ap->action == 1) PoseLib::Throw(pose, ap->time / ap->duration);
+            else if (ap->action == 2) PoseLib::UseItem(pose, ap->time / ap->duration, thigh, shin);
         }
     }
 
@@ -2972,8 +3200,12 @@ namespace SunEngine {
     // Se il modello dedicato non e' caricato si ricade sul guardsman.
     GameLayer::AnimatedBodyKind GameLayer::CurrentAnimatedBodyKind() {
         const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(m_PlayerEntity);
+        return BodyKindForUnit(uid ? uid->id : std::string());
+    }
+
+    GameLayer::AnimatedBodyKind GameLayer::BodyKindForUnit(const std::string& id) const {
         AnimatedBodyKind kind = AnimatedBodyKind::Human;
-        const auto* bp = uid ? BlueprintManager::Get().GetUnit(uid->id) : nullptr;
+        const auto* bp = id.empty() ? nullptr : BlueprintManager::Get().GetUnit(id);
         if (bp && !bp->animated_body.empty()) {
             // Indicato nel blueprint dell'unita' ("animated_body")
             const std::string& b = bp->animated_body;
@@ -2983,9 +3215,8 @@ namespace SunEngine {
             else if (b == "neophyte") kind = AnimatedBodyKind::Neophyte;
             else if (b == "astartes") kind = AnimatedBodyKind::Astartes;
         }
-        else if (uid) {
+        else if (!id.empty()) {
             // Senza indicazione: dedotto dall'id
-            const std::string& id = uid->id;
             if (id == "orks_gretchin") kind = AnimatedBodyKind::Gretchin;
             else if (id.rfind("orks_", 0) == 0) kind = AnimatedBodyKind::Ork;
             else if (id.rfind("imperium_ogryn", 0) == 0) kind = AnimatedBodyKind::Ogryn;
@@ -3440,6 +3671,7 @@ namespace SunEngine {
             m_ExplosiveSystem.Clear(m_Scene);
             m_TurretSystem.Clear(m_Scene);
             ClearSummons();
+            if (!m_UnitAnims.empty()) ClearUnitAnimations();
             if (m_GameState != GameState::MainMenu) UpdateAnimatedSkin();   // editor: via i pezzi della skin
             // Barricate e zaini di cibo appartengono alla partita
             std::vector<entt::entity> leftovers;
@@ -4318,6 +4550,7 @@ namespace SunEngine {
         }
 
         SyncWeaponAttachment();
+        UpdateUnitAnimations(m_IsPaused ? 0.0f : deltaTime);   // corpi animati di bot, orda e manichini
         SyncCloakVisuals();
         if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // WAAAGH! (anche mentre sei a terra: il contatore resta)
         if (m_VsBotActive) {
@@ -4335,6 +4568,12 @@ namespace SunEngine {
             if (m_Scene.GetRegistry().valid(horde.weaponEntity)) {
                 auto& wTrans = m_Scene.GetRegistry().get<TransformComponent>(horde.weaponEntity);
                 const auto* wBP = BlueprintManager::Get().GetWeapon("ork_choppa_1h");
+                {   // Corpo animato: la choppa va in mano al modello 3D
+                    std::string id = "ork_choppa_1h";
+                    if (const auto* wid = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(orkEnt); wid && !wid->id.empty()) id = wid->id;
+                    const BlockModel* m = m_BlockModels.Find(id);
+                    if (m && PlaceBotWeaponOnHand(orkEnt, wTrans, m)) { SetWeaponBlockModel(horde.weaponEntity, id); continue; }
+                }
 
                 if (wBP) {
                     auto worldTransforms = skel.data.ComputeWorldTransforms(orkTrans.Position, orkTrans.Rotation, skel.scale);
@@ -4467,6 +4706,7 @@ namespace SunEngine {
             RenderSummonRings(false);
         }
         m_ParticleSystem.Render(m_Scene);
+        if (m_GameState == GameState::Gameplay && m_UseAnimatedPlayer) RenderHitboxOverlay();   // campo da tiro
         // (rimossi i due modelli di prova disegnati accanto al giocatore)
 
         if (m_GameState == GameState::Gameplay) {
@@ -7161,6 +7401,10 @@ namespace SunEngine {
             const glm::mat4 weaponRot = glm::eulerAngleYXZ(glm::radians(t.AimYaw), glm::radians(t.AimPitch), 0.0f);
             auto& wt = reg.get<TransformComponent>(brain.weaponEntity);
             const BlockModel* model = m_BlockModels.Find(weaponId);
+            // Corpo animato: l'arma va in mano al modello 3D
+            if (model) SetWeaponBlockModel(brain.weaponEntity, weaponId);
+            else { if (reg.all_of<BlockModelComponent>(brain.weaponEntity)) reg.remove<BlockModelComponent>(brain.weaponEntity); wt.Scale = glm::vec3(0.08f, 0.10f, 0.70f); }
+            if (PlaceBotWeaponOnHand(e, wt, model)) continue;
             if (model) {
                 const glm::vec3 grip = model->hasGripRight ? model->gripRight : glm::vec3(0.0f);
                 wt.Position = hand - glm::vec3(weaponRot * glm::vec4(grip, 0.0f));
