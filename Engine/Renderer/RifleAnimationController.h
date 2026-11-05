@@ -126,6 +126,9 @@ namespace SunEngine {
             return m_Animator.GetBoneModelTransform(boneName, out);
         }
 
+        // Ricalcola le ossa con la posa procedurale aggiornata, senza far avanzare il tempo (es. dopo l'IK delle mani)
+        void Reevaluate() { m_Animator.UpdateAnimation(0.0f); }
+
         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_Animator.GetFinalBoneMatrices(); }
         void SetProceduralPose(const ProceduralPose* pose) { m_Animator.SetProceduralPose(pose); }
         // Clip vere da accovacciato caricate? (altrimenti l'accovacciamento lo fa la posa procedurale)

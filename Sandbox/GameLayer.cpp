@@ -1861,7 +1861,7 @@ namespace SunEngine {
                     if (std::abs(f) >= std::abs(sd)) { in.forward = f > 0.0f; in.backward = f < 0.0f; }
                     else { in.right = sd > 0.0f; in.left = sd < 0.0f; }
                 }
-                if (const auto* st = reg.try_get<UnitStatsComponent>(e)) in.sprinting = speed > std::max(1.0f, st->baseSpeed) * 1.12f;
+                if (const auto* st = reg.try_get<UnitStatsComponent>(e)) in.sprinting = st->sprinting || speed > std::max(1.0f, st->baseSpeed) * 1.25f;
                 in.groundSpeed = speed;
                 if (const auto* brain = reg.try_get<BotBrainComponent>(e)) in.aiming = brain->isAiming;
                 if (const auto* ws = reg.try_get<WeaponStateComponent>(e)) {
@@ -1874,6 +1874,7 @@ namespace SunEngine {
                 BuildUnitPose(e, inst.pose, *inst.ctrl, inst.poseTime, inst.climb, deltaTime);
                 inst.ctrl->SetProceduralPose(&inst.pose);
                 inst.ctrl->Update(deltaTime, in);
+                inst.poseFresh = true;
             }
 
             // Entita' visiva: ai piedi dell'unita', girata come il corpo
@@ -1925,7 +1926,7 @@ namespace SunEngine {
         auto it = m_UnitAnims.find(bot);
         auto& reg = m_Scene.GetRegistry();
         if (it == m_UnitAnims.end() || it->second.bindPose || !reg.valid(it->second.visual)) return false;
-        const auto& inst = it->second;
+        auto& inst = it->second;
         glm::mat4 boneR(1.0f), boneL(1.0f);
         if (!inst.ctrl->GetBoneModelTransform("mixamorig1:RightHand", boneR)) return false;
         const auto& vt = reg.get<TransformComponent>(inst.visual);
@@ -1952,7 +1953,43 @@ namespace SunEngine {
         float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
         glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);
         wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+        // Mani sulle impugnature vere dell'arma (una volta per posa: in pausa la posa resta quella con l'IK)
+        if (inst.poseFresh && model && model->hasGripRight) {
+            const glm::vec3 gR = wt.Position + glm::vec3(basis * glm::vec4(model->gripRight, 0.0f));
+            const glm::vec3 gL = wt.Position + glm::vec3(basis * glm::vec4(model->gripLeft, 0.0f));
+            ApplyHandIK(*inst.ctrl, inst.pose, vt, &gR, model->hasGripLeft ? &gL : nullptr);
+        }
+        inst.poseFresh = false;
         return true;
+    }
+
+    // IK delle braccia. L'arma e' gia' al suo posto (messa fra le mani della clip); qui le braccia si piegano
+    // perche' il palmo destro cada sull'impugnatura e il sinistro sul guardamano. Le rotazioni si sommano alla
+    // posa del frame e le ossa si ricalcolano. Se una mano e' lontana dalla sua presa (ricarica, lancio di
+    // granata, colpo corpo a corpo: la mano sta facendo altro) l'IK sfuma a zero per quella mano.
+    void GameLayer::ApplyHandIK(RifleAnimationController& ctrl, ProceduralPose& pose, const TransformComponent& visualT,
+        const glm::vec3* gripRightWorld, const glm::vec3* gripLeftWorld) {
+        if (!gripRightWorld && !gripLeftWorld) return;
+        const glm::mat4 toWorld = visualT.GetTransform();
+        const glm::mat4 toMesh = glm::inverse(toWorld);
+        bool changed = false;
+        auto arm = [&](const std::string& side, const glm::vec3& gripWorld) {
+            glm::mat4 tS(1.0f), tE(1.0f), tH(1.0f);
+            if (!ctrl.GetBoneModelTransform("mixamorig1:" + side + "Arm", tS) ||
+                !ctrl.GetBoneModelTransform("mixamorig1:" + side + "ForeArm", tE) ||
+                !ctrl.GetBoneModelTransform("mixamorig1:" + side + "Hand", tH)) return;
+            const glm::vec3 S(tS[3]), E(tE[3]), H(tH[3]);
+            // Palmo stimato: un terzo di avambraccio oltre il polso (come in PoseLib::ArmIK)
+            const glm::vec3 palmWorld = glm::vec3(toWorld * glm::vec4(H + (H - E) * 0.3f, 1.0f));
+            const float d = glm::distance(palmWorld, gripWorld);
+            const float w = 1.0f - std::clamp((d - 0.22f) / 0.15f, 0.0f, 1.0f);
+            if (w <= 0.0f) return;
+            PoseLib::ArmIK(pose, side, S, E, H, glm::vec3(toMesh * glm::vec4(gripWorld, 1.0f)), w);
+            changed = true;
+        };
+        if (gripRightWorld) arm("Right", *gripRightWorld);
+        if (gripLeftWorld) arm("Left", *gripLeftWorld);
+        if (changed) ctrl.Reevaluate();
     }
 
     // Campo da tiro: le hitbox dei manichini (i cubi dello scheletro) disegnate trasparenti sopra il corpo 3D,
@@ -2630,6 +2667,109 @@ namespace SunEngine {
     }
 
     // In alto a sinistra: salute, sotto la stamina, sotto ancora il buff di fazione
+    // Danni subiti piu' "fisici": a ogni colpo i bordi dello schermo si arrossano (piu' forte se il colpo e' grosso),
+    // dal bordo colano gocce di sangue e compaiono macchie che svaniscono in qualche secondo. Sotto il 30% di vita
+    // i bordi pulsano come un battito. Disegnato sotto le finestre dell'HUD.
+    void GameLayer::RenderDamageVignette() {
+        auto& reg = m_Scene.GetRegistry();
+        const auto* h = reg.valid(m_PlayerEntity) ? reg.try_get<HealthComponent>(m_PlayerEntity) : nullptr;
+        if (!h) { m_LastPlayerHp = -1.0f; m_BloodSplats.clear(); m_DamageFlash = 0.0f; return; }
+        const float dt = std::clamp(ImGui::GetIO().DeltaTime, 0.0f, 0.1f);
+        const ImVec2 ds = ImGui::GetIO().DisplaySize;
+        const float W = ds.x, H = ds.y;
+        const float maxHp = std::max(1.0f, h->maxHealth);
+
+        // Colpo subito: lampo proporzionale al danno e nuove macchie sui bordi
+        if (m_LastPlayerHp >= 0.0f && h->currentHealth < m_LastPlayerHp - 0.5f) {
+            const float frac = (m_LastPlayerHp - h->currentHealth) / maxHp;
+            m_DamageFlash = std::min(1.0f, m_DamageFlash + std::clamp(frac * 4.0f, 0.3f, 1.0f));
+            const int n = 1 + static_cast<int>(std::min(4.0f, frac * 20.0f));
+            for (int i = 0; i < n && m_BloodSplats.size() < 40; ++i) {
+                BloodSplat b;
+                b.seed = static_cast<uint32_t>(Random::Range(0.0f, 1.0e6f));
+                // Posizione lungo un bordo a caso, un po' dentro lo schermo
+                const int side = static_cast<int>(Random::Range(0.0f, 3.999f));
+                const float u = Random::Range(0.05f, 0.95f), in = Random::Range(0.0f, 0.07f);
+                if (side == 0) { b.x = u * W; b.y = in * H; }
+                else if (side == 1) { b.x = u * W; b.y = H * (1.0f - in); }
+                else if (side == 2) { b.x = in * W; b.y = u * H; }
+                else { b.x = W * (1.0f - in); b.y = u * H; }
+                b.radius = H * Random::Range(0.025f, 0.05f) * (0.8f + std::min(1.0f, frac * 6.0f));
+                b.maxLife = b.life = Random::Range(2.2f, 3.5f);
+                m_BloodSplats.push_back(b);
+                // Goccia che cola dal bordo alto o dai lati
+                if (side != 1) {
+                    BloodSplat d = b;
+                    d.drip = true; d.seed ^= 0x9e3779b9u;
+                    d.radius = H * Random::Range(0.006f, 0.011f);
+                    if (side == 0) d.y = 0.0f;
+                    m_BloodSplats.push_back(d);
+                }
+            }
+        }
+        m_LastPlayerHp = h->currentHealth;
+        m_DamageFlash = std::max(0.0f, m_DamageFlash - dt * 1.1f);
+        m_DamagePulseTime += dt;
+
+        // Vita bassa: battito (piu' veloce e forte piu' si e' vicini a zero)
+        const float hpFrac = std::clamp(h->currentHealth / maxHp, 0.0f, 1.0f);
+        float low = 0.0f;
+        if (hpFrac < 0.3f && h->currentHealth > 0.0f) {
+            const float k = (0.3f - hpFrac) / 0.3f;
+            const float beat = std::pow(std::max(0.0f, std::sin(m_DamagePulseTime * (5.0f + 4.0f * k))), 6.0f);
+            low = (0.25f + 0.35f * k) + 0.35f * beat;
+        }
+        const float a = std::clamp(std::max(m_DamageFlash, low * 0.75f), 0.0f, 1.0f);
+
+        ImDrawList* dl = ImGui::GetBackgroundDrawList();
+        if (a > 0.01f) {
+            const float t = std::min(W, H) * (0.10f + 0.14f * a);   // spessore del bordo rosso
+            const ImU32 c0 = IM_COL32(150, 0, 0, static_cast<int>(200 * a));
+            const ImU32 c1 = IM_COL32(150, 0, 0, 0);
+            dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(W, t), c0, c0, c1, c1);             // alto
+            dl->AddRectFilledMultiColor(ImVec2(0, H - t), ImVec2(W, H), c1, c1, c0, c0);         // basso
+            dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(t, H), c0, c1, c1, c0);             // sinistra
+            dl->AddRectFilledMultiColor(ImVec2(W - t, 0), ImVec2(W, H), c1, c0, c0, c1);         // destra
+            // Secondo strato piu' scuro e sottile: il bordo sembra "impregnato"
+            const float t2 = t * 0.35f;
+            const ImU32 d0 = IM_COL32(70, 0, 0, static_cast<int>(170 * a));
+            const ImU32 d1 = IM_COL32(70, 0, 0, 0);
+            dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(W, t2), d0, d0, d1, d1);
+            dl->AddRectFilledMultiColor(ImVec2(0, H - t2), ImVec2(W, H), d1, d1, d0, d0);
+            dl->AddRectFilledMultiColor(ImVec2(0, 0), ImVec2(t2, H), d0, d1, d1, d0);
+            dl->AddRectFilledMultiColor(ImVec2(W - t2, 0), ImVec2(W, H), d1, d0, d0, d1);
+        }
+
+        // Macchie e gocce
+        auto hash = [](uint32_t x) { x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return (x & 0xffffu) / 65535.0f; };
+        for (auto& b : m_BloodSplats) {
+            b.life -= dt;
+            if (b.life <= 0.0f) continue;
+            const float age = b.maxLife - b.life;
+            const float fade = std::clamp(b.life / (b.maxLife * 0.6f), 0.0f, 1.0f) * std::clamp(age * 12.0f, 0.0f, 1.0f);
+            const int alpha = static_cast<int>(185 * fade);
+            if (b.drip) {
+                // Colata: scende rallentando, larga in alto e con una goccia in fondo
+                const float len = H * 0.16f * (1.0f - std::exp(-age * 1.4f)) * (0.6f + 0.8f * hash(b.seed));
+                const ImVec2 top(b.x, b.y), bot(b.x, b.y + len);
+                dl->AddRectFilledMultiColor(ImVec2(b.x - b.radius * 0.5f, top.y), ImVec2(b.x + b.radius * 0.5f, bot.y),
+                    IM_COL32(120, 0, 0, alpha), IM_COL32(120, 0, 0, alpha), IM_COL32(95, 0, 0, alpha), IM_COL32(95, 0, 0, alpha));
+                dl->AddCircleFilled(bot, b.radius * 0.8f, IM_COL32(100, 0, 0, alpha), 12);
+                continue;
+            }
+            // Macchia irregolare: un disco centrale e schizzi intorno
+            dl->AddCircleFilled(ImVec2(b.x, b.y), b.radius, IM_COL32(110, 0, 0, static_cast<int>(alpha * 0.85f)), 20);
+            dl->AddCircleFilled(ImVec2(b.x, b.y), b.radius * 0.6f, IM_COL32(75, 0, 0, alpha), 16);
+            for (int k = 0; k < 7; ++k) {
+                const float ang = hash(b.seed + k * 31u) * 6.2832f;
+                const float dist = b.radius * (0.8f + 0.9f * hash(b.seed + k * 57u));
+                const float r = b.radius * (0.12f + 0.3f * hash(b.seed + k * 83u));
+                dl->AddCircleFilled(ImVec2(b.x + std::cos(ang) * dist, b.y + std::sin(ang) * dist), r, IM_COL32(105, 0, 0, alpha), 10);
+            }
+        }
+        m_BloodSplats.erase(std::remove_if(m_BloodSplats.begin(), m_BloodSplats.end(), [](const BloodSplat& b) { return b.life <= 0.0f; }), m_BloodSplats.end());
+    }
+
     void GameLayer::RenderPlayerStatusHUD() {
         auto& reg = m_Scene.GetRegistry();
         if (!reg.valid(m_PlayerEntity)) return;
@@ -2657,9 +2797,25 @@ namespace SunEngine {
             const float frac = std::clamp(st->stamina / std::max(1.0f, st->maxStamina), 0.0f, 1.0f);
             const float bh = 10.0f;
             dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(45, 40, 10, 200), 2.0f);
-            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w * frac, y + bh), IM_COL32(235, 200, 50, 255), 2.0f);
+            // Senza fiato: barra arancione finche' non si torna a poter correre
+            const ImU32 stCol = st->staminaExhausted ? IM_COL32(230, 110, 40, 255) : IM_COL32(235, 200, 50, 255);
+            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w * frac, y + bh), stCol, 2.0f);
             dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(0, 0, 0, 200), 2.0f, 0, 1.0f);
             y += bh + 8.0f;
+            if (st->staminaExhausted) { dl->AddText(ImVec2(x, y), IM_COL32(230, 130, 60, 255), "Senza fiato"); y += 16.0f; }
+            // Rigenerazione passiva della vita (fuori dal combattimento)
+            const auto* hpc = reg.try_get<HealthComponent>(m_PlayerEntity);
+            if (hpc && hpc->currentHealth < hpc->maxHealth && hpc->currentHealth > 0.0f) {
+                char t[64];
+                if (HealthRegenSystem::TimeToRegen(*st) <= 0.0f) {
+                    std::snprintf(t, sizeof(t), "Rigenerazione: +%.1f hp/s", HealthRegenSystem::RegenPerSecond(*st));
+                    dl->AddText(ImVec2(x, y), IM_COL32(110, 230, 120, 255), t); y += 16.0f;
+                }
+                else if (st->outOfCombatTime > 1.0f) {
+                    std::snprintf(t, sizeof(t), "Rigenerazione tra %.0f s", std::ceil(HealthRegenSystem::TimeToRegen(*st)));
+                    dl->AddText(ImVec2(x, y), IM_COL32(150, 170, 150, 220), t); y += 16.0f;
+                }
+            }
         }
         // Effetti in corso della dotazione (zaino energetico, insegna imperiale vicina)
         if (const auto* boost = reg.try_get<SpeedBoostComponent>(m_PlayerEntity)) {
@@ -3130,7 +3286,8 @@ namespace SunEngine {
         in.left = Input::IsKeyPressed(GLFW_KEY_A);
         in.right = Input::IsKeyPressed(GLFW_KEY_D);
         in.isMoving = in.forward || in.backward || in.left || in.right;
-        in.sprinting = Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT);
+        // Corsa vera (MovementSystem: SHIFT + avanti con fiato), non il solo tasto premuto
+        if (const auto* st = m_Scene.GetRegistry().try_get<UnitStatsComponent>(m_PlayerEntity)) in.sprinting = st->sprinting;
         in.aiming = isAiming;
 
         auto& reg = m_Scene.GetRegistry();
@@ -3266,6 +3423,7 @@ namespace SunEngine {
             BuildPlayerPose(deltaTime, controller);   // azioni senza clip, sopra la clip in corso
             controller.SetProceduralPose(&m_PlayerPose);
             controller.Update(deltaTime, input);
+            if (deltaTime > 0.0f) m_PlayerPoseFresh = true;
         }
 
         const bool playerOk = reg.valid(m_PlayerEntity) && reg.all_of<TransformComponent>(m_PlayerEntity);
@@ -3506,6 +3664,15 @@ namespace SunEngine {
 
             std::string rightWeaponId = "";
             std::string leftWeaponId = "";
+            // Prese dell'arma nel mondo per l'IK delle mani (riempite quando l'arma e' sul corpo animato)
+            glm::vec3 ikGripR(0.0f), ikGripL(0.0f);
+            bool ikR = false, ikL = false;
+            auto weaponPoint = [](const TransformComponent& w, const glm::vec3& local) {
+                glm::mat4 r = glm::rotate(glm::mat4(1.0f), glm::radians(w.Rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+                r = glm::rotate(r, glm::radians(w.Rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+                r = glm::rotate(r, glm::radians(w.Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+                return w.Position + glm::vec3(r * glm::vec4(local, 0.0f));
+            };
 
             if (currentStance == EquipStance::HybridRangedMelee) {
                 rightWeaponId = inv.meleeWeaponId;
@@ -3528,6 +3695,10 @@ namespace SunEngine {
                     // Modello animato: arma sull'osso della mano destra (i cubi del corpo restano hitbox)
                     const BlockModel* rightModel = m_BlockModels.Find(rightWeaponId);
                     const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR, rightModel);
+                    if (placedOnHand && rightModel && rightModel->hasGripRight) {
+                        ikGripR = weaponPoint(wTransR, rightModel->gripRight); ikR = true;
+                        if (rightModel->hasGripLeft && leftWeaponId.empty()) { ikGripL = weaponPoint(wTransR, rightModel->gripLeft); ikL = true; }
+                    }
                     if (placedOnHand) {
                         glm::vec3 scale = wBPR->weapon_scale;
                         if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
@@ -3583,6 +3754,7 @@ namespace SunEngine {
                 if (wBPL) {
                     const BlockModel* leftModel = m_BlockModels.Find(leftWeaponId);
                     const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL, leftModel);
+                    if (placedOnHandL && leftModel && leftModel->hasGripRight) { ikGripL = weaponPoint(wTransL, leftModel->gripRight); ikL = true; }
                     if (placedOnHandL) {
                         glm::vec3 scale = wBPL->weapon_scale;
                         if (scale.x == scale.y && scale.y == scale.z && scale.x > 0.3f) {
@@ -3636,6 +3808,13 @@ namespace SunEngine {
             else {
                 wTransL.Scale = glm::vec3(0.0f);
             }
+
+            // Mani sulle impugnature (una volta per posa nuova)
+            if (m_PlayerPoseFresh && (ikR || ikL)) {
+                if (auto* vt = m_Scene.GetRegistry().try_get<TransformComponent>(m_AnimatedPlayerEntity))
+                    ApplyHandIK(ActiveAnimController(), m_PlayerPose, *vt, ikR ? &ikGripR : nullptr, ikL ? &ikGripL : nullptr);
+            }
+            m_PlayerPoseFresh = false;
         }
 
     }
@@ -3998,6 +4177,7 @@ namespace SunEngine {
             UpdateHitFeedback(deltaTime);
             UpdateTrainingDummies(deltaTime);
             m_WeightSystem.Update(m_Scene, deltaTime);
+            m_HealthRegen.Update(m_Scene, deltaTime);
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
             UpdateSummons(deltaTime);
@@ -4868,6 +5048,7 @@ namespace SunEngine {
             bool isPlayerDead = playerHealth && (playerHealth->currentHealth <= 0.0f);
 
             if (!isPlayerDead && !m_IsPaused) {
+                RenderDamageVignette();
                 RenderTrainingDummyLabels();
                 RenderHitMarkers();
                 RenderAmmoHUD();
@@ -5817,6 +5998,10 @@ namespace SunEngine {
                         std::string secName = secBP ? secBP->displayName : "Nessuna";
 
                         if (ImGui::BeginCombo("Seleziona Secondaria", secName.c_str())) {
+                            if (ImGui::Selectable("[Nessuna]", activeUnit.secondaryWeaponId.empty())) {
+                                activeUnit.secondaryWeaponId = "";
+                                ApplyUnitVisuals(activeUnit);
+                            }
                             for (const auto& [wId, wBP] : BlueprintManager::Get().GetWeapons()) {
                                 if (wBP.slot_type == WeaponSlotType::Secondary && BlueprintManager::Get().CanEquip(wBP, activeUnit.blueprintId)) {
                                     if (DrawItemOption(activeUnit, activeUnit.secondaryWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
@@ -7287,6 +7472,7 @@ namespace SunEngine {
         CorpseSystem::Update(m_Scene, m_PhysicsSystem, deltaTime);
         UpdateHitFeedback(deltaTime);
         m_WeightSystem.Update(m_Scene, deltaTime);
+        m_HealthRegen.Update(m_Scene, deltaTime);
         m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
         m_MeleeCombat.Update(m_Scene, deltaTime);
         m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);

@@ -130,7 +130,15 @@ namespace SunEngine {
         if (!m_AudioInitialized || baseVolume <= 0.001f) return;
 
         // Falloff lineare da 1.0 a 0.0 in 40 metri (più secco delle voci Ork)
-        float dist = glm::distance(sourcePos, listenerPos);
+        // L'ascoltatore vero e' il giocatore locale (il GameLayer lo passa a miniaudio a ogni frame): prima si usava la
+        // posizione di chi sparava, cosi' ogni arma, anche lontanissima, suonava a volume pieno come se fosse
+        // la propria. listenerPos resta solo come riserva se il motore audio non c'e'.
+        glm::vec3 ear = listenerPos;
+        if (m_Engine) {
+            const ma_vec3f lp = ma_engine_listener_get_position(m_Engine, 0);
+            ear = glm::vec3(lp.x, lp.y, lp.z);
+        }
+        float dist = glm::distance(sourcePos, ear);
         float attenuation = 1.0f;
         if (dist > 1.0f) {
             attenuation = std::clamp(1.0f - ((dist - 1.0f) / 40.0f), 0.0f, 1.0f);
@@ -466,8 +474,12 @@ namespace SunEngine {
             SUN_CORE_WARN("ARMA SURRISCALDATA!");
         }
 
-        recoil.recoilPitch += wpBP.recoil_force;
-        recoil.recoilYaw += (Random::Float01() - 0.5f) * wpBP.recoil_force * 0.5f;
+        // Accovacciato: posizione piu' stabile, rinculo e dispersione ridotti fino al 35%
+        float crouchSteady = 1.0f;
+        if (const auto* cr = scene.GetRegistry().try_get<CrouchComponent>(shooter))
+            crouchSteady = 1.0f - 0.35f * std::clamp(cr->amount, 0.0f, 1.0f);
+        recoil.recoilPitch += wpBP.recoil_force * crouchSteady;
+        recoil.recoilYaw += (Random::Float01() - 0.5f) * wpBP.recoil_force * 0.5f * crouchSteady;
         glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
         rotMat = glm::rotate(rotMat, glm::radians(trans.AimPitch + recoil.recoilPitch), glm::vec3(1.0f, 0.0f, 0.0f));
         glm::vec3 baseDir = glm::normalize(glm::vec3(rotMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
@@ -566,7 +578,7 @@ namespace SunEngine {
         if (spreadBase <= 0.001f && isShotgun) {
             spreadBase = 0.09f;
         }
-        float totalSpread = spreadBase + wState.currentSpread;
+        float totalSpread = (spreadBase + wState.currentSpread) * (isShotgun ? 1.0f : crouchSteady);   // la rosa dei pallettoni non cambia
         if (orderBuff) totalSpread *= orderBuff->spreadMult;
         // Insegna imperiale vicina: morale alto, mani piu' ferme
         if (const auto* aura = scene.GetRegistry().try_get<MoraleAuraComponent>(shooter); aura && aura->timeLeft > 0.0f)
@@ -673,8 +685,7 @@ namespace SunEngine {
                 bulletTrail.totalLife = bulletTrail.travelTime + (hit.hit ? 0.28f : 0.05f);   // scoppio solo se colpisce qualcosa
             }
         }
-        // Suono positional: sorgente = bocca di fuoco, listener = posizione del player
-// (il player è sempre l'ascoltatore; per ora solo il player spara, quindi dist=0)
+        // Suono posizionale: sorgente = bocca di fuoco; l'attenuazione usa l'ascoltatore (vedi PlayWeaponSound)
         glm::vec3 listenerPos = trans.Position + glm::vec3(0.0f, 1.2f, 0.0f);
 
         // Distingui per proiettile: melta/flamer/laser hanno timbri diversi, ma per

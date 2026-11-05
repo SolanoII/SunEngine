@@ -15,6 +15,7 @@
 //   Rz(+a): abbassa il braccio destro teso di lato / alza il sinistro.
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -48,6 +49,50 @@ namespace SunEngine {
             if (t < rise) return Smooth(t / rise);
             if (t < hold) return 1.0f;
             return 1.0f - Smooth((t - hold) / std::max(0.001f, 1.0f - hold));
+        }
+
+        // Rotazione minima che porta la direzione a sulla direzione b
+        inline glm::quat RotBetween(const glm::vec3& a, const glm::vec3& b) {
+            const float la = glm::length(a), lb = glm::length(b);
+            if (la < 1e-6f || lb < 1e-6f) return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+            return glm::rotation(a / la, b / lb);
+        }
+
+        // IK a due ossa del braccio ("Right"/"Left"): porta la mano sul punto target (spazio della mesh) ruotando
+        // spalla e gomito, tenendo il gomito sul piano in cui gia' si trova (niente gomiti rovesciati).
+        // S, E, H = posizioni di braccio, avambraccio e mano nella posa attuale (clip + rotazioni gia' nella posa).
+        // Il target e' il punto da afferrare: il polso si ferma un palmo prima.
+        inline void ArmIK(ProceduralPose& p, const std::string& side, const glm::vec3& S, const glm::vec3& E, const glm::vec3& H,
+                          glm::vec3 target, float weight = 1.0f) {
+            const float a = glm::length(E - S), b = glm::length(H - E);
+            if (a < 1e-4f || b < 1e-4f || weight <= 0.0f) return;
+            const glm::vec3 f1 = H - E;
+            target -= glm::normalize(f1) * (0.3f * b);          // il polso resta un palmo prima dell'impugnatura
+            glm::vec3 st = target - S;
+            const float dist = glm::length(st);
+            if (dist < 1e-4f) return;
+            const glm::vec3 dir = st / dist;
+            const float d = std::clamp(dist, std::abs(a - b) + 1e-3f, a + b - 1e-3f);
+            glm::vec3 pole = (E - S) - glm::dot(E - S, dir) * dir;   // piano del gomito attuale
+            if (glm::length(pole) < 1e-4f) pole = glm::vec3(0.0f, -1.0f, 0.0f) - glm::dot(glm::vec3(0.0f, -1.0f, 0.0f), dir) * dir;
+            pole = glm::normalize(pole);
+            const float x = (a * a - b * b + d * d) / (2.0f * d);
+            const float h = std::sqrt(std::max(0.0f, a * a - x * x));
+            const glm::vec3 E2 = S + dir * x + pole * h;
+            const glm::vec3 T2 = S + dir * d;
+            glm::quat dS = RotBetween(E - S, E2 - S);
+            // L'avambraccio ha gia' la sua rotazione nella posa (R_fa): la nuova va calcolata sulla direzione che
+            // avra' dopo la rotazione della spalla
+            const auto itFa = p.rotations.find(side + "ForeArm");
+            const glm::quat Rfa = itFa != p.rotations.end() ? itFa->second : glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+            const glm::vec3 v = Rfa * (dS * (glm::inverse(Rfa) * f1));
+            glm::quat dE = RotBetween(v, T2 - E2);
+            if (weight < 1.0f) {
+                dS = glm::slerp(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), dS, weight);
+                dE = glm::slerp(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), dE, weight);
+            }
+            p.Rotate(side + "Arm", dS);
+            p.Rotate(side + "ForeArm", dE);
         }
 
         // Accovacciato: cosce avanti, ginocchia piegate, piedi a terra, busto un po' in avanti. legLen = coscia +

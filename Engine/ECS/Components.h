@@ -277,9 +277,42 @@ namespace SunEngine {
         float weightCapacity = 60.0f;
         float currentWeight = 0.0f;
         float damageTakenMult = 1.0f;   // danni subiti (0.85 = -15%, ordine "Take Cover")
+        // Corsa e fiato: mentre si corre la stamina scende (di piu' con piu' peso addosso) e non si rigenera;
+        // a stamina finita si e' senza fiato finche' non torna a 20.
+        bool sprinting = false;
+        bool staminaExhausted = false;
+        // Rigenerazione passiva della vita: secondi passati fuori dal combattimento
+        float outOfCombatTime = 0.0f;
+        float lastHealthSeen = -1.0f;
+        int lastAmmoSeen = -1;
 
         ArmorSet armorSet;
     };
+
+    // Carico addosso rispetto alla capacita' di trasporto (0 = scarico, 1 = al limite, >1 = sovraccarico)
+    inline float CarryRatio(const UnitStatsComponent& s) {
+        return s.weightCapacity > 0.01f ? (std::max)(0.0f, s.currentWeight / s.weightCapacity) : 0.0f;
+    }
+    // Velocita' in base al carico: -50% al limite (mai sotto meta')
+    inline float CarrySpeedFactor(const UnitStatsComponent& s) {
+        return std::clamp(1.0f - CarryRatio(s) * 0.5f, 0.5f, 1.0f);
+    }
+    inline constexpr float kSprintSpeedMult = 1.5f;      // corsa: +50%
+    inline constexpr float kSprintRecoverStamina = 20.0f; // senza fiato: si torna a correre da qui
+    // Stamina al secondo consumata correndo: 8 da scarichi, 30 al limite del carico (fino a 41 in sovraccarico)
+    inline float SprintStaminaDrain(const UnitStatsComponent& s) {
+        return 8.0f + 22.0f * (std::min)(CarryRatio(s), 1.5f);
+    }
+    // Un frame di corsa: true se si corre davvero (voglia + fiato). Va chiamata ogni frame per smaltire il fiatone.
+    inline bool TickSprint(UnitStatsComponent& s, bool want, float dt) {
+        if (s.staminaExhausted && s.stamina >= kSprintRecoverStamina) s.staminaExhausted = false;
+        s.sprinting = want && !s.staminaExhausted && s.stamina > 0.0f;
+        if (s.sprinting) {
+            s.stamina -= SprintStaminaDrain(s) * dt;
+            if (s.stamina <= 0.0f) { s.stamina = 0.0f; s.staminaExhausted = true; }
+        }
+        return s.sprinting;
+    }
 
     struct WeaponStateComponent {
         std::string currentFireMode = "standard";

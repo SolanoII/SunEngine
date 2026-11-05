@@ -6,6 +6,7 @@
 #include "Engine/ECS/SunPhysicsSystem.h"
 #include "Engine/ECS/MovementSystem.h"
 #include "Engine/ECS/WeightSystem.h"
+#include "Engine/ECS/HealthRegenSystem.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
 #include "Engine/ECS/BotAISystem.h"
@@ -320,6 +321,13 @@ namespace SunEngine {
         void LeaveVsBotMatch();                            // torna al garage e pulisce la scena
         void RenderAmmoHUD();
         void RenderPlayerStatusHUD();
+        // Danni subiti: bordi dello schermo che sanguinano (vignetta rossa, gocce che colano, macchie), battito a vita bassa
+        void RenderDamageVignette();
+        struct BloodSplat { float x = 0.0f, y = 0.0f, radius = 0.0f, life = 0.0f, maxLife = 1.0f; uint32_t seed = 0; bool drip = false; };
+        std::vector<BloodSplat> m_BloodSplats;
+        float m_DamageFlash = 0.0f;
+        float m_LastPlayerHp = -1.0f;
+        float m_DamagePulseTime = 0.0f;
         void RenderTurretHUD();
         void BuildPlayerPose(float deltaTime, RifleAnimationController& controller);   // animazioni procedurali                      // in alto a sinistra: salute, stamina, buff di fazione
         void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki, Follow Orders della Guardia
@@ -401,6 +409,7 @@ namespace SunEngine {
             bool hasLast = false;
             int lastAmmo = -1;
             bool bindPose = false;                 // manichini del campo da tiro: posa in T come le hitbox
+            bool poseFresh = false;                // posa ricostruita in questo frame: l'IK delle mani va ancora aggiunta
             std::vector<entt::entity> skinParts;   // pezzi della skin agganciati alle ossa
         };
         std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
@@ -409,6 +418,9 @@ namespace SunEngine {
         void BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime);
         void RenderHitboxOverlay();                        // campo da tiro: hitbox trasparenti sopra il corpo 3D
         bool PlaceBotWeaponOnHand(entt::entity bot, TransformComponent& weaponTransform, const BlockModel* model);
+        // IK delle braccia: porta i palmi sulle impugnature dell'arma (punti nel mondo, nullptr = mano libera)
+        void ApplyHandIK(RifleAnimationController& ctrl, ProceduralPose& pose, const TransformComponent& visualT,
+            const glm::vec3* gripRightWorld, const glm::vec3* gripLeftWorld);
         bool AnimatedBodyReady(AnimatedBodyKind kind) const;
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
         RifleAnimationController& AnimatedBodyController(AnimatedBodyKind kind);
@@ -429,6 +441,7 @@ namespace SunEngine {
         PhysicsSystem m_PhysicsSystem;
         MovementSystem m_MovementSystem;
         WeightSystem m_WeightSystem;
+        HealthRegenSystem m_HealthRegen;   // vita che torna dopo 7 s fuori dal combattimento
         HordeAISystem m_HordeAI;
         BotAISystem m_BotAI;
         MeleeCombatSystem m_MeleeCombat;
@@ -587,6 +600,7 @@ namespace SunEngine {
         std::vector<VsBotPlayer> m_VsBotPlayers;
         // Animazioni procedurali del modello animato del giocatore
         ProceduralPose m_PlayerPose;
+        bool m_PlayerPoseFresh = false;   // posa del giocatore ricostruita in questo frame (IK delle mani da aggiungere)
         float m_PoseTime = 0.0f;
         float m_PoseClimb = 0.0f;                    // peso dell'arrampicata (le altre azioni: ActionPoseComponent)
         // Buff di fazione (orki: WAAAGH!)

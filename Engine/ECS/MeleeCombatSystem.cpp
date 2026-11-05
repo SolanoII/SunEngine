@@ -37,7 +37,7 @@ namespace SunEngine {
                 }
             }
 
-            if (melee.currentPhase == MeleePhase::None) {
+            if (melee.currentPhase == MeleePhase::None && !stats.sprinting) {   // correndo il fiato non torna
                 const auto* regenBuff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);   // es. "Fix Bayonets!"
                 stats.stamina = std::min(stats.maxStamina, stats.stamina + stats.staminaRegen * (regenBuff ? regenBuff->staminaRegenMult : 1.0f) * deltaTime);
             }

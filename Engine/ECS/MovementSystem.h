@@ -405,6 +405,7 @@ public:
         for (auto entity : view) {
             auto& transform = view.get<TransformComponent>(entity);
             auto& stats = view.get<UnitStatsComponent>(entity);
+            stats.sprinting = false;   // lo rimette TickSprint piu' sotto se si corre davvero
 
             if (scene.GetRegistry().all_of<VaultComponent>(entity)) {
                 ProcessVaulting(scene, physicsSystem, entity, deltaTime);
@@ -438,8 +439,10 @@ public:
             }
 
             const auto* moveBuff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
-            const float slow = (moveBuff && moveBuff->ignoreSlows) ? std::max(1.0f, stats.speedModifier) : stats.speedModifier;   // "MOVE MOVE MOVE!"
+            const bool ignoreSlows = moveBuff && moveBuff->ignoreSlows;   // "MOVE MOVE MOVE!": niente rallentamenti
+            const float slow = ignoreSlows ? std::max(1.0f, stats.speedModifier) : stats.speedModifier;   // mira
             float moveSpeed = (stats.baseSpeed > 0.1f) ? (stats.baseSpeed * slow) : 5.0f;
+            if (!ignoreSlows) moveSpeed *= CarrySpeedFactor(stats);   // peso addosso rispetto alla capacita' di trasporto
             // Passiva dell'arma bianca in mano (es. coltello del gretchin: +5%)
             if (const auto* inv = scene.GetRegistry().try_get<InventoryComponent>(entity)) moveSpeed *= inv->HeldSpeedMultiplier();
             moveSpeed *= 1.0f - 0.5f * crouch.amount;   // accovacciato: meta' velocita'
@@ -453,6 +456,10 @@ public:
             if (Input::IsKeyPressed(GLFW_KEY_D)) moveDir.x += 1.0f;
 
             bool isMoving = glm::length(moveDir) > 0.001f;
+            // Corsa: SHIFT + avanti, non mirando e non accovacciati. Consuma stamina in base al carico.
+            const bool wantSprint = isMoving && Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) && Input::IsKeyPressed(GLFW_KEY_W)
+                && !Input::IsKeyPressed(GLFW_KEY_S) && crouch.amount < 0.3f && !Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
+            if (TickSprint(stats, wantSprint, deltaTime)) moveSpeed *= kSprintSpeedMult;
             const glm::vec3 posBeforeMove = transform.Position;   // FIX #21: ultima posizione valida del frame
 
             transform.Rotation.x = 0.0f;

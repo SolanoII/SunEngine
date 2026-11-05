@@ -32,6 +32,8 @@ namespace SunEngine {
         inline constexpr int64_t AmmoAlly = 250;
         inline constexpr int64_t Damage = 250;
         inline constexpr int64_t Kill = 500;
+        inline constexpr int64_t DamagePerPoint = 25;   // danno a un nemico: x punti che costa la sua unita'
+        inline constexpr int64_t KillPerPoint = 50;     // uccisione: x punti (un'unita' da 10 punti = 250 / 500)
         inline constexpr int64_t HealTick = 50;
         inline constexpr int64_t Build = 100;
         inline constexpr float StructureBulletDamage = 0.5f;   // i proiettili fanno meta' danno alle strutture

@@ -103,8 +103,16 @@ namespace SunEngine {
         // Non contano manichini e squig (si potrebbero "coltivare").
         if (dealt > 0.0f && !SameTeam(reg, shooter, target) &&
             !reg.all_of<TrainingDummyComponent>(target) && !reg.all_of<SquigComponent>(target)) {
-            EmitXp(shooter, XpCategory::Damage, XpValues::Damage, target);
-            if (killed) EmitXp(shooter, XpCategory::Kill, XpValues::Kill, target);
+            // Quanto vale il nemico = quanti punti costa la sua unita' (25 XP a punto per il danno, 50 per l'uccisione):
+            // un gretchin da 3 punti rende poco, un ogryn o un capitano moltissimo. Orda = boy.
+            int cost = 10;
+            std::string victimId;
+            if (const auto* uid = reg.try_get<UnitBlueprintId>(target)) victimId = uid->id;
+            else if (reg.all_of<HordeAgentComponent>(target)) victimId = "orks_boy";
+            if (!victimId.empty())
+                if (const auto* ubp = BlueprintManager::Get().GetUnit(victimId); ubp && ubp->point_cost > 0) cost = ubp->point_cost;
+            EmitXp(shooter, XpCategory::Damage, XpValues::DamagePerPoint * cost, target);
+            if (killed) EmitXp(shooter, XpCategory::Kill, XpValues::KillPerPoint * cost, target);
         }
 
         // Somma ai colpi recenti sullo stesso bersaglio

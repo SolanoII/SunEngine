@@ -2,6 +2,7 @@
 
 #include "../Scene/Scene.h"
 #include "Components.h"
+#include "Tags.h"
 
 namespace SunEngine {
     class WeightSystem {
@@ -12,9 +13,9 @@ namespace SunEngine {
                 auto& transform = view.get<TransformComponent>(entity);
                 auto& stats = view.get<UnitStatsComponent>(entity);
 
-                float weightRatio = stats.currentWeight / stats.weightCapacity;
-                float speedPenalty = 1.0f - (weightRatio * 0.5f);
-                stats.speedModifier = glm::clamp(speedPenalty, 0.5f, 1.0f);
+                // Il giocatore: speedModifier e' il rallentamento della mira (lo mette GameLayer) e il carico lo
+                // applica MovementSystem; prima qui veniva sovrascritto e il peso del giocatore non contava mai.
+                if (!scene.GetRegistry().all_of<PlayerTag>(entity)) stats.speedModifier = CarrySpeedFactor(stats);
 
                 if (stats.currentWeight > stats.weightCapacity) {
                     stats.stamina -= 20.0f * deltaTime;

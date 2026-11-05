@@ -523,7 +523,8 @@ namespace SunEngine {
     void BotAISystem::Move(Scene& scene, NavMeshQuery& navQuery, entt::entity self, BotBrainComponent& brain, float dt) {
         auto& reg = scene.GetRegistry();
         auto& t = reg.get<TransformComponent>(self);
-        const auto& stats = reg.get<UnitStatsComponent>(self);
+        auto& stats = reg.get<UnitStatsComponent>(self);
+        stats.sprinting = false;   // lo rimette TickSprint se corre davvero
 
         const bool wantsMove = !brain.holdStill && brain.hasMoveGoal && (brain.intent == BotIntent::Advance || brain.intent == BotIntent::Reposition || brain.intent == BotIntent::Charge);
         brain.isMoving = false;
@@ -543,7 +544,10 @@ namespace SunEngine {
                 const float dist = glm::length(dir);
                 if (dist < 0.3f) brain.path.erase(brain.path.begin());
                 else {
-                    float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * brain.moveSpeedFactor;
+                    // Corsa (carica, rincorsa del padrone): consuma stamina come per il giocatore; senza fiato si cammina
+                    float runFactor = brain.moveSpeedFactor;
+                    if (!TickSprint(stats, runFactor > 1.05f, dt)) runFactor = std::min(runFactor, 1.0f);
+                    float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * runFactor;
                     if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
