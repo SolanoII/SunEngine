@@ -80,6 +80,12 @@ namespace SunEngine {
         void SetAutoExposureEnabled(bool e) { m_AutoExposureEnabled = e; }
         // Esposti per debug HUD
         GpuTexture* GetHDRResult() { return m_HDRTarget.GetColorTexture(0); }
+        // Parametri in piu' per corpi e parti scolpite (vedi MuscleTone.h, SquigModel.h)
+        struct SkinnedDrawExtra {
+            int baked = 0;                       // 1: coordinate texture = curvatura/occlusione, canali dati negli slot liberi delle ossa
+            glm::vec4 skinStyle{ 0.0f };         // pelle: x chiazze, y verruche, z definizione muscolare, w vene
+            glm::vec4 color2{ 0.0f };            // seconda tinta (macchie)
+        };
         // boneMatrices = transform di ogni osso (dal Animator).
 // Il chiamante deve aver già bindato il GBuffer (BeginGeometryPass).
         void DrawSkinnedMesh(
@@ -93,8 +99,9 @@ namespace SunEngine {
             const GpuTexture* texture = nullptr,   // strato di vestito: texture triplanare in posa T
             float texScale = 1.0f,
             float alphaCut = 0.0f,
-            int detail = 0,          // dettagli procedurali: 1 pelle, 2 stoffa, 3 armatura (0 = niente)
-            float invHeight = 0.0f); // 1 / altezza del corpo in posa T (scala dei dettagli; 0 = niente dettagli)
+            int detail = 0,          // dettagli procedurali: 1 pelle, 2 stoffa, 3 armatura, 5 occhio, 6 dente (0 = niente)
+            float invHeight = 0.0f,  // 1 / altezza del corpo in posa T (scala dei dettagli; 0 = niente dettagli)
+            const SkinnedDrawExtra* extra = nullptr);
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
 
         // Mimetismo (camo cloak): fra BeginCloak ed EndCloak i cubi e le mesh skinnate non vanno nel G-Buffer ma in

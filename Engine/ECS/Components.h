@@ -790,6 +790,10 @@ namespace SunEngine {
 
     struct TreeObstacleTag {};
 
+    struct SkinnedPartSet;   // Renderer/SkinnedParts.h
+
+    struct SquigVisualTag {};   // lo squig e' disegnato col modello skinnato (SquigModel.h)
+
     struct SkinnedModelInstanceComponent {
         SunEngine::SkinnedModel* sourceModel = nullptr;
         const std::vector<glm::mat4>* boneMatrices = nullptr;
@@ -798,6 +802,8 @@ namespace SunEngine {
         float metallic = 0.0f;
         float emissive = 0.0f;
         std::vector<GarmentDraw> garments;   // vestiti e armature disegnati sopra il corpo, con le stesse ossa
+        const SkinnedPartSet* extraParts = nullptr;   // parti con materiale proprio (denti e occhi dello squig)
+        glm::vec4 skinStyle{ 0.0f };         // pelle della razza: chiazze, verruche, definizione muscolare, vene
         // Modello vuoto di default: non renderizzato finché non setti i puntatori
     };                               // ← aggiungi ; 
 

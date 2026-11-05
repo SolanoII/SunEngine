@@ -41,6 +41,7 @@ namespace SunEngine {
         int boneCounter = 0;
         AssimpNodeData rootNode;
         glm::mat4 m_GlobalInverseTransform{ 1.0f };
+        bool bakedSkin = false;   // coordinate texture = curvatura e occlusione della pelle (vedi MuscleTone.h)
 
         bool LoadModel(const std::string& path) {
             Assimp::Importer importer;

@@ -10,6 +10,8 @@
 #include "Engine/Renderer/BodyFit.h"
 #include "Engine/Renderer/ExtraBones.h"
 #include "Engine/Renderer/RaceMotion.h"
+#include "Engine/Renderer/MuscleTone.h"
+#include "Engine/Renderer/SquigModel.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
 #include "Engine/ECS/BotAISystem.h"
@@ -368,6 +370,22 @@ namespace SunEngine {
         void UpdateAnimatedSkin();                                    // pezzi della skin sul modello animato
         std::vector<entt::entity> m_SkinPartEntities;
         GarmentLibrary m_Garments;   // vestiti/armature sul modello animato (gusci skinnati + texture), in cache
+        SquigModel m_SquigModel;     // modello skinnato dello squig (SquigModel.h)
+        std::unordered_map<entt::entity, std::unique_ptr<std::vector<glm::mat4>>> m_SquigBones;
+        void UpdateSquigVisuals();
+        // Pelle della razza sul modello animato
+        static const char* BodyLabelOf(int kind);
+        void ApplySkinStyle(SkinnedModelInstanceComponent& sk, int kind);
+        // Schermata di personalizzazione (anteprima a tutto schermo)
+        TrainedUnit m_CustomizeBackup;          // com'era l'unita' quando si e' aperta (ANNULLA)
+        bool m_CustomizeHasBackup = false;
+        int m_CustomizePreviewAnim = 0;         // 0 fermo, 1 mira, 2 cammina, 3 corre
+        bool m_CustomizeAutoRotate = false;
+        float m_CustomizeYaw = 200.0f;
+        float m_CustomizeZoom = 1.0f;
+        bool m_CustomizeCamInit = false;
+        glm::vec3 m_CustomizeCamTarget{ 0.0f };
+        float m_CustomizeCamDist = 3.0f;
         bool DrawItemOption(TrainedUnit& unit, std::string& slotRef, const std::string& wId, const WeaponBlueprint& wBP);                      // caricatore / riserva in basso a destra, dotazione in mano
         void RenderParryRings(bool deferred);      // anello giallo sotto i piedi durante la parata (Q)   // invecchia marcatori di colpo e flash dei blocchi
         void RenderHitMarkers();                   // cerchi sul punto colpito (HUD)

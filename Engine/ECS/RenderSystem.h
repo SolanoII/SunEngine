@@ -6,6 +6,7 @@
 #include "Components.h"
 #include "Tags.h"
 #include "BlockModel.h"
+#include "../Renderer/SkinnedParts.h"
 #include <unordered_map>
 #include <algorithm>
 
@@ -73,6 +74,10 @@ namespace SunEngine {
                             for (const auto& m : skinnedInst->sourceModel->meshes) for (const auto& v : m.vertices) { lo = std::min(lo, v.Position.y); hi = std::max(hi, v.Position.y); }
                             hIt = s_BodyInvHeight.emplace(skinnedInst->sourceModel, hi > lo ? 1.0f / (hi - lo) : 0.0f).first;
                         }
+                        // Corpo: pelle con muscoli preparati (MuscleTone) e stile della razza
+                        DeferredRenderer::SkinnedDrawExtra bodyEx;
+                        bodyEx.baked = skinnedInst->sourceModel->bakedSkin ? 1 : 0;
+                        bodyEx.skinStyle = skinnedInst->skinStyle;
                         for (const auto& submesh : skinnedInst->sourceModel->meshes) {
                             deferred.DrawSkinnedMesh(
                                 submesh,
@@ -83,14 +88,27 @@ namespace SunEngine {
                                 skinnedInst->metallic,
                                 skinnedInst->emissive,
                                 nullptr, 1.0f, 0.0f,
-                                1, hIt->second);   // pelle
+                                1, hIt->second, &bodyEx);   // pelle
+                        }
+                        // Parti con materiale proprio (denti e occhi dello squig)
+                        if (const SkinnedPartSet* extra = skinnedInst->extraParts) {
+                            for (const auto& g : extra->parts) {
+                                if (!g.mesh) continue;
+                                DeferredRenderer::SkinnedDrawExtra ex;
+                                ex.baked = g.baked; ex.skinStyle = skinnedInst->skinStyle; ex.color2 = g.color2;
+                                deferred.DrawSkinnedMesh(*g.mesh, modelMat, bones, g.colorSource == 1 ? skinnedInst->albedo : g.color, g.roughness, g.metallic, g.emissive,
+                                    nullptr, 1.0f, 0.0f, g.detail, g.invHeight, &ex);
+                            }
                         }
                         // Vestiti e armature: stesse ossa del corpo, quindi seguono ogni animazione. Dettagli: stoffa
                         // (pieghe, orli, cuciture) o armatura (spigoli consumati, ammaccature) secondo il metallo.
                         for (const auto& g : skinnedInst->garments) {
                             if (!g.mesh) continue;
-                            deferred.DrawSkinnedMesh(*g.mesh, modelMat, bones, g.color, g.roughness, g.metallic, 0.0f,
-                                g.texture, g.texScale, g.alphaCut, g.metallic >= 0.35f ? 3 : 2, g.invHeight);
+                            DeferredRenderer::SkinnedDrawExtra ex;
+                            ex.baked = g.baked; ex.color2 = g.color2;
+                            const glm::vec4 col = g.colorSource == 1 ? skinnedInst->albedo : g.color;
+                            deferred.DrawSkinnedMesh(*g.mesh, modelMat, bones, col, g.roughness, g.metallic, g.emissive,
+                                g.texture, g.texScale, g.alphaCut, g.detail >= 0 ? g.detail : (g.metallic >= 0.35f ? 3 : 2), g.invHeight, &ex);
                         }
                         continue;   // non disegnare i cubi procedurali per questa entità
                     }

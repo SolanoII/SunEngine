@@ -318,7 +318,7 @@ namespace SunEngine {
                 if (b.name == "Leg_L") b.jointRotation.x = swing;
                 else if (b.name == "Leg_R") b.jointRotation.x = -swing;
                 else if (b.name == "Torso") b.jointRotation.x = moving ? std::abs(std::sin(sq.hopPhase)) * -8.0f : 0.0f;
-                else if (b.name == "Jaw") b.jointRotation.x = (biting || sq.state == SquigState::Charge) ? 28.0f : 0.0f;
+                else if (b.name == "Jaw") b.jointRotation.x = (biting || sq.state == SquigState::Charge) ? -28.0f : 0.0f;   // bocca spalancata (in giu')
             }
         }
 

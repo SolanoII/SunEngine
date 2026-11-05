@@ -154,6 +154,7 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         if (!reg.valid(a.visual)) return;
         a.time += dt;
+        if (auto* sk = reg.try_get<SkinnedModelInstanceComponent>(a.visual)) ApplySkinStyle(*sk, static_cast<int>(a.kind));
         const ShowcaseAnim mode = static_cast<ShowcaseAnim>(m_ShowcaseAnim);
         const bool meleeMode = mode == ShowcaseAnim::MeleeNormal || mode == ShowcaseAnim::MeleeLow || mode == ShowcaseAnim::MeleeHeavy ||
                                mode == ShowcaseAnim::Parry || mode == ShowcaseAnim::Stunned;

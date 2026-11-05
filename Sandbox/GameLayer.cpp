@@ -988,6 +988,54 @@ namespace SunEngine {
         if (any) reg.emplace_or_replace<SkinComponent>(e, std::move(skin));
         else if (reg.all_of<SkinComponent>(e)) reg.remove<SkinComponent>(e);
     }
+
+    // Squig col modello skinnato: le ossa seguono i blocchi dello scheletro (o il ragdoll quando muore)
+    void GameLayer::UpdateSquigVisuals() {
+        auto& reg = m_Scene.GetRegistry();
+        if (!m_SquigSkeleton || !m_SquigModel.Build(*m_SquigSkeleton)) return;
+        std::vector<entt::entity> fresh;
+        for (auto e : reg.view<SquigComponent, SkeletonComponent, TransformComponent>()) if (!reg.all_of<SquigVisualTag>(e)) fresh.push_back(e);
+        for (auto e : fresh) {
+            reg.emplace<SquigVisualTag>(e);
+            auto& sk = reg.emplace_or_replace<SkinnedModelInstanceComponent>(e);
+            sk.sourceModel = m_SquigModel.Model();
+            sk.extraParts = m_SquigModel.Parts();
+            sk.skinStyle = glm::vec4(0.6f, 0.9f, 0.5f, 0.2f);
+            sk.roughness = 0.55f;
+            m_SquigBones[e] = std::make_unique<std::vector<glm::mat4>>(8, glm::mat4(1.0f));
+            sk.boneMatrices = m_SquigBones[e].get();
+        }
+        for (auto it = m_SquigBones.begin(); it != m_SquigBones.end();) {
+            const entt::entity e = it->first;
+            if (!reg.valid(e) || !reg.all_of<SquigVisualTag, SkinnedModelInstanceComponent, TransformComponent>(e)) { it = m_SquigBones.erase(it); continue; }
+            auto& sk = reg.get<SkinnedModelInstanceComponent>(e);
+            const auto& t = reg.get<TransformComponent>(e);
+            const glm::mat4 em = t.GetTransform();
+            if (const auto* rd = reg.try_get<RagdollComponent>(e); rd && !rd->worldTransforms.empty())
+                m_SquigModel.ComputeBones(rd->worldTransforms, em, *it->second);
+            else if (const auto* sc = reg.try_get<SkeletonComponent>(e))
+                m_SquigModel.ComputeBones(sc->data.ComputeWorldTransforms(t.Position, t.Rotation, sc->scale), em, *it->second);
+            sk.boneMatrices = it->second.get();
+            if (const auto* c = reg.try_get<ColorComponent>(e)) sk.albedo = c->Color;
+            ++it;
+        }
+    }
+
+    const char* GameLayer::BodyLabelOf(int kind) {
+        switch (static_cast<AnimatedBodyKind>(kind)) {
+        case AnimatedBodyKind::Ork: return "ork";
+        case AnimatedBodyKind::Ogryn: return "ogryn";
+        case AnimatedBodyKind::Neophyte: return "neofita";
+        case AnimatedBodyKind::Astartes: return "astartes";
+        case AnimatedBodyKind::Gretchin: return "gretchin";
+        default: return "guardsman";
+        }
+    }
+
+    // Pelle della razza sul modello animato (chiazze, verruche, definizione muscolare, vene: vedi MuscleTone.h)
+    void GameLayer::ApplySkinStyle(SkinnedModelInstanceComponent& sk, int kind) {
+        sk.skinStyle = RaceSkinStyle(BodyLabelOf(kind));
+    }
     bool GameLayer::ReloadMap(const std::string& mapId) {
         m_NavQuery.Destroy();
 
@@ -1214,6 +1262,10 @@ namespace SunEngine {
             LoadAnimatedBody(Body(AnimatedBodyKind::Neophyte), modelsDir, "neophyte_master.fbx", "Neophyte", "neofita");
             LoadAnimatedBody(Body(AnimatedBodyKind::Astartes), modelsDir, "astartes_master.fbx", "Astartes", "astartes");
             LoadAnimatedBody(Body(AnimatedBodyKind::Gretchin), modelsDir, "gretchin_master.fbx", "Gretchin", "gretchin");
+            // Il corpo umano base serve da sorgente al BodyFit delle altre razze: muscoli solo dopo
+            if (m_SkinnedModelLoaded) {
+                ApplyMuscleTone(m_SkinnedTestModel, RaceMuscleTone("guardsman"));
+            }
         }
 
         GLFWwindow* window = glfwGetCurrentContext();
@@ -1888,6 +1940,7 @@ namespace SunEngine {
             vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
             auto& sk = reg.get<SkinnedModelInstanceComponent>(inst.visual);
             if (const auto* uc = reg.try_get<ColorComponent>(e)) sk.albedo = uc->BaseColor;
+            ApplySkinStyle(sk, static_cast<int>(inst.kind));
             // Vestiti e armature (stesse ossa del corpo)
             sk.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(e);
@@ -3450,6 +3503,10 @@ namespace SunEngine {
             const int extra = AddExtraBones(body.model, RaceExtraBones(bodyLabel));
             if (extra > 0) SUN_CORE_INFO("Corpo {0}: {1} ossa in piu' (vedi ExtraBones.h)", label, extra);
         }
+        // Tono e spessore dei muscoli (MuscleTone.h)
+        if (body.modelLoaded) {
+            ApplyMuscleTone(body.model, RaceMuscleTone(bodyLabel));
+        }
         const std::string animsDir = FindValidDir("Animations");
         if (!body.modelLoaded || animsDir.empty()) return;
         const std::string ownDir = animsDir + animFolder + "/";
@@ -3604,6 +3661,7 @@ namespace SunEngine {
         // Strati (vestiti, armature) disegnati sopra il corpo animato con le sue stesse ossa
         if (reg.valid(m_AnimatedPlayerEntity) && reg.all_of<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity)) {
             auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+            ApplySkinStyle(inst, static_cast<int>(m_AnimatedBodyInUse));
             inst.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity);
             if (skin && inst.sourceModel && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
@@ -4012,6 +4070,39 @@ namespace SunEngine {
             UpdateShowcase(deltaTime);
             return;
         }
+        if (m_GameState == GameState::MainMenu && m_ShowCustomizeModal && m_CurrentTab == MenuTab::StasisVault) {
+            // Personalizzazione: camera dedicata sul personaggio (a destra del pannello), da trascinare col mouse
+            ImGuiIO& io = ImGui::GetIO();
+            const bool overUi = io.WantCaptureMouse;
+            if (!overUi && ImGui::IsMouseDown(ImGuiMouseButton_Left)) { m_CustomizeYaw -= io.MouseDelta.x * 0.4f; m_CustomizeAutoRotate = false; }
+            if (!overUi && io.MouseWheel != 0.0f) m_CustomizeZoom = std::clamp(m_CustomizeZoom * (1.0f - io.MouseWheel * 0.1f), 0.35f, 1.8f);
+            if (m_CustomizeAutoRotate) m_CustomizeYaw += deltaTime * 18.0f;
+            float h = 1.8f;
+            if (const auto* col = m_Scene.GetRegistry().try_get<ColliderComponent>(m_PlayerEntity)) h = std::max(0.6f, col->halfExtents.y * 2.0f * transform.Scale.y);
+            const bool faceFocus = false;   // (inquadratura del viso: verra' con i volti)
+            const glm::vec3 wantTarget = transform.Position + glm::vec3(0.0f, faceFocus ? h * 0.9f : h * 0.52f, 0.0f);
+            const float wantDist = (faceFocus ? std::max(0.55f, h * 0.42f) : h * 1.55f) * m_CustomizeZoom;
+            const float k = 1.0f - std::exp(-8.0f * deltaTime);
+            if (!m_CustomizeCamInit) { m_CustomizeCamTarget = wantTarget; m_CustomizeCamDist = wantDist; m_CustomizeCamInit = true; }
+            m_CustomizeCamTarget = glm::mix(m_CustomizeCamTarget, wantTarget, k);
+            m_CustomizeCamDist = glm::mix(m_CustomizeCamDist, wantDist, k);
+            m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
+            m_Camera.SetCameraOffsets(-m_CustomizeCamDist * 0.3f, 0.0f, m_CustomizeCamDist);   // personaggio a destra del pannello
+            m_Camera.SetTarget(m_CustomizeCamTarget, m_CustomizeYaw);
+            m_Camera.SetPitch(faceFocus ? -3.0f : -8.0f);
+            m_Camera.SetYawOffset(0.0f);
+            m_Camera.Update(glm::vec3(0.0f), 1.0f);
+            Renderer::SetViewProjection(m_Camera.GetViewProjection());
+
+            RifleAnimInput in;
+            if (m_CustomizePreviewAnim == 1) in.aiming = true;
+            else if (m_CustomizePreviewAnim >= 2) { in.isMoving = true; in.forward = true; in.sprinting = m_CustomizePreviewAnim == 3; in.groundSpeed = m_CustomizePreviewAnim == 3 ? 5.5f : 2.0f; }
+            UpdateAnimatedPlayer(deltaTime, in);
+            UpdateAnimatedSkin();
+            SyncWeaponAttachment();
+            return;
+        }
+        m_CustomizeCamInit = false;
         if (m_GameState == GameState::MainMenu) {
             m_GarageCameraAngle += deltaTime * 25.0f;
             if (m_GarageCameraAngle >= 360.0f) m_GarageCameraAngle -= 360.0f;
@@ -4307,6 +4398,7 @@ namespace SunEngine {
                 m_SquigSkeletonLoaded = true;
             }
             m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);
+            UpdateSquigVisuals();
             m_RepairSystem.Update(m_Scene, m_PlayerEntity, deltaTime);
             if (auto* ap = m_Scene.GetRegistry().try_get<ActionPoseComponent>(m_PlayerEntity)) ap->repairing = m_RepairSystem.repairing;
             ActionPose::Update(m_Scene, deltaTime);   // azioni di tutte le unita' (granate, oggetti, costruzione...)
@@ -5153,7 +5245,12 @@ namespace SunEngine {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (m_GameState == GameState::MainMenu) {
+        if (m_GameState == GameState::MainMenu && m_ShowCustomizeModal && m_CurrentTab == MenuTab::StasisVault) {
+            // personalizzazione: solo il suo pannello, il resto dello schermo e' l'anteprima del personaggio
+            RenderCustomizeModal();
+            RenderOptionsMenu();
+        }
+        else if (m_GameState == GameState::MainMenu) {
             RenderTopNavBar();
 
             if (m_CurrentTab == MenuTab::StasisVault) {
@@ -5964,6 +6061,8 @@ namespace SunEngine {
             if (ImGui::Button("MODIFICA ED EQUIPAGGIA", ImVec2(-1, 60))) {
                 m_ShowCustomizeModal = true;
                 m_CustomizeMainTab = 0;
+                m_CustomizeHasBackup = false;   // la copia per ANNULLA si prende alla prima schermata
+                m_CustomizeZoom = 1.0f;
             }
             ImGui::PopStyleColor(2);
 
@@ -6045,44 +6144,49 @@ namespace SunEngine {
         }
     }
 
+    // Schermata di personalizzazione: pannello a sinistra, personaggio in anteprima nel resto dello schermo (la
+    // scena del garage con la camera dedicata, vedi OnUpdate). Ogni modifica si vede subito sul modello.
     void GameLayer::RenderCustomizeModal() {
         if (!m_ShowCustomizeModal) return;
 
-        ImGui::OpenPopup("MODIFICA UNITA'");
         ImGuiIO& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(620, 520));
+        const float panelW = std::min(600.0f, io.DisplaySize.x * 0.42f);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(panelW, io.DisplaySize.y), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.88f);
 
-        if (ImGui::BeginPopupModal("MODIFICA UNITA'", &m_ShowCustomizeModal, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
+        if (ImGui::Begin("##PersonalizzaUnita", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar)) {
 
             if (m_PlayerRoster.empty() || m_SelectedVaultIndex >= m_PlayerRoster.size()) {
                 m_ShowCustomizeModal = false;
-                ImGui::EndPopup();
+                ImGui::End();
                 return;
             }
 
             TrainedUnit& activeUnit = m_PlayerRoster[m_SelectedVaultIndex];
+            if (!m_CustomizeHasBackup) { m_CustomizeBackup = activeUnit; m_CustomizeHasBackup = true; }
+            const auto* unitBpHead = BlueprintManager::Get().GetUnit(activeUnit.blueprintId);
+            const int bodyKind = static_cast<int>(BodyKindForUnit(activeUnit.blueprintId));
+            const char* bodyLabel = BodyLabelOf(bodyKind);
 
-            ImGui::BeginGroup();
-            if (m_CustomizeMainTab == 0) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.4f, 0.7f, 1.0f));
-            else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-            if (ImGui::Button("ASPETTO", ImVec2(185, 40))) m_CustomizeMainTab = 0;
-            ImGui::PopStyleColor();
-
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "PERSONALIZZA");
             ImGui::SameLine();
-            if (m_CustomizeMainTab == 1) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.4f, 0.7f, 1.0f));
-            else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-            if (ImGui::Button("EQUIPAGGIAMENTO", ImVec2(185, 40))) m_CustomizeMainTab = 1;
-            ImGui::PopStyleColor();
+            ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), "%s  -  %s", activeUnit.customName.c_str(), unitBpHead ? unitBpHead->displayName.c_str() : activeUnit.blueprintId.c_str());
+            ImGui::Separator();
 
-            ImGui::SameLine();
-            if (m_CustomizeMainTab == 2) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.4f, 0.7f, 1.0f));
-            else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-            if (ImGui::Button("ARMATURA", ImVec2(185, 40))) m_CustomizeMainTab = 2;
-            ImGui::PopStyleColor();
-            ImGui::EndGroup();
+            const char* tabNames[3] = { "ASPETTO", "EQUIPAGGIAMENTO", "ARMATURA" };
+            const int tabOrder[3] = { 0, 1, 2 };
+            const float tabW = (panelW - 24.0f) / 3.0f;
+            for (int i = 0; i < 3; ++i) {
+                if (i > 0) ImGui::SameLine();
+                const bool on = m_CustomizeMainTab == tabOrder[i];
+                ImGui::PushStyleColor(ImGuiCol_Button, on ? ImVec4(0.0f, 0.4f, 0.7f, 1.0f) : ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+                if (ImGui::Button(tabNames[i], ImVec2(tabW, 38))) m_CustomizeMainTab = tabOrder[i];
+                ImGui::PopStyleColor();
+            }
 
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+            ImGui::BeginChild("##contenuto", ImVec2(0, io.DisplaySize.y - 190.0f), false);
 
             if (m_CustomizeMainTab == 0) {
                 ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ANAGRAFICA E IDENTITA'");
@@ -6093,14 +6197,29 @@ namespace SunEngine {
                 }
 
                 ImGui::Spacing(); ImGui::Spacing();
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "VERNICIATURA E SKIN");
-                if (ImGui::ColorEdit3("Colore Primario", glm::value_ptr(activeUnit.armorColor))) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "CARNAGIONE");
+                // tinte tipiche della razza (orki e grot verdi, ogryn e umani dal pallido allo scuro)
+                std::vector<glm::vec3> tones;
+                const std::string lb = bodyLabel;
+                if (lb == "ork" || lb == "gretchin") tones = { { 0.30f, 0.48f, 0.18f }, { 0.22f, 0.40f, 0.14f }, { 0.40f, 0.55f, 0.22f }, { 0.18f, 0.32f, 0.12f }, { 0.45f, 0.58f, 0.25f }, { 0.28f, 0.40f, 0.26f } };
+                else tones = { { 0.86f, 0.68f, 0.58f }, { 0.80f, 0.62f, 0.52f }, { 0.70f, 0.52f, 0.40f }, { 0.56f, 0.40f, 0.30f }, { 0.42f, 0.29f, 0.21f }, { 0.30f, 0.20f, 0.15f } };
+                for (size_t i = 0; i < tones.size(); ++i) {
+                    if (i > 0) ImGui::SameLine();
+                    ImGui::PushID(static_cast<int>(i));
+                    if (ImGui::ColorButton("##tono", ImVec4(tones[i].r, tones[i].g, tones[i].b, 1.0f), ImGuiColorEditFlags_NoTooltip, ImVec2(48, 48))) {
+                        activeUnit.armorColor = glm::vec4(tones[i], 1.0f);
+                        ApplyUnitVisuals(activeUnit);
+                    }
+                    ImGui::PopID();
+                }
+                if (ImGui::ColorEdit3("Tinta libera", glm::value_ptr(activeUnit.armorColor))) {
                     ApplyUnitVisuals(activeUnit);
                 }
+                ImGui::TextDisabled("La pelle ha gia' i muscoli, le vene e le chiazze della razza: la tinta li colora.");
 
                 ImGui::Spacing(); ImGui::Spacing();
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[COMING SOON] - Personalizzazione Volto");
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[COMING SOON] - Protesi Bioniche e Accessori");
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ANTEPRIMA");
+                ImGui::TextWrapped("Trascina col tasto sinistro sul personaggio per girarlo, rotellina per avvicinarti.");
             }
             else if (m_CustomizeMainTab == 1) {
 
@@ -6360,14 +6479,43 @@ namespace SunEngine {
                 }
             }
 
-            ImGui::SetCursorPosY(465.0f);
-            ImGui::Separator(); ImGui::Spacing();
-            if (ImGui::Button("SALVA E CHIUDI", ImVec2(-1, 35))) {
-                m_ShowCustomizeModal = false;
-                ImGui::CloseCurrentPopup();
-            }
+            ImGui::EndChild();
 
-            ImGui::EndPopup();
+            ImGui::Separator(); ImGui::Spacing();
+            const float half = (panelW - 24.0f) * 0.5f;
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.2f, 1.0f));
+            if (ImGui::Button("SALVA E CHIUDI", ImVec2(half, 44))) {
+                m_ShowCustomizeModal = false;
+                m_CustomizeHasBackup = false;
+                SaveProfileIfChanged();
+            }
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+            if (ImGui::Button("ANNULLA MODIFICHE", ImVec2(half, 44))) {
+                if (m_CustomizeHasBackup) { activeUnit = m_CustomizeBackup; ApplyUnitVisuals(activeUnit); }
+                m_ShowCustomizeModal = false;
+                m_CustomizeHasBackup = false;
+            }
+        }
+        ImGui::End();
+
+        // Barra dell'anteprima (in basso, sopra la scena)
+        if (m_ShowCustomizeModal) {
+            const float barW = 520.0f;
+            ImGui::SetNextWindowPos(ImVec2(panelW + (io.DisplaySize.x - panelW - barW) * 0.5f, io.DisplaySize.y - 70.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(barW, 56.0f), ImGuiCond_Always);
+            ImGui::SetNextWindowBgAlpha(0.7f);
+            ImGui::Begin("##AnteprimaBarra", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
+            static const char* anims[4] = { "Fermo", "Mira", "Cammina", "Corre" };
+            for (int i = 0; i < 4; ++i) {
+                if (i > 0) ImGui::SameLine();
+                if (ImGui::RadioButton(anims[i], m_CustomizePreviewAnim == i)) m_CustomizePreviewAnim = i;
+            }
+            ImGui::SameLine();
+            ImGui::Checkbox("Ruota", &m_CustomizeAutoRotate);
+            ImGui::SameLine();
+            if (ImGui::Button("Centra")) { m_CustomizeYaw = 200.0f; m_CustomizeZoom = 1.0f; }
+            ImGui::End();
         }
     }
 
@@ -7625,6 +7773,7 @@ namespace SunEngine {
         m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
         m_MeleeCombat.Update(m_Scene, deltaTime);
         m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);
+        UpdateSquigVisuals();
         CheckUnitDeaths();
         CollectMatchXp(deltaTime, false);   // a terra niente sopravvivenza
         glm::vec3 playerPos(0.0f);

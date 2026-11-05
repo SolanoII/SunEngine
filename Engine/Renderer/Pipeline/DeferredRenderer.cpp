@@ -401,8 +401,10 @@ out vec3 v_Normal;
 out vec3 v_BindPos;      // posizione e normale in posa T: la texture dei vestiti resta "incollata" al corpo
 out vec3 v_BindNormal;
 out vec2 v_UV;           // vestiti: x = distanza dal bordo (frazione dell'altezza del corpo)
+out vec2 v_Data;         // canali negli slot liberi delle ossa (id < 0): parti scolpite
 
 void main() {
+    v_Data = vec2(a_BoneIDs.z < 0 ? a_Weights.z : 0.0, a_BoneIDs.w < 0 ? a_Weights.w : 0.0);
     v_BindPos = a_Position;
     v_BindNormal = a_Normal;
     v_UV = a_TexCoord;
@@ -445,11 +447,15 @@ in vec3 v_Normal;
 in vec3 v_BindPos;
 in vec3 v_BindNormal;
 in vec2 v_UV;
+in vec2 v_Data;
 
 layout (location = 0) out vec4 out_Albedo;
 layout (location = 1) out vec4 out_Normal;
 layout (location = 2) out vec4 out_Material;
 
+uniform int   u_Baked;        // 1: v_UV = curvatura/occlusione (corpi preparati e volti)
+uniform vec4  u_SkinStyle;    // pelle: x chiazze, y verruche, z definizione muscolare, w vene
+uniform vec4  u_Color2;       // seconda tinta (macchie)
 uniform vec4  u_Color;
 uniform float u_Roughness;
 uniform float u_Metallic;
@@ -458,7 +464,7 @@ uniform int   u_UseTexture;   // 1 = strato di vestito con texture
 uniform sampler2D u_Albedo;
 uniform float u_TexScale;     // ripetizioni per unita' del modello
 uniform float u_AlphaCut;     // alpha sotto soglia = buco (stracci)
-uniform int   u_Detail;       // 0 niente, 1 pelle, 2 stoffa, 3 armatura/metallo
+uniform int   u_Detail;       // 0 niente, 1 pelle, 2 stoffa, 3 armatura/metallo, 5 occhio, 6 dente
 uniform float u_InvHeight;    // 1 / altezza del corpo in posa T (scala dei dettagli)
 
 // Proiezione triplanare in posa T: niente UV, la texture segue il corpo in ogni animazione
@@ -500,15 +506,81 @@ void main() {
         color.rgb *= t.rgb;
     }
     vec3 pn = v_BindPos * u_InvHeight;   // posizione in posa T, normalizzata sull'altezza del corpo
+    float emissive = u_Emissive;
     if (u_Detail == 1) {
         // Pelle: macchie e venature leggere, pori (rilievo fine), un po' di rossore variabile
         float big = Noise3(pn * 16.0), mid = Noise3(pn * 55.0), fine = Noise3(pn * 380.0);
         color.rgb *= 0.9 + 0.14 * big + 0.05 * mid;
         color.rgb = mix(color.rgb, color.rgb * vec3(1.1, 0.93, 0.9), smoothstep(0.5, 0.85, big) * 0.45);
+        // stile della razza: chiazze (pelle d'orko), verruche e bitorzoli
+        float mott = Noise3(pn * 7.0 + 3.0) * 0.6 + Noise3(pn * 23.0) * 0.4;
+        color.rgb *= mix(1.0, 0.7 + 0.55 * mott, u_SkinStyle.x);
+        float warts = smoothstep(0.66, 0.82, Noise3(pn * 150.0)) * u_SkinStyle.y;
+        color.rgb *= 1.0 - warts * 0.08;
+        float h = fine * 0.00012 + mid * 0.0004 + warts * 0.0011;
         rough = clamp(rough - 0.1 + 0.15 * mid, 0.25, 1.0);
-        N = Bump(N, fine * 0.00012 + mid * 0.0004, 1.0);
+        if (u_Baked == 1) {
+            // Muscoli: solchi piu' scuri e rossastri, ventri piu' chiari e lucidi (curvatura e occlusione nel vertice)
+            float cav = clamp((v_UV.x - 0.5) * 2.0, -1.0, 1.0);
+            float ao = clamp(v_UV.y, 0.0, 1.0);
+            float def = u_SkinStyle.z;
+            color.rgb *= mix(1.0, ao, 0.85);
+            color.rgb *= 1.0 + cav * 0.22 * def;
+            color.rgb = mix(color.rgb, color.rgb * vec3(0.95, 0.72, 0.68), clamp(-cav, 0.0, 1.0) * 0.45 * def);
+            rough = clamp(rough - cav * 0.12 * def, 0.2, 1.0);
+            // vene in rilievo sui muscoli in tensione (braccia in posa T lungo X, il resto in verticale)
+            vec3 vf = abs(pn.x) > 0.17 ? vec3(22.0, 85.0, 85.0) : vec3(85.0, 22.0, 85.0);
+            float vn = abs(Noise3(pn * vf) - 0.5);
+            float vein = (1.0 - smoothstep(0.0, 0.035, vn)) * u_SkinStyle.w * smoothstep(0.5, 0.68, v_UV.x);
+            h += vein * 0.0009;
+            color.rgb *= 1.0 - vein * 0.1;
+            // Parti scolpite: rossore (oltre 1.2 interno della bocca) e macchie (da 2 in su, tinta u_Color2)
+            float red = v_Data.y;
+            if (red > 1.2) { color.rgb = vec3(0.32, 0.07, 0.06) * (0.35 + 0.65 * ao); rough = 0.35; }
+            else color.rgb = mix(color.rgb, color.rgb * vec3(1.06, 0.74, 0.72), clamp(red, 0.0, 1.0) * 0.5);
+            float sd = v_Data.x;
+            if (sd >= 1.9) {
+                float paint = clamp(sd - 2.0, 0.0, 1.0) * (0.85 + 0.15 * Noise3(pn * 300.0));
+                color.rgb = mix(color.rgb, u_Color2.rgb * (0.7 + 0.3 * ao), paint);
+                rough = mix(rough, 0.55, paint);
+            }
+            else if (sd > 0.01) {
+                float dots = smoothstep(0.35, 0.75, Noise3(pn * 2600.0));
+                color.rgb *= 1.0 - clamp(sd, 0.0, 1.0) * (0.25 + 0.35 * dots);
+            }
+        }
+        N = Bump(N, h, 1.0);
     }
-    else if (u_Detail >= 2) {
+    else if (u_Detail == 5) {
+        // Occhio: sclera, iride (u_Color) con fibre radiali e bordo scuro, pupilla; bagnato
+        vec2 uv = v_Data;
+        float r = length(uv);
+        float ao = clamp(v_UV.y, 0.0, 1.0);
+        vec3 sclera = vec3(0.86, 0.83, 0.78);
+        sclera = mix(sclera, vec3(0.8, 0.45, 0.4), smoothstep(1.2, 2.2, r) * 0.35);
+        if (r < 1.0) {
+            float ang = atan(uv.y, uv.x);
+            float fib = Noise3(vec3(cos(ang) * 6.0, sin(ang) * 6.0, r * 5.0));
+            vec3 iris = u_Color.rgb * (0.45 + 0.55 * fib) * mix(1.0, 0.35, smoothstep(0.78, 1.0, r));
+            iris = mix(iris, u_Color.rgb * 1.25, (1.0 - smoothstep(0.3, 0.55, r)) * 0.35);
+            color.rgb = r < 0.36 ? vec3(0.02) : iris;
+        }
+        else {
+            color.rgb = sclera;
+            emissive = 0.0;
+        }
+        color.rgb *= mix(0.25, 1.0, ao);
+        rough = 0.08; metal = 0.0;
+    }
+    else if (u_Detail == 6) {
+        // Dente / zanna: avorio sporco alla radice
+        float n = Noise3(pn * 120.0);
+        float ao = clamp(v_UV.y, 0.0, 1.0);
+        color.rgb *= (0.85 + 0.2 * n) * mix(0.55, 1.0, ao);
+        color.rgb = mix(color.rgb, color.rgb * vec3(0.75, 0.62, 0.42), (1.0 - ao) * 0.6);
+        rough = 0.35 + 0.2 * n;
+    }
+    else if (u_Detail == 2 || u_Detail == 3) {
         float edge = v_UV.x;                       // distanza dal bordo del vestito
         float n1 = Noise3(pn * 9.0), n2 = Noise3(pn * 40.0), n3 = Noise3(pn * 220.0);
         if (u_Detail == 2) {
@@ -540,7 +612,7 @@ void main() {
     }
     out_Albedo   = vec4(color.rgb, color.a);
     out_Normal   = vec4(N, 1.0);
-    out_Material = vec4(rough, metal, u_Emissive, 0.0);
+    out_Material = vec4(rough, metal, emissive, 0.0);
 }
 )";
     bool DeferredRenderer::Init(int width, int height) {
@@ -969,7 +1041,7 @@ void main() {
         const std::vector<glm::mat4>& boneMatrices,
         const glm::vec4& color,
         float roughness, float metallic, float emissive,
-        const GpuTexture* texture, float texScale, float alphaCut, int detail, float invHeight)
+        const GpuTexture* texture, float texScale, float alphaCut, int detail, float invHeight, const SkinnedDrawExtra* extra)
     {
         if (!m_GBufferSkinnedShader || !m_GBufferSkinnedShader->IsValid()) return;
         if (m_CloakCapture) { m_CloakSkinned.push_back({ &mesh, model, boneMatrices, m_CloakAmount }); return; }   // mimetizzato
@@ -984,6 +1056,13 @@ void main() {
             m_GBufferSkinnedShader->SetFloat("u_AlphaCut", alphaCut);
         }
         m_GBufferSkinnedShader->SetInt("u_Detail", invHeight > 0.0f ? detail : 0);
+        {
+            static const SkinnedDrawExtra s_None;
+            const SkinnedDrawExtra& ex = extra ? *extra : s_None;
+            m_GBufferSkinnedShader->SetInt("u_Baked", ex.baked);
+            m_GBufferSkinnedShader->SetVec4("u_SkinStyle", ex.skinStyle);
+            m_GBufferSkinnedShader->SetVec4("u_Color2", ex.color2);
+        }
         m_GBufferSkinnedShader->SetFloat("u_InvHeight", invHeight > 0.0f ? invHeight : 1.0f);
         m_GBufferSkinnedShader->SetMat4("u_Model", model);
         m_GBufferSkinnedShader->SetMat4("u_ViewProjection", m_ViewProjection);
