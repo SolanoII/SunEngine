@@ -18,6 +18,8 @@ namespace SunEngine {
             auto& trans = view.get<TransformComponent>(entity);
 
             if (melee.parrySuccessTimer > 0.0f) melee.parrySuccessTimer = std::max(0.0f, melee.parrySuccessTimer - deltaTime);
+            // Fermo sul colpo: le fasi dell'attacco (e quindi le pose) restano ferme un istante
+            if (melee.hitStop > 0.0f) { melee.hitStop = std::max(0.0f, melee.hitStop - deltaTime); continue; }
 
             // Scatto dell'attacco pesante: le unita' dell'IA si spostano qui, il giocatore in MovementSystem
             // (che controlla i muri)
@@ -61,10 +63,11 @@ namespace SunEngine {
                 else if (melee.currentPhase == MeleePhase::Active && melee.stateTimer >= 0.28f) {
                     melee.currentPhase = MeleePhase::Recovery;
                 }
-                else if (melee.currentPhase == MeleePhase::Recovery && melee.stateTimer >= 0.48f) {
+                else if (melee.currentPhase == MeleePhase::Recovery && melee.stateTimer >= DamageResolver::ParryEnd(melee)) {
                     melee.currentPhase = MeleePhase::None;
                     melee.currentAttack = MeleeAttackType::None;
                     melee.stateTimer = 0.0f;
+                    melee.parrySucceeded = false;
                 }
                 continue;
             }
@@ -73,6 +76,8 @@ namespace SunEngine {
                 auto it = weaponBP->moveset.nodes.find(melee.currentAttackNode);
                 if (it != weaponBP->moveset.nodes.end()) {
                     const auto& node = it->second;
+                    // Tempi con i minimi del tipo di colpo (cariche leggibili, recuperi punibili)
+                    const MeleeTiming tm = DamageResolver::EffectiveTiming(node, melee.currentAttack, melee.currentAttackNode);
                     // Buff di fazione (WAAAGH!): colpi piu' rapidi (tutte le fasi dell'attacco scorrono piu' in fretta)
                     const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
                     melee.stateTimer += deltaTime * (buff ? buff->meleeSpeedMult : 1.0f);
@@ -91,33 +96,38 @@ namespace SunEngine {
                                     melee.stateTimer = 0.0f;
                                     melee.bufferedInput = "";
                                     melee.hasHitInThisAttack = false;
+                                    melee.whiffPenalty = 0.0f;
                                     continue;
                                 }
                             }
                         }
                     }
 
-                    if (melee.currentPhase == MeleePhase::Windup && melee.stateTimer >= node.timings.windup) {
+                    if (melee.currentPhase == MeleePhase::Windup && melee.stateTimer >= tm.windup) {
                         melee.currentPhase = MeleePhase::Active;
                         melee.stateTimer = 0.0f;
                         // Affondo dell'attacco pesante (es. lancia): scatto in avanti durante la fase attiva
                         if (weaponBP->heavy_lunge_distance > 0.0f && melee.currentAttackNode.find("heavy") != std::string::npos) {
-                            const float dur = std::max(0.08f, node.timings.active);
+                            const float dur = std::max(0.08f, tm.active);
                             const float yaw = glm::radians(trans.AimYaw);
                             melee.lungeVelocity = glm::vec3(-std::sin(yaw), 0.0f, -std::cos(yaw)) * (weaponBP->heavy_lunge_distance / dur);
                             melee.lungeTimer = dur;
                         }
                         CombatVFX::SpawnSlashTrail(scene, entity, trans, melee, &node);
                     }
-                    else if (melee.currentPhase == MeleePhase::Active && melee.stateTimer >= node.timings.active) {
+                    else if (melee.currentPhase == MeleePhase::Active && melee.stateTimer >= tm.active) {
                         melee.currentPhase = MeleePhase::Recovery;
                         melee.stateTimer = 0.0f;
+                        // A vuoto: si resta scoperti piu' a lungo
+                        const bool heavy = melee.currentAttack == MeleeAttackType::Heavy || melee.currentAttackNode.find("heavy") != std::string::npos;
+                        melee.whiffPenalty = melee.hasHitInThisAttack ? 0.0f : (heavy ? DamageResolver::kWhiffHeavy : DamageResolver::kWhiffNormal);
                     }
-                    else if (melee.currentPhase == MeleePhase::Recovery && melee.stateTimer >= node.timings.recovery) {
+                    else if (melee.currentPhase == MeleePhase::Recovery && melee.stateTimer >= tm.recovery + melee.whiffPenalty) {
                         melee.currentPhase = MeleePhase::None;
                         melee.currentAttackNode = "";
                         melee.stateTimer = 0.0f;
                         melee.hasHitInThisAttack = false;
+                        melee.whiffPenalty = 0.0f;
                     }
 
                     if (melee.currentPhase == MeleePhase::Active && !melee.hasHitInThisAttack) {
@@ -238,6 +248,16 @@ namespace SunEngine {
         const auto result = DamageResolver::ResolveMeleeClash(scene, attacker, best.e, best.loc);
         if (result == DamageResolver::MeleeClashResult::Hit) {
             EmitHitFeedback(scene, attacker, best.e, best.point, best.loc, healthBefore);
+            // Effetto del colpo: sangue, lampo e (spada a catena / eviscerator) scintille dei denti
+            VfxEvent e; e.kind = VfxKind::MeleeHit; e.pos = best.point; e.dir = best.point - atkChest; e.dir.y = 0.0f;
+            e.variant = atkMelee.currentAttack == MeleeAttackType::Light ? 0 : (atkMelee.currentAttack == MeleeAttackType::Heavy ? 2 : 1);
+            e.flag = weaponBP && (weaponBP->id.find("chain") != std::string::npos || weaponBP->id.find("eviscerator") != std::string::npos);
+            if (const auto* vt = reg.try_get<TransformComponent>(best.e)) {   // piedi del colpito: sangue a terra
+                float vy = vt->Position.y;
+                if (const auto* vc = reg.try_get<ColliderComponent>(best.e)) vy += (vc->localCenterOffset.y - vc->halfExtents.y) * vt->Scale.y;
+                e.pos2 = glm::vec3(vt->Position.x, vy, vt->Position.z);
+            }
+            EmitVfx(e);
         }
         (void)atkStats;
     }

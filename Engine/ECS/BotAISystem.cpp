@@ -1103,14 +1103,41 @@ namespace SunEngine {
             glm::vec3 toMe = t.Position - at.Position; toMe.y = 0.0f;
             if (glm::length(toMe) < 1e-3f || glm::dot(YawForward(at.AimYaw), glm::normalize(toMe)) < 0.6f) continue;
 
-            // Un solo tentativo per attacco: riuscita in base all'abilita' in mischia
-            brain.parryCooldown = 1.4f;
+            // Lettura del colpo in arrivo (carta-sasso-forbice): contro un normale o un basso si para, contro un
+            // pesante si anticipa con un colpo veloce (la parata verrebbe rotta). Serve un attimo per reagire e chi e'
+            // poco abile in mischia sbaglia lettura piu' spesso. Un solo tentativo per attacco.
             auto& stats = reg.get<UnitStatsComponent>(self);
-            if (Random::Chance(std::clamp(stats.meleeSkill / 150.0f, 0.05f, 0.65f)) && stats.stamina >= 10.0f) {
-                stats.stamina -= 10.0f;
-                melee->currentPhase = MeleePhase::Windup;
-                melee->currentAttack = MeleeAttackType::Parry;
-                melee->stateTimer = 0.0f;
+            const float skill = std::clamp(stats.meleeSkill / 100.0f, 0.0f, 1.0f);
+            if (am.stateTimer < glm::mix(0.2f, 0.06f, skill)) return;   // tempo di reazione
+            brain.parryCooldown = 1.2f;
+            const bool heavyIncoming = am.currentAttack == MeleeAttackType::Heavy;
+            const bool readRight = Random::Chance(std::clamp(stats.meleeSkill / 120.0f, 0.15f, 0.8f));
+            const bool doParry = heavyIncoming ? !readRight : readRight;
+            if (doParry) {
+                if (stats.stamina >= 10.0f) {
+                    stats.stamina -= 10.0f;
+                    melee->currentPhase = MeleePhase::Windup;
+                    melee->currentAttack = MeleeAttackType::Parry;
+                    melee->stateTimer = 0.0f;
+                    melee->parrySucceeded = false;
+                }
+            }
+            else if (heavyIncoming && HorizontalDist(at.Position, t.Position) < 2.3f) {
+                // Colpo veloce dentro la carica del pesante: lo interrompe
+                const auto* weapon = DamageResolver::ResolveMeleeWeapon(reg, self);
+                const std::string node = (weapon && !weapon->moveset.entryNode.empty()) ? weapon->moveset.entryNode : "normal_1";
+                if (weapon && weapon->hasMoveset && weapon->moveset.nodes.count(node)) {
+                    const auto& nd = weapon->moveset.nodes.at(node);
+                    if (stats.stamina >= nd.staminaCost) {
+                        stats.stamina -= nd.staminaCost;
+                        melee->currentAttackNode = node;
+                        melee->currentAttack = MeleeAttackType::Normal;
+                        melee->currentPhase = MeleePhase::Windup;
+                        melee->stateTimer = 0.0f;
+                        melee->hasHitInThisAttack = false;
+                        melee->whiffPenalty = 0.0f;
+                    }
+                }
             }
             return;
         }

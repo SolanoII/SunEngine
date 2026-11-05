@@ -2946,17 +2946,18 @@ namespace SunEngine {
             if (melee->currentPhase == MeleePhase::Stunned) PoseLib::Stunned(pose, 1.0f);
             else if (melee->currentAttack == MeleeAttackType::Parry) {
                 const float t = melee->stateTimer;
-                PoseLib::Parry(pose, t < 0.08f ? t / 0.08f : (t < 0.28f ? 1.0f : std::max(0.0f, (0.48f - t) / 0.2f)));
+                const float end = DamageResolver::ParryEnd(*melee);
+                PoseLib::Parry(pose, t < 0.08f ? t / 0.08f : (t < 0.28f ? 1.0f : std::max(0.0f, (end - t) / (end - 0.28f))));
             }
             else if (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active || melee->currentPhase == MeleePhase::Recovery) {
                 const auto* wbp = DamageResolver::ResolveMeleeWeapon(reg, e);
                 MeleeTiming tm;
                 if (wbp && wbp->hasMoveset) {
                     auto it = wbp->moveset.nodes.find(melee->currentAttackNode);
-                    if (it != wbp->moveset.nodes.end()) tm = it->second.timings;
+                    if (it != wbp->moveset.nodes.end()) tm = DamageResolver::EffectiveTiming(it->second, melee->currentAttack, melee->currentAttackNode);
                 }
                 const int phase = melee->currentPhase == MeleePhase::Windup ? 0 : (melee->currentPhase == MeleePhase::Active ? 1 : 2);
-                const float dur = phase == 0 ? tm.windup : (phase == 1 ? tm.active : tm.recovery);
+                const float dur = phase == 0 ? tm.windup : (phase == 1 ? tm.active : tm.recovery + melee->whiffPenalty);
                 const int type = melee->currentAttack == MeleeAttackType::Light ? 0 : (melee->currentAttack == MeleeAttackType::Heavy ? 2 : 1);
                 PoseLib::Melee(pose, type, phase, melee->stateTimer / std::max(0.01f, dur),
                                wbp && wbp->hand_type == HandType::TwoHanded);
@@ -3238,6 +3239,31 @@ namespace SunEngine {
 
     // Cerchio sul punto colpito, grande quanto m_HitMarkerWorldRadius sul corpo del bersaglio.
     // Colore = efficacia del colpo (verde poco danno -> rosso colpo pesante); uccisione = croce rossa.
+    // Scritte della mischia che salgono (PARATA!, GUARDIA ROTTA!, INTERROTTO!, PUNITO!), solo vicino al giocatore
+    void GameLayer::RenderVfxTexts() {
+        const auto& texts = m_ParticleSystem.Texts();
+        if (texts.empty()) return;
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        glm::vec3 me(0.0f);
+        if (const auto* pt = m_Scene.GetRegistry().try_get<TransformComponent>(m_PlayerEntity)) me = pt->Position;
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        for (const auto& t : texts) {
+            if (glm::distance(t.pos, me) > 30.0f) continue;
+            const glm::vec4 clip = vp * glm::vec4(t.pos, 1.0f);
+            if (clip.w <= 0.05f) continue;
+            const glm::vec2 sp = WorldToScreen(t.pos, vp, m_WindowWidth, m_WindowHeight);
+            const float k = std::clamp(t.age / t.life, 0.0f, 1.0f);
+            const float pop = k < 0.12f ? 0.7f + 2.5f * k : 1.0f;   // entra con un piccolo scatto
+            const int alpha = static_cast<int>(255 * (1.0f - k * k));
+            ImFont* font = ImGui::GetFont();
+            const float size = ImGui::GetFontSize() * 1.35f * pop;
+            const ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, 0.0f, t.text.c_str());
+            const ImVec2 pos(sp.x - ts.x * 0.5f, sp.y - ts.y * 0.5f);
+            dl->AddText(font, size, ImVec2(pos.x + 2.0f, pos.y + 2.0f), IM_COL32(0, 0, 0, alpha), t.text.c_str());
+            dl->AddText(font, size, pos, IM_COL32(static_cast<int>(t.color.r * 255), static_cast<int>(t.color.g * 255), static_cast<int>(t.color.b * 255), alpha), t.text.c_str());
+        }
+    }
+
     void GameLayer::RenderHitMarkers() {
         auto& reg = m_Scene.GetRegistry();
         auto markers = reg.view<HitMarkerComponent>();
@@ -3852,6 +3878,7 @@ namespace SunEngine {
             XpEventLog().clear();   // eventi rimasti fuori partita: non contano
             m_SquigSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
+            m_ParticleSystem.Clear();
             m_TurretSystem.Clear(m_Scene);
             ClearSummons();
             if (!m_UnitAnims.empty()) ClearUnitAnimations();
@@ -4889,7 +4916,7 @@ namespace SunEngine {
             RenderHealZones(false);
             RenderSummonRings(false);
         }
-        m_ParticleSystem.Render(m_Scene);
+        m_ParticleSystem.Render(m_Scene, m_Camera.GetView(), m_Camera.GetViewProjection());
         if (m_GameState == GameState::Gameplay && m_UseAnimatedPlayer) RenderHitboxOverlay();   // campo da tiro
         // (rimossi i due modelli di prova disegnati accanto al giocatore)
 
@@ -5071,6 +5098,7 @@ namespace SunEngine {
 
             if (!isPlayerDead && !m_IsPaused) {
                 RenderDamageVignette();
+                RenderVfxTexts();
                 RenderTrainingDummyLabels();
                 RenderHitMarkers();
                 RenderAmmoHUD();

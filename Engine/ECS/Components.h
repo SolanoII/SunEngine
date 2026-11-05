@@ -102,6 +102,11 @@ namespace SunEngine {
 
         std::string bufferedInput = "";
         float inputBufferTimer = 0.0f;
+
+        // Ritmo "carta-sasso-forbice": un colpo a vuoto lascia scoperti piu' a lungo, una parata a vuoto anche
+        float whiffPenalty = 0.0f;          // secondi di recupero in piu' (colpo andato a vuoto)
+        bool parrySucceeded = false;        // la parata in corso ha fermato un colpo: si torna in guardia prima
+        float hitStop = 0.0f;               // colpo a segno: attaccante e colpito si fermano un istante (peso del colpo)
     };
 
     struct ArmorPiece {
@@ -492,6 +497,12 @@ namespace SunEngine {
         float projectileLength = 0.5f;
         float projectileWidth = 0.05f;
         int style = 0;                 // 0 = scia classica, 1 = proiettile (tracciante sottile), 2 = bolt (cartuccia a razzo + scoppio)
+        // Aspetto per tipo di arma (WeaponFx in VfxEvents.h, -1 = scia classica) e impatto all'arrivo
+        int fx = -1;
+        bool hitSomething = false;     // il colpo finisce su qualcosa: all'arrivo parte l'impatto
+        bool hitUnit = false;          // ...ed e' un'unita' (sangue invece di polvere)
+        bool impactDone = false;
+        float impactScale = 1.0f;      // es. raggio dell'esplosione del razzo
     };
 
     // Raggio del mirino (centro dello schermo) pubblicato ogni frame dalla telecamera di gioco. La telecamera

@@ -8,6 +8,7 @@
 // L'esplosione colpisce i nemici del padrone entro explosion_radius: explosion_damage al centro, 40% al bordo,
 // con la penetrazione armor_penetration dell'oggetto. Niente fuoco amico, come per le armi.
 #include "Components.h"
+#include "VfxEvents.h"
 #include "BlockModel.h"
 #include "DamageResolver.h"
 #include "HitUtils.h"
@@ -75,7 +76,7 @@ namespace SunEngine {
         // Esplosione: ritorna quanti bersagli ha colpito. structureMult = danno a strutture e mezzi (barricate, muri,
         // entita' riparabili "Structure"/"Construct"/"Mechanical")
         inline int Explode(Scene& scene, const glm::vec3& center, float radius, float damage, int ap, entt::entity owner, int team,
-                           float structureMult = 1.0f) {
+                           float structureMult = 1.0f, bool vfx = true) {
             auto& reg = scene.GetRegistry();
             radius = std::max(0.5f, radius);
             int hit = 0;
@@ -115,15 +116,9 @@ namespace SunEngine {
                 auto& h = reg.get<HealthComponent>(e);
                 h.currentHealth = std::max(0.0f, h.currentHealth - damage * (1.0f - 0.6f * (d / radius)) * structureMult);
             }
-            // Lampo
-            const entt::entity f = scene.CreateEntity();
-            auto& ft = reg.emplace<TransformComponent>(f);
-            ft.Position = center + glm::vec3(0.0f, 0.4f, 0.0f);
-            ft.Scale = glm::vec3(0.2f);
-            reg.emplace<MeshComponent>(f, 0u);
-            auto& fc = reg.emplace<ColorComponent>(f);
-            fc.Color = glm::vec4(1.0f, 0.55f, 0.1f, 1.0f); fc.BaseColor = fc.Color;
-            reg.emplace<ExplosionFlashComponent>(f, ExplosionFlashComponent{ 0.0f, 0.3f, radius });
+            // Palla di fuoco, onda d'urto, fumo e detriti (ParticleSystem). vfx = false: la disegna chi l'ha
+            // causata quando il colpo arriva (es. il razzo in volo)
+            if (vfx) { VfxEvent e; e.kind = VfxKind::Explosion; e.pos = center + glm::vec3(0.0f, 0.3f, 0.0f); e.scale = radius; EmitVfx(e); }
             return hit;
         }
 

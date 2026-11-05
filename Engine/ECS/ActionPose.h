@@ -104,10 +104,10 @@ namespace SunEngine {
                             MeleeTiming tm;
                             if (wbp && wbp->hasMoveset) {
                                 auto it = wbp->moveset.nodes.find(melee->currentAttackNode);
-                                if (it != wbp->moveset.nodes.end()) tm = it->second.timings;
+                                if (it != wbp->moveset.nodes.end()) tm = DamageResolver::EffectiveTiming(it->second, melee->currentAttack, melee->currentAttackNode);
                             }
                             const int phase = melee->currentPhase == MeleePhase::Windup ? 0 : (melee->currentPhase == MeleePhase::Active ? 1 : 2);
-                            const float dur = phase == 0 ? tm.windup : (phase == 1 ? tm.active : tm.recovery);
+                            const float dur = phase == 0 ? tm.windup : (phase == 1 ? tm.active : tm.recovery + melee->whiffPenalty);
                             const float t = std::clamp(melee->stateTimer / std::max(0.01f, dur), 0.0f, 1.0f);
                             // carica (braccio alto) -> colpo (braccio giu' davanti) -> ritorno
                             const float k = phase == 0 ? Smooth(t) : (phase == 1 ? 1.0f - 2.0f * Smooth(t) : -1.0f + Smooth(t));

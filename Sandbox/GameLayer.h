@@ -323,6 +323,7 @@ namespace SunEngine {
         void RenderPlayerStatusHUD();
         // Danni subiti: bordi dello schermo che sanguinano (vignetta rossa, gocce che colano, macchie), battito a vita bassa
         void RenderDamageVignette();
+        void RenderVfxTexts();   // scritte della mischia che salgono
         struct BloodSplat { float x = 0.0f, y = 0.0f, radius = 0.0f, life = 0.0f, maxLife = 1.0f; uint32_t seed = 0; bool drip = false; };
         std::vector<BloodSplat> m_BloodSplats;
         float m_DamageFlash = 0.0f;

@@ -12,6 +12,7 @@
 #include "HitUtils.h"
 #include "AmmoSystem.h"
 #include "Marksmanship.h"
+#include "VfxEvents.h"
 #include "../Core/Random.h"
 #include <GLFW/glfw3.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -160,6 +161,26 @@ namespace SunEngine {
         ma_sound_seek_to_pcm_frame(&inst->sound, 0);
         ma_sound_start(&inst->sound);
     }
+    // Aspetto del colpo in base all'arma (lampo, proiettile in volo, impatto)
+    static WeaponFx FxForWeapon(const WeaponBlueprint& w, bool underbarrelShotgun) {
+        if (underbarrelShotgun || w.pellet_count > 1) return WeaponFx::Shotgun;
+        switch (w.projectile_type) {
+        case ProjectileType::Laser:
+            if (w.melta_shot) return WeaponFx::Melta;
+            if (w.base_damage >= 100.0f || w.id.find("long_las") != std::string::npos) return WeaponFx::LongLas;
+            if (w.ammo_per_shot >= 2 || w.id.find("hotshot") != std::string::npos) return WeaponFx::HotShot;
+            return WeaponFx::Laser;
+        case ProjectileType::Ballistic: return w.base_damage >= 100.0f ? WeaponFx::Sniper : WeaponFx::Ballistic;
+        case ProjectileType::Bolt: return WeaponFx::Bolt;
+        case ProjectileType::Plasma: return WeaponFx::Plasma;
+        case ProjectileType::Explosive: return WeaponFx::Explosive;
+        case ProjectileType::Flamer: return WeaponFx::Flamer;
+        case ProjectileType::ContinuousBeam: return WeaponFx::Melta;
+        case ProjectileType::Grav: case ProjectileType::Psychic: return WeaponFx::Grav;
+        }
+        return WeaponFx::Ballistic;
+    }
+
     float WeaponSystem::CalculateDamageWithFalloff(float baseDamage, float distance, float falloffStart, float falloffEnd) {
         if (falloffStart <= 0.0f || falloffEnd <= falloffStart) {
             return baseDamage;
@@ -480,8 +501,12 @@ namespace SunEngine {
         beamTrail.color = (wpBP.primary_color.a > 0.01f) ? wpBP.primary_color : glm::vec4(1.0f, 0.40f, 0.05f, 0.95f);
         beamTrail.isBeam = true;
         beamTrail.projectileWidth = (wpBP.projectile_width > 0.05f) ? wpBP.projectile_width : 0.38f;
-        beamTrail.travelTime = 0.01f;
-        beamTrail.totalLife = deltaTime * 1.8f;
+        beamTrail.travelTime = 0.001f;
+        beamTrail.totalLife = std::max(0.05f, deltaTime * 2.5f);
+        beamTrail.fx = static_cast<int>(WeaponFx::Melta);
+        beamTrail.hitSomething = hit.hit && Random::Chance(0.3f);   // metallo fuso ogni tanto, non a ogni frame
+        beamTrail.hitUnit = hit.hitUnit;
+        if (Random::Chance(0.35f)) { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Melta; mz.pos = barrelOrigin; mz.dir = baseDir; EmitVfx(mz); }
     }
 
     void WeaponSystem::FireWeapon(Scene& scene, entt::entity shooter,
@@ -582,16 +607,9 @@ namespace SunEngine {
         if (wpBP.projectile_type == ProjectileType::Flamer) {
             // Il cono del lanciafiamme parte dal corpo (stessa ragione del raggio di colpo sotto)
             FireFlamer(scene, shooter, wpBP, barrelOrigin - baseDir * rayPullBack, baseDir);
-
-            entt::entity flamerTrailEntity = scene.CreateEntity();
-            auto& flamerTrail = scene.GetRegistry().emplace<TrailRequestComponent>(flamerTrailEntity);
-            flamerTrail.start = barrelOrigin;
-            flamerTrail.end = barrelOrigin + (baseDir * wpBP.range_effective);
-            flamerTrail.color = glm::vec4(1.0f, 0.4f, 0.0f, 0.8f);
-            flamerTrail.isBeam = true;
-            flamerTrail.projectileWidth = 0.8f;
-            flamerTrail.travelTime = 0.1f;
-            flamerTrail.totalLife = 0.3f;
+            // Getto di fiamme vero (particelle che volano, crescono e diventano fumo) al posto della striscia arancione
+            VfxEvent jet; jet.kind = VfxKind::FlamerJet; jet.pos = barrelOrigin; jet.dir = baseDir; jet.scale = wpBP.range_effective;
+            EmitVfx(jet);
             return;
         }
 
@@ -608,6 +626,7 @@ namespace SunEngine {
                 vel = Explosives::BallisticVelocity(barrelOrigin, target, speed);
             }
             Explosives::ThrowGrenade(scene, shooter, wpBP, barrelOrigin, vel, nullptr);   // nullptr: niente modello dell'arma come granata
+            { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Ballistic; mz.pos = barrelOrigin; mz.dir = baseDir; EmitVfx(mz); }
             PlayWeaponSound(barrelOrigin, trans.Position + glm::vec3(0.0f, 1.2f, 0.0f), 0.8f);
             return;
         }
@@ -644,6 +663,8 @@ namespace SunEngine {
             }
         }
         const float grazeChance = Marksmanship::GrazeChance(skill, shotSteady) * steadyMult;
+        const WeaponFx fx = FxForWeapon(wpBP, isUnderbarrelShotgun);
+        { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = fx; mz.pos = barrelOrigin; mz.dir = baseDir; mz.color = wpBP.primary_color; EmitVfx(mz); }
 
         for (int p = 0; p < numProjectiles; ++p) {
             glm::vec3 shootDir = baseDir;
@@ -715,7 +736,7 @@ namespace SunEngine {
             // Proiettile esplosivo (es. Rokkit Launcha): esplode dove arriva, colpendo i nemici attorno
             if (wpBP.projectile_type == ProjectileType::Explosive && wpBP.explosion_radius > 0.0f && !parried) {
                 Explosives::Explode(scene, hitPoint, wpBP.explosion_radius, wpBP.explosion_damage, wpBP.armor_penetration,
-                                    shooter, Explosives::TeamOf(scene.GetRegistry(), shooter), wpBP.structure_damage_multiplier);
+                                    shooter, Explosives::TeamOf(scene.GetRegistry(), shooter), wpBP.structure_damage_multiplier, false);
             }
             if (skipTrail) continue;
             entt::entity bulletTrailEntity = scene.CreateEntity();
@@ -727,17 +748,25 @@ namespace SunEngine {
             bulletTrail.projectileWidth = isShotgun ? 0.035f : wpBP.projectile_width;
             bulletTrail.travelTime = (wpBP.projectile_type == ProjectileType::Laser) ? 0.05f : 0.12f;
             bulletTrail.totalLife = 0.20f;
-            // Proiettili veri: tracciante sottile e veloce. Bolt: cartuccia grossa a razzo, piu' lenta da seguire con
-            // l'occhio, che scoppia nel punto colpito.
-            if (wpBP.projectile_type == ProjectileType::Ballistic) {
-                bulletTrail.style = 1;
-                bulletTrail.travelTime = std::clamp(glm::length(hitPoint - barrelOrigin) / 260.0f, 0.03f, 0.14f);
-                bulletTrail.totalLife = bulletTrail.travelTime + 0.02f;
-            }
-            else if (wpBP.projectile_type == ProjectileType::Bolt) {
-                bulletTrail.style = 2;
-                bulletTrail.travelTime = std::clamp(glm::length(hitPoint - barrelOrigin) / 140.0f, 0.05f, 0.3f);
-                bulletTrail.totalLife = bulletTrail.travelTime + (hit.hit ? 0.28f : 0.05f);   // scoppio solo se colpisce qualcosa
+            // Aspetto per tipo di arma (ParticleSystem): velocita' del colpo in volo e quanto resta la scia
+            bulletTrail.fx = static_cast<int>(fx);
+            bulletTrail.hitSomething = hit.hit && !parried;
+            bulletTrail.hitUnit = hit.hitUnit && !parried;
+            const float dist = glm::length(hitPoint - barrelOrigin);
+            auto flight = [&](float speed, float minT, float maxT, float linger) {
+                bulletTrail.travelTime = std::clamp(dist / speed, minT, maxT);
+                bulletTrail.totalLife = bulletTrail.travelTime + linger;
+            };
+            switch (fx) {
+            case WeaponFx::Laser: case WeaponFx::HotShot: flight(170.0f, 0.03f, 0.45f, 0.01f); break;
+            case WeaponFx::LongLas: case WeaponFx::Melta: bulletTrail.travelTime = 0.001f; bulletTrail.totalLife = fx == WeaponFx::Melta ? 0.25f : 0.35f; break;
+            case WeaponFx::Ballistic: case WeaponFx::Shotgun: bulletTrail.style = 1; flight(300.0f, 0.02f, 0.14f, 0.01f); break;
+            case WeaponFx::Sniper: flight(450.0f, 0.02f, 0.5f, 0.6f); break;
+            case WeaponFx::Bolt: bulletTrail.style = 2; flight(140.0f, 0.05f, 0.4f, 0.6f); break;
+            case WeaponFx::Plasma: flight(65.0f, 0.05f, 1.0f, 0.01f); break;
+            case WeaponFx::Explosive: flight(90.0f, 0.05f, 0.8f, 0.9f); bulletTrail.impactScale = std::max(1.0f, wpBP.explosion_radius); bulletTrail.hitSomething = !parried; break;
+            case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
+            default: break;
             }
         }
         // Suono posizionale: sorgente = bocca di fuoco; l'attenuazione usa l'ascoltatore (vedi PlayWeaponSound)
@@ -844,8 +873,12 @@ namespace SunEngine {
         tr.color = bp.primary_color;
         tr.isBeam = true;
         tr.projectileWidth = std::max(0.08f, bp.projectile_width);
-        tr.travelTime = 0.04f;
+        tr.travelTime = 0.001f;
         tr.totalLife = 0.45f;
+        tr.fx = static_cast<int>(WeaponFx::LongLas);
+        tr.hitSomething = hit.hit;
+        tr.hitUnit = hit.hitUnit;
+        { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::LongLas; mz.pos = origin; mz.dir = dir; mz.color = bp.primary_color; EmitVfx(mz); }
     }
 
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,

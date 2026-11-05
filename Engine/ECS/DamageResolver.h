@@ -5,6 +5,7 @@
 #include "../AssetManager/BlueprintManager.h"
 #include "../Core/Logger/Log.h"
 #include "../Core/Random.h"
+#include "VfxEvents.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -56,9 +57,40 @@ namespace SunEngine {
             melee.hasHitInThisAttack = true;
         }
 
+        // ---------- Ritmo della mischia (carta-sasso-forbice) ----------
+        //   normale / basso  batte  pesante  (lo colpisce mentre carica: interrotto e barcollante)
+        //   pesante          batte  parata   (la parata non lo ferma: guardia rotta, stordito)
+        //   parata           batte  normale / basso (attaccante stordito)
+        // Perche' si possa leggere e rispondere, ogni tipo di colpo ha una carica minima visibile (con l'anello che
+        // si stringe fino al momento del colpo) e un recupero minimo; un colpo a vuoto lascia scoperti di piu'.
+        // Colpire chi sta recuperando fa piu' danno (punizione).
+        static constexpr float kPunishDamage = 1.25f;      // colpo su chi e' in recupero
+        static constexpr float kHeavyStagger = 0.55f;      // pesante interrotto: barcolla
+        static constexpr float kGuardBreakStun = 1.0f;     // parata rotta da un pesante
+        static constexpr float kWhiffNormal = 0.2f, kWhiffHeavy = 0.3f;
+
+        inline static bool IsComboFollowUp(const std::string& node) {
+            return node.find("_2") != std::string::npos || node.find("_3") != std::string::npos;
+        }
+        // Tempi effettivi di un colpo: quelli dell'arma, con i minimi del suo tipo
+        inline static MeleeTiming EffectiveTiming(const MeleeNode& node, MeleeAttackType type, const std::string& nodeKey) {
+            MeleeTiming t = node.timings;
+            const bool follow = IsComboFollowUp(nodeKey);
+            float minWind = 0.24f, minRec = 0.25f;
+            if (type == MeleeAttackType::Heavy || nodeKey.find("heavy") != std::string::npos) { minWind = follow ? 0.40f : 0.50f; minRec = 0.45f; }
+            else if (type == MeleeAttackType::Light || nodeKey.find("low") != std::string::npos) { minWind = follow ? 0.16f : 0.20f; minRec = 0.22f; }
+            else if (follow) minWind = 0.18f;
+            t.windup = std::max(t.windup, minWind);
+            t.active = std::max(t.active, 0.10f);
+            t.recovery = std::max(t.recovery, minRec);
+            return t;
+        }
+
         // ---------- Parata (Q) ----------
         // Finestra in cui la parata ferma un colpo: windup + fase attiva (0 .. 0.28 s dall'inizio).
         static constexpr float kParryWindowEnd = 0.28f;
+        // Fine della parata: riuscita si torna in guardia presto (per punire), a vuoto si resta scoperti
+        inline static float ParryEnd(const MeleeStateComponent& m) { return m.parrySucceeded ? 0.40f : 0.62f; }
 
         inline static bool IsParryActive(const MeleeStateComponent& m) {
             return m.currentAttack == MeleeAttackType::Parry
@@ -148,8 +180,28 @@ namespace SunEngine {
             auto& defenderHealth = reg.get<HealthComponent>(defender);
             auto* defenderMelee = reg.try_get<MeleeStateComponent>(defender);
 
-            // PARATA PERFETTA CON Q (blocca sempre i colpi in mischia)
-            if (defenderMelee && IsParryActive(*defenderMelee)) {
+            const auto* defTrans = reg.try_get<TransformComponent>(defender);
+            const glm::vec3 fxPos = defTrans ? defTrans->Position + glm::vec3(0.0f, 1.1f, 0.0f) : glm::vec3(0.0f);
+            bool guardBroken = false;
+
+            // PESANTE CONTRO PARATA: la parata non regge, guardia rotta (stordito) e il colpo passa
+            if (defenderMelee && IsParryActive(*defenderMelee) && attackerMelee.currentAttack == MeleeAttackType::Heavy) {
+                defenderMelee->currentPhase = MeleePhase::Stunned;
+                defenderMelee->currentAttack = MeleeAttackType::None;
+                defenderMelee->currentAttackNode = "";
+                defenderMelee->stunTimer = kGuardBreakStun;
+                defenderMelee->parrySucceeded = false;
+                defenderStats.stamina = std::max(0.0f, defenderStats.stamina - attackerStats.strength * 0.6f);
+                guardBroken = true;
+                { VfxEvent e; e.kind = VfxKind::GuardBreak; e.pos = fxPos; EmitVfx(e); }
+                EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "GUARDIA ROTTA!", glm::vec4(1.0f, 0.35f, 0.2f, 1.0f));
+                SUN_CORE_INFO("GUARDIA ROTTA dal colpo pesante!");
+            }
+            // PARATA PERFETTA CON Q (blocca i colpi normali e bassi)
+            else if (defenderMelee && IsParryActive(*defenderMelee)) {
+                defenderMelee->parrySucceeded = true;
+                { VfxEvent e; e.kind = VfxKind::Parry; e.pos = fxPos; EmitVfx(e); }
+                EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "PARATA!", glm::vec4(1.0f, 0.9f, 0.5f, 1.0f));
                 float staminaDamage = attackerStats.strength * 0.45f;
                 defenderStats.stamina = std::max(0.0f, defenderStats.stamina - staminaDamage);
                 defenderMelee->parrySuccessTimer = 0.25f;
@@ -178,22 +230,10 @@ namespace SunEngine {
                 return MeleeClashResult::Countered;
             }
 
-            // REGOLE DI COUNTER MELEE & INTERRUZIONE AI
-            MeleeAttackType atkType = attackerMelee.currentAttack;
+            // Stato del difensore al momento del colpo
             MeleeAttackType defType = defenderMelee ? defenderMelee->currentAttack : MeleeAttackType::None;
-
-            if (defenderMelee && defType == MeleeAttackType::Normal && atkType == MeleeAttackType::Light) {
-                InterruptUnit(*defenderMelee);
-                if (reg.all_of<HordeAgentComponent>(defender)) {
-                    auto& horde = reg.get<HordeAgentComponent>(defender);
-                    horde.state = HordeState::Cooldown;
-                    horde.cooldownTimer = 2.5f;
-                    horde.assignedSlotIndex = -1;
-                }
-                attackerMelee.hasHitInThisAttack = true;
-                SUN_CORE_INFO("COUNTER BASSO! Attacco Orco interrotto!");
-                return MeleeClashResult::Countered;
-            }
+            const MeleePhase defPhase = defenderMelee ? defenderMelee->currentPhase : MeleePhase::None;
+            (void)guardBroken;
 
             // CALCOLO DANNO REALE (Strength + BaseDamage * Multiplier) con l'arma da mischia vera:
             // prima si usava l'arma impugnata, cioe' il fucile, col suo danno e senza moltiplicatore del nodo.
@@ -219,8 +259,41 @@ namespace SunEngine {
                 SUN_CORE_INFO("COLPO ALLE SPALLE! Danno x{0}", weaponBP->backstab_multiplier);
             }
 
+            // Punizione: chi sta recuperando da un suo colpo prende piu' danno
+            if (defenderMelee && defPhase == MeleePhase::Recovery && defType != MeleeAttackType::Parry) {
+                rawDamage *= kPunishDamage;
+                EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "PUNITO!", glm::vec4(1.0f, 0.6f, 0.2f, 1.0f));
+            }
+
             ResolveHit(rawDamage, ap, location, defenderStats, defenderHealth);
             attackerMelee.hasHitInThisAttack = true;
+            // Fermo sul colpo: un istante di pausa per entrambi (piu' lungo per i pesanti), si sente l'impatto
+            const float stop = attackerMelee.currentAttack == MeleeAttackType::Heavy ? 0.12f : 0.06f;
+            attackerMelee.hitStop = stop;
+            if (defenderMelee && defPhase != MeleePhase::Stunned) defenderMelee->hitStop = stop;
+
+            // Interruzione: chi viene colpito mentre carica perde il colpo (il pesante resta anche barcollante).
+            // Durante la fase attiva il colpo e' gia' partito: si scambiano i colpi.
+            if (defenderMelee && defPhase == MeleePhase::Windup && defType != MeleeAttackType::Parry) {
+                if (defType == MeleeAttackType::Heavy) {
+                    defenderMelee->currentPhase = MeleePhase::Stunned;
+                    defenderMelee->stunTimer = kHeavyStagger;
+                    defenderMelee->currentAttackNode = "";
+                    defenderMelee->currentAttack = MeleeAttackType::None;
+                    EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "INTERROTTO!", glm::vec4(0.55f, 0.85f, 1.0f, 1.0f));
+                }
+                else {
+                    InterruptUnit(*defenderMelee);
+                    EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "INTERROTTO", glm::vec4(0.55f, 0.85f, 1.0f, 0.9f));
+                }
+                { VfxEvent e; e.kind = VfxKind::Interrupt; e.pos = fxPos; EmitVfx(e); }
+                if (reg.all_of<HordeAgentComponent>(defender)) {
+                    auto& horde = reg.get<HordeAgentComponent>(defender);
+                    horde.state = HordeState::Cooldown;
+                    horde.cooldownTimer = 2.5f;
+                    horde.assignedSlotIndex = -1;
+                }
+            }
             return MeleeClashResult::Hit;
         }
     };
