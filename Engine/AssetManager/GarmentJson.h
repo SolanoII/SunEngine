@@ -27,6 +27,7 @@ namespace SunEngine {
         d.minWeight = j.value("min_weight", d.minWeight);
         d.heightRange = vec2("height_range", d.heightRange);
         d.maxAbsX = j.value("max_abs_x", d.maxAbsX);
+        d.minAbsX = j.value("min_abs_x", d.minAbsX);
         d.side = j.value("side", d.side);
         d.facing = vec3("facing", d.facing);
         d.facingMin = j.value("facing_min", d.facingMin);

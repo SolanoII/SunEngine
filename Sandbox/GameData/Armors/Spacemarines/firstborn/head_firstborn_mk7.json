@@ -98,5 +98,61 @@
       "metallic": 0.2
     }
   ],
-  "blocks_headshot_bonus": true
+  "blocks_headshot_bonus": true,
+  "garments": [
+    {
+      "id": "fb_helmet",
+      "bones": [
+        "Head",
+        "HeadTop_End",
+        "Neck"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.85,
+        1.0
+      ],
+      "inflate": 0.025,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.3,
+        0.33,
+        0.4,
+        1
+      ],
+      "noise": 0.05
+    },
+    {
+      "id": "fb_helmet_grille",
+      "bones": [
+        "Head"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.855,
+        0.89
+      ],
+      "inflate": 0.03,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.5,
+      "metallic": 0.6,
+      "color": [
+        0.13,
+        0.13,
+        0.14,
+        1
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.55,
+      "max_abs_x": 0.025
+    }
+  ]
 }

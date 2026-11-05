@@ -400,10 +400,12 @@ out vec3 v_WorldPos;
 out vec3 v_Normal;
 out vec3 v_BindPos;      // posizione e normale in posa T: la texture dei vestiti resta "incollata" al corpo
 out vec3 v_BindNormal;
+out vec2 v_UV;           // vestiti: x = distanza dal bordo (frazione dell'altezza del corpo)
 
 void main() {
     v_BindPos = a_Position;
     v_BindNormal = a_Normal;
+    v_UV = a_TexCoord;
     vec4 skinnedPos = vec4(0.0);
     vec3 skinnedNormal = vec3(0.0);
     float totalWeight = 0.0;
@@ -442,6 +444,7 @@ in vec3 v_WorldPos;
 in vec3 v_Normal;
 in vec3 v_BindPos;
 in vec3 v_BindNormal;
+in vec2 v_UV;
 
 layout (location = 0) out vec4 out_Albedo;
 layout (location = 1) out vec4 out_Normal;
@@ -455,6 +458,8 @@ uniform int   u_UseTexture;   // 1 = strato di vestito con texture
 uniform sampler2D u_Albedo;
 uniform float u_TexScale;     // ripetizioni per unita' del modello
 uniform float u_AlphaCut;     // alpha sotto soglia = buco (stracci)
+uniform int   u_Detail;       // 0 niente, 1 pelle, 2 stoffa, 3 armatura/metallo
+uniform float u_InvHeight;    // 1 / altezza del corpo in posa T (scala dei dettagli)
 
 // Proiezione triplanare in posa T: niente UV, la texture segue il corpo in ogni animazione
 vec4 SampleTriplanar() {
@@ -465,16 +470,77 @@ vec4 SampleTriplanar() {
     return texture(u_Albedo, p.zy) * n.x + texture(u_Albedo, p.xz) * n.y + texture(u_Albedo, p.xy) * n.z;
 }
 
+float Hash3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float Noise3(vec3 x) {
+    vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(Hash3(i), Hash3(i + vec3(1, 0, 0)), f.x), mix(Hash3(i + vec3(0, 1, 0)), Hash3(i + vec3(1, 1, 0)), f.x), f.y),
+               mix(mix(Hash3(i + vec3(0, 0, 1)), Hash3(i + vec3(1, 0, 1)), f.x), mix(Hash3(i + vec3(0, 1, 1)), Hash3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+
+// Rilievo da un'altezza (in frazioni dell'altezza del corpo): normale perturbata con le derivate a schermo
+vec3 Bump(vec3 N, float h, float strength) {
+    vec3 dpdx = dFdx(v_WorldPos), dpdy = dFdy(v_WorldPos);
+    float bindScale = length(dFdx(v_BindPos)) + length(dFdy(v_BindPos));
+    float worldScale = length(dpdx) + length(dpdy);
+    float k = (bindScale > 1e-6) ? worldScale / bindScale / max(u_InvHeight, 1e-6) : 1.0;   // altezza -> metri
+    float hw = h * k * strength;
+    vec3 r1 = cross(dpdy, N), r2 = cross(N, dpdx);
+    float det = dot(dpdx, r1);
+    vec3 grad = sign(det) * (dFdx(hw) * r1 + dFdy(hw) * r2);
+    return normalize(abs(det) * N - grad);
+}
+
 void main() {
     vec4 color = u_Color;
+    float rough = u_Roughness, metal = u_Metallic;
+    vec3 N = normalize(v_Normal);
     if (u_UseTexture == 1) {
         vec4 t = SampleTriplanar();
         if (t.a < u_AlphaCut) discard;
         color.rgb *= t.rgb;
     }
+    vec3 pn = v_BindPos * u_InvHeight;   // posizione in posa T, normalizzata sull'altezza del corpo
+    if (u_Detail == 1) {
+        // Pelle: macchie e venature leggere, pori (rilievo fine), un po' di rossore variabile
+        float big = Noise3(pn * 16.0), mid = Noise3(pn * 55.0), fine = Noise3(pn * 380.0);
+        color.rgb *= 0.9 + 0.14 * big + 0.05 * mid;
+        color.rgb = mix(color.rgb, color.rgb * vec3(1.1, 0.93, 0.9), smoothstep(0.5, 0.85, big) * 0.45);
+        rough = clamp(rough - 0.1 + 0.15 * mid, 0.25, 1.0);
+        N = Bump(N, fine * 0.00012 + mid * 0.0004, 1.0);
+    }
+    else if (u_Detail >= 2) {
+        float edge = v_UV.x;                       // distanza dal bordo del vestito
+        float n1 = Noise3(pn * 9.0), n2 = Noise3(pn * 40.0), n3 = Noise3(pn * 220.0);
+        if (u_Detail == 2) {
+            // Stoffa: pieghe attorno a braccia e gambe (in posa T le braccia stanno lungo X), trama fine, orli
+            bool arm = abs(pn.x) > 0.17;
+            float c = (arm ? pn.x : pn.y) * 46.0 + n1 * 5.0;
+            float folds = (sin(c) * 0.5 + 0.5) * smoothstep(0.25, 0.8, Noise3(pn * 6.0 + 3.1));
+            float weave = Noise3(pn * vec3(900.0, 900.0, 900.0));
+            N = Bump(N, folds * 0.0045 + weave * 0.00035 + n2 * 0.001, 1.0);
+            color.rgb *= 0.86 + 0.18 * n1 - 0.08 * folds;                     // pieghe in ombra, stoffa non uniforme
+            float hem = smoothstep(0.0, 0.006, edge);
+            color.rgb *= mix(0.68, 1.0, hem);                                 // orlo ripiegato piu' scuro
+            float stitch = (1.0 - smoothstep(0.0, 0.0012, abs(edge - 0.0085))) * step(0.5, fract((pn.x + pn.y + pn.z) * 260.0));
+            color.rgb *= 1.0 - 0.35 * stitch;                                 // cucitura
+            rough = clamp(rough + 0.05, 0.0, 1.0);
+        }
+        else {
+            // Armatura: ammaccature, sporco negli incavi, vernice consumata sugli spigoli (metallo nudo che luccica)
+            float wear = (1.0 - smoothstep(0.0, 0.012, edge)) * smoothstep(0.35, 0.75, n2 + 0.3);
+            float scratches = smoothstep(0.9, 0.98, Noise3(pn * vec3(500.0, 30.0, 500.0))) * smoothstep(0.4, 0.7, n1);
+            N = Bump(N, n1 * 0.002 + n2 * 0.0006 - (1.0 - smoothstep(0.0, 0.004, edge)) * 0.0015, 1.0);
+            color.rgb *= 0.82 + 0.25 * n1;                                    // patina non uniforme
+            color.rgb *= mix(0.75, 1.0, smoothstep(0.2, 0.6, n1));            // sporco
+            vec3 bare = vec3(0.62, 0.6, 0.58);
+            color.rgb = mix(color.rgb, bare, max(wear * 0.7, scratches * 0.35));
+            metal = mix(metal, 0.9, max(wear, scratches * 0.5));
+            rough = clamp(mix(rough, 0.3, max(wear, scratches * 0.5)) + 0.1 * (n2 - 0.5), 0.15, 1.0);
+        }
+    }
     out_Albedo   = vec4(color.rgb, color.a);
-    out_Normal   = vec4(normalize(v_Normal), 1.0);
-    out_Material = vec4(u_Roughness, u_Metallic, u_Emissive, 0.0);
+    out_Normal   = vec4(N, 1.0);
+    out_Material = vec4(rough, metal, u_Emissive, 0.0);
 }
 )";
     bool DeferredRenderer::Init(int width, int height) {
@@ -903,7 +969,7 @@ void main() {
         const std::vector<glm::mat4>& boneMatrices,
         const glm::vec4& color,
         float roughness, float metallic, float emissive,
-        const GpuTexture* texture, float texScale, float alphaCut)
+        const GpuTexture* texture, float texScale, float alphaCut, int detail, float invHeight)
     {
         if (!m_GBufferSkinnedShader || !m_GBufferSkinnedShader->IsValid()) return;
         if (m_CloakCapture) { m_CloakSkinned.push_back({ &mesh, model, boneMatrices, m_CloakAmount }); return; }   // mimetizzato
@@ -917,6 +983,8 @@ void main() {
             m_GBufferSkinnedShader->SetFloat("u_TexScale", texScale);
             m_GBufferSkinnedShader->SetFloat("u_AlphaCut", alphaCut);
         }
+        m_GBufferSkinnedShader->SetInt("u_Detail", invHeight > 0.0f ? detail : 0);
+        m_GBufferSkinnedShader->SetFloat("u_InvHeight", invHeight > 0.0f ? invHeight : 1.0f);
         m_GBufferSkinnedShader->SetMat4("u_Model", model);
         m_GBufferSkinnedShader->SetMat4("u_ViewProjection", m_ViewProjection);
         m_GBufferSkinnedShader->SetVec4("u_Color", color);

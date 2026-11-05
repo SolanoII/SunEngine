@@ -29,6 +29,7 @@ namespace SunEngine {
             out.metallic = d.metallic;
             out.texScale = d.texTiles / e->height;
             out.alphaCut = out.texture ? d.alphaCut : 0.0f;
+            out.invHeight = 1.0f / std::max(1e-4f, e->height);
             return true;
         }
 
@@ -45,7 +46,7 @@ namespace SunEngine {
             std::snprintf(buf, sizeof(buf), "%p|%s|%s|%.4f|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.2f|%d|%.4f|%.3f|%d|%zu",
                 static_cast<const void*>(&body), d.id.c_str(), d.model.c_str(), d.inflate, d.minWeight, d.heightRange.x, d.heightRange.y,
                 d.facing.x + d.facing.y * 3.0f + d.facing.z * 7.0f, d.facingMin, d.noise, d.noiseScale, d.plateCells, d.plateStep,
-                d.maxAbsX, d.side, d.bones.size());
+                d.maxAbsX + d.minAbsX * 3.0f, d.side, d.bones.size());
             return buf;
         }
 
@@ -70,6 +71,7 @@ namespace SunEngine {
                     for (auto& m : garment.meshes) {
                         std::vector<SkinnedVertex> v = m.vertices;
                         GarmentRemapBones(v, garment.boneInfoMap, body.boneInfoMap);
+                        for (auto& gv : v) gv.TexCoords = glm::vec2(1.0f, 1.0f);   // niente orli calcolati: tutto "lontano dal bordo"
                         const unsigned int base = static_cast<unsigned int>(shell.vertices.size());
                         shell.vertices.insert(shell.vertices.end(), v.begin(), v.end());
                         for (unsigned int i : m.indices) shell.indices.push_back(base + i);

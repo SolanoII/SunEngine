@@ -33,6 +33,7 @@ namespace SunEngine {
         float metallic = 0.0f;
         float texScale = 1.0f;                 // ripetizioni per unita' del modello (bind pose)
         float alphaCut = 0.0f;
+        float invHeight = 1.0f;                // 1 / altezza del corpo (posa T): scala dei dettagli nello shader
     };
 
     struct GarmentDef {
@@ -42,6 +43,7 @@ namespace SunEngine {
         glm::vec2 heightRange{ 0.0f, 1.0f }; // fascia di altezza (frazione dell'altezza del modello in posa T)
         int side = 0;                        // +1 solo il lato sinistro del modello (x >= 0), -1 solo il destro
         float maxAbsX = 0.0f;                // >0: solo |x| <= maxAbsX (frazione dell'altezza), es. elmetto senza orecchie
+        float minAbsX = 0.0f;                // >0: solo |x| >= minAbsX (es. spallacci: dalla spalla in fuori)
         glm::vec3 facing{ 0.0f };            // se non nullo: solo i vertici con normale . facing >= facingMin
         float facingMin = -1.0f;             // (es. facing [0,0,1] e 0.15 = solo il davanti)
         float inflate = 0.008f;              // spessore (frazione dell'altezza del modello)
@@ -101,6 +103,82 @@ namespace SunEngine {
         return info;
     }
 
+    // Bordi del guscio appena aggiunto (vertici da firstOut, indici da firstIdx):
+    //  - distanza di ogni vertice dal bordo (frazione dell'altezza, in TexCoords.x): lo shader ci disegna orli,
+    //    cuciture e (sulle armature) il metallo consumato sugli spigoli;
+    //  - una fascia che chiude lo spessore lungo il bordo, dal guscio fino al corpo: il vestito ha uno spessore
+    //    vero invece di sembrare dipinto.
+    inline void GarmentFinishEdges(GarmentShell& out, size_t firstOut, size_t firstIdx, const std::vector<glm::vec3>& pushDir, float H) {
+        const size_t nv = out.vertices.size() - firstOut;
+        if (nv == 0 || pushDir.size() < nv) return;
+        // vertici saldati per posizione (le cuciture UV duplicano i vertici)
+        const float q = H * 1e-4f;
+        auto key = [&](const glm::vec3& p) {
+            const int64_t x = static_cast<int64_t>(std::llround(p.x / q)), y = static_cast<int64_t>(std::llround(p.y / q)), z = static_cast<int64_t>(std::llround(p.z / q));
+            return static_cast<uint64_t>((x * 73856093LL) ^ (y * 19349663LL) ^ (z * 83492791LL));
+        };
+        std::unordered_map<uint64_t, int> weld;
+        std::vector<int> wOf(nv);
+        std::vector<glm::vec3> wPos;
+        for (size_t i = 0; i < nv; ++i) {
+            const uint64_t k = key(out.vertices[firstOut + i].Position);
+            auto it = weld.find(k);
+            if (it == weld.end()) { it = weld.emplace(k, static_cast<int>(wPos.size())).first; wPos.push_back(out.vertices[firstOut + i].Position); }
+            wOf[i] = it->second;
+        }
+        // spigoli usati da un solo triangolo = bordo
+        std::unordered_map<uint64_t, int> edgeCount;
+        std::unordered_map<uint64_t, std::pair<unsigned int, unsigned int>> edgeVerts;
+        auto ekey = [](int a, int b) { if (a > b) std::swap(a, b); return (static_cast<uint64_t>(a) << 32) | static_cast<uint32_t>(b); };
+        std::vector<std::vector<std::pair<int, float>>> adj(wPos.size());
+        for (size_t t = firstIdx; t + 2 < out.indices.size(); t += 3) {
+            for (int k = 0; k < 3; ++k) {
+                const unsigned int ia = out.indices[t + k], ib = out.indices[t + (k + 1) % 3];
+                const int a = wOf[ia - firstOut], b = wOf[ib - firstOut];
+                if (a == b) continue;
+                const uint64_t e = ekey(a, b);
+                if (++edgeCount[e] == 1) { edgeVerts[e] = { ia, ib }; const float len = glm::distance(wPos[a], wPos[b]) / H; adj[a].push_back({ b, len }); adj[b].push_back({ a, len }); }
+            }
+        }
+        // distanza dal bordo (Dijkstra limitato a una piccola fascia)
+        constexpr float kMax = 0.04f;
+        std::vector<float> dist(wPos.size(), kMax);
+        std::vector<int> frontier;
+        for (const auto& [e, c] : edgeCount) {
+            if (c != 1) continue;
+            const int a = static_cast<int>(e >> 32), b = static_cast<int>(e & 0xffffffffu);
+            dist[a] = 0.0f; dist[b] = 0.0f; frontier.push_back(a); frontier.push_back(b);
+        }
+        for (int iter = 0; iter < 64 && !frontier.empty(); ++iter) {
+            std::vector<int> next;
+            for (int a : frontier) for (const auto& [b, len] : adj[a]) {
+                const float d = dist[a] + len;
+                if (d < dist[b] && d < kMax) { dist[b] = d; next.push_back(b); }
+            }
+            std::sort(next.begin(), next.end()); next.erase(std::unique(next.begin(), next.end()), next.end());
+            frontier.swap(next);
+        }
+        for (size_t i = 0; i < nv; ++i) out.vertices[firstOut + i].TexCoords.x = dist[wOf[i]];
+        // fascia dello spessore lungo il bordo: dal bordo del guscio fino alla pelle (un filo dentro)
+        for (const auto& [e, c] : edgeCount) {
+            if (c != 1) continue;
+            const auto [ia, ib] = edgeVerts.at(e);
+            SkinnedVertex a = out.vertices[ia], b = out.vertices[ib];
+            SkinnedVertex a2 = a, b2 = b;
+            a2.Position -= pushDir[ia - firstOut] * 1.15f;
+            b2.Position -= pushDir[ib - firstOut] * 1.15f;
+            const glm::vec3 side = glm::cross(b.Position - a.Position, a.Normal);   // verso l'esterno del bordo (circa)
+            glm::vec3 sn = glm::length(side) > 1e-8f ? glm::normalize(side) : a.Normal;
+            for (SkinnedVertex* v : { &a, &b, &a2, &b2 }) { v->Normal = glm::normalize(sn * 0.8f + v->Normal * 0.2f); v->TexCoords = glm::vec2(0.0f, 1.0f); }
+            const unsigned int base = static_cast<unsigned int>(out.vertices.size());
+            out.vertices.push_back(a); out.vertices.push_back(b); out.vertices.push_back(b2); out.vertices.push_back(a2);
+            // il triangolo originale era (ia, ib, ...): la fascia va girata al contrario per guardare fuori
+            // tutte e due le facce: il verso del bordo dipende da come era girato il triangolo
+            out.indices.insert(out.indices.end(), { base + 1, base, base + 3, base + 1, base + 3, base + 2,
+                                                    base, base + 1, base + 3, base + 3, base + 1, base + 2 });
+        }
+    }
+
     // Guscio di una mesh del corpo per lo strato 'd'. boneIds = id delle ossa (del corpo) della zona.
     inline void GarmentBuildShell(const std::vector<SkinnedVertex>& verts, const std::vector<unsigned int>& indices,
                                   const std::vector<int>& boneIds, const GarmentDef& d, const GarmentBodyInfo& body,
@@ -120,6 +198,7 @@ namespace SunEngine {
             if (hy < d.heightRange.x || hy > d.heightRange.y) continue;
             if (d.side != 0 && v.Position.x * static_cast<float>(d.side) < -0.01f * H) continue;   // piccola sovrapposizione al centro
             if (d.maxAbsX > 0.0f && std::abs(v.Position.x) / H > d.maxAbsX) continue;
+            if (d.minAbsX > 0.0f && std::abs(v.Position.x) / H < d.minAbsX) continue;
             if (useFacing && glm::dot(glm::normalize(v.Normal), facing) < d.facingMin) continue;
             keep[i] = 1;
         }
@@ -134,6 +213,8 @@ namespace SunEngine {
         std::unordered_map<uint64_t, glm::vec3> welded;
         for (size_t i = 0; i < n; ++i) if (keep[i]) welded[key(verts[i].Position)] += verts[i].Normal;
         std::vector<int> remap(n, -1);
+        std::vector<glm::vec3> pushDir;   // per ogni vertice del guscio: spostamento dal corpo (per il bordo spesso)
+        const size_t firstOut = out.vertices.size();
         auto emit = [&](unsigned int i) -> unsigned int {
             if (remap[i] < 0) {
                 SkinnedVertex v = verts[i];
@@ -147,11 +228,14 @@ namespace SunEngine {
                     thick += d.plateStep * GarmentHash01(static_cast<int>(c.x), static_cast<int>(c.y), static_cast<int>(c.z));
                 }
                 v.Position += nrm * (thick * H);
+                v.TexCoords = glm::vec2(1.0f, 1.0f);   // x = distanza dal bordo (calcolata sotto), y = 1: e' un vestito
                 remap[i] = static_cast<int>(out.vertices.size());
                 out.vertices.push_back(v);
+                pushDir.push_back(nrm * (thick * H));
             }
             return static_cast<unsigned int>(remap[i]);
         };
+        const size_t firstIdx = out.indices.size();
         for (size_t t = 0; t + 2 < indices.size(); t += 3) {
             const unsigned int a = indices[t], b = indices[t + 1], c = indices[t + 2];
             if (a >= n || b >= n || c >= n || !keep[a] || !keep[b] || !keep[c]) continue;
@@ -159,6 +243,7 @@ namespace SunEngine {
             out.indices.push_back(emit(b));
             out.indices.push_back(emit(c));
         }
+        GarmentFinishEdges(out, firstOut, firstIdx, pushDir, H);
     }
 
     // Id (nel corpo) delle ossa indicate dallo strato, confrontando i nomi senza prefisso.

@@ -7,6 +7,7 @@
 #include "Engine/ECS/MovementSystem.h"
 #include "Engine/ECS/WeightSystem.h"
 #include "Engine/ECS/HealthRegenSystem.h"
+#include "Engine/Renderer/BodyFit.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
 #include "Engine/ECS/BotAISystem.h"
@@ -414,6 +415,7 @@ namespace SunEngine {
             std::vector<entt::entity> skinParts;   // pezzi della skin agganciati alle ossa
         };
         std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
+        bool m_FitBodiesFromHuman = true;   // corpi delle altre razze ricavati dal corpo umano base (BodyFit.h)
         void UpdateUnitAnimations(float deltaTime);
         void ClearUnitAnimations();
         void BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime);

@@ -92,7 +92,9 @@ namespace SunEngine {
             float emissive = 0.0f,
             const GpuTexture* texture = nullptr,   // strato di vestito: texture triplanare in posa T
             float texScale = 1.0f,
-            float alphaCut = 0.0f);
+            float alphaCut = 0.0f,
+            int detail = 0,          // dettagli procedurali: 1 pelle, 2 stoffa, 3 armatura (0 = niente)
+            float invHeight = 0.0f); // 1 / altezza del corpo in posa T (scala dei dettagli; 0 = niente dettagli)
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
 
         // Mimetismo (camo cloak): fra BeginCloak ed EndCloak i cubi e le mesh skinnate non vanno nel G-Buffer ma in

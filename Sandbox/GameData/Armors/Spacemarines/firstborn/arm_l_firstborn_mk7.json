@@ -97,5 +97,123 @@
       "roughness": 0.5,
       "metallic": 0.5
     }
+  ],
+  "garments": [
+    {
+      "id": "fb_pauldron_l",
+      "bones": [
+        "LeftShoulder",
+        "LeftArm",
+        "Spine2"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.72,
+        0.9
+      ],
+      "inflate": 0.06,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.3,
+        0.33,
+        0.4,
+        1
+      ],
+      "side": 1,
+      "min_abs_x": 0.075,
+      "max_abs_x": 0.2,
+      "noise": 0.1,
+      "plate_cells": 2,
+      "plate_step": 0.006
+    },
+    {
+      "id": "fb_rerebrace_l",
+      "bones": [
+        "LeftArm"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.7,
+        0.9
+      ],
+      "inflate": 0.024,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.3,
+        0.33,
+        0.4,
+        1
+      ],
+      "side": 1
+    },
+    {
+      "id": "fb_vambrace_l",
+      "bones": [
+        "LeftForeArm"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.7,
+        0.9
+      ],
+      "inflate": 0.028,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.3,
+        0.33,
+        0.4,
+        1
+      ],
+      "side": 1,
+      "plate_cells": 3,
+      "plate_step": 0.003
+    },
+    {
+      "id": "fb_gauntlet_l",
+      "bones": [
+        "LeftHand",
+        "LeftHandThumb1",
+        "LeftHandThumb2",
+        "LeftHandThumb3",
+        "LeftHandIndex1",
+        "LeftHandIndex2",
+        "LeftHandIndex3",
+        "LeftHandMiddle1",
+        "LeftHandMiddle2",
+        "LeftHandMiddle3",
+        "LeftHandRing1",
+        "LeftHandRing2",
+        "LeftHandRing3",
+        "LeftHandPinky1",
+        "LeftHandPinky2",
+        "LeftHandPinky3"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.7,
+        0.9
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.6,
+      "color": [
+        0.13,
+        0.13,
+        0.14,
+        1
+      ],
+      "side": 1
+    }
   ]
 }

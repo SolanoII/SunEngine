@@ -6,6 +6,8 @@
 #include "Components.h"
 #include "Tags.h"
 #include "BlockModel.h"
+#include <unordered_map>
+#include <algorithm>
 
 namespace SunEngine {
 
@@ -63,6 +65,14 @@ namespace SunEngine {
                         const glm::mat4 modelMat = transform.GetTransform();
                         const auto& bones = *skinnedInst->boneMatrices;
 
+                        // Altezza del corpo in posa T (una volta per modello): scala dei dettagli della pelle
+                        static std::unordered_map<const SunEngine::SkinnedModel*, float> s_BodyInvHeight;
+                        auto hIt = s_BodyInvHeight.find(skinnedInst->sourceModel);
+                        if (hIt == s_BodyInvHeight.end()) {
+                            float lo = 1e9f, hi = -1e9f;
+                            for (const auto& m : skinnedInst->sourceModel->meshes) for (const auto& v : m.vertices) { lo = std::min(lo, v.Position.y); hi = std::max(hi, v.Position.y); }
+                            hIt = s_BodyInvHeight.emplace(skinnedInst->sourceModel, hi > lo ? 1.0f / (hi - lo) : 0.0f).first;
+                        }
                         for (const auto& submesh : skinnedInst->sourceModel->meshes) {
                             deferred.DrawSkinnedMesh(
                                 submesh,
@@ -71,13 +81,16 @@ namespace SunEngine {
                                 skinnedInst->albedo,
                                 skinnedInst->roughness,
                                 skinnedInst->metallic,
-                                skinnedInst->emissive);
+                                skinnedInst->emissive,
+                                nullptr, 1.0f, 0.0f,
+                                1, hIt->second);   // pelle
                         }
-                        // Vestiti e armature: stesse ossa del corpo, quindi seguono ogni animazione
+                        // Vestiti e armature: stesse ossa del corpo, quindi seguono ogni animazione. Dettagli: stoffa
+                        // (pieghe, orli, cuciture) o armatura (spigoli consumati, ammaccature) secondo il metallo.
                         for (const auto& g : skinnedInst->garments) {
                             if (!g.mesh) continue;
                             deferred.DrawSkinnedMesh(*g.mesh, modelMat, bones, g.color, g.roughness, g.metallic, 0.0f,
-                                g.texture, g.texScale, g.alphaCut);
+                                g.texture, g.texScale, g.alphaCut, g.metallic >= 0.35f ? 3 : 2, g.invHeight);
                         }
                         continue;   // non disegnare i cubi procedurali per questa entità
                     }

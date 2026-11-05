@@ -3370,6 +3370,26 @@ namespace SunEngine {
             return;
         }
         body.modelLoaded = body.model.LoadModel(path);
+        // Corpo piu' preciso: anatomia, mani e piedi del corpo umano base adattati allo scheletro e alla sagoma
+        // della razza (la testa resta quella della razza). Vedi BodyFit.h. Solo per ork, aspirante e astartes:
+        // ogryn e gretchin restano col loro modello (pancia dell'ogryn e torace del gretchin vengono meglio cosi').
+        const std::string bodyLabel = label;
+        const bool fitThisBody = bodyLabel == "ork" || bodyLabel == "neofita" || bodyLabel == "astartes";
+        if (body.modelLoaded && m_SkinnedModelLoaded && m_FitBodiesFromHuman && fitThisBody) {
+            const BodyFitSkeleton hs = BodyFitSkeletonOf(m_SkinnedTestModel), rs = BodyFitSkeletonOf(body.model);
+            std::vector<BodyFitMesh> hm, rm;
+            for (const auto& m : m_SkinnedTestModel.meshes) hm.push_back({ &m.vertices, &m.indices });
+            for (const auto& m : body.model.meshes) rm.push_back({ &m.vertices, &m.indices });
+            std::vector<SkinnedVertex> verts; std::vector<unsigned int> idx;
+            BodyFitOptions opt;
+            opt.conformSmooth = 20;
+            BodyFit(hs, hm, rs, rm, opt, verts, idx);
+            if (!idx.empty()) {
+                body.model.meshes.clear();
+                body.model.meshes.emplace_back(std::move(verts), std::move(idx));
+                SUN_CORE_INFO("Corpo {0}: adattato dal corpo umano base", label);
+            }
+        }
         const std::string animsDir = FindValidDir("Animations");
         if (!body.modelLoaded || animsDir.empty()) return;
         const std::string ownDir = animsDir + animFolder + "/";
