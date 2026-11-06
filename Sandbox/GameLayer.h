@@ -11,6 +11,7 @@
 #include "Engine/Renderer/ExtraBones.h"
 #include "Engine/Renderer/RaceMotion.h"
 #include "Engine/Renderer/MuscleTone.h"
+#include "Engine/Renderer/SurfaceMaterials.h"
 #include "Engine/Renderer/SquigModel.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"

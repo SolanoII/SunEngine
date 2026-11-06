@@ -32,6 +32,8 @@ namespace SunEngine {
         }
     )";
 
+    // Cubi: tinta unita oppure materiali procedurali delle mappe (SurfaceMaterials.h), proiettati nel mondo.
+    // Tavolozza grimdark: fango, cemento annerito, ruggine, juta sporca, legno bruciato, alberi morti.
     static const char* k_GBufferFragSrc = R"(
         #version 410 core
         in vec3 v_WorldPos;
@@ -45,11 +47,181 @@ namespace SunEngine {
         uniform float u_Roughness;
         uniform float u_Metallic;
         uniform float u_Emissive;
+        uniform int   u_Material;   // 0 tinta unita, 1 fango, 2 cemento, 3 lamiera, 4 sacchi, 5 legno, 6 chioma, 7 terrapieno, 8 detriti
+
+        float H31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float H21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float N3(vec3 x) {
+            vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(mix(H31(i), H31(i + vec3(1, 0, 0)), f.x), mix(H31(i + vec3(0, 1, 0)), H31(i + vec3(1, 1, 0)), f.x), f.y),
+                       mix(mix(H31(i + vec3(0, 0, 1)), H31(i + vec3(1, 0, 1)), f.x), mix(H31(i + vec3(0, 1, 1)), H31(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+        }
+        float Fbm(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; ++i) { v += a * N3(p); p = p * 2.07 + 1.3; a *= 0.5; } return v; }
+        float Ridge(vec3 p, float w) { return 1.0 - smoothstep(0.0, w, abs(N3(p) - 0.5)); }   // linee sottili (crepe, venature)
+        float Lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+        // Rilievo da un'altezza in metri (derivate a schermo della posizione nel mondo)
+        vec3 BumpW(vec3 N, float h) {
+            vec3 dpdx = dFdx(v_WorldPos), dpdy = dFdy(v_WorldPos);
+            vec3 r1 = cross(dpdy, N), r2 = cross(N, dpdx);
+            float det = dot(dpdx, r1);
+            vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+            return normalize(abs(det) * N - grad);
+        }
 
         void main() {
-            out_Albedo   = vec4(u_Color.rgb, u_Color.a);
-            out_Normal   = vec4(normalize(v_Normal), 1.0);
-            out_Material = vec4(u_Roughness, u_Metallic, u_Emissive, 0.0);
+            vec3 N = normalize(v_Normal);
+            vec3 col = u_Color.rgb;
+            float rough = u_Roughness, metal = u_Metallic;
+            if (u_Material > 0) {
+                vec3 p = v_WorldPos;
+                bool top = N.y > 0.6;
+                bool sideX = abs(N.x) > abs(N.z);
+                vec2 uv = top ? p.xz : (sideX ? p.zy : p.xy);          // coordinate sulla faccia (metri)
+                vec3 tint = mix(vec3(Lum(col)), col, 0.45);             // il colore della mappa conta poco e spento
+                float h = 0.0;                                          // rilievo (metri)
+                float big = Fbm(p * 0.35), mid = N3(p * 3.1), fine = N3(p * 17.0);
+                rough = 0.85;
+
+                if (u_Material == 1) {
+                    // ---- FANGO: asciutto e crepato / bagnato e scuro, ghiaia, crateri bruciati, pozzanghere
+                    vec3 dry = vec3(0.23, 0.19, 0.15), wet = vec3(0.10, 0.085, 0.07);
+                    float wetness = smoothstep(0.42, 0.62, Fbm(vec3(p.xz * 0.07, 1.7)));
+                    col = mix(dry, wet, wetness);
+                    col *= 0.85 + 0.25 * mid;
+                    float gravel = smoothstep(0.7, 0.85, N3(p * 23.0)) * smoothstep(0.4, 0.7, N3(p * 2.3)) * (1.0 - wetness);
+                    col = mix(col, vec3(0.25, 0.23, 0.21), gravel * 0.45);
+                    float cracks = Ridge(p * 1.6, 0.03) * (1.0 - wetness) * smoothstep(0.45, 0.7, big);
+                    col *= 1.0 - cracks * 0.35;
+                    h = big * 0.06 + mid * 0.015 + fine * 0.004 + gravel * 0.01 - cracks * 0.01;
+                    // crateri: uno ogni tanto in celle di 16 m
+                    vec2 cell = floor(p.xz / 16.0);
+                    for (int dx = -1; dx <= 1; ++dx) for (int dz = -1; dz <= 1; ++dz) {
+                        vec2 c = cell + vec2(dx, dz);
+                        if (H21(c) < 0.45) continue;
+                        vec2 center = (c + vec2(H21(c + 7.1), H21(c + 3.7))) * 16.0;
+                        float rad = 1.4 + 2.2 * H21(c + 1.9);
+                        float d = length(p.xz - center) / rad;
+                        if (d > 1.6) continue;
+                        h += 0.10 * exp(-pow((d - 1.0) / 0.18, 2.0)) - 0.22 * (1.0 - smoothstep(0.0, 1.0, d));
+                        col = mix(col, vec3(0.035, 0.03, 0.028), (1.0 - smoothstep(0.15, 0.75, d)) * 0.85);   // terra bruciata
+                        col = mix(col, vec3(0.26, 0.25, 0.23), exp(-pow((d - 0.95) / 0.12, 2.0)) * 0.35);   // cenere sull'orlo
+                        wetness = max(wetness, 1.0 - smoothstep(0.0, 0.45, d));
+                    }
+                    rough = mix(0.95, 0.55, wetness);
+                    // pozzanghere (piatte, specchiano il cielo)
+                    float puddle = smoothstep(0.60, 0.64, Fbm(vec3(p.xz * 0.11, 9.3)) + wetness * 0.08) * (top ? 1.0 : 0.0);
+                    col = mix(col, vec3(0.045, 0.042, 0.04), puddle);
+                    rough = mix(rough, 0.05, puddle);
+                    h = mix(h, -0.02 + 0.002 * N3(p * 25.0), puddle);
+                    col = mix(col, col * tint / max(Lum(tint), 0.05), 0.2);
+                }
+                else if (u_Material == 2 || u_Material == 8) {
+                    // ---- CEMENTO (rockcrete): pannelli, crepe, colature, colpi di proiettile, fuliggine
+                    col = vec3(0.34, 0.33, 0.31) * (0.8 + 0.35 * big) * mix(vec3(1.0), tint / max(Lum(tint), 0.05), 0.25);
+                    vec2 pan = uv / vec2(2.0, 1.5);
+                    vec2 g = abs(fract(pan) - 0.5);
+                    float seam = u_Material == 8 ? 0.0 : (1.0 - smoothstep(0.0, 0.012, min(0.5 - g.x, 0.5 - g.y) * 1.5));
+                    float streaks = top ? 0.0 : smoothstep(0.45, 0.8, N3(vec3(uv.x * 7.0, uv.y * 0.45, 3.0)));
+                    float cracks = Ridge(p * 1.3, 0.02) * smoothstep(0.45, 0.7, Fbm(p * 0.6 + 5.0));
+                    float stains = smoothstep(0.5, 0.8, Fbm(p * 0.9 + 11.0));
+                    col *= 1.0 - 0.35 * streaks - 0.45 * stains * 0.6;
+                    col *= 1.0 - cracks * 0.6 - seam * 0.45;
+                    // colpi: buchetti sparsi
+                    vec2 hc = floor(uv / 0.32);
+                    float hit = 0.0;
+                    if (H21(hc + 17.0) > 0.94) hit = 1.0 - smoothstep(0.03, 0.08, length(fract(uv / 0.32) - 0.5) * 0.32);
+                    col = mix(col, vec3(0.08, 0.075, 0.07), hit * 0.8);
+                    h = mid * 0.006 + fine * 0.002 - seam * 0.012 - cracks * 0.006 - hit * 0.015 + big * 0.01;
+                    if (u_Material == 8) { h += big * 0.05; col *= 0.85; }
+                    rough = 0.9 - stains * 0.1;
+                }
+                else if (u_Material == 3) {
+                    // ---- LAMIERE: vernice militare scrostata, ruggine, rivetti, colature di ruggine
+                    vec2 pl = uv / vec2(1.25, 2.5);
+                    vec2 g = abs(fract(pl) - 0.5);
+                    float edge = min(0.5 - g.x, 0.5 - g.y) * 1.25;          // metri dal bordo della piastra (circa)
+                    float seam = 1.0 - smoothstep(0.0, 0.015, edge);
+                    float rivetLine = 1.0 - smoothstep(0.035, 0.05, abs(edge - 0.06));
+                    vec2 rv = fract(uv / 0.16) - 0.5;
+                    float rivet = rivetLine * (1.0 - smoothstep(0.18, 0.3, length(rv)));
+                    vec3 paint = vec3(0.16, 0.18, 0.16) * mix(vec3(1.0), tint / max(Lum(tint), 0.05), 0.3);
+                    vec3 rust = mix(vec3(0.24, 0.12, 0.06), vec3(0.13, 0.07, 0.04), N3(p * 6.0));
+                    float chip = smoothstep(0.52, 0.6, Fbm(p * 1.4 + 2.0) + seam * 0.25 + rivet * 0.3);
+                    float streak = top ? 0.0 : smoothstep(0.55, 0.85, N3(vec3(uv.x * 9.0, uv.y * 0.35, 1.0))) * smoothstep(0.3, 0.7, big);
+                    col = mix(paint * (0.85 + 0.3 * mid), rust, max(chip, streak * 0.7));
+                    float bare = smoothstep(0.62, 0.66, Fbm(p * 1.4 + 2.0)) * (1.0 - streak) * smoothstep(0.5, 0.8, fine);
+                    col = mix(col, vec3(0.38, 0.37, 0.36), bare * 0.6);
+                    metal = mix(0.25, 0.85, bare);
+                    rough = mix(0.7, 0.95, chip) - bare * 0.35;
+                    col *= 1.0 - seam * 0.5;
+                    h = -seam * 0.01 + rivet * 0.008 + chip * 0.002 + mid * 0.002;
+                }
+                else if (u_Material == 4) {
+                    // ---- SACCHI DI SABBIA: file sfalsate, cuciture, juta, fango in basso
+                    vec2 bagSize = vec2(0.55, 0.2);
+                    vec2 q = uv / bagSize;
+                    float row = floor(q.y);
+                    q.x += mod(row, 2.0) * 0.5;
+                    vec2 f = fract(q);
+                    float pillow = (1.0 - pow(abs(2.0 * f.x - 1.0), 3.0)) * (1.0 - pow(abs(2.0 * f.y - 1.0), 2.2));
+                    vec2 id = vec2(floor(q.x), row);
+                    vec3 burlap = mix(vec3(0.31, 0.27, 0.20), vec3(0.24, 0.20, 0.15), H21(id)) * mix(vec3(1.0), tint / max(Lum(tint), 0.05), 0.2);
+                    float weave = (sin(uv.x * 900.0) * sin(uv.y * 900.0)) * 0.5 + 0.5;
+                    col = burlap * (0.7 + 0.35 * pillow) * (0.92 + 0.08 * weave);
+                    col *= 0.85 + 0.25 * mid;
+                    h = pillow * 0.05 + weave * 0.0006 + mid * 0.004;
+                    rough = 0.95;
+                }
+                else if (u_Material == 5) {
+                    // ---- LEGNO: venature lungo l'asse, bruciature
+                    vec3 gp = abs(N.y) > 0.6 ? p : vec3(p.x * 6.0, p.y * 0.4, p.z * 6.0);
+                    float grain = sin((gp.x + gp.z) * 18.0 + Fbm(gp * 2.0) * 8.0) * 0.5 + 0.5;
+                    col = mix(vec3(0.19, 0.13, 0.085), vec3(0.11, 0.075, 0.05), grain) * (0.85 + 0.3 * mid);
+                    float burnt = smoothstep(0.55, 0.75, Fbm(p * 0.8 + 4.0));
+                    col = mix(col, vec3(0.035, 0.03, 0.028), burnt);
+                    h = grain * 0.004 + Ridge(gp * 3.0, 0.05) * 0.003;
+                    rough = 0.9;
+                }
+                else if (u_Material == 6) {
+                    // ---- CHIOMA MORTA: ciuffi secchi oliva e marroni
+                    float clump = Fbm(p * 2.2);
+                    col = mix(vec3(0.15, 0.15, 0.09), vec3(0.16, 0.11, 0.065), smoothstep(0.35, 0.65, N3(p * 1.3)));
+                    col *= 0.55 + 0.75 * clump;
+                    h = clump * 0.12 + fine * 0.02;
+                    rough = 0.95;
+                }
+                else if (u_Material == 7) {
+                    // ---- TERRAPIENO: terra battuta sopra, assi di contenimento e pali sui lati
+                    vec3 dirt = mix(vec3(0.21, 0.17, 0.13), vec3(0.11, 0.09, 0.07), smoothstep(0.4, 0.7, big)) * (0.85 + 0.25 * mid);
+                    if (top) { col = dirt; h = big * 0.05 + mid * 0.01; }
+                    else {
+                        float plankY = fract(uv.y / 0.26);
+                        float gap = 1.0 - smoothstep(0.02, 0.07, min(plankY, 1.0 - plankY));
+                        float post = 1.0 - smoothstep(0.06, 0.09, abs(fract(uv.x / 1.6) - 0.5) * 1.6);
+                        float pid = H21(vec2(floor(uv.y / 0.26), floor(uv.x / 1.6)));
+                        vec3 wood = mix(vec3(0.17, 0.12, 0.08), vec3(0.10, 0.075, 0.05), pid) * (0.8 + 0.3 * N3(vec3(uv.x * 0.8, uv.y * 12.0, 2.0)));
+                        col = mix(wood, dirt * 0.6, gap);
+                        col = mix(col, vec3(0.08, 0.06, 0.045), post * 0.8);
+                        h = (1.0 - gap) * 0.015 + post * 0.02 + mid * 0.003;
+                    }
+                    rough = 0.92;
+                }
+
+                // sporco comune: fango schizzato in basso sulle pareti, polvere sulle superfici in alto
+                if (u_Material != 1 && u_Material != 6) {
+                    float base = (1.0 - smoothstep(0.05, 0.9, p.y)) * (top ? 0.0 : 1.0);
+                    float splash = base * smoothstep(0.35, 0.6, N3(p * 4.0) + base * 0.4);
+                    col = mix(col, vec3(0.11, 0.09, 0.07), splash * 0.8);
+                    rough = mix(rough, 0.6, splash * 0.5);
+                    float dust = top ? smoothstep(0.3, 0.7, big) * 0.35 : 0.0;
+                    col = mix(col, vec3(0.27, 0.24, 0.20), dust);
+                }
+                N = BumpW(N, h);
+            }
+            out_Albedo   = vec4(col, u_Color.a);
+            out_Normal   = vec4(N, 1.0);
+            out_Material = vec4(clamp(rough, 0.04, 1.0), metal, u_Emissive, 0.0);
         }
     )";
 
@@ -743,6 +915,14 @@ void main() {
     float subsurface = 0.0;   // pelle: la luce entra e si diffonde (canale w del materiale, vedi il passaggio di illuminazione)
     if (u_Detail == 1) {
         subsurface = 1.0;
+        // grimdark: anche la pelle e' spenta (il verde degli orki tende all'oliva) e i piedi nudi sono infangati
+        {
+            float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            color.rgb = mix(vec3(lum), color.rgb, 0.78) * 0.94;
+            float feet = 1.0 - smoothstep(0.02, 0.11, pn.y + (Noise3(pn * 9.0) - 0.5) * 0.04);
+            float mudS = feet * smoothstep(0.35, 0.6, Noise3(pn * 40.0 + 3.0) * 0.6 + feet * 0.5);
+            color.rgb = mix(color.rgb, vec3(0.12, 0.095, 0.07), mudS * 0.8);
+        }
         // Pelle: macchie e venature leggere, pori (rilievo fine), un po' di rossore variabile
         float big = Noise3(pn * 16.0), mid = Noise3(pn * 55.0), fine = Noise3(pn * 380.0);
         color.rgb *= 0.9 + 0.14 * big + 0.05 * mid;
@@ -843,6 +1023,41 @@ void main() {
             color.rgb = mix(color.rgb, bare, max(wear * 0.7, scratches * 0.35));
             metal = mix(metal, 0.9, max(wear, scratches * 0.5));
             rough = clamp(mix(rough, 0.3, max(wear, scratches * 0.5)) + 0.1 * (n2 - 0.5), 0.15, 1.0);
+        }
+    }
+    if (u_Detail == 2 || u_Detail == 3) {
+        // Grimdark: niente colori accesi. Tinte spente, fango che sale dagli stivali, polvere sulle spalle,
+        // macchie (sangue rappreso sulla stoffa, bruciature sull'armatura), ruggine nei graffi, colature d'olio.
+        float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+        color.rgb = mix(vec3(lum), color.rgb, 0.62) * 0.9;
+        float g1 = Noise3(pn * 7.0 + 13.0), g2 = Noise3(pn * 31.0 + 5.0), g3 = Noise3(pn * 140.0);
+        // fango dal basso: pieno sugli stivali, a schizzi fino al ginocchio
+        float mudH = 1.0 - smoothstep(0.03, 0.30, pn.y + (g1 - 0.5) * 0.08);
+        float mud = mudH * smoothstep(0.35, 0.6, g2 * 0.7 + g3 * 0.3 + mudH * 0.45);
+        vec3 mudCol = mix(vec3(0.13, 0.10, 0.075), vec3(0.07, 0.055, 0.045), g1);
+        color.rgb = mix(color.rgb, mudCol, mud * 0.85);
+        rough = mix(rough, 0.7, mud * 0.6);
+        metal = mix(metal, 0.0, mud);
+        // polvere sulle superfici rivolte in alto (spalle, elmetto, braccia)
+        float up = smoothstep(0.35, 0.9, normalize(v_BindNormal).y);
+        color.rgb = mix(color.rgb, vec3(0.30, 0.27, 0.22), up * (0.18 + 0.2 * g1) * (1.0 - mud));
+        if (u_Detail == 2) {
+            // stoffa: sporco unto e qualche macchia scura di sangue rappreso
+            color.rgb *= 0.9 + 0.12 * g1;
+            float blood = smoothstep(0.80, 0.86, Noise3(pn * 11.0 + 41.0)) * smoothstep(0.3, 0.7, g2);
+            color.rgb = mix(color.rgb, color.rgb * vec3(0.38, 0.17, 0.14), blood * 0.8);
+        }
+        else {
+            // armatura: ruggine nei graffi e sugli spigoli consumati, bruciature, colature d'olio verticali
+            float rust = smoothstep(0.55, 0.8, g2 + (1.0 - smoothstep(0.0, 0.01, v_UV.x)) * 0.3) * smoothstep(0.4, 0.7, g3);
+            color.rgb = mix(color.rgb, mix(vec3(0.24, 0.12, 0.06), vec3(0.12, 0.065, 0.04), g1), rust * 0.55);
+            metal = mix(metal, 0.1, rust);
+            rough = mix(rough, 0.92, rust);
+            float scorch = smoothstep(0.74, 0.82, Noise3(pn * 6.0 + 23.0));
+            color.rgb = mix(color.rgb, color.rgb * 0.25, scorch * 0.7);
+            float oil = smoothstep(0.62, 0.8, Noise3(pn * vec3(70.0, 3.5, 70.0) + 3.0)) * (1.0 - up);
+            color.rgb *= 1.0 - oil * 0.35;
+            rough = mix(rough, 0.25, oil * 0.5);
         }
     }
     out_Albedo   = vec4(color.rgb, color.a);
@@ -1361,7 +1576,7 @@ void main() {
     }
     void DeferredRenderer::DrawCube(const glm::mat4& transform,
         const glm::vec4& color,
-        float roughness, float metallic, float emissive) {
+        float roughness, float metallic, float emissive, int material) {
         if (m_CloakCapture) { m_CloakCubes.push_back({ transform, m_CloakAmount }); return; }   // mimetizzato
         m_GBufferShader->Bind();
         m_GBufferShader->SetMat4("u_Model", transform);
@@ -1370,6 +1585,7 @@ void main() {
         m_GBufferShader->SetFloat("u_Roughness", roughness);
         m_GBufferShader->SetFloat("u_Metallic", metallic);
         m_GBufferShader->SetFloat("u_Emissive", emissive);
+        m_GBufferShader->SetInt("u_Material", material);
 
         glBindVertexArray(m_TestCubeVAO);
         glDrawElements(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0);

@@ -31,6 +31,8 @@ namespace SunEngine {
         static MapData LoadFromFile(Scene& scene, const std::string& filepath);
 
     private:
+        struct DecorSource { glm::vec3 center; glm::vec3 scale; int material; };
+        static void ScatterDecor(Scene& scene, const std::string& mapId, const glm::vec3& terrainSize, const std::vector<DecorSource>& blocks);
         static entt::entity CreateBlock(Scene& scene, const glm::vec3& pos, const glm::vec3& scale,
             const glm::vec4& color,
             const glm::vec3& rotEuler = glm::vec3(0.0f));

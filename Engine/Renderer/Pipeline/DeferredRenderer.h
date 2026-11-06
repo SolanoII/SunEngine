@@ -26,7 +26,7 @@ namespace SunEngine {
         glm::vec3 horizon{ 0.50f, 0.37f, 0.26f };      // orizzonte (smog, polvere)
         glm::vec3 ground{ 0.13f, 0.10f, 0.08f };       // sotto l'orizzonte
         float cloudCover = 0.62f;                      // 0 sereno, 1 coperto
-        float fogDensity = 0.016f;                     // nebbia (per metro)
+        float fogDensity = 0.009f;                     // nebbia (per metro)
         float fogHeightFalloff = 0.09f;                // quanto si dirada salendo
         float fogBaseHeight = 0.0f;
         glm::vec3 fogColor{ 0.36f, 0.30f, 0.24f };
@@ -61,7 +61,8 @@ namespace SunEngine {
             const glm::vec4& color,
             float roughness = 0.5f,
             float metallic = 0.0f,
-            float emissive = 0.0f);
+            float emissive = 0.0f,
+            int material = 0);     // materiale procedurale delle mappe (SurfaceMaterials.h), 0 = tinta unita
 
         void DrawTestGround(float size);
 

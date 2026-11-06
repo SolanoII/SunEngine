@@ -160,6 +160,7 @@ namespace SunEngine {
         auto& c = scene.GetRegistry().emplace<ColorComponent>(entity);
         c.Color = isSelected ? glm::vec4(1.0f, 0.85f, 0.1f, 1.0f) : color;
         c.BaseColor = c.Color;
+        if (!isSelected) scene.GetRegistry().emplace<SurfaceMaterialComponent>(entity, SurfaceMaterialComponent{ GuessSurfaceMaterial(color, localScale, false) });
     }
 
     void GameLayer::OnAttach() {
@@ -176,6 +177,11 @@ namespace SunEngine {
             m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
             m_Scene.DestroyEntity(e);
         }
+        {   // detriti della mappa caricata in partita (nell'editor non ci sono)
+            std::vector<entt::entity> decor;
+            for (auto e : m_Scene.GetRegistry().view<MapDecorTag>()) decor.push_back(e);
+            for (auto e : decor) m_Scene.DestroyEntity(e);
+        }
 
         auto terrainEntity = m_Scene.CreateEntity();
         auto& tTrans = m_Scene.GetRegistry().emplace<TransformComponent>(terrainEntity);
@@ -189,6 +195,7 @@ namespace SunEngine {
         auto& tColor = m_Scene.GetRegistry().emplace<ColorComponent>(terrainEntity);
         tColor.Color = m_EditorMap.terrainColor;
         tColor.BaseColor = m_EditorMap.terrainColor;
+        m_Scene.GetRegistry().emplace<SurfaceMaterialComponent>(terrainEntity, SurfaceMaterialComponent{ Surface_Mud });
 
         for (size_t i = 0; i < m_EditorMap.structures.size(); ++i) {
             const auto& st = m_EditorMap.structures[i];
@@ -711,7 +718,7 @@ namespace SunEngine {
         scene.GetRegistry().emplace<RigidBodyComponent>(enemyEntity, glm::vec3(0.0f), 0.0f, false);
 
         auto& enemyColor = scene.GetRegistry().emplace<ColorComponent>(enemyEntity);
-        enemyColor.Color = glm::vec4(0.15f, 0.60f, 0.15f, 1.0f);
+        enemyColor.Color = glm::vec4(0.24f, 0.33f, 0.15f, 1.0f);
         enemyColor.BaseColor = enemyColor.Color;
 
         auto& enemyStats = scene.GetRegistry().emplace<UnitStatsComponent>(enemyEntity);
@@ -850,9 +857,9 @@ namespace SunEngine {
         if (newUnitId == "imperium_guardsman_recruit") unitColor = glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
         else if (newUnitId == "imperium_kasrkin") unitColor = glm::vec4(0.35f, 0.25f, 0.18f, 1.0f);
         else if (newUnitId == "spacemarines_neophyte") unitColor = glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
-        else if (newUnitId == "spacemarines_battle_brother") unitColor = glm::vec4(0.05f, 0.25f, 0.75f, 1.0f);
-        else if (newUnitId == "orks_boy") unitColor = glm::vec4(0.15f, 0.60f, 0.15f, 1.0f);
-        else if (newUnitId == "orks_nob") unitColor = glm::vec4(0.08f, 0.40f, 0.08f, 1.0f);
+        else if (newUnitId == "spacemarines_battle_brother") unitColor = glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
+        else if (newUnitId == "orks_boy") unitColor = glm::vec4(0.24f, 0.33f, 0.15f, 1.0f);
+        else if (newUnitId == "orks_nob") unitColor = glm::vec4(0.17f, 0.25f, 0.11f, 1.0f);
 
         auto& colorComp = scene.GetRegistry().emplace_or_replace<ColorComponent>(playerEntity);
         colorComp.Color = unitColor;
@@ -1038,6 +1045,11 @@ namespace SunEngine {
     }
     bool GameLayer::ReloadMap(const std::string& mapId) {
         m_NavQuery.Destroy();
+        {   // via i detriti della mappa precedente (non hanno collider: la pulizia per collider non li prende)
+            std::vector<entt::entity> decor;
+            for (auto e : m_Scene.GetRegistry().view<MapDecorTag>()) decor.push_back(e);
+            for (auto e : decor) m_Scene.DestroyEntity(e);
+        }
 
         std::string mapsDir = FindValidDir("Maps");
         if (mapsDir.empty()) mapsDir = "GameData/Maps/";
@@ -1606,11 +1618,11 @@ namespace SunEngine {
         if (unitId == "imperium_kasrkin") return glm::vec4(0.35f, 0.25f, 0.18f, 1.0f);
         if (unitId == "imperium_ogryn") return glm::vec4(0.60f, 0.45f, 0.30f, 1.0f);
         if (unitId == "spacemarines_neophyte") return glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
-        if (unitId == "spacemarines_battle_brother") return glm::vec4(0.05f, 0.25f, 0.75f, 1.0f);
-        if (unitId == "orks_boy") return glm::vec4(0.15f, 0.60f, 0.15f, 1.0f);
-        if (unitId == "orks_nob") return glm::vec4(0.08f, 0.40f, 0.08f, 1.0f);
-        if (unitId == "orks_yoof") return glm::vec4(0.30f, 0.68f, 0.25f, 1.0f);
-        if (unitId == "orks_gretchin") return glm::vec4(0.45f, 0.62f, 0.28f, 1.0f);
+        if (unitId == "spacemarines_battle_brother") return glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
+        if (unitId == "orks_boy") return glm::vec4(0.24f, 0.33f, 0.15f, 1.0f);
+        if (unitId == "orks_nob") return glm::vec4(0.17f, 0.25f, 0.11f, 1.0f);
+        if (unitId == "orks_yoof") return glm::vec4(0.30f, 0.38f, 0.19f, 1.0f);
+        if (unitId == "orks_gretchin") return glm::vec4(0.34f, 0.40f, 0.21f, 1.0f);
         return glm::vec4(0.75f, 0.75f, 0.78f, 1.0f);
     }
 
@@ -5546,7 +5558,7 @@ namespace SunEngine {
         if (m_PlayerRoster.empty()) {
             m_PlayerRoster.push_back(TrainedUnit{ "Coscritto", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
             m_PlayerRoster.push_back(TrainedUnit{ "Neofita Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
-            m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(0.45f, 0.62f, 0.28f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(0.34f, 0.40f, 0.21f, 1.0f) });
             for (auto& u : m_PlayerRoster) u.ApplyDefaultLoadout();
         }
         m_SelectedVaultIndex = 0;
@@ -6142,15 +6154,15 @@ namespace SunEngine {
                         recruitAction("spacemarines_neophyte", "Neofita Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
                     if (ImGui::Button("Fratello di Battaglia (75 Pti)\n(Battle Brother)", ImVec2(280, 50))) {
-                        recruitAction("spacemarines_battle_brother", "Fratello Titus", glm::vec4(0.05f, 0.25f, 0.75f, 1.0f));
+                        recruitAction("spacemarines_battle_brother", "Fratello Titus", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "Orks") {
                     if (ImGui::Button("Ork Boy (15 Pti)\n(Fante Orco)", ImVec2(280, 50))) {
-                        recruitAction("orks_boy", "Gor-Gath", glm::vec4(0.15f, 0.60f, 0.15f, 1.0f));
+                        recruitAction("orks_boy", "Gor-Gath", glm::vec4(0.24f, 0.33f, 0.15f, 1.0f));
                     }
                     if (ImGui::Button("Ork Nob (50 Pti)\n(Capoclan Orco)", ImVec2(280, 50))) {
-                        recruitAction("orks_nob", "Uzgrak", glm::vec4(0.08f, 0.40f, 0.08f, 1.0f));
+                        recruitAction("orks_nob", "Uzgrak", glm::vec4(0.17f, 0.25f, 0.11f, 1.0f));
                     }
                 }
 
@@ -6221,7 +6233,7 @@ namespace SunEngine {
                 // tinte tipiche della razza (orki e grot verdi, ogryn e umani dal pallido allo scuro)
                 std::vector<glm::vec3> tones;
                 const std::string lb = bodyLabel;
-                if (lb == "ork" || lb == "gretchin") tones = { { 0.30f, 0.48f, 0.18f }, { 0.22f, 0.40f, 0.14f }, { 0.40f, 0.55f, 0.22f }, { 0.18f, 0.32f, 0.12f }, { 0.45f, 0.58f, 0.25f }, { 0.28f, 0.40f, 0.26f } };
+                if (lb == "ork" || lb == "gretchin") tones = { { 0.24f, 0.33f, 0.15f }, { 0.17f, 0.25f, 0.11f }, { 0.30f, 0.38f, 0.19f }, { 0.20f, 0.24f, 0.13f }, { 0.34f, 0.40f, 0.21f }, { 0.26f, 0.30f, 0.20f } };   // oliva e verdi spenti
                 else tones = { { 0.86f, 0.68f, 0.58f }, { 0.80f, 0.62f, 0.52f }, { 0.70f, 0.52f, 0.40f }, { 0.56f, 0.40f, 0.30f }, { 0.42f, 0.29f, 0.21f }, { 0.30f, 0.20f, 0.15f } };
                 for (size_t i = 0; i < tones.size(); ++i) {
                     if (i > 0) ImGui::SameLine();

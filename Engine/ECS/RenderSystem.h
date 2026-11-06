@@ -173,7 +173,8 @@ namespace SunEngine {
                         }
                     }
                     else {
-                        deferred.DrawCube(transform.GetTransform(), baseColor, 0.9f, 0.0f, 0.0f);
+                        const auto* surf = scene.GetRegistry().try_get<SurfaceMaterialComponent>(entity);
+                        deferred.DrawCube(transform.GetTransform(), baseColor, 0.9f, 0.0f, 0.0f, surf ? surf->id : 0);
                     }
                 }
             }

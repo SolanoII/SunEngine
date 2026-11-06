@@ -792,7 +792,12 @@ namespace SunEngine {
 
     struct SkinnedPartSet;   // Renderer/SkinnedParts.h
 
-    struct SquigVisualTag {};   // lo squig e' disegnato col modello skinnato (SquigModel.h)
+    struct SquigVisualTag {};
+
+    // Materiale procedurale di un blocco della mappa (Renderer/SurfaceMaterials.h)
+    struct SurfaceMaterialComponent { int id = 0; };
+    // Detrito decorativo sparso dal caricatore della mappa: solo da vedere (niente collisioni ne' navmesh)
+    struct MapDecorTag {};   // lo squig e' disegnato col modello skinnato (SquigModel.h)
 
     struct SkinnedModelInstanceComponent {
         SunEngine::SkinnedModel* sourceModel = nullptr;
