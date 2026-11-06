@@ -14,9 +14,12 @@ namespace SunEngine {
     class ShadowMap {
     public:
         static constexpr int CASCADE_COUNT = 4;
-        static constexpr int SHADOW_RESOLUTION = 2048;
+        static constexpr int SHADOW_RESOLUTION = 2048;   // risoluzione di partenza (opzioni grafiche: SetResolution)
 
         bool Init();
+        // Risoluzione delle mappe d'ombra (1024 / 2048 / 4096): ricrea le texture se cambia
+        void SetResolution(int resolution);
+        int GetResolution() const { return m_Resolution; }
         void Shutdown();
 
         // Da chiamare ogni frame PRIMA della geometry pass.
@@ -53,6 +56,9 @@ namespace SunEngine {
         void  SetNormalBias(float b) { m_NormalBias = b; }
 
     private:
+        void CreateDepthTextures();
+        void DeleteDepthTextures();
+        int m_Resolution = SHADOW_RESOLUTION;
         GLuint m_FBO = 0;
         GLuint m_DepthTextures[CASCADE_COUNT] = {};
         // 4 mat4 = 256 bytes

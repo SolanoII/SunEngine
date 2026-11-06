@@ -60,7 +60,15 @@ namespace SunEngine {
         bool  mapMaterials = true;        // materiali procedurali delle mappe (0 = tinta unita)
         float materialRelief = 1.0f;      // rilievo dei materiali delle mappe
         bool  mapDecor = true;            // detriti sparsi sulle mappe (li salta il RenderSystem)
+        // Prestazioni
+        float renderScale = 1.0f;         // risoluzione interna rispetto alla finestra (0.5 - 1): l'immagine viene poi ingrandita
+        int   shadowResolution = 2048;    // lato delle mappe d'ombra (1024 / 2048 / 4096)
+        bool  ssaoHalfRes = true;         // occlusione ambientale calcolata a meta' risoluzione (quasi uguale, 4 volte meno lavoro)
+        bool  vsync = true;               // sincronia verticale (la applica il chiamante con glfwSwapInterval)
     };
+
+    // Tempi della GPU per passaggio (opzioni: "Mostra prestazioni"), letti con un fotogramma di ritardo
+    enum GpuTimerSection : int { GpuT_Shadows = 0, GpuT_Geometry, GpuT_SSAO, GpuT_Lighting, GpuT_Post, GpuT_Count };
 
     class DeferredRenderer {
     public:
@@ -157,6 +165,21 @@ namespace SunEngine {
         Atmosphere& GetAtmosphere() { return m_Atmosphere; }
         RenderQuality& GetQuality() { return m_Quality; }
         const RenderQuality& GetQuality() const { return m_Quality; }
+
+        // Scarto di cio' che non si vede: sfera (centro, raggio in metri) dentro la vista della camera del fotogramma
+        // corrente (dopo BeginGeometryPass) o dentro l'area di una cascata d'ombra (dopo UpdateCascades)
+        bool IsSphereVisible(const glm::vec3& center, float radius) const;
+        bool IsSphereInShadowCascade(int cascadeIndex, const glm::vec3& center, float radius);
+        int GetCulledCount() const { return m_CulledLastFrame; }   // oggetti scartati nel fotogramma precedente
+
+        // Cronometri della GPU (GL_TIME_ELAPSED). Begin chiude da solo la sezione precedente.
+        void SetGpuProfiling(bool on) { m_GpuProfiling = on; }
+        bool IsGpuProfiling() const { return m_GpuProfiling; }
+        void GpuTimerBegin(int section);
+        void GpuTimerEnd();
+        float GetGpuMs(int section) const { return (section >= 0 && section < GpuT_Count) ? m_GpuMs[section] : 0.0f; }
+        int GetRenderWidth() const { return m_Width; }    // risoluzione interna
+        int GetRenderHeight() const { return m_Height; }
         void SetSSAOEnabled(bool e) { m_SSAOEnabled = e; }
         void SetFXAAEnabled(bool e) { m_FXAAEnabled = e; }
         bool IsSSAOEnabled() const { return m_SSAOEnabled; }
@@ -184,6 +207,24 @@ namespace SunEngine {
         void RunFXAAPass();
         Atmosphere m_Atmosphere;
         RenderQuality m_Quality;
+        // risoluzione della finestra (m_Width/m_Height = risoluzione interna, ridotta da renderScale)
+        int m_OutWidth = 0, m_OutHeight = 0;
+        int m_SSAOWidth = 0, m_SSAOHeight = 0;
+        void ApplyQualitySizes();                    // risoluzione interna, SSAO e ombre secondo m_Quality
+        void ResizeTargets(int w, int h);
+        glm::vec4 m_CamPlanes[6];
+        glm::vec4 m_ShadowPlanes[6];
+        int m_ShadowPlanesCascade = -1;
+        const glm::mat4* m_ShadowPlanesMatrix = nullptr;
+        glm::mat4 m_ShadowPlanesSource{ 0.0f };
+        int m_Culled = 0, m_CulledLastFrame = 0;
+        bool m_GpuProfiling = false;
+        unsigned int m_GpuQueries[2][GpuT_Count] = {};
+        bool m_GpuQueryUsed[2][GpuT_Count] = {};
+        int m_GpuFrame = 0;
+        int m_GpuActive = -1;
+        float m_GpuMs[GpuT_Count] = {};
+        void GpuTimersEndFrame();
         bool m_SSAOEnabled = true;
         bool m_FXAAEnabled = true;
         float m_Time = 0.0f;                         // tempo per nuvole, polvere e grana

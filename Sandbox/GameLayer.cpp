@@ -1,4 +1,4 @@
-#define NOMINMAX
+﻿#define NOMINMAX
 #include <glad/glad.h>
 
 #include "GameLayer.h"
@@ -1438,7 +1438,8 @@ namespace SunEngine {
             {"shadowDistance", q.shadowDistance}, {"ssaoRadius", q.ssaoRadius}, {"ssaoStrength", q.ssaoStrength},
             {"bloom", q.bloom}, {"bloomIntensity", q.bloomIntensity}, {"brightness", q.brightness}, {"gamma", q.gamma},
             {"skinSSS", q.skinSSS}, {"skinDetail", q.skinDetail}, {"gearGrime", q.gearGrime}, {"desaturation", q.desaturation},
-            {"mapMaterials", q.mapMaterials}, {"materialRelief", q.materialRelief}, {"mapDecor", q.mapDecor} };
+            {"mapMaterials", q.mapMaterials}, {"materialRelief", q.materialRelief}, {"mapDecor", q.mapDecor},
+            {"renderScale", q.renderScale}, {"shadowResolution", q.shadowResolution}, {"ssaoHalfRes", q.ssaoHalfRes}, {"vsync", q.vsync} };
         j["atmosphere"] = {
             {"zenith", Vec3Json(a.zenith)}, {"horizon", Vec3Json(a.horizon)}, {"ground", Vec3Json(a.ground)},
             {"cloudCover", a.cloudCover}, {"fogDensity", a.fogDensity}, {"fogHeightFalloff", a.fogHeightFalloff},
@@ -1470,6 +1471,10 @@ namespace SunEngine {
             JsonBool(g, "mapMaterials", q.mapMaterials);
             JsonFloat(g, "materialRelief", q.materialRelief, 0.0f, 2.0f);
             JsonBool(g, "mapDecor", q.mapDecor);
+            JsonFloat(g, "renderScale", q.renderScale, 0.5f, 1.0f);
+            if (g.contains("shadowResolution") && g["shadowResolution"].is_number_integer()) q.shadowResolution = std::clamp(g["shadowResolution"].get<int>(), 1024, 4096);
+            JsonBool(g, "ssaoHalfRes", q.ssaoHalfRes);
+            JsonBool(g, "vsync", q.vsync);
         }
         if (j.contains("atmosphere") && j["atmosphere"].is_object()) {
             const auto& g = j["atmosphere"];
@@ -1495,23 +1500,25 @@ namespace SunEngine {
     static void ApplyGraphicsPreset(DeferredRenderer& r, int level) {
         RenderQuality& q = r.GetQuality();
         switch (level) {
-        case 0:   // Basso
-            q.sunShadows = true; q.characterShadows = false; q.shadowFilter = 0; q.shadowDistance = 35.0f;
-            r.SetSSAOEnabled(false); r.SetFXAAEnabled(false); q.bloom = false; q.mapDecor = false; q.materialRelief = 0.6f;
+        case 0:   // Basso: schede video entry level (GTX 1050, integrate)
+            q.sunShadows = true; q.characterShadows = false; q.shadowFilter = 0; q.shadowDistance = 35.0f; q.shadowResolution = 1024;
+            r.SetSSAOEnabled(false); r.SetFXAAEnabled(true); q.bloom = false; q.mapDecor = false; q.materialRelief = 0.6f;
+            q.renderScale = 0.7f; q.ssaoHalfRes = true;
             break;
         case 1:   // Medio
-            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 45.0f;
-            r.SetSSAOEnabled(false); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
+            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 45.0f; q.shadowResolution = 1024;
+            r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
+            q.renderScale = 0.85f; q.ssaoHalfRes = true; q.ssaoRadius = 0.45f;
             break;
         case 2:   // Alto (predefinito)
-            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 60.0f;
+            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 60.0f; q.shadowResolution = 2048;
             r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
-            q.ssaoRadius = 0.45f;
+            q.renderScale = 1.0f; q.ssaoHalfRes = true; q.ssaoRadius = 0.45f;
             break;
         default:  // Ultra
-            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 2; q.shadowDistance = 90.0f;
+            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 2; q.shadowDistance = 90.0f; q.shadowResolution = 4096;
             r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.2f;
-            q.ssaoRadius = 0.55f;
+            q.renderScale = 1.0f; q.ssaoHalfRes = false; q.ssaoRadius = 0.55f;
             break;
         }
     }
@@ -4241,6 +4248,20 @@ namespace SunEngine {
 
     void GameLayer::OnUpdate(float deltaTime)
     {
+        // Tempi per il pannello delle prestazioni (F3): fotogramma intero e logica di gioco
+        {
+            const double now = glfwGetTime();
+            if (m_PerfFrameStart > 0.0) m_PerfFrameMs = m_PerfFrameMs * 0.9f + static_cast<float>((now - m_PerfFrameStart) * 1000.0) * 0.1f;
+            m_PerfFrameStart = now;
+            m_PerfUpdateStart = now;
+            const bool f3 = Input::IsKeyPressed(GLFW_KEY_F3);
+            if (f3 && !m_F3WasDown) m_ShowPerf = !m_ShowPerf;
+            m_F3WasDown = f3;
+            m_DeferredRenderer.SetGpuProfiling(m_ShowPerf);
+            // sincronia verticale (opzioni grafiche)
+            const int vs = m_DeferredRenderer.GetQuality().vsync ? 1 : 0;
+            if (vs != m_AppliedVSync && glfwGetCurrentContext()) { glfwSwapInterval(vs); m_AppliedVSync = vs; }
+        }
         m_DeferredRenderer.SetFrameDelta(deltaTime);
         GLFWwindow* window = glfwGetCurrentContext();
         UpdateWindowSize();
@@ -5273,6 +5294,11 @@ namespace SunEngine {
 
     void GameLayer::OnRender()
     {
+        {
+            const double now = glfwGetTime();
+            m_PerfUpdateMs = m_PerfUpdateMs * 0.9f + static_cast<float>((now - m_PerfUpdateStart) * 1000.0) * 0.1f;
+            m_PerfRenderStart = now;
+        }
         // FIX #12: rimosso il ramo m_UseDeferredTest (scena hardcoded mai eseguita: il flag non veniva
         // mai messo a true). La pipeline si valida direttamente sulla scena di gioco.
         // ================================================================
@@ -5309,6 +5335,7 @@ namespace SunEngine {
             auto& shadowMap = m_DeferredRenderer.GetShadowMap();
             shadowMap.UpdateCascades(m_Camera, sunDir, std::clamp(gq.shadowDistance, 20.0f, 150.0f));
 
+            m_DeferredRenderer.GpuTimerBegin(GpuT_Shadows);
             for (int c = 0; gq.sunShadows && c < ShadowMap::CASCADE_COUNT; ++c) {
                 shadowMap.BeginCascade(c);
 
@@ -5334,9 +5361,11 @@ namespace SunEngine {
                 auto skinned = m_Scene.GetRegistry().view<TransformComponent, SkinnedModelInstanceComponent>();
                 for (auto entity : skinned) {
                     if (!gq.characterShadows) break;
+                    if (c == ShadowMap::CASCADE_COUNT - 1) break;   // ultima cascata (lontano): personaggi troppo piccoli per l'ombra
                     const auto& t = skinned.get<TransformComponent>(entity);
                     const auto& sk = skinned.get<SkinnedModelInstanceComponent>(entity);
                     if (!sk.sourceModel || !sk.boneMatrices || t.Scale.x < 1e-4f) continue;   // nascosto (scala 0)
+                    if (!m_DeferredRenderer.IsSphereInShadowCascade(c, t.Position + glm::vec3(0.0f, 1.2f, 0.0f), 2.2f)) continue;
                     if (const auto* cloak = m_Scene.GetRegistry().try_get<CloakComponent>(entity); cloak && cloak->amount > 0.5f) continue;
                     if (!m_DeferredRenderer.BeginShadowSkinned(c, t.GetTransform(), *sk.boneMatrices)) break;
                     for (const auto& m : sk.sourceModel->meshes) m_DeferredRenderer.DrawShadowSkinned(m);
@@ -5349,6 +5378,7 @@ namespace SunEngine {
             }
 
             shadowMap.UploadMatrices();
+            m_DeferredRenderer.GpuTimerEnd();
             // ===== FINE SHADOW PASS =====
             m_DeferredRenderer.BeginGeometryPass(m_Camera);
             m_RenderSystem.RenderDeferred(m_Scene, m_DeferredRenderer);
@@ -5502,6 +5532,7 @@ namespace SunEngine {
             // La barra della salute ora e' in alto a sinistra (RenderPlayerStatusHUD), con stamina e buff di fazione
         }
 
+        m_PerfRenderMs = m_PerfRenderMs * 0.9f + static_cast<float>((glfwGetTime() - m_PerfRenderStart) * 1000.0) * 0.1f;
         OnImGuiRender();
     }
 
@@ -5643,8 +5674,45 @@ namespace SunEngine {
             }
         }
 
+        if (m_ShowPerf) RenderPerfOverlay();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+
+    // Pannello delle prestazioni (F3, oppure Opzioni -> GRAFICA): dice dove va il tempo di ogni fotogramma
+    void GameLayer::RenderPerfOverlay() {
+        ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 12.0f, 12.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+        ImGui::SetNextWindowBgAlpha(0.72f);
+        const ImGuiWindowFlags fl = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                                    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs;
+        if (ImGui::Begin("##Perf", nullptr, fl)) {
+            const float fps = m_PerfFrameMs > 0.01f ? 1000.0f / m_PerfFrameMs : 0.0f;
+            const ImVec4 col = fps >= 55.0f ? ImVec4(0.55f, 0.85f, 0.45f, 1.0f) : (fps >= 30.0f ? ImVec4(0.95f, 0.8f, 0.35f, 1.0f) : ImVec4(0.95f, 0.4f, 0.3f, 1.0f));
+            ImGui::TextColored(col, "%.0f FPS  (%.1f ms)", fps, m_PerfFrameMs);
+#ifndef NDEBUG
+            ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1.0f), "VERSIONE DEBUG: molto piu' lenta.");
+            ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1.0f), "Compila in x64-Release per giocare.");
+#endif
+            const RenderQuality& q = m_DeferredRenderer.GetQuality();
+            ImGui::TextDisabled("%dx%d interna (%.0f%%)%s", m_DeferredRenderer.GetRenderWidth(), m_DeferredRenderer.GetRenderHeight(),
+                                q.renderScale * 100.0f, q.vsync ? "  VSync" : "");
+            ImGui::Separator();
+            ImGui::Text("CPU logica      %5.1f ms", m_PerfUpdateMs);
+            ImGui::Text("CPU disegno     %5.1f ms", m_PerfRenderMs);
+            static const char* names[GpuT_Count] = { "GPU ombre", "GPU geometria", "GPU occlusione", "GPU illuminaz.", "GPU post" };
+            float gpuTotal = 0.0f;
+            for (int i = 0; i < GpuT_Count; ++i) {
+                const float ms = m_DeferredRenderer.GetGpuMs(i);
+                gpuTotal += ms;
+                ImGui::Text("%-15s %5.1f ms", names[i], ms);
+            }
+            ImGui::Text("GPU totale      %5.1f ms", gpuTotal);
+            ImGui::TextDisabled("Oggetti scartati: %d", m_DeferredRenderer.GetCulledCount());
+            // chi e' il collo di bottiglia
+            const float cpu = m_PerfUpdateMs + m_PerfRenderMs;
+            ImGui::TextDisabled(gpuTotal > cpu ? "Limite: scheda video" : "Limite: processore");
+        }
+        ImGui::End();
     }
 
     void GameLayer::RenderTopNavBar() {
@@ -7376,11 +7444,25 @@ namespace SunEngine {
         ImGui::TextDisabled("I preset cambiano solo cio' che pesa sulle prestazioni; lo stile resta il tuo.");
 
         ImGui::Spacing();
+        if (ImGui::CollapsingHeader("PRESTAZIONI", ImGuiTreeNodeFlags_DefaultOpen)) {
+            float pct = q.renderScale * 100.0f;
+            if (ImGui::SliderFloat("Risoluzione di rendering", &pct, 50.0f, 100.0f, "%.0f%%")) q.renderScale = std::clamp(pct / 100.0f, 0.5f, 1.0f);
+            hint("La scena si disegna a una risoluzione piu' bassa e viene ingrandita: e' la regolazione che fa guadagnare piu' FPS sulle schede video meno potenti. Interfaccia e scritte restano nitide.");
+            ImGui::TextDisabled("Immagine interna: %d x %d", r.GetRenderWidth(), r.GetRenderHeight());
+            ImGui::Checkbox("Sincronia verticale (VSync)", &q.vsync);
+            hint("Accesa: niente immagine spezzata, ma se il gioco non tiene 60 FPS scende di colpo a 30. Spenta: FPS liberi.");
+            ImGui::Checkbox("Mostra prestazioni (F3)", &m_ShowPerf);
+            hint("FPS e millisecondi di processore e scheda video per ogni passaggio: dicono cosa abbassare.");
+        }
+
+        ImGui::Spacing();
         if (ImGui::CollapsingHeader("IMMAGINE", ImGuiTreeNodeFlags_DefaultOpen)) {
             bool ssao = r.IsSSAOEnabled(), fxaa = r.IsFXAAEnabled();
             if (ImGui::Checkbox("Occlusione ambientale (SSAO)", &ssao)) r.SetSSAOEnabled(ssao);
             hint("Angoli, pieghe e punti di contatto piu' scuri: gli oggetti 'poggiano' davvero sul terreno.");
             ImGui::BeginDisabled(!ssao);
+            ImGui::Checkbox("Occlusione a meta' risoluzione", &q.ssaoHalfRes);
+            hint("Quasi identica a vederla e costa un quarto.");
             ImGui::SliderFloat("Raggio occlusione (m)", &q.ssaoRadius, 0.1f, 1.5f, "%.2f");
             ImGui::SliderFloat("Intensita' occlusione", &q.ssaoStrength, 0.0f, 3.0f, "%.2f");
             ImGui::EndDisabled();
@@ -7402,6 +7484,11 @@ namespace SunEngine {
             hint("Corpi, vestiti, armature e squig proiettano l'ombra che segue l'animazione.");
             const char* filters[] = { "Netto", "Morbido", "Molto morbido" };
             ImGui::Combo("Bordo delle ombre", &q.shadowFilter, filters, 3);
+            {
+                const char* res[] = { "1024 (veloce)", "2048", "4096 (nitide)" };
+                int ri = q.shadowResolution <= 1024 ? 0 : (q.shadowResolution <= 2048 ? 1 : 2);
+                if (ImGui::Combo("Risoluzione delle ombre", &ri, res, 3)) q.shadowResolution = ri == 0 ? 1024 : (ri == 1 ? 2048 : 4096);
+            }
             ImGui::SliderFloat("Distanza delle ombre (m)", &q.shadowDistance, 20.0f, 150.0f, "%.0f");
             hint("Piu' lontano = ombre anche in fondo alla mappa, ma meno definite vicino.");
             ImGui::EndDisabled();

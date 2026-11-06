@@ -1138,8 +1138,13 @@ void main() {
 }
 )";
     bool DeferredRenderer::Init(int width, int height) {
+        m_OutWidth = width;
+        m_OutHeight = height;
         m_Width = width;
         m_Height = height;
+        m_SSAOWidth = width;
+        m_SSAOHeight = height;
+        for (auto& p : m_CamPlanes) p = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);   // prima del primo fotogramma: tutto visibile
 
         m_GBuffer.Create(width, height);
 
@@ -1288,6 +1293,7 @@ void main() {
             glDeleteBuffers(1, &m_TestCubeEBO);
             m_TestCubeVAO = 0;
         }
+        if (m_GpuQueries[0][0] != 0) { glDeleteQueries(2 * GpuT_Count, &m_GpuQueries[0][0]); m_GpuQueries[0][0] = 0; }
         m_GBufferShader.reset();
         m_LightingShader.reset();
         m_TonemapShader.reset();
@@ -1300,20 +1306,121 @@ void main() {
         m_GBufferSkinnedShader.reset();
     }
 
+    // width/height = finestra. La risoluzione interna e' ridotta da m_Quality.renderScale (ApplyQualitySizes).
     void DeferredRenderer::Resize(int width, int height) {
-        if (width == m_Width && height == m_Height) return;
+        if (width <= 0 || height <= 0) return;
+        m_OutWidth = width;
+        m_OutHeight = height;
+        ApplyQualitySizes();
+    }
+
+    void DeferredRenderer::ResizeTargets(int width, int height) {
         m_Width = width;
         m_Height = height;
         m_GBuffer.Resize(width, height);
         m_HDRTarget.Resize(width, height);
-        m_SSAOTarget.Resize(width, height);
-        m_SSAOBlurTarget.Resize(width, height);
         m_LDRTarget.Resize(width, height);
         m_CloakCopy.Resize(width, height);
         if (m_BloomEnabled) m_Bloom.Resize(width, height);
         if (m_AutoExposureEnabled) m_AutoExposure.Resize(width, height);
         // FIX #8: nessun FBO lasciato bindato (Resize puo' arrivare durante il frame ImGui)
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    // Opzioni grafiche che cambiano le dimensioni dei bersagli: risoluzione interna, occlusione, ombre.
+    // Chiamata alla fine del fotogramma (e al Resize): il fotogramma dopo e' gia' coerente.
+    void DeferredRenderer::ApplyQualitySizes() {
+        if (m_OutWidth <= 0 || m_OutHeight <= 0) return;
+        const float s = glm::clamp(m_Quality.renderScale, 0.5f, 1.0f);
+        const int w = std::max(64, static_cast<int>(std::lround(m_OutWidth * s)));
+        const int h = std::max(64, static_cast<int>(std::lround(m_OutHeight * s)));
+        if (w != m_Width || h != m_Height) ResizeTargets(w, h);
+        const int aw = m_Quality.ssaoHalfRes ? std::max(32, w / 2) : w;
+        const int ah = m_Quality.ssaoHalfRes ? std::max(32, h / 2) : h;
+        if (aw != m_SSAOWidth || ah != m_SSAOHeight) {
+            m_SSAOWidth = aw; m_SSAOHeight = ah;
+            m_SSAOTarget.Resize(aw, ah);
+            m_SSAOBlurTarget.Resize(aw, ah);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+        int sr = m_Quality.shadowResolution;
+        sr = sr <= 1024 ? 1024 : (sr <= 2048 ? 2048 : 4096);
+        m_ShadowMap.SetResolution(sr);
+    }
+
+    // --- Scarto di cio' che non si vede ---------------------------------------------------------------------------
+    // Piani della vista da una matrice (Gribb-Hartmann): sinistra, destra, sotto, sopra, vicino, lontano
+    static void ExtractPlanes(const glm::mat4& m, glm::vec4 out[6]) {
+        const glm::vec4 r0(m[0][0], m[1][0], m[2][0], m[3][0]);
+        const glm::vec4 r1(m[0][1], m[1][1], m[2][1], m[3][1]);
+        const glm::vec4 r2(m[0][2], m[1][2], m[2][2], m[3][2]);
+        const glm::vec4 r3(m[0][3], m[1][3], m[2][3], m[3][3]);
+        out[0] = r3 + r0; out[1] = r3 - r0; out[2] = r3 + r1; out[3] = r3 - r1; out[4] = r3 + r2; out[5] = r3 - r2;
+        for (int i = 0; i < 6; ++i) {
+            const float l = glm::length(glm::vec3(out[i]));
+            if (l > 1e-8f) out[i] /= l;
+        }
+    }
+    static bool SphereInPlanes(const glm::vec4 planes[6], const glm::vec3& c, float r, bool skipNear) {
+        for (int i = 0; i < 6; ++i) {
+            if (skipNear && i == 4) continue;   // ombre: chi sta "dietro" alla luce fa comunque ombra
+            if (glm::dot(glm::vec3(planes[i]), c) + planes[i].w < -r) return false;
+        }
+        return true;
+    }
+    // Sfera che contiene un cubo unitario centrato (-0.5..0.5) trasformato
+    static void CubeSphere(const glm::mat4& t, glm::vec3& c, float& r) {
+        c = glm::vec3(t[3]);
+        r = 0.5f * std::sqrt(glm::dot(glm::vec3(t[0]), glm::vec3(t[0])) + glm::dot(glm::vec3(t[1]), glm::vec3(t[1])) + glm::dot(glm::vec3(t[2]), glm::vec3(t[2])));
+    }
+
+    bool DeferredRenderer::IsSphereVisible(const glm::vec3& center, float radius) const {
+        return SphereInPlanes(m_CamPlanes, center, radius, false);
+    }
+
+    bool DeferredRenderer::IsSphereInShadowCascade(int cascadeIndex, const glm::vec3& center, float radius) {
+        const glm::mat4& lm = m_ShadowMap.GetLightSpaceMatrix(cascadeIndex);
+        if (cascadeIndex != m_ShadowPlanesCascade || lm != m_ShadowPlanesSource) {
+            ExtractPlanes(lm, m_ShadowPlanes);
+            m_ShadowPlanesCascade = cascadeIndex;
+            m_ShadowPlanesSource = lm;
+        }
+        return SphereInPlanes(m_ShadowPlanes, center, radius, true);
+    }
+
+    // --- Cronometri della GPU --------------------------------------------------------------------------------------
+    void DeferredRenderer::GpuTimerBegin(int section) {
+        if (!m_GpuProfiling || section < 0 || section >= GpuT_Count) return;
+        GpuTimerEnd();
+        if (m_GpuQueries[0][0] == 0) glGenQueries(2 * GpuT_Count, &m_GpuQueries[0][0]);
+        glBeginQuery(GL_TIME_ELAPSED, m_GpuQueries[m_GpuFrame][section]);
+        m_GpuQueryUsed[m_GpuFrame][section] = true;
+        m_GpuActive = section;
+    }
+
+    void DeferredRenderer::GpuTimerEnd() {
+        if (m_GpuActive < 0) return;
+        glEndQuery(GL_TIME_ELAPSED);
+        m_GpuActive = -1;
+    }
+
+    // Fine fotogramma: si passa all'altra serie di query e si leggono i tempi di quella (di due fotogrammi fa),
+    // senza aspettare la GPU
+    void DeferredRenderer::GpuTimersEndFrame() {
+        GpuTimerEnd();
+        if (m_GpuQueries[0][0] == 0) return;
+        m_GpuFrame ^= 1;
+        for (int i = 0; i < GpuT_Count; ++i) {
+            if (!m_GpuQueryUsed[m_GpuFrame][i]) { m_GpuMs[i] = 0.0f; continue; }
+            GLint ready = 0;
+            glGetQueryObjectiv(m_GpuQueries[m_GpuFrame][i], GL_QUERY_RESULT_AVAILABLE, &ready);
+            if (ready) {
+                GLuint64 ns = 0;
+                glGetQueryObjectui64v(m_GpuQueries[m_GpuFrame][i], GL_QUERY_RESULT, &ns);
+                m_GpuMs[i] = m_GpuMs[i] * 0.8f + static_cast<float>(ns) * 1e-6f * 0.2f;   // media mobile: numeri leggibili
+            }
+            m_GpuQueryUsed[m_GpuFrame][i] = false;
+        }
     }
 
     void DeferredRenderer::CreateTestGeometry() {
@@ -1396,7 +1503,11 @@ void main() {
         // Calcola le light-space matrices, poi il chiamante disegna
         // la scena 4 volte con RenderShadowPassCube. Per ora la facciamo
         // in automatico qui usando i cubi di test.
-        m_ShadowMap.UpdateCascades(camera, m_SunDirection, /*shadowDistance*/ 60.0f);
+        // FIX: stessa distanza usata dal chiamante per disegnare le ombre (prima 60 fissi: con un'altra distanza
+        // l'illuminazione leggeva le mappe con matrici diverse da quelle usate per riempirle)
+        m_ShadowMap.UpdateCascades(camera, m_SunDirection, std::clamp(m_Quality.shadowDistance, 20.0f, 150.0f));
+        ExtractPlanes(m_ViewProjection, m_CamPlanes);
+        GpuTimerBegin(GpuT_Geometry);
 
         // Bind dello shadow UBO (binding point 1)
         m_ShadowMap.UploadMatrices();
@@ -1436,17 +1547,25 @@ void main() {
         m_Time += m_LastFrameDelta;
 
         // 0. Occlusione ambientale (dal G-Buffer)
+        GpuTimerBegin(GpuT_SSAO);
         RunSSAOPass();
 
         // 1. Lighting pass
+        GpuTimerBegin(GpuT_Lighting);
         RunLightingPass();
 
         // 1b. Unita' mimetizzate: rifrangono la scena appena illuminata
         RunCloakPass();
 
-        // 2. Tonemap pass (con correzione colore), poi antialiasing verso lo schermo
+        // 2. Tonemap pass (con correzione colore), poi antialiasing e ingrandimento verso lo schermo
+        GpuTimerBegin(GpuT_Post);
         RunTonemapPass();
         RunFXAAPass();
+        GpuTimersEndFrame();
+
+        m_CulledLastFrame = m_Culled;
+        m_Culled = 0;
+        ApplyQualitySizes();   // opzioni cambiate in questo fotogramma: valgono dal prossimo
     }
 
     void DeferredRenderer::UploadLights() {
@@ -1465,6 +1584,7 @@ void main() {
 
     void DeferredRenderer::RunLightingPass() {
         m_HDRTarget.Bind();
+        glViewport(0, 0, m_Width, m_Height);
         m_HDRTarget.Clear(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
         glDisable(GL_DEPTH_TEST);
@@ -1546,7 +1666,7 @@ void main() {
         if (!m_SSAOEnabled || !m_SSAOShader || !m_SSAOBlurShader) return;
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
-        glViewport(0, 0, m_Width, m_Height);
+        glViewport(0, 0, m_SSAOWidth, m_SSAOHeight);   // meta' risoluzione con l'opzione (l'illuminazione la legge filtrata)
         glBindVertexArray(Framebuffer::GetFullscreenQuadVAO());
         // occlusione grezza
         m_SSAOTarget.Bind();
@@ -1573,9 +1693,20 @@ void main() {
     }
 
     void DeferredRenderer::RunFXAAPass() {
-        if (!m_FXAAEnabled || !m_FXAAShader) return;
+        const bool scaled = m_Width != m_OutWidth || m_Height != m_OutHeight;
+        if (!m_FXAAEnabled || !m_FXAAShader) {
+            if (scaled) {
+                // risoluzione ridotta senza antialiasing: si ingrandisce l'immagine finale (filtro lineare)
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, m_LDRTarget.GetID());
+                glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+                glBlitFramebuffer(0, 0, m_Width, m_Height, 0, 0, m_OutWidth, m_OutHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
+            glViewport(0, 0, m_OutWidth, m_OutHeight);   // i passaggi dopo (particelle, interfaccia) usano la finestra intera
+            return;
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, m_Width, m_Height);
+        glViewport(0, 0, m_OutWidth, m_OutHeight);   // FXAA legge l'immagine interna e scrive a piena risoluzione
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
         m_FXAAShader->Bind();
@@ -1603,7 +1734,8 @@ void main() {
 
         // con l'antialiasing il tonemap scrive nell'immagine intermedia, poi FXAA la porta sullo schermo
         const bool fxaa = m_FXAAEnabled && m_FXAAShader;
-        glBindFramebuffer(GL_FRAMEBUFFER, fxaa ? m_LDRTarget.GetID() : 0);
+        const bool scaled = m_Width != m_OutWidth || m_Height != m_OutHeight;
+        glBindFramebuffer(GL_FRAMEBUFFER, (fxaa || scaled) ? m_LDRTarget.GetID() : 0);
         glViewport(0, 0, m_Width, m_Height);
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
@@ -1656,6 +1788,11 @@ void main() {
     void DeferredRenderer::DrawCube(const glm::mat4& transform,
         const glm::vec4& color,
         float roughness, float metallic, float emissive, int material) {
+        {
+            glm::vec3 c; float r;
+            CubeSphere(transform, c, r);
+            if (!SphereInPlanes(m_CamPlanes, c, r, false)) { ++m_Culled; return; }   // fuori dalla vista
+        }
         if (m_CloakCapture) { m_CloakCubes.push_back({ transform, m_CloakAmount }); return; }   // mimetizzato
         m_GBufferShader->Bind();
         m_GBufferShader->SetMat4("u_Model", transform);
@@ -1704,6 +1841,11 @@ void main() {
         }
     }
     void DeferredRenderer::RenderShadowPassCube(const glm::mat4& transform, int cascadeIndex) {
+        {
+            glm::vec3 c; float r;
+            CubeSphere(transform, c, r);
+            if (!IsSphereInShadowCascade(cascadeIndex, c, r)) { ++m_Culled; return; }   // fuori dall'area della cascata
+        }
         m_ShadowDepthShader->Bind();
         m_ShadowDepthShader->SetMat4("u_Model", transform);
         m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix",

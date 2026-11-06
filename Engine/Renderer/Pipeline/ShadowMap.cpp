@@ -7,17 +7,48 @@
 
 namespace SunEngine {
 
+    void ShadowMap::DeleteDepthTextures() {
+        for (int i = 0; i < CASCADE_COUNT; ++i) {
+            if (m_DepthTextures[i] != 0) { glDeleteTextures(1, &m_DepthTextures[i]); m_DepthTextures[i] = 0; }
+        }
+    }
+
+    void ShadowMap::SetResolution(int resolution) {
+        resolution = std::clamp(resolution, 512, 4096);
+        if (resolution == m_Resolution) return;
+        m_Resolution = resolution;
+        if (m_FBO == 0) return;   // non ancora inizializzata: Init usera' la nuova risoluzione
+        DeleteDepthTextures();
+        CreateDepthTextures();
+        SUN_CORE_INFO("ShadowMap: risoluzione {}x{}", m_Resolution, m_Resolution);
+    }
+
     bool ShadowMap::Init() {
         // Crea FBO
         glGenFramebuffers(1, &m_FBO);
+        CreateDepthTextures();
 
+        // UBO con 4 mat4
+        glGenBuffers(1, &m_ShadowUBO);
+        glBindBuffer(GL_UNIFORM_BUFFER, m_ShadowUBO);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4) * CASCADE_COUNT,
+            nullptr, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        SUN_CORE_INFO("ShadowMap: {} cascade, risoluzione {}x{}",
+            CASCADE_COUNT, m_Resolution, m_Resolution);
+
+        return true;
+    }
+
+    void ShadowMap::CreateDepthTextures() {
         // Crea le texture depth
         for (int i = 0; i < CASCADE_COUNT; ++i) {
             glGenTextures(1, &m_DepthTextures[i]);
             glBindTexture(GL_TEXTURE_2D, m_DepthTextures[i]);
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
-                SHADOW_RESOLUTION, SHADOW_RESOLUTION, 0,
+                m_Resolution, m_Resolution, 0,
                 GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -33,18 +64,6 @@ namespace SunEngine {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
         }
         glBindTexture(GL_TEXTURE_2D, 0);
-
-        // UBO con 4 mat4
-        glGenBuffers(1, &m_ShadowUBO);
-        glBindBuffer(GL_UNIFORM_BUFFER, m_ShadowUBO);
-        glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4) * CASCADE_COUNT,
-            nullptr, GL_DYNAMIC_DRAW);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-        SUN_CORE_INFO("ShadowMap: {} cascade, risoluzione {}x{}",
-            CASCADE_COUNT, SHADOW_RESOLUTION, SHADOW_RESOLUTION);
-
-        return true;
     }
 
     void ShadowMap::Shutdown() {
@@ -141,7 +160,7 @@ namespace SunEngine {
                 radius = std::max(radius, glm::length(corner - center));
             }
             // Snap del raggio a multipli di 16 unità texel per ridurre shimmering
-            float texelSize = (2.0f * radius) / static_cast<float>(SHADOW_RESOLUTION);
+            float texelSize = (2.0f * radius) / static_cast<float>(m_Resolution);
             radius = std::ceil(radius / texelSize) * texelSize;
 
             // Light view: guarda dalla direzione del sole verso il centro
@@ -155,12 +174,12 @@ namespace SunEngine {
             // Snap X/Y a pixel interi in light space per eliminare shimmering
             glm::vec4 originShift = lightView * glm::vec4(0, 0, 0, 1);
             float shadowHalf = radius;
-            float offsetX = originShift.x / (shadowHalf * 2.0f) * static_cast<float>(SHADOW_RESOLUTION);
-            float offsetY = originShift.y / (shadowHalf * 2.0f) * static_cast<float>(SHADOW_RESOLUTION);
+            float offsetX = originShift.x / (shadowHalf * 2.0f) * static_cast<float>(m_Resolution);
+            float offsetY = originShift.y / (shadowHalf * 2.0f) * static_cast<float>(m_Resolution);
             float roundedX = std::round(offsetX);
             float roundedY = std::round(offsetY);
-            originShift.x = roundedX * (shadowHalf * 2.0f) / static_cast<float>(SHADOW_RESOLUTION);
-            originShift.y = roundedY * (shadowHalf * 2.0f) / static_cast<float>(SHADOW_RESOLUTION);
+            originShift.x = roundedX * (shadowHalf * 2.0f) / static_cast<float>(m_Resolution);
+            originShift.y = roundedY * (shadowHalf * 2.0f) / static_cast<float>(m_Resolution);
             lightView[3] = originShift;
 
             glm::mat4 lightProj = glm::ortho(
@@ -181,7 +200,7 @@ namespace SunEngine {
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
 
-        glViewport(0, 0, SHADOW_RESOLUTION, SHADOW_RESOLUTION);
+        glViewport(0, 0, m_Resolution, m_Resolution);
         glClear(GL_DEPTH_BUFFER_BIT);
 
         glEnable(GL_DEPTH_TEST);

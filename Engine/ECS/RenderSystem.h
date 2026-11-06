@@ -65,6 +65,8 @@ namespace SunEngine {
                 // 0. MODELLO SKINNATO FBX (nuova priorità più alta)
                 if (auto* skinnedInst = scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(entity)) {
                     if (skinnedInst->sourceModel && skinnedInst->boneMatrices) {
+                        // fuori dalla vista (personaggio alle spalle della camera): niente da disegnare
+                        if (!deferred.IsSphereVisible(transform.Position + glm::vec3(0.0f, 1.2f, 0.0f), 2.2f)) continue;
                         const glm::mat4 modelMat = transform.GetTransform();
                         const auto& bones = *skinnedInst->boneMatrices;
 

@@ -283,6 +283,12 @@ namespace SunEngine {
         void RenderRespawnUI();
         void RenderOptionsMenu();
         void RenderGraphicsOptions();   // scheda GRAFICA del menu Opzioni
+        void RenderPerfOverlay();       // F3: FPS e tempi di CPU e GPU
+        bool m_ShowPerf = false;
+        bool m_F3WasDown = false;
+        int  m_AppliedVSync = -1;       // ultimo glfwSwapInterval applicato (-1 = da applicare)
+        double m_PerfFrameStart = 0.0, m_PerfUpdateStart = 0.0, m_PerfRenderStart = 0.0;
+        float m_PerfFrameMs = 0.0f, m_PerfUpdateMs = 0.0f, m_PerfRenderMs = 0.0f;
 
         void RenderMapEditorUI();
         void CreateNewMap();
