@@ -544,7 +544,7 @@ namespace SunEngine {
         }
     }
 
-    static void InitOrkAudio(ma_engine* engine) {
+    static void InitOrkAudio(ma_engine* engine, ma_sound_group* voiceGroup) {   // voiceGroup: volume "Voci" delle opzioni
         std::string audioDir = FindValidDir("Audio");
 
         if (audioDir.empty()) {
@@ -552,7 +552,7 @@ namespace SunEngine {
         }
 
         std::string startPath = audioDir + "i-say-waaagh.wav";
-        if (ma_sound_init_from_file(engine, startPath.c_str(), MA_SOUND_FLAG_DECODE, NULL, NULL, &g_OrkVoices.startWaaaghSound) == MA_SUCCESS) {
+        if (ma_sound_init_from_file(engine, startPath.c_str(), MA_SOUND_FLAG_DECODE, voiceGroup, NULL, &g_OrkVoices.startWaaaghSound) == MA_SUCCESS) {
             g_OrkVoices.startSoundLoaded = true;
             // FIX #7: "I say waaagh" e' un annuncio globale senza posizione. Ora che il listener segue il
             // player, se restasse spazializzato (posizione di default = origine) verrebbe attenuato e
@@ -571,7 +571,7 @@ namespace SunEngine {
                 auto item = std::make_unique<OrkVoicePoolItem>();
                 item->filename = file;
 
-                if (ma_sound_init_from_file(engine, file.c_str(), MA_SOUND_FLAG_DECODE, NULL, NULL, &item->sound) == MA_SUCCESS) {
+                if (ma_sound_init_from_file(engine, file.c_str(), MA_SOUND_FLAG_DECODE, voiceGroup, NULL, &item->sound) == MA_SUCCESS) {
                     g_OrkVoices.voicePool.push_back(std::move(item));
                 }
             }
@@ -1354,11 +1354,13 @@ namespace SunEngine {
         else {
             m_AudioEngineInitialized = true;
 
-            if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_SFXGroup) == MA_SUCCESS) {
-                m_SFXGroupInitialized = true;
-                ma_sound_group_set_volume(&m_SFXGroup, m_VolumeSFX);
-            }
-            InitOrkAudio(&m_AudioEngine);
+            // Tre canali, ognuno con la sua barra nelle opzioni: effetti (armi, passi), voci, musica
+            if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_SFXGroup) == MA_SUCCESS) m_SFXGroupInitialized = true;
+            if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_VoiceGroup) == MA_SUCCESS) m_VoiceGroupInitialized = true;
+            if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_MusicGroup) == MA_SUCCESS) m_MusicGroupInitialized = true;
+            ApplyAudioVolumes();
+            InitOrkAudio(&m_AudioEngine, m_VoiceGroupInitialized ? &m_VoiceGroup : nullptr);
+            InitMusic();
 
             std::string audioDir = FindValidDir("Audio");
             m_WeaponSystem.InitAudio(
@@ -1385,6 +1387,167 @@ namespace SunEngine {
         }
     }
 
+    // ===================== IMPOSTAZIONI GRAFICHE <-> PROFILO =====================
+    static void JsonFloat(const nlohmann::json& j, const char* k, float& out, float lo, float hi) {
+        if (j.contains(k) && j[k].is_number()) out = std::clamp(j[k].get<float>(), lo, hi);
+    }
+    static void JsonBool(const nlohmann::json& j, const char* k, bool& out) {
+        if (j.contains(k) && j[k].is_boolean()) out = j[k].get<bool>();
+    }
+    static void JsonVec3(const nlohmann::json& j, const char* k, glm::vec3& out) {
+        if (!j.contains(k) || !j[k].is_array() || j[k].size() != 3) return;
+        for (int i = 0; i < 3; ++i) if (j[k][i].is_number()) out[i] = std::clamp(j[k][i].get<float>(), 0.0f, 2.0f);
+    }
+    static nlohmann::json Vec3Json(const glm::vec3& v) { return nlohmann::json::array({ v.x, v.y, v.z }); }
+
+    static nlohmann::json GraphicsToJson(DeferredRenderer& r) {
+        const RenderQuality& q = r.GetQuality();
+        const Atmosphere& a = r.GetAtmosphere();
+        nlohmann::json j;
+        j["quality"] = {
+            {"sunShadows", q.sunShadows}, {"characterShadows", q.characterShadows}, {"shadowFilter", q.shadowFilter},
+            {"shadowDistance", q.shadowDistance}, {"ssaoRadius", q.ssaoRadius}, {"ssaoStrength", q.ssaoStrength},
+            {"bloom", q.bloom}, {"bloomIntensity", q.bloomIntensity}, {"brightness", q.brightness}, {"gamma", q.gamma},
+            {"skinSSS", q.skinSSS}, {"skinDetail", q.skinDetail}, {"gearGrime", q.gearGrime}, {"desaturation", q.desaturation},
+            {"mapMaterials", q.mapMaterials}, {"materialRelief", q.materialRelief}, {"mapDecor", q.mapDecor} };
+        j["atmosphere"] = {
+            {"zenith", Vec3Json(a.zenith)}, {"horizon", Vec3Json(a.horizon)}, {"ground", Vec3Json(a.ground)},
+            {"cloudCover", a.cloudCover}, {"fogDensity", a.fogDensity}, {"fogHeightFalloff", a.fogHeightFalloff},
+            {"fogColor", Vec3Json(a.fogColor)}, {"dust", a.dust}, {"saturation", a.saturation}, {"contrast", a.contrast},
+            {"vignette", a.vignette}, {"grain", a.grain}, {"shadowTint", Vec3Json(a.shadowTint)}, {"highlightTint", Vec3Json(a.highlightTint)} };
+        return j;
+    }
+
+    // Tollerante: chiavi mancanti = valore attuale, valori fuori range = limitati
+    static void GraphicsFromJson(DeferredRenderer& r, const nlohmann::json& j) {
+        if (!j.is_object()) return;
+        if (j.contains("quality") && j["quality"].is_object()) {
+            const auto& g = j["quality"];
+            RenderQuality& q = r.GetQuality();
+            JsonBool(g, "sunShadows", q.sunShadows);
+            JsonBool(g, "characterShadows", q.characterShadows);
+            if (g.contains("shadowFilter") && g["shadowFilter"].is_number_integer()) q.shadowFilter = std::clamp(g["shadowFilter"].get<int>(), 0, 2);
+            JsonFloat(g, "shadowDistance", q.shadowDistance, 20.0f, 150.0f);
+            JsonFloat(g, "ssaoRadius", q.ssaoRadius, 0.1f, 2.0f);
+            JsonFloat(g, "ssaoStrength", q.ssaoStrength, 0.0f, 3.0f);
+            JsonBool(g, "bloom", q.bloom);
+            JsonFloat(g, "bloomIntensity", q.bloomIntensity, 0.0f, 3.0f);
+            JsonFloat(g, "brightness", q.brightness, 0.2f, 3.0f);
+            JsonFloat(g, "gamma", q.gamma, 1.6f, 2.8f);
+            JsonFloat(g, "skinSSS", q.skinSSS, 0.0f, 1.5f);
+            JsonFloat(g, "skinDetail", q.skinDetail, 0.0f, 2.0f);
+            JsonFloat(g, "gearGrime", q.gearGrime, 0.0f, 2.0f);
+            JsonFloat(g, "desaturation", q.desaturation, 0.0f, 1.0f);
+            JsonBool(g, "mapMaterials", q.mapMaterials);
+            JsonFloat(g, "materialRelief", q.materialRelief, 0.0f, 2.0f);
+            JsonBool(g, "mapDecor", q.mapDecor);
+        }
+        if (j.contains("atmosphere") && j["atmosphere"].is_object()) {
+            const auto& g = j["atmosphere"];
+            Atmosphere& a = r.GetAtmosphere();
+            JsonVec3(g, "zenith", a.zenith);
+            JsonVec3(g, "horizon", a.horizon);
+            JsonVec3(g, "ground", a.ground);
+            JsonFloat(g, "cloudCover", a.cloudCover, 0.0f, 1.0f);
+            JsonFloat(g, "fogDensity", a.fogDensity, 0.0f, 0.05f);
+            JsonFloat(g, "fogHeightFalloff", a.fogHeightFalloff, 0.005f, 0.5f);
+            JsonVec3(g, "fogColor", a.fogColor);
+            JsonFloat(g, "dust", a.dust, 0.0f, 1.5f);
+            JsonFloat(g, "saturation", a.saturation, 0.0f, 1.5f);
+            JsonFloat(g, "contrast", a.contrast, 0.5f, 1.8f);
+            JsonFloat(g, "vignette", a.vignette, 0.0f, 1.0f);
+            JsonFloat(g, "grain", a.grain, 0.0f, 0.1f);
+            JsonVec3(g, "shadowTint", a.shadowTint);
+            JsonVec3(g, "highlightTint", a.highlightTint);
+        }
+    }
+
+    // Preset di qualita': toccano solo cio' che pesa sulle prestazioni, non le scelte di stile (pelle, sporco, atmosfera)
+    static void ApplyGraphicsPreset(DeferredRenderer& r, int level) {
+        RenderQuality& q = r.GetQuality();
+        switch (level) {
+        case 0:   // Basso
+            q.sunShadows = true; q.characterShadows = false; q.shadowFilter = 0; q.shadowDistance = 35.0f;
+            r.SetSSAOEnabled(false); r.SetFXAAEnabled(false); q.bloom = false; q.mapDecor = false; q.materialRelief = 0.6f;
+            break;
+        case 1:   // Medio
+            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 45.0f;
+            r.SetSSAOEnabled(false); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
+            break;
+        case 2:   // Alto (predefinito)
+            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 60.0f;
+            r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
+            q.ssaoRadius = 0.45f;
+            break;
+        default:  // Ultra
+            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 2; q.shadowDistance = 90.0f;
+            r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.2f;
+            q.ssaoRadius = 0.55f;
+            break;
+        }
+    }
+
+    // ===================== AUDIO: VOLUMI E MUSICA =====================
+    void GameLayer::ApplyAudioVolumes() {
+        if (!m_AudioEngineInitialized) return;
+        ma_engine_set_volume(&m_AudioEngine, std::clamp(m_VolumeMaster, 0.0f, 1.0f));
+        if (m_SFXGroupInitialized) ma_sound_group_set_volume(&m_SFXGroup, std::clamp(m_VolumeSFX, 0.0f, 1.0f));
+        if (m_VoiceGroupInitialized) ma_sound_group_set_volume(&m_VoiceGroup, std::clamp(m_VolumeVoice, 0.0f, 1.0f));
+        if (m_MusicGroupInitialized) ma_sound_group_set_volume(&m_MusicGroup, std::clamp(m_VolumeMusic, 0.0f, 1.0f));
+    }
+
+    // Brani in GameData/Audio/Music (mp3, wav, flac): basta aggiungerne un file per averlo in gioco
+    void GameLayer::InitMusic() {
+        m_MusicTracks.clear();
+        std::string audioDir = FindValidDir("Audio");
+        if (audioDir.empty()) audioDir = "GameData/Audio/";
+        const std::filesystem::path musicDir = std::filesystem::path(audioDir) / "Music";
+        std::error_code ec;
+        if (std::filesystem::is_directory(musicDir, ec)) {
+            for (const auto& e : std::filesystem::directory_iterator(musicDir, ec)) {
+                if (!e.is_regular_file()) continue;
+                std::string ext = e.path().extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (ext == ".mp3" || ext == ".wav" || ext == ".flac") m_MusicTracks.push_back(e.path().string());
+            }
+        }
+        std::sort(m_MusicTracks.begin(), m_MusicTracks.end());
+        if (m_MusicTracks.empty()) { SUN_CORE_INFO("Nessun brano in {0}", musicDir.string()); return; }
+        PlayMusicTrack(0);
+    }
+
+    void GameLayer::PlayMusicTrack(int idx) {
+        if (!m_AudioEngineInitialized) return;
+        if (m_MusicLoaded) {
+            ma_sound_stop(&m_MusicSound);
+            ma_sound_uninit(&m_MusicSound);
+            m_MusicLoaded = false;
+        }
+        if (m_MusicTracks.empty()) return;
+        const int n = static_cast<int>(m_MusicTracks.size());
+        m_MusicTrackIdx = ((idx % n) + n) % n;
+        // in streaming (non tutto in memoria), senza posizione nello spazio
+        const ma_uint32 flags = MA_SOUND_FLAG_STREAM | MA_SOUND_FLAG_NO_SPATIALIZATION;
+        if (ma_sound_init_from_file(&m_AudioEngine, m_MusicTracks[m_MusicTrackIdx].c_str(), flags,
+                m_MusicGroupInitialized ? &m_MusicGroup : nullptr, nullptr, &m_MusicSound) != MA_SUCCESS) {
+            SUN_CORE_WARN("Musica: impossibile aprire {0}", m_MusicTracks[m_MusicTrackIdx]);
+            return;
+        }
+        m_MusicLoaded = true;
+        ma_sound_set_looping(&m_MusicSound, n == 1 ? MA_TRUE : MA_FALSE);   // un solo brano: a ciclo
+        ma_sound_set_volume(&m_MusicSound, m_MusicGroupInitialized ? m_MusicDuck : m_MusicDuck * m_VolumeMusic);
+        ma_sound_start(&m_MusicSound);
+    }
+
+    void GameLayer::UpdateMusic(float deltaTime) {
+        if (!m_MusicLoaded) return;
+        // in partita la musica scende sotto spari e voci, nei menu torna piena
+        const float target = m_GameState == GameState::Gameplay ? 0.5f : 1.0f;
+        m_MusicDuck += (target - m_MusicDuck) * std::min(1.0f, deltaTime * 0.8f);
+        ma_sound_set_volume(&m_MusicSound, m_MusicGroupInitialized ? m_MusicDuck : m_MusicDuck * m_VolumeMusic);
+        if (m_MusicTracks.size() > 1 && ma_sound_at_end(&m_MusicSound)) PlayMusicTrack(m_MusicTrackIdx + 1);
+    }
+
     // ===================== PROFILO LOCALE =====================
     void GameLayer::LoadProfile() {
         PlayerProfile loaded;
@@ -1403,10 +1566,13 @@ namespace SunEngine {
         m_VolumeSFX = m_Profile.volumeSFX;
         m_VolumeVoice = m_Profile.volumeVoice;
         m_VolumeMusic = m_Profile.volumeMusic;
+        m_VolumeMaster = m_Profile.volumeMaster;
         m_UseAnimatedPlayer = m_Profile.animatedPlayer;
         m_DeferredRenderer.SetSSAOEnabled(m_Profile.gfxSSAO);
         m_DeferredRenderer.SetFXAAEnabled(m_Profile.gfxFXAA);
         m_DeferredRenderer.GetAtmosphere().enabled = m_Profile.gfxAtmosphere;
+        GraphicsFromJson(m_DeferredRenderer, m_Profile.graphics);
+        ApplyAudioVolumes();   // se l'audio e' gia' partito (ricarica del profilo)
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 4);
     }
@@ -1489,10 +1655,12 @@ namespace SunEngine {
         m_Profile.volumeSFX = m_VolumeSFX;
         m_Profile.volumeVoice = m_VolumeVoice;
         m_Profile.volumeMusic = m_VolumeMusic;
+        m_Profile.volumeMaster = m_VolumeMaster;
         m_Profile.animatedPlayer = m_UseAnimatedPlayer;
         m_Profile.gfxSSAO = m_DeferredRenderer.IsSSAOEnabled();
         m_Profile.gfxFXAA = m_DeferredRenderer.IsFXAAEnabled();
         m_Profile.gfxAtmosphere = m_DeferredRenderer.GetAtmosphere().enabled;
+        m_Profile.graphics = GraphicsToJson(m_DeferredRenderer);
         m_Profile.squadIndices = m_SelectedSquadIndices;
         m_Profile.selectedMapId = m_SelectedMapId;
         m_Profile.selectedEventIndex = m_SelectedEventIndex;
@@ -1588,9 +1756,21 @@ namespace SunEngine {
         }
         g_OrkVoices.voicePool.clear();
 
+        if (m_MusicLoaded) {
+            ma_sound_uninit(&m_MusicSound);
+            m_MusicLoaded = false;
+        }
         if (m_SFXGroupInitialized) {
             ma_sound_group_uninit(&m_SFXGroup);
             m_SFXGroupInitialized = false;
+        }
+        if (m_VoiceGroupInitialized) {
+            ma_sound_group_uninit(&m_VoiceGroup);
+            m_VoiceGroupInitialized = false;
+        }
+        if (m_MusicGroupInitialized) {
+            ma_sound_group_uninit(&m_MusicGroup);
+            m_MusicGroupInitialized = false;
         }
 
         if (m_AudioEngineInitialized) {
@@ -4012,6 +4192,7 @@ namespace SunEngine {
         UpdateWindowSize();
 
         // Autosave del profilo ogni 2 secondi (scrive solo se qualcosa e' cambiato)
+        UpdateMusic(deltaTime);
         m_ProfileSaveTimer += deltaTime;
         if (m_ProfileSaveTimer >= 2.0f) {
             m_ProfileSaveTimer = 0.0f;
@@ -4387,7 +4568,7 @@ namespace SunEngine {
                 m_AudioEngineInitialized ? &m_AudioEngine : nullptr,
                 m_SFXGroupInitialized ? &m_SFXGroup : nullptr,
                 deltaTime,
-                m_VolumeSFX
+                m_SFXGroupInitialized ? 1.0f : m_VolumeSFX   // il volume SFX lo applica il gruppo (prima era applicato due volte)
             );
             // Campo da tiro (manichini presenti, fuori dal Vs Bot): riserva infinita per provare le armi
             if (auto* ammo = m_Scene.GetRegistry().try_get<AmmoComponent>(m_PlayerEntity)) {
@@ -4919,7 +5100,7 @@ namespace SunEngine {
                     g_WaaaghSpawnCount = std::min(g_WaaaghSpawnCount * 2, 12);
                 }
 
-                UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VolumeVoice);
+                UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
             }
 
             AnimateUnits(deltaTime, transform.Position, true);
@@ -5065,16 +5246,16 @@ namespace SunEngine {
                         0.45f));
             }
             m_DeferredRenderer.SetSunDirection(glm::vec3(-0.4f, -1.0f, 0.3f));
-            m_DeferredRenderer.GetShadowMap().UpdateCascades(m_Camera, glm::vec3(-0.4f, -1.0f, 0.3f), 60.0f);
-
             // ===== SHADOW PASS =====
             const glm::vec3 sunDir = glm::normalize(glm::vec3(-0.4f, -1.0f, 0.3f));
             m_DeferredRenderer.SetSunDirection(sunDir);
 
+            // Opzioni grafiche: ombre spente = niente passaggio (si risparmia anche il tempo della GPU)
+            const RenderQuality& gq = m_DeferredRenderer.GetQuality();
             auto& shadowMap = m_DeferredRenderer.GetShadowMap();
-            shadowMap.UpdateCascades(m_Camera, sunDir, 60.0f);
+            shadowMap.UpdateCascades(m_Camera, sunDir, std::clamp(gq.shadowDistance, 20.0f, 150.0f));
 
-            for (int c = 0; c < ShadowMap::CASCADE_COUNT; ++c) {
+            for (int c = 0; gq.sunShadows && c < ShadowMap::CASCADE_COUNT; ++c) {
                 shadowMap.BeginCascade(c);
 
                 // Disegna TUTTI i cubi della scena (per ora solo i cubi, in futuro le mesh)
@@ -5082,6 +5263,7 @@ namespace SunEngine {
                 for (auto entity : view) {
                     // Il giocatore col modello animato non proietta l'ombra del suo cubo hitbox
                     if (m_Scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) continue;
+                    if (!gq.mapDecor && m_Scene.GetRegistry().all_of<MapDecorTag>(entity)) continue;   // detriti nascosti
                     auto& t = view.get<TransformComponent>(entity);
                     const auto* blockModel = m_Scene.GetRegistry().try_get<BlockModelComponent>(entity);
                     if (blockModel && blockModel->model) {
@@ -5097,6 +5279,7 @@ namespace SunEngine {
                 // Personaggi animati (corpo, vestiti, armature, squig): l'ombra segue l'animazione
                 auto skinned = m_Scene.GetRegistry().view<TransformComponent, SkinnedModelInstanceComponent>();
                 for (auto entity : skinned) {
+                    if (!gq.characterShadows) break;
                     const auto& t = skinned.get<TransformComponent>(entity);
                     const auto& sk = skinned.get<SkinnedModelInstanceComponent>(entity);
                     if (!sk.sourceModel || !sk.boneMatrices || t.Scale.x < 1e-4f) continue;   // nascosto (scala 0)
@@ -6965,7 +7148,7 @@ namespace SunEngine {
                     g_WaaaghActive = true;
                     g_WaaaghTimer = 9.0f;
                     g_WaaaghSpawnCount = 1;
-                    PlayStartWaaagh(m_VolumeVoice);
+                    PlayStartWaaagh(m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
                 }
                 else {
                     g_WaaaghActive = false;
@@ -7106,13 +7289,126 @@ namespace SunEngine {
         ImGui::End();
     }
 
+    // Scheda GRAFICA delle opzioni: tutto si applica subito e resta nel profilo (salvataggio automatico)
+    void GameLayer::RenderGraphicsOptions() {
+        DeferredRenderer& r = m_DeferredRenderer;
+        RenderQuality& q = r.GetQuality();
+        Atmosphere& a = r.GetAtmosphere();
+        const ImVec4 head(0.0f, 0.85f, 1.0f, 1.0f);
+        auto hint = [](const char* text) {
+            ImGui::SameLine(); ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::PushTextWrapPos(320.0f); ImGui::TextUnformatted(text); ImGui::PopTextWrapPos(); ImGui::EndTooltip(); }
+        };
+
+        // il resto della finestra meno il pulsante "Chiudi": la scheda scorre
+        ImGui::BeginChild("##GfxScroll", ImVec2(0, std::max(120.0f, ImGui::GetContentRegionAvail().y - 46.0f)), false);
+        ImGui::PushItemWidth(-230.0f);
+
+        ImGui::Spacing();
+        ImGui::TextColored(head, "PRESET DI QUALITA'");
+        ImGui::Separator();
+        const char* presets[] = { "Basso", "Medio", "Alto", "Ultra" };
+        for (int i = 0; i < 4; ++i) {
+            if (i) ImGui::SameLine();
+            if (ImGui::Button(presets[i], ImVec2(90, 28))) ApplyGraphicsPreset(r, i);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Ripristina predefiniti", ImVec2(-1, 28))) {
+            q = RenderQuality{};
+            a = Atmosphere{};
+            r.SetSSAOEnabled(true);
+            r.SetFXAAEnabled(true);
+        }
+        ImGui::TextDisabled("I preset cambiano solo cio' che pesa sulle prestazioni; lo stile resta il tuo.");
+
+        ImGui::Spacing();
+        if (ImGui::CollapsingHeader("IMMAGINE", ImGuiTreeNodeFlags_DefaultOpen)) {
+            bool ssao = r.IsSSAOEnabled(), fxaa = r.IsFXAAEnabled();
+            if (ImGui::Checkbox("Occlusione ambientale (SSAO)", &ssao)) r.SetSSAOEnabled(ssao);
+            hint("Angoli, pieghe e punti di contatto piu' scuri: gli oggetti 'poggiano' davvero sul terreno.");
+            ImGui::BeginDisabled(!ssao);
+            ImGui::SliderFloat("Raggio occlusione (m)", &q.ssaoRadius, 0.1f, 1.5f, "%.2f");
+            ImGui::SliderFloat("Intensita' occlusione", &q.ssaoStrength, 0.0f, 3.0f, "%.2f");
+            ImGui::EndDisabled();
+            if (ImGui::Checkbox("Antialiasing (FXAA)", &fxaa)) r.SetFXAAEnabled(fxaa);
+            hint("Ammorbidisce i bordi seghettati.");
+            ImGui::Checkbox("Bagliore delle luci (bloom)", &q.bloom);
+            ImGui::BeginDisabled(!q.bloom);
+            ImGui::SliderFloat("Intensita' bagliore", &q.bloomIntensity, 0.0f, 3.0f, "%.2f");
+            ImGui::EndDisabled();
+            ImGui::SliderFloat("Luminosita'", &q.brightness, 0.4f, 2.0f, "%.2f");
+            ImGui::SliderFloat("Gamma", &q.gamma, 1.8f, 2.6f, "%.2f");
+        }
+
+        if (ImGui::CollapsingHeader("OMBRE", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Ombre del sole", &q.sunShadows);
+            hint("Spente: niente ombre per nessuno (il gioco va piu' veloce).");
+            ImGui::BeginDisabled(!q.sunShadows);
+            ImGui::Checkbox("Ombre dei personaggi", &q.characterShadows);
+            hint("Corpi, vestiti, armature e squig proiettano l'ombra che segue l'animazione.");
+            const char* filters[] = { "Netto", "Morbido", "Molto morbido" };
+            ImGui::Combo("Bordo delle ombre", &q.shadowFilter, filters, 3);
+            ImGui::SliderFloat("Distanza delle ombre (m)", &q.shadowDistance, 20.0f, 150.0f, "%.0f");
+            hint("Piu' lontano = ombre anche in fondo alla mappa, ma meno definite vicino.");
+            ImGui::EndDisabled();
+        }
+
+        if (ImGui::CollapsingHeader("PERSONAGGI", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::SliderFloat("Luce sotto la pelle", &q.skinSSS, 0.0f, 1.5f, "%.2f");
+            hint("Diffusione sottocutanea: passaggio luce/ombra morbido e rossastro, orecchie e dita che si illuminano controluce. 0 = pelle opaca.");
+            ImGui::SliderFloat("Muscoli, chiazze e vene", &q.skinDetail, 0.0f, 2.0f, "%.2f");
+            ImGui::SliderFloat("Sporco su vestiti e armature", &q.gearGrime, 0.0f, 2.0f, "%.2f");
+            hint("Fango che sale dagli stivali, polvere sulle spalle, sangue rappreso, ruggine, bruciature, colature d'olio.");
+            ImGui::SliderFloat("Tinte spente (grimdark)", &q.desaturation, 0.0f, 1.0f, "%.2f");
+            hint("0 = colori originali di pelle, vestiti e armature; 1 = spenti e consumati.");
+        }
+
+        if (ImGui::CollapsingHeader("MAPPE", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Materiali delle mappe", &q.mapMaterials);
+            hint("Fango, rockcrete, lamiere arrugginite, sacchi di sabbia, legno, terrapieni. Spento = tinta unita.");
+            ImGui::BeginDisabled(!q.mapMaterials);
+            ImGui::SliderFloat("Rilievo dei materiali", &q.materialRelief, 0.0f, 2.0f, "%.2f");
+            ImGui::EndDisabled();
+            ImGui::Checkbox("Detriti sparsi", &q.mapDecor);
+            hint("Macerie, pietre, assi e rottami sparsi sul campo (solo grafica, non bloccano).");
+        }
+
+        if (ImGui::CollapsingHeader("ATMOSFERA E COLORE", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Checkbox("Atmosfera attiva", &a.enabled);
+            hint("Cielo con nuvole, nebbia in altezza con polvere, correzione colore. Spenta = resa neutra.");
+            ImGui::BeginDisabled(!a.enabled);
+            ImGui::TextDisabled("Cielo");
+            ImGui::SliderFloat("Nuvolosita'", &a.cloudCover, 0.0f, 1.0f, "%.2f");
+            ImGui::ColorEdit3("Cielo in alto", &a.zenith.x, ImGuiColorEditFlags_Float);
+            ImGui::ColorEdit3("Orizzonte (smog)", &a.horizon.x, ImGuiColorEditFlags_Float);
+            ImGui::ColorEdit3("Sotto l'orizzonte", &a.ground.x, ImGuiColorEditFlags_Float);
+            ImGui::TextDisabled("Nebbia e polvere");
+            ImGui::SliderFloat("Densita' nebbia", &a.fogDensity, 0.0f, 0.04f, "%.4f");
+            ImGui::SliderFloat("Diradamento in altezza", &a.fogHeightFalloff, 0.01f, 0.4f, "%.3f");
+            ImGui::ColorEdit3("Colore nebbia", &a.fogColor.x, ImGuiColorEditFlags_Float);
+            ImGui::SliderFloat("Polvere nel vento", &a.dust, 0.0f, 1.5f, "%.2f");
+            ImGui::TextDisabled("Correzione colore");
+            ImGui::SliderFloat("Saturazione", &a.saturation, 0.0f, 1.5f, "%.2f");
+            ImGui::SliderFloat("Contrasto", &a.contrast, 0.6f, 1.6f, "%.2f");
+            ImGui::SliderFloat("Vignetta", &a.vignette, 0.0f, 1.0f, "%.2f");
+            ImGui::SliderFloat("Grana della pellicola", &a.grain, 0.0f, 0.08f, "%.3f");
+            ImGui::ColorEdit3("Tinta delle ombre", &a.shadowTint.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+            ImGui::ColorEdit3("Tinta delle luci", &a.highlightTint.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+            ImGui::EndDisabled();
+        }
+
+        ImGui::PopItemWidth();
+        ImGui::EndChild();
+    }
+
     void GameLayer::RenderOptionsMenu() {
         if (!m_ShowOptionsMenu) return;
 
         ImGui::OpenPopup("Opzioni di Gioco");
         ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(450, 360));
+        // piu' grande di prima: la scheda GRAFICA ha molte regolazioni (scorre se lo schermo e' piccolo)
+        ImGui::SetNextWindowSize(ImVec2(std::min(720.0f, io.DisplaySize.x * 0.92f), std::min(640.0f, io.DisplaySize.y * 0.9f)));
 
         if (ImGui::BeginPopupModal("Opzioni di Gioco", &m_ShowOptionsMenu, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
 
@@ -7138,16 +7434,7 @@ namespace SunEngine {
                     ImGui::Spacing();
                     ImGui::Checkbox("Schermo Intero (Fullscreen)", &m_IsFullscreen);
 
-                    ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-                    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "QUALITA' GRAFICA");
-                    {
-                        // effetti del renderer: si applicano subito (e restano nel profilo)
-                        bool ssao = m_DeferredRenderer.IsSSAOEnabled(), fxaa = m_DeferredRenderer.IsFXAAEnabled();
-                        bool& atmo = m_DeferredRenderer.GetAtmosphere().enabled;
-                        if (ImGui::Checkbox("Occlusione ambientale (angoli e contatti piu' scuri)", &ssao)) m_DeferredRenderer.SetSSAOEnabled(ssao);
-                        if (ImGui::Checkbox("Antialiasing (bordi morbidi)", &fxaa)) m_DeferredRenderer.SetFXAAEnabled(fxaa);
-                        ImGui::Checkbox("Atmosfera (cielo, nebbia, polvere, colore grimdark)", &atmo);
-                    }
+                    ImGui::TextDisabled("Qualita' ed effetti grafici: scheda GRAFICA.");
 
                     ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
@@ -7162,26 +7449,44 @@ namespace SunEngine {
                     ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "CONTROLLO VOLUMI CANALI");
                     ImGui::Separator(); ImGui::Spacing();
 
-                    ImGui::Text("Ambienza & Effetti Gioco (SFX):");
-                    if (ImGui::SliderFloat("##VolumeSFX", &m_VolumeSFX, 0.0f, 1.0f, "%.2f")) {
-                        if (m_SFXGroupInitialized) {
-                            ma_sound_group_set_volume(&m_SFXGroup, m_VolumeSFX);
+                    // Ogni barra agisce subito (e resta nel profilo): generale = tutto il motore audio, poi un gruppo per canale
+                    auto volumeBar = [this](const char* label, const char* id, float& v) {
+                        ImGui::Text("%s", label);
+                        float pct = v * 100.0f;
+                        ImGui::SetNextItemWidth(-1);
+                        if (ImGui::SliderFloat(id, &pct, 0.0f, 100.0f, "%.0f%%")) {
+                            v = std::clamp(pct / 100.0f, 0.0f, 1.0f);
+                            ApplyAudioVolumes();
+                        }
+                        ImGui::Spacing();
+                    };
+                    volumeBar("Volume generale:", "##VolumeMaster", m_VolumeMaster);
+                    volumeBar("Ambienza & Effetti Gioco (armi, passi, impatti):", "##VolumeSFX", m_VolumeSFX);
+                    volumeBar("Voci, Schiamazzi & Versi:", "##VolumeVoice", m_VolumeVoice);
+                    volumeBar("Musica di Sottofondo:", "##VolumeMusic", m_VolumeMusic);
+
+                    if (!m_AudioEngineInitialized) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Audio non disponibile (nessun dispositivo di uscita).");
+                    }
+                    else if (m_MusicTracks.empty()) {
+                        ImGui::TextDisabled("Nessun brano: metti file .mp3 / .wav / .flac in GameData/Audio/Music.");
+                    }
+                    else {
+                        const std::string track = std::filesystem::path(m_MusicTracks[m_MusicTrackIdx]).stem().string();
+                        ImGui::TextDisabled("In riproduzione: %s", track.c_str());
+                        if (m_MusicTracks.size() > 1) {
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("Brano successivo")) PlayMusicTrack(m_MusicTrackIdx + 1);
                         }
                     }
+                    ImGui::TextDisabled("In partita la musica si abbassa da sola sotto spari e voci.");
 
                     ImGui::Spacing();
-                    ImGui::Text("Voci, Schiamazzi & Versi:");
-                    if (ImGui::SliderFloat("##VolumeVoice", &m_VolumeVoice, 0.0f, 1.0f, "%.2f")) {
-                        if (g_OrkVoices.startSoundLoaded) {
-                            ma_sound_set_volume(&g_OrkVoices.startWaaaghSound, m_VolumeVoice);
-                        }
-                    }
+                    ImGui::EndTabItem();
+                }
 
-                    ImGui::Spacing();
-                    ImGui::Text("Musica di Sottofondo:");
-                    ImGui::SliderFloat("##VolumeMusic", &m_VolumeMusic, 0.0f, 1.0f, "%.2f");
-
-                    ImGui::Spacing();
+                if (ImGui::BeginTabItem("GRAFICA")) {
+                    RenderGraphicsOptions();
                     ImGui::EndTabItem();
                 }
 

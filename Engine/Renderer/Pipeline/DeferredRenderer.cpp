@@ -48,6 +48,7 @@ namespace SunEngine {
         uniform float u_Metallic;
         uniform float u_Emissive;
         uniform int   u_Material;   // 0 tinta unita, 1 fango, 2 cemento, 3 lamiera, 4 sacchi, 5 legno, 6 chioma, 7 terrapieno, 8 detriti
+        uniform float u_Relief;     // rilievo dei materiali (opzioni grafiche)
 
         float H31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
         float H21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -217,7 +218,7 @@ namespace SunEngine {
                     float dust = top ? smoothstep(0.3, 0.7, big) * 0.35 : 0.0;
                     col = mix(col, vec3(0.27, 0.24, 0.20), dust);
                 }
-                N = BumpW(N, h);
+                if (u_Relief > 0.001) N = BumpW(N, h * u_Relief);
             }
             out_Albedo   = vec4(col, u_Color.a);
             out_Normal   = vec4(N, 1.0);
@@ -401,6 +402,10 @@ uniform float u_ShadowNormalBias;
 uniform int   u_CascadeCount;
 uniform float u_CascadeSplits[4];
 uniform float u_CascadeFade;   // 0.0 = nessun blend, 0.15 = blend ultimo 15%
+uniform int   u_UseShadows;    // 0 = ombre del sole spente (opzioni grafiche)
+uniform int   u_ShadowPCF;     // raggio del filtro: 0 netto, 1 = 3x3, 2 = 5x5
+uniform float u_SSSScale;      // intensita' della diffusione nella pelle
+uniform float u_SSAOStrength;  // intensita' dell'occlusione ambientale
 vec3 ReconstructWorldPos(vec2 uv, float depth) {
     vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 wp = u_InvViewProjection * ndc;
@@ -521,14 +526,15 @@ float SampleShadowCascade(int cascade, vec3 worldPos, vec3 N, float NdotL) {
     float bias = max(u_ShadowBias * (1.0 - NdotL), u_ShadowBias * 0.1);
 
     float shadow = 0.0;
-    for (int x = -1; x <= 1; ++x) {
-        for (int y = -1; y <= 1; ++y) {
+    int r = clamp(u_ShadowPCF, 0, 2);
+    for (int x = -r; x <= r; ++x) {
+        for (int y = -r; y <= r; ++y) {
             float pcfDepth = SampleShadowTex(cascade, projCoords.xy + vec2(x, y) * texelSize);
             shadow += (currentDepth - bias > pcfDepth) ? 0.0 : 1.0;
         }
     }
-    shadow /= 9.0;
-    return shadow;
+    float side = float(2 * r + 1);
+    return shadow / (side * side);
 }
 float GetShadow(vec3 worldPos, vec3 N, float NdotL, float viewDistance) {
     // Trova la cascade primaria
@@ -584,7 +590,7 @@ void main() {
     float roughness = clamp(materialSample.r, 0.04, 1.0);
     float metallic  = clamp(materialSample.g, 0.0, 1.0);
     float emissive  = materialSample.b;
-    float sss       = materialSample.a;   // pelle (0 = superficie normale)
+    float sss       = materialSample.a * u_SSSScale;   // pelle (0 = superficie normale)
 
     vec3 worldPos = ReconstructWorldPos(v_TexCoord, depth);
     vec3 V = normalize(u_CameraPos - worldPos);
@@ -649,7 +655,7 @@ void main() {
 
         // Shadow SOLO per la direzionale (type == 0)
         float shadowFactor = 1.0;
-        if (type == 0) {
+        if (type == 0 && u_UseShadows == 1) {
             shadowFactor = GetShadow(worldPos, N, max(NdotL, 0.05), viewDist);
         }
 
@@ -669,7 +675,7 @@ void main() {
         }
     }
 
-    float ssao = u_UseSSAO == 1 ? texture(u_SSAO, v_TexCoord).r : 1.0;
+    float ssao = u_UseSSAO == 1 ? pow(texture(u_SSAO, v_TexCoord).r, u_SSAOStrength) : 1.0;
     vec3 ambient = ComputeAmbient(N, V, albedo, roughness, metallic) * ao * ssao;
     Lo *= mix(1.0, ssao, 0.25);   // un filo anche sulla luce diretta: gli oggetti "toccano" il terreno
     if (sss > 0.0) {
@@ -711,6 +717,8 @@ out vec4 out_Color;
 uniform sampler2D u_HDRTexture;
 uniform sampler2D u_ExposureTex;   // 1x1 R32F dall'AutoExposure
 uniform float u_ExposureFallback;  // usato se auto-exposure disabilitata
+uniform float u_Brightness;        // opzioni grafiche: moltiplica l'esposizione
+uniform float u_Gamma;
 uniform int   u_Grade;             // 1 = correzione colore grimdark
 uniform float u_Saturation;
 uniform float u_Contrast;
@@ -733,7 +741,7 @@ void main() {
     float exposure = texture(u_ExposureTex, vec2(0.5)).r;
     if (exposure < 0.001) exposure = u_ExposureFallback;
 
-    vec3 hdr = texture(u_HDRTexture, v_TexCoord).rgb * exposure;
+    vec3 hdr = texture(u_HDRTexture, v_TexCoord).rgb * exposure * u_Brightness;
     vec3 ldr = ACESFilm(hdr);
     if (u_Grade == 1) {
         float l = dot(ldr, vec3(0.2126, 0.7152, 0.0722));
@@ -747,7 +755,7 @@ void main() {
         vec2 c = v_TexCoord - 0.5;
         ldr *= 1.0 - u_Vignette * smoothstep(0.25, 0.85, dot(c, c) * 2.2);
     }
-    ldr = pow(ldr, vec3(1.0 / 2.2));
+    ldr = pow(ldr, vec3(1.0 / max(u_Gamma, 1.0)));
     if (u_Grade == 1) {
         // grana della pellicola (cambia ogni fotogramma)
         float g = fract(sin(dot(v_TexCoord * 1000.0 + fract(u_Time) * 37.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
@@ -871,6 +879,8 @@ uniform float u_TexScale;     // ripetizioni per unita' del modello
 uniform float u_AlphaCut;     // alpha sotto soglia = buco (stracci)
 uniform int   u_Detail;       // 0 niente, 1 pelle, 2 stoffa, 3 armatura/metallo, 5 occhio, 6 dente
 uniform float u_InvHeight;    // 1 / altezza del corpo in posa T (scala dei dettagli)
+uniform float u_Grime;        // opzioni grafiche: sporco su vestiti e armature
+uniform float u_Desat;        // opzioni grafiche: tinte spente grimdark (0 = colori originali)
 
 // Proiezione triplanare in posa T: niente UV, la texture segue il corpo in ogni animazione
 vec4 SampleTriplanar() {
@@ -918,10 +928,10 @@ void main() {
         // grimdark: anche la pelle e' spenta (il verde degli orki tende all'oliva) e i piedi nudi sono infangati
         {
             float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-            color.rgb = mix(vec3(lum), color.rgb, 0.78) * 0.94;
+            color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.78) * 0.94, u_Desat);
             float feet = 1.0 - smoothstep(0.02, 0.11, pn.y + (Noise3(pn * 9.0) - 0.5) * 0.04);
             float mudS = feet * smoothstep(0.35, 0.6, Noise3(pn * 40.0 + 3.0) * 0.6 + feet * 0.5);
-            color.rgb = mix(color.rgb, vec3(0.12, 0.095, 0.07), mudS * 0.8);
+            color.rgb = mix(color.rgb, vec3(0.12, 0.095, 0.07), clamp(mudS * 0.8 * u_Grime, 0.0, 1.0));
         }
         // Pelle: macchie e venature leggere, pori (rilievo fine), un po' di rossore variabile
         float big = Noise3(pn * 16.0), mid = Noise3(pn * 55.0), fine = Noise3(pn * 380.0);
@@ -1029,33 +1039,34 @@ void main() {
         // Grimdark: niente colori accesi. Tinte spente, fango che sale dagli stivali, polvere sulle spalle,
         // macchie (sangue rappreso sulla stoffa, bruciature sull'armatura), ruggine nei graffi, colature d'olio.
         float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-        color.rgb = mix(vec3(lum), color.rgb, 0.62) * 0.9;
+        color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.62) * 0.9, u_Desat);
+        float gr = u_Grime;
         float g1 = Noise3(pn * 7.0 + 13.0), g2 = Noise3(pn * 31.0 + 5.0), g3 = Noise3(pn * 140.0);
         // fango dal basso: pieno sugli stivali, a schizzi fino al ginocchio
         float mudH = 1.0 - smoothstep(0.03, 0.30, pn.y + (g1 - 0.5) * 0.08);
-        float mud = mudH * smoothstep(0.35, 0.6, g2 * 0.7 + g3 * 0.3 + mudH * 0.45);
+        float mud = clamp(mudH * smoothstep(0.35, 0.6, g2 * 0.7 + g3 * 0.3 + mudH * 0.45) * gr, 0.0, 1.0);
         vec3 mudCol = mix(vec3(0.13, 0.10, 0.075), vec3(0.07, 0.055, 0.045), g1);
         color.rgb = mix(color.rgb, mudCol, mud * 0.85);
         rough = mix(rough, 0.7, mud * 0.6);
         metal = mix(metal, 0.0, mud);
         // polvere sulle superfici rivolte in alto (spalle, elmetto, braccia)
         float up = smoothstep(0.35, 0.9, normalize(v_BindNormal).y);
-        color.rgb = mix(color.rgb, vec3(0.30, 0.27, 0.22), up * (0.18 + 0.2 * g1) * (1.0 - mud));
+        color.rgb = mix(color.rgb, vec3(0.30, 0.27, 0.22), clamp(up * (0.18 + 0.2 * g1) * (1.0 - mud) * gr, 0.0, 1.0));
         if (u_Detail == 2) {
             // stoffa: sporco unto e qualche macchia scura di sangue rappreso
-            color.rgb *= 0.9 + 0.12 * g1;
-            float blood = smoothstep(0.80, 0.86, Noise3(pn * 11.0 + 41.0)) * smoothstep(0.3, 0.7, g2);
+            color.rgb *= mix(1.0, 0.9 + 0.12 * g1, min(gr, 1.0));
+            float blood = smoothstep(0.80, 0.86, Noise3(pn * 11.0 + 41.0)) * smoothstep(0.3, 0.7, g2) * gr;
             color.rgb = mix(color.rgb, color.rgb * vec3(0.38, 0.17, 0.14), blood * 0.8);
         }
         else {
             // armatura: ruggine nei graffi e sugli spigoli consumati, bruciature, colature d'olio verticali
-            float rust = smoothstep(0.55, 0.8, g2 + (1.0 - smoothstep(0.0, 0.01, v_UV.x)) * 0.3) * smoothstep(0.4, 0.7, g3);
+            float rust = clamp(smoothstep(0.55, 0.8, g2 + (1.0 - smoothstep(0.0, 0.01, v_UV.x)) * 0.3) * smoothstep(0.4, 0.7, g3) * gr, 0.0, 1.0);
             color.rgb = mix(color.rgb, mix(vec3(0.24, 0.12, 0.06), vec3(0.12, 0.065, 0.04), g1), rust * 0.55);
             metal = mix(metal, 0.1, rust);
             rough = mix(rough, 0.92, rust);
-            float scorch = smoothstep(0.74, 0.82, Noise3(pn * 6.0 + 23.0));
+            float scorch = clamp(smoothstep(0.74, 0.82, Noise3(pn * 6.0 + 23.0)) * gr, 0.0, 1.0);
             color.rgb = mix(color.rgb, color.rgb * 0.25, scorch * 0.7);
-            float oil = smoothstep(0.62, 0.8, Noise3(pn * vec3(70.0, 3.5, 70.0) + 3.0)) * (1.0 - up);
+            float oil = clamp(smoothstep(0.62, 0.8, Noise3(pn * vec3(70.0, 3.5, 70.0) + 3.0)) * (1.0 - up) * gr, 0.0, 1.0);
             color.rgb *= 1.0 - oil * 0.35;
             rough = mix(rough, 0.25, oil * 0.5);
         }
@@ -1423,6 +1434,10 @@ void main() {
         glUniform1fv(glGetUniformLocation(m_LightingShader->GetID(), "u_CascadeSplits"),
             ShadowMap::CASCADE_COUNT, splits);
         m_LightingShader->SetFloat("u_CascadeFade", m_CascadeFade);
+        m_LightingShader->SetInt("u_UseShadows", m_Quality.sunShadows ? 1 : 0);
+        m_LightingShader->SetInt("u_ShadowPCF", glm::clamp(m_Quality.shadowFilter, 0, 2));
+        m_LightingShader->SetFloat("u_SSSScale", glm::clamp(m_Quality.skinSSS, 0.0f, 1.5f));
+        m_LightingShader->SetFloat("u_SSAOStrength", glm::clamp(m_Quality.ssaoStrength, 0.0f, 3.0f));
         // Camera uniforms
         m_LightingShader->SetVec3("u_CameraPos", m_CameraPos);
 
@@ -1482,7 +1497,7 @@ void main() {
         m_SSAOShader->SetMat4("u_InvViewProjection", glm::inverse(m_ViewProjection));
         m_SSAOShader->SetMat4("u_ViewProjection", m_ViewProjection);
         m_SSAOShader->SetVec3("u_CameraPos", m_CameraPos);
-        m_SSAOShader->SetFloat("u_Radius", 0.45f);
+        m_SSAOShader->SetFloat("u_Radius", glm::clamp(m_Quality.ssaoRadius, 0.1f, 2.0f));
         glDrawArrays(GL_TRIANGLES, 0, 6);
         // sfocatura che rispetta i bordi
         m_SSAOBlurTarget.Bind();
@@ -1513,7 +1528,8 @@ void main() {
 
     void DeferredRenderer::RunTonemapPass() {
         GLuint hdrSource = m_HDRTarget.GetColorTexture(0)->GetID();
-        if (m_BloomEnabled) {
+        if (m_BloomEnabled && m_Quality.bloom) {   // m_BloomEnabled = bloom inizializzato; m_Quality.bloom = scelta del giocatore
+            m_Bloom.SetIntensity(m_Quality.bloomIntensity);
             m_Bloom.Render(hdrSource);
             hdrSource = m_Bloom.GetCompositeTexture()->GetID();
         }
@@ -1548,6 +1564,8 @@ void main() {
         m_TonemapShader->SetInt("u_HDRTexture", 0);
         m_TonemapShader->SetInt("u_ExposureTex", 1);
         m_TonemapShader->SetFloat("u_ExposureFallback", 1.0f);
+        m_TonemapShader->SetFloat("u_Brightness", glm::clamp(m_Quality.brightness, 0.2f, 3.0f));
+        m_TonemapShader->SetFloat("u_Gamma", glm::clamp(m_Quality.gamma, 1.6f, 2.8f));
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, hdrSource);
@@ -1585,7 +1603,8 @@ void main() {
         m_GBufferShader->SetFloat("u_Roughness", roughness);
         m_GBufferShader->SetFloat("u_Metallic", metallic);
         m_GBufferShader->SetFloat("u_Emissive", emissive);
-        m_GBufferShader->SetInt("u_Material", material);
+        m_GBufferShader->SetInt("u_Material", m_Quality.mapMaterials ? material : 0);
+        m_GBufferShader->SetFloat("u_Relief", m_Quality.materialRelief);
 
         glBindVertexArray(m_TestCubeVAO);
         glDrawElements(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0);
@@ -1677,9 +1696,11 @@ void main() {
             static const SkinnedDrawExtra s_None;
             const SkinnedDrawExtra& ex = extra ? *extra : s_None;
             m_GBufferSkinnedShader->SetInt("u_Baked", ex.baked);
-            m_GBufferSkinnedShader->SetVec4("u_SkinStyle", ex.skinStyle);
+            m_GBufferSkinnedShader->SetVec4("u_SkinStyle", ex.skinStyle * glm::clamp(m_Quality.skinDetail, 0.0f, 2.0f));
             m_GBufferSkinnedShader->SetVec4("u_Color2", ex.color2);
         }
+        m_GBufferSkinnedShader->SetFloat("u_Grime", glm::clamp(m_Quality.gearGrime, 0.0f, 2.0f));
+        m_GBufferSkinnedShader->SetFloat("u_Desat", glm::clamp(m_Quality.desaturation, 0.0f, 1.0f));
         m_GBufferSkinnedShader->SetFloat("u_InvHeight", invHeight > 0.0f ? invHeight : 1.0f);
         m_GBufferSkinnedShader->SetMat4("u_Model", model);
         m_GBufferSkinnedShader->SetMat4("u_ViewProjection", m_ViewProjection);

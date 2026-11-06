@@ -40,6 +40,27 @@ namespace SunEngine {
         glm::vec3 highlightTint{ 1.06f, 1.00f, 0.90f };// luci calde
     };
 
+    // Qualita' e resa regolabili dal menu Opzioni (GRAFICA). I valori di base sono quelli "Alto".
+    struct RenderQuality {
+        bool  sunShadows = true;          // ombre del sole (tutta la scena)
+        bool  characterShadows = true;    // ombre dei personaggi animati (le disegna il chiamante)
+        int   shadowFilter = 1;           // bordo dell'ombra: 0 netto, 1 morbido (3x3), 2 molto morbido (5x5)
+        float shadowDistance = 60.0f;     // fin dove arrivano le ombre (metri)
+        float ssaoRadius = 0.45f;         // occlusione ambientale: raggio (metri)
+        float ssaoStrength = 1.0f;        // occlusione ambientale: intensita'
+        bool  bloom = true;               // alone delle luci forti
+        float bloomIntensity = 1.2f;
+        float brightness = 1.0f;          // moltiplica l'esposizione
+        float gamma = 2.2f;
+        float skinSSS = 1.0f;             // luce che si diffonde sotto la pelle (0 = pelle "di plastica")
+        float skinDetail = 1.0f;          // muscoli, chiazze, verruche e vene
+        float gearGrime = 1.0f;           // sporco su vestiti e armature (fango, polvere, sangue, ruggine, bruciature)
+        float desaturation = 1.0f;        // tinte spente grimdark di pelle e vestiti (0 = colori originali)
+        bool  mapMaterials = true;        // materiali procedurali delle mappe (0 = tinta unita)
+        float materialRelief = 1.0f;      // rilievo dei materiali delle mappe
+        bool  mapDecor = true;            // detriti sparsi sulle mappe (li salta il RenderSystem)
+    };
+
     class DeferredRenderer {
     public:
         bool Init(int width, int height);
@@ -132,6 +153,8 @@ namespace SunEngine {
             const SkinnedDrawExtra* extra = nullptr);
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
         Atmosphere& GetAtmosphere() { return m_Atmosphere; }
+        RenderQuality& GetQuality() { return m_Quality; }
+        const RenderQuality& GetQuality() const { return m_Quality; }
         void SetSSAOEnabled(bool e) { m_SSAOEnabled = e; }
         void SetFXAAEnabled(bool e) { m_FXAAEnabled = e; }
         bool IsSSAOEnabled() const { return m_SSAOEnabled; }
@@ -158,6 +181,7 @@ namespace SunEngine {
         void RunSSAOPass();
         void RunFXAAPass();
         Atmosphere m_Atmosphere;
+        RenderQuality m_Quality;
         bool m_SSAOEnabled = true;
         bool m_FXAAEnabled = true;
         float m_Time = 0.0f;                         // tempo per nuvole, polvere e grana

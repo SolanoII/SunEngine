@@ -52,7 +52,9 @@ namespace SunEngine {
                 CloakScope(DeferredRenderer& r, float amount) : d(r), on(amount > 0.001f) { if (on) d.BeginCloak(amount); }
                 ~CloakScope() { if (on) d.EndCloak(); }
             };
+            const bool showDecor = deferred.GetQuality().mapDecor;   // opzioni grafiche: detriti sparsi
             for (auto entity : view) {
+                if (!showDecor && scene.GetRegistry().all_of<MapDecorTag>(entity)) continue;
                 auto& transform = view.get<TransformComponent>(entity);
                 auto& color = view.get<ColorComponent>(entity);
                 const glm::vec4 baseColor = color.Color;

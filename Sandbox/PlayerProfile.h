@@ -30,10 +30,14 @@ namespace SunEngine {
         float volumeSFX = 0.8f;
         float volumeVoice = 0.8f;
         float volumeMusic = 0.8f;
+        float volumeMaster = 1.0f;
         bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
         bool  gfxSSAO = true;           // occlusione ambientale
         bool  gfxFXAA = true;           // antialiasing
         bool  gfxAtmosphere = true;     // cielo, nebbia, polvere, correzione colore
+        // Tutte le altre regolazioni grafiche (qualita', ombre, pelle, sporco, materiali, atmosfera): le scrive e le
+        // legge il GameLayer, qui restano un oggetto JSON (il profilo non conosce il renderer).
+        nlohmann::json graphics = nlohmann::json::object();
 
         // --- Valute ---
         int64_t energy = 0;       // valuta principale: a fine partita meta' dei punti studio guadagnati
@@ -74,8 +78,10 @@ namespace SunEngine {
             j["version"] = kVersion;
             j["settings"] = { {"resolutionIdx", resolutionIdx}, {"fullscreen", fullscreen},
                               {"volumeSFX", volumeSFX}, {"volumeVoice", volumeVoice}, {"volumeMusic", volumeMusic},
+                              {"volumeMaster", volumeMaster},
                               {"animatedPlayer", animatedPlayer},
-                              {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere} };
+                              {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere},
+                              {"graphics", graphics} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
@@ -109,10 +115,12 @@ namespace SunEngine {
                 p.volumeSFX = clamp01(s.value("volumeSFX", 0.8f));
                 p.volumeVoice = clamp01(s.value("volumeVoice", 0.8f));
                 p.volumeMusic = clamp01(s.value("volumeMusic", 0.8f));
+                p.volumeMaster = clamp01(s.value("volumeMaster", 1.0f));
                 p.animatedPlayer = s.value("animatedPlayer", false);
                 p.gfxSSAO = s.value("gfxSSAO", true);
                 p.gfxFXAA = s.value("gfxFXAA", true);
                 p.gfxAtmosphere = s.value("gfxAtmosphere", true);
+                if (s.contains("graphics") && s["graphics"].is_object()) p.graphics = s["graphics"];
             }
             if (j.contains("currency") && j["currency"].is_object()) {
                 p.energy = std::max<int64_t>(0, j["currency"].value("energy", 0));

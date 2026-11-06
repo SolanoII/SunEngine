@@ -281,6 +281,7 @@ namespace SunEngine {
         void RenderCustomizeModal();
         void RenderRespawnUI();
         void RenderOptionsMenu();
+        void RenderGraphicsOptions();   // scheda GRAFICA del menu Opzioni
 
         void RenderMapEditorUI();
         void CreateNewMap();
@@ -553,6 +554,18 @@ namespace SunEngine {
         ma_sound_group m_SFXGroup;      // o "m_FootstepGroup"
         bool m_SFXGroupInitialized = false;
         bool m_AudioEngineInitialized = false;   // ← AGGIUNGI QUESTA RIGA
+        ma_sound_group m_VoiceGroup;    // voci, schiamazzi e versi
+        bool m_VoiceGroupInitialized = false;
+        ma_sound_group m_MusicGroup;    // musica di sottofondo
+        bool m_MusicGroupInitialized = false;
+        ma_sound m_MusicSound;          // brano in riproduzione (in streaming, a ciclo)
+        bool m_MusicLoaded = false;
+        std::vector<std::string> m_MusicTracks;   // file in GameData/Audio/Music
+        int m_MusicTrackIdx = 0;
+        void InitMusic();
+        void PlayMusicTrack(int idx);
+        void UpdateMusic(float deltaTime);
+        void ApplyAudioVolumes();       // porta i volumi delle barre su motore e gruppi
 
         entt::entity m_PlayerEntity = entt::null;
         entt::entity m_WeaponEntity = entt::null;
@@ -634,6 +647,8 @@ namespace SunEngine {
         float m_VolumeSFX = 0.8f;
         float m_VolumeVoice = 0.8f;
         float m_VolumeMusic = 0.8f;
+        float m_VolumeMaster = 1.0f;          // volume generale (tutto il motore audio)
+        float m_MusicDuck = 1.0f;             // musica piu' bassa in partita (sfuma da sola)
 
         EditorMapData m_EditorMap;
         int m_SelectedStructureIdx = -1;
