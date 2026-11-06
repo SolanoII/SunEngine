@@ -18,6 +18,8 @@
 
 #include <cstdlib>
 #include <cfloat>
+#include <cstring>
+#include <cctype>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -1496,31 +1498,130 @@ namespace SunEngine {
         }
     }
 
-    // Preset di qualita': toccano solo cio' che pesa sulle prestazioni, non le scelte di stile (pelle, sporco, atmosfera)
+    // Preset di qualita': toccano solo cio' che pesa sulle prestazioni, non le scelte di stile (pelle, sporco, atmosfera).
+    // 0 Basso (integrate, GTX 1050), 1 Medio, 2 Alto (predefinito), 3 Max (schede di fascia alta)
+    struct GraphicsPreset {
+        const char* name;
+        float renderScale; int shadowRes; int shadowFilter; float shadowDist; bool charShadows;
+        bool ssao; bool ssaoHalf; float ssaoRadius; bool fxaa; bool bloom; bool decor; float relief;
+    };
+    static const GraphicsPreset k_GraphicsPresets[4] = {
+        { "Basso", 0.70f, 1024, 0, 35.0f, false, false, true,  0.45f, true, false, false, 0.6f },
+        { "Medio", 0.85f, 1024, 1, 45.0f, true,  true,  true,  0.45f, true, true,  true,  1.0f },
+        { "Alto",  1.00f, 2048, 1, 60.0f, true,  true,  true,  0.45f, true, true,  true,  1.0f },
+        { "Max",   1.00f, 4096, 2, 90.0f, true,  true,  false, 0.55f, true, true,  true,  1.2f },
+    };
+
     static void ApplyGraphicsPreset(DeferredRenderer& r, int level) {
+        const GraphicsPreset& p = k_GraphicsPresets[std::clamp(level, 0, 3)];
         RenderQuality& q = r.GetQuality();
-        switch (level) {
-        case 0:   // Basso: schede video entry level (GTX 1050, integrate)
-            q.sunShadows = true; q.characterShadows = false; q.shadowFilter = 0; q.shadowDistance = 35.0f; q.shadowResolution = 1024;
-            r.SetSSAOEnabled(false); r.SetFXAAEnabled(true); q.bloom = false; q.mapDecor = false; q.materialRelief = 0.6f;
-            q.renderScale = 0.7f; q.ssaoHalfRes = true;
-            break;
-        case 1:   // Medio
-            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 45.0f; q.shadowResolution = 1024;
-            r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
-            q.renderScale = 0.85f; q.ssaoHalfRes = true; q.ssaoRadius = 0.45f;
-            break;
-        case 2:   // Alto (predefinito)
-            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 1; q.shadowDistance = 60.0f; q.shadowResolution = 2048;
-            r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.0f;
-            q.renderScale = 1.0f; q.ssaoHalfRes = true; q.ssaoRadius = 0.45f;
-            break;
-        default:  // Ultra
-            q.sunShadows = true; q.characterShadows = true; q.shadowFilter = 2; q.shadowDistance = 90.0f; q.shadowResolution = 4096;
-            r.SetSSAOEnabled(true); r.SetFXAAEnabled(true); q.bloom = true; q.mapDecor = true; q.materialRelief = 1.2f;
-            q.renderScale = 1.0f; q.ssaoHalfRes = false; q.ssaoRadius = 0.55f;
-            break;
+        q.sunShadows = true;
+        q.renderScale = p.renderScale; q.shadowResolution = p.shadowRes; q.shadowFilter = p.shadowFilter;
+        q.shadowDistance = p.shadowDist; q.characterShadows = p.charShadows;
+        q.ssaoHalfRes = p.ssaoHalf; q.ssaoRadius = p.ssaoRadius;
+        q.bloom = p.bloom; q.mapDecor = p.decor; q.materialRelief = p.relief;
+        r.SetSSAOEnabled(p.ssao); r.SetFXAAEnabled(p.fxaa);
+    }
+
+    // Quale preset corrisponde alle impostazioni attuali (-1 = personalizzate)
+    static int CurrentGraphicsPreset(DeferredRenderer& r) {
+        const RenderQuality& q = r.GetQuality();
+        auto eq = [](float a, float b) { return std::abs(a - b) < 0.011f; };
+        for (int i = 0; i < 4; ++i) {
+            const GraphicsPreset& p = k_GraphicsPresets[i];
+            if (q.sunShadows && eq(q.renderScale, p.renderScale) && q.shadowResolution == p.shadowRes && q.shadowFilter == p.shadowFilter &&
+                eq(q.shadowDistance, p.shadowDist) && q.characterShadows == p.charShadows && r.IsSSAOEnabled() == p.ssao &&
+                (!p.ssao || (q.ssaoHalfRes == p.ssaoHalf && eq(q.ssaoRadius, p.ssaoRadius))) && r.IsFXAAEnabled() == p.fxaa &&
+                q.bloom == p.bloom && q.mapDecor == p.decor && eq(q.materialRelief, p.relief))
+                return i;
         }
+        return -1;
+    }
+
+    // Livello grafico consigliato per la scheda video (o integrata) di questo PC: nome del modello e memoria video.
+    // Pensato per 1080p: sopra la 1440p si scende di un livello (tranne le schede piu' potenti).
+    static int DetectGraphicsLevel(std::string& gpuName, std::string& reason) {
+        const char* rend = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+        const char* vend = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+        gpuName = rend ? rend : "sconosciuta";
+        std::string n = gpuName + " " + (vend ? vend : "");
+        std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        auto has = [&](const char* k) { return n.find(k) != std::string::npos; };
+        // primo numero dopo una parola chiave ("rtx 3060" -> 3060)
+        auto numAfter = [&](const char* key) -> int {
+            const size_t p = n.find(key);
+            if (p == std::string::npos) return -1;
+            size_t i = p + std::strlen(key);
+            while (i < n.size() && !std::isdigit(static_cast<unsigned char>(n[i]))) { if (n[i] != ' ' && n[i] != '-') return -1; ++i; }
+            int v = 0, digits = 0;
+            while (i < n.size() && std::isdigit(static_cast<unsigned char>(n[i])) && digits < 5) { v = v * 10 + (n[i] - '0'); ++i; ++digits; }
+            return digits ? v : -1;
+        };
+        // memoria video dedicata (MB), se il driver la dice
+        int vramMB = 0;
+        {
+            GLint count = 0;
+            glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+            bool nvx = false, ati = false;
+            for (GLint i = 0; i < count; ++i) {
+                const char* e = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i)));
+                if (!e) continue;
+                if (std::strcmp(e, "GL_NVX_gpu_memory_info") == 0) nvx = true;
+                if (std::strcmp(e, "GL_ATI_meminfo") == 0) ati = true;
+            }
+            if (nvx) { GLint kb = 0; glGetIntegerv(0x9047 /*GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX*/, &kb); vramMB = kb / 1024; }
+            else if (ati) { GLint info[4] = {}; glGetIntegerv(0x87FC /*TEXTURE_FREE_MEMORY_ATI*/, info); vramMB = info[0] / 1024; }
+            while (glGetError() != GL_NO_ERROR) {}
+        }
+        int level = -1;
+        bool topTier = false;
+        if (has("llvmpipe") || has("softpipe") || has("swiftshader") || has("microsoft basic") || has("gdi generic")) { level = 0; reason = "nessuna accelerazione 3D"; }
+        else if (has("intel") && has(" arc")) { level = 2; reason = "Intel Arc"; }
+        else if (has("intel") || has("radeon(tm) graphics") || has("radeon graphics") || has("radeon vega 3") || has("radeon vega 6") ||
+                 has("radeon vega 8") || has("radeon vega 11") || has(" mx1") || has(" mx2") || has(" mx3") || has(" mx4") || has(" mx5")) {
+            level = 0; reason = "scheda integrata o per portatili leggeri";
+        }
+        else if (int v = numAfter("rtx"); v > 0) {
+            const int tier = v % 100, gen = v / 1000;   // 3060 -> serie 3, fascia 60; A2000/A4000 professionali: per memoria
+            if (v < 1000) level = -1;
+            else if (tier >= 80) { level = 3; topTier = true; }
+            else if (tier >= 70) level = gen >= 3 ? 3 : 2;
+            else if (tier >= 60) level = 2;
+            else level = gen >= 3 ? 2 : 1;
+            if (level >= 0) reason = "NVIDIA RTX " + std::to_string(v);
+        }
+        else if (int v = numAfter("gtx"); v > 0) {
+            if (v >= 1600) level = (v % 100) >= 60 ? 2 : 1;      // 1660 / 1650
+            else if (v >= 1000) level = (v % 100) >= 70 ? 2 : ((v % 100) >= 60 ? 1 : 0);   // 1070-1080 / 1060 / 1050
+            else if (v >= 900) level = (v % 100) >= 70 ? 1 : 0;   // 970-980 / 950-960
+            else level = 0;
+            reason = "NVIDIA GTX " + std::to_string(v);
+        }
+        else if (int v = numAfter("gt"); v > 0 && has("geforce")) { level = 0; reason = "NVIDIA GT " + std::to_string(v); }
+        else if (int v = numAfter("rx"); v > 0) {
+            if (v >= 5000) {   // RX 5000-9000: 5500 / 5600-5700, 6400-6500 / 6600 / 6700+, ...
+                const int tier = (v % 1000) / 100;
+                if (tier >= 7) { level = 3; topTier = tier >= 8; }
+                else if (tier >= 6) level = 2;
+                else level = 1;
+            }
+            else if (v >= 470) level = 1;   // RX 470/480/570/580/590
+            else level = 0;                 // RX 460/550/560
+            reason = "AMD RX " + std::to_string(v);
+        }
+        else if (has("vega 56") || has("vega 64") || has("radeon vii")) { level = 2; reason = "AMD Vega"; }
+        if (level < 0) {   // modello non riconosciuto: si decide dalla memoria video
+            if (vramMB <= 0) { level = 1; reason = "modello non riconosciuto"; }
+            else { level = vramMB < 2500 ? 0 : (vramMB < 5000 ? 1 : (vramMB < 9000 ? 2 : 3)); reason = "memoria video"; }
+        }
+        // risoluzione dello schermo: oltre la 1440p i pixel sono piu' del doppio della 1080p
+        if (GLFWmonitor* mon = glfwGetPrimaryMonitor()) {
+            if (const GLFWvidmode* vm = glfwGetVideoMode(mon)) {
+                if (vm->width * vm->height > 2560 * 1440 + 100000 && level > 0 && !topTier) { --level; reason += ", schermo 4K"; }
+            }
+        }
+        if (vramMB > 0) reason += ", " + std::to_string((vramMB + 512) / 1024) + " GB";
+        return std::clamp(level, 0, 3);
     }
 
     // ===================== AUDIO: VOLUMI E MUSICA =====================
@@ -1608,6 +1709,16 @@ namespace SunEngine {
         m_DeferredRenderer.SetFXAAEnabled(m_Profile.gfxFXAA);
         m_DeferredRenderer.GetAtmosphere().enabled = m_Profile.gfxAtmosphere;
         GraphicsFromJson(m_DeferredRenderer, m_Profile.graphics);
+        // Primo avvio (o profilo di prima di questa funzione): qualita' grafica scelta in base alla scheda video
+        if (!m_Profile.gfxAutoDone && glfwGetCurrentContext()) {
+            std::string gpu, why;
+            const int level = DetectGraphicsLevel(gpu, why);
+            ApplyGraphicsPreset(m_DeferredRenderer, level);
+            m_Profile.gfxAutoDone = true;
+            m_GfxAutoNotice = "Grafica impostata su " + std::string(k_GraphicsPresets[level].name) + " per " + gpu + " (" + why +
+                              "). Puoi cambiarla in Opzioni -> GRAFICA.";
+            SUN_CORE_INFO("Qualita' grafica automatica: {0} ({1}: {2})", k_GraphicsPresets[level].name, gpu, why);
+        }
         ApplyAudioVolumes();   // se l'audio e' gia' partito (ricarica del profilo)
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 4);
@@ -1697,6 +1808,7 @@ namespace SunEngine {
         m_Profile.gfxFXAA = m_DeferredRenderer.IsFXAAEnabled();
         m_Profile.gfxAtmosphere = m_DeferredRenderer.GetAtmosphere().enabled;
         m_Profile.graphics = GraphicsToJson(m_DeferredRenderer);
+        m_Profile.gfxAutoDone = true;
         m_Profile.squadIndices = m_SelectedSquadIndices;
         m_Profile.selectedMapId = m_SelectedMapId;
         m_Profile.selectedEventIndex = m_SelectedEventIndex;
@@ -5674,6 +5786,21 @@ namespace SunEngine {
             }
         }
 
+        // Primo avvio: avviso della qualita' grafica scelta in automatico (una volta sola)
+        if (!m_GfxAutoNotice.empty() && m_GameState == GameState::MainMenu) {
+            const ImVec2 ds = ImGui::GetIO().DisplaySize;
+            ImGui::SetNextWindowPos(ImVec2(ds.x * 0.5f, ds.y - 24.0f), ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+            ImGui::SetNextWindowSize(ImVec2(std::min(620.0f, ds.x - 40.0f), 0.0f));
+            ImGui::SetNextWindowBgAlpha(0.9f);
+            if (ImGui::Begin("##GfxAuto", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::TextColored(ImVec4(0.85f, 0.7f, 0.4f, 1.0f), "QUALITA' GRAFICA");
+                ImGui::TextWrapped("%s", m_GfxAutoNotice.c_str());
+                if (ImGui::Button("Ok", ImVec2(90, 0))) m_GfxAutoNotice.clear();
+                ImGui::SameLine();
+                if (ImGui::Button("Apri le opzioni", ImVec2(140, 0))) { m_GfxAutoNotice.clear(); m_ShowOptionsMenu = true; }
+            }
+            ImGui::End();
+        }
         if (m_ShowPerf) RenderPerfOverlay();
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -7429,19 +7556,31 @@ namespace SunEngine {
         ImGui::Spacing();
         ImGui::TextColored(head, "PRESET DI QUALITA'");
         ImGui::Separator();
-        const char* presets[] = { "Basso", "Medio", "Alto", "Ultra" };
+        const int curPreset = CurrentGraphicsPreset(r);
         for (int i = 0; i < 4; ++i) {
             if (i) ImGui::SameLine();
-            if (ImGui::Button(presets[i], ImVec2(90, 28))) ApplyGraphicsPreset(r, i);
+            const bool active = curPreset == i;
+            if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.45f, 0.36f, 0.16f, 1.0f));   // ottone: il preset in uso
+            if (ImGui::Button(k_GraphicsPresets[i].name, ImVec2(90, 28))) ApplyGraphicsPreset(r, i);
+            if (active) ImGui::PopStyleColor();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Ripristina predefiniti", ImVec2(-1, 28))) {
+        if (ImGui::Button("Rileva automaticamente", ImVec2(-1, 28))) {
+            std::string gpu, why;
+            const int level = DetectGraphicsLevel(gpu, why);
+            ApplyGraphicsPreset(r, level);
+            m_GfxDetectInfo = std::string(k_GraphicsPresets[level].name) + " consigliato per " + gpu + " (" + why + ")";
+        }
+        ImGui::Text("In uso: %s", curPreset >= 0 ? k_GraphicsPresets[curPreset].name : "Personalizzata");
+        if (!m_GfxDetectInfo.empty()) ImGui::TextDisabled("%s", m_GfxDetectInfo.c_str());
+        ImGui::TextDisabled("I preset cambiano solo cio' che pesa sulle prestazioni; lo stile resta il tuo.");
+        if (ImGui::SmallButton("Ripristina tutto ai valori di base (Alto, stile originale)")) {
             q = RenderQuality{};
             a = Atmosphere{};
             r.SetSSAOEnabled(true);
             r.SetFXAAEnabled(true);
+            ApplyGraphicsPreset(r, 2);
         }
-        ImGui::TextDisabled("I preset cambiano solo cio' che pesa sulle prestazioni; lo stile resta il tuo.");
 
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("PRESTAZIONI", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -7575,7 +7714,16 @@ namespace SunEngine {
                     ImGui::Spacing();
                     ImGui::Checkbox("Schermo Intero (Fullscreen)", &m_IsFullscreen);
 
-                    ImGui::TextDisabled("Qualita' ed effetti grafici: scheda GRAFICA.");
+                    {
+                        const char* levels[] = { "Basso", "Medio", "Alto", "Max" };
+                        const int cur = CurrentGraphicsPreset(m_DeferredRenderer);
+                        if (ImGui::BeginCombo("Qualita' grafica", cur >= 0 ? levels[cur] : "Personalizzata")) {
+                            for (int i = 0; i < 4; ++i)
+                                if (ImGui::Selectable(levels[i], cur == i)) ApplyGraphicsPreset(m_DeferredRenderer, i);
+                            ImGui::EndCombo();
+                        }
+                        ImGui::TextDisabled("Ogni effetto si regola nella scheda GRAFICA.");
+                    }
 
                     ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 

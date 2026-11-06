@@ -35,6 +35,7 @@ namespace SunEngine {
         bool  gfxSSAO = true;           // occlusione ambientale
         bool  gfxFXAA = true;           // antialiasing
         bool  gfxAtmosphere = true;     // cielo, nebbia, polvere, correzione colore
+        bool  gfxAutoDone = false;      // qualita' grafica gia' scelta in base alla scheda video (primo avvio)
         // Tutte le altre regolazioni grafiche (qualita', ombre, pelle, sporco, materiali, atmosfera): le scrive e le
         // legge il GameLayer, qui restano un oggetto JSON (il profilo non conosce il renderer).
         nlohmann::json graphics = nlohmann::json::object();
@@ -81,7 +82,7 @@ namespace SunEngine {
                               {"volumeMaster", volumeMaster},
                               {"animatedPlayer", animatedPlayer},
                               {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere},
-                              {"graphics", graphics} };
+                              {"graphics", graphics}, {"gfxAutoDone", gfxAutoDone} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
@@ -121,6 +122,7 @@ namespace SunEngine {
                 p.gfxFXAA = s.value("gfxFXAA", true);
                 p.gfxAtmosphere = s.value("gfxAtmosphere", true);
                 if (s.contains("graphics") && s["graphics"].is_object()) p.graphics = s["graphics"];
+                p.gfxAutoDone = s.value("gfxAutoDone", false);
             }
             if (j.contains("currency") && j["currency"].is_object()) {
                 p.energy = std::max<int64_t>(0, j["currency"].value("energy", 0));
