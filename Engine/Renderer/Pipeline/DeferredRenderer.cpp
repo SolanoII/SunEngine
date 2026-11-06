@@ -64,6 +64,109 @@ namespace SunEngine {
         }
     )";
 
+    // Occlusione ambientale a schermo: campioni in un emisfero orientato sulla normale, nel mondo; un campione e'
+    // occluso se la superficie vista in quel punto dello schermo e' piu' vicina alla camera del campione.
+    static const char* k_SSAOFragSrc = R"(
+#version 410 core
+in vec2 v_TexCoord;
+out float out_AO;
+uniform sampler2D u_Depth;
+uniform sampler2D u_Normal;
+uniform mat4 u_InvViewProjection;
+uniform mat4 u_ViewProjection;
+uniform vec3 u_CameraPos;
+uniform float u_Radius;
+vec3 Recon(vec2 uv, float d) { vec4 w = u_InvViewProjection * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return w.xyz / w.w; }
+float Hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main() {
+    float depth = texture(u_Depth, v_TexCoord).r;
+    if (depth >= 0.9999) { out_AO = 1.0; return; }
+    vec3 P = Recon(v_TexCoord, depth);
+    vec3 N = normalize(texture(u_Normal, v_TexCoord).xyz);
+    float camDist = length(P - u_CameraPos);
+    float radius = u_Radius * clamp(camDist / 6.0, 0.6, 2.5);   // un po' piu' largo lontano (meno rumore)
+    // base tangente ruotata a caso per pixel (il rumore lo toglie la sfocatura)
+    float a = Hash(gl_FragCoord.xy) * 6.2831853;
+    vec3 rnd = vec3(cos(a), sin(a), 0.0);
+    vec3 T = normalize(abs(N.y) < 0.95 ? cross(N, vec3(0.0, 1.0, 0.0)) : cross(N, vec3(1.0, 0.0, 0.0)));
+    vec3 B = cross(N, T);
+    T = T * rnd.x + B * rnd.y; B = cross(N, T);
+    const int COUNT = 12;
+    float occ = 0.0;
+    for (int i = 0; i < COUNT; ++i) {
+        float fi = float(i) + 0.5;
+        float r = sqrt(fi / float(COUNT));
+        float th = fi * 2.399963;                                // spirale aurea
+        vec3 k = vec3(cos(th) * r, sin(th) * r, sqrt(max(0.0, 1.0 - r * r)));
+        float scale = mix(0.15, 1.0, (fi / float(COUNT)) * (fi / float(COUNT)));
+        vec3 S = P + (T * k.x + B * k.y + N * k.z) * radius * scale + N * 0.02;
+        vec4 c = u_ViewProjection * vec4(S, 1.0);
+        vec3 ndc = c.xyz / c.w;
+        vec2 uv = ndc.xy * 0.5 + 0.5;
+        if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) continue;
+        float sd = texture(u_Depth, uv).r;
+        if (sd >= 0.9999) continue;
+        vec3 Q = Recon(uv, sd);
+        float dq = length(Q - u_CameraPos), ds = length(S - u_CameraPos);
+        float range = smoothstep(0.0, 1.0, radius / max(abs(camDist - dq), 1e-3));
+        occ += (dq < ds - 0.03 ? 1.0 : 0.0) * range;
+    }
+    out_AO = pow(clamp(1.0 - occ / float(COUNT), 0.0, 1.0), 1.6);
+}
+)";
+
+    // Sfocatura dell'occlusione che rispetta i bordi (non sbava fra oggetti a profondita' diverse)
+    static const char* k_SSAOBlurFragSrc = R"(
+#version 410 core
+in vec2 v_TexCoord;
+out float out_AO;
+uniform sampler2D u_AO;
+uniform sampler2D u_Depth;
+void main() {
+    vec2 texel = 1.0 / vec2(textureSize(u_AO, 0));
+    float d0 = texture(u_Depth, v_TexCoord).r;
+    float sum = 0.0, wsum = 0.0;
+    for (int x = -2; x <= 2; ++x)
+        for (int y = -2; y <= 2; ++y) {
+            vec2 uv = v_TexCoord + vec2(x, y) * texel;
+            float d = texture(u_Depth, uv).r;
+            float w = 1.0 / (1.0 + abs(d - d0) * 4000.0);
+            sum += texture(u_AO, uv).r * w; wsum += w;
+        }
+    out_AO = sum / max(wsum, 1e-4);
+}
+)";
+
+    // Antialiasing FXAA (versione compatta della 3.11 di Timothy Lottes): ammorbidisce i bordi seghettati
+    // cercando la direzione del bordo dalla luminosita' dei vicini.
+    static const char* k_FXAAFragSrc = R"(
+#version 410 core
+in vec2 v_TexCoord;
+out vec4 out_Color;
+uniform sampler2D u_Image;
+float Luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+void main() {
+    vec2 px = 1.0 / vec2(textureSize(u_Image, 0));
+    vec3 rgbNW = texture(u_Image, v_TexCoord + vec2(-1.0, -1.0) * px).rgb;
+    vec3 rgbNE = texture(u_Image, v_TexCoord + vec2( 1.0, -1.0) * px).rgb;
+    vec3 rgbSW = texture(u_Image, v_TexCoord + vec2(-1.0,  1.0) * px).rgb;
+    vec3 rgbSE = texture(u_Image, v_TexCoord + vec2( 1.0,  1.0) * px).rgb;
+    vec3 rgbM  = texture(u_Image, v_TexCoord).rgb;
+    float lNW = Luma(rgbNW), lNE = Luma(rgbNE), lSW = Luma(rgbSW), lSE = Luma(rgbSE), lM = Luma(rgbM);
+    float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
+    float lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+    if (lMax - lMin < max(0.0312, lMax * 0.125)) { out_Color = vec4(rgbM, 1.0); return; }   // niente bordo
+    vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));
+    float reduce = max((lNW + lNE + lSW + lSE) * 0.25 * (1.0 / 8.0), 1.0 / 128.0);
+    float rcpMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + reduce);
+    dir = clamp(dir * rcpMin, vec2(-8.0), vec2(8.0)) * px;
+    vec3 rgbA = 0.5 * (texture(u_Image, v_TexCoord + dir * (1.0 / 3.0 - 0.5)).rgb + texture(u_Image, v_TexCoord + dir * (2.0 / 3.0 - 0.5)).rgb);
+    vec3 rgbB = rgbA * 0.5 + 0.25 * (texture(u_Image, v_TexCoord + dir * -0.5).rgb + texture(u_Image, v_TexCoord + dir * 0.5).rgb);
+    float lB = Luma(rgbB);
+    out_Color = vec4((lB < lMin || lB > lMax) ? rgbA : rgbB, 1.0);
+}
+)";
+
     static const char* k_LightingFragSrc = R"(
 #version 410 core
 in vec2 v_TexCoord;
@@ -79,6 +182,22 @@ uniform mat4  u_InvViewProjection;
 uniform float u_AmbientIntensity;
 uniform vec3  u_AmbientSkyColor;
 uniform vec3  u_AmbientGroundColor;
+// Atmosfera (vedi struct Atmosphere)
+uniform int   u_AtmoOn;
+uniform vec3  u_Zenith;
+uniform vec3  u_Horizon;
+uniform vec3  u_Ground;
+uniform float u_CloudCover;
+uniform vec3  u_SunDirL;        // verso il sole
+uniform vec3  u_SunColor;
+uniform float u_Time;
+uniform float u_FogDensity;
+uniform float u_FogFalloff;
+uniform float u_FogBase;
+uniform vec3  u_FogColor;
+uniform float u_Dust;
+uniform sampler2D u_SSAO;
+uniform int   u_UseSSAO;
 
 #define PI 3.14159265359
 
@@ -139,6 +258,45 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
+// ============================================================
+// CIELO E NEBBIA
+// ============================================================
+float AHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float ANoise(vec3 x) {
+    vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(AHash(i), AHash(i + vec3(1, 0, 0)), f.x), mix(AHash(i + vec3(0, 1, 0)), AHash(i + vec3(1, 1, 0)), f.x), f.y),
+               mix(mix(AHash(i + vec3(0, 0, 1)), AHash(i + vec3(1, 0, 1)), f.x), mix(AHash(i + vec3(0, 1, 1)), AHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+float AFbm(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; ++i) { v += a * ANoise(p); p *= 2.03; a *= 0.5; } return v; }
+
+// Cielo senza nuvole: gradiente orizzonte (smog) -> zenit, terra sotto, alone del sole
+vec3 SkyBase(vec3 d) {
+    float h = d.y;
+    vec3 col = mix(u_Horizon, u_Zenith, pow(clamp(h, 0.0, 1.0), 0.45));
+    col = mix(col, u_Ground, smoothstep(0.0, -0.15, h));
+    float sd = max(dot(d, u_SunDirL), 0.0);
+    col += u_SunColor * (pow(sd, 5.0) * 0.12 + pow(sd, 48.0) * 0.30);
+    return col;
+}
+vec3 SkyColor(vec3 d, bool withSun) {
+    vec3 col = SkyBase(d);
+    float h = d.y;
+    if (h > 0.0 && u_CloudCover > 0.0) {
+        // strato di nuvole basse e sporche, mosse dal vento
+        vec2 uv = d.xz / (h + 0.15) * 1.4;
+        float c = AFbm(vec3(uv + vec2(u_Time * 0.006, u_Time * 0.002), u_Time * 0.003));
+        float cov = smoothstep(1.0 - u_CloudCover, 1.0 - u_CloudCover + 0.32, c);
+        float sd = max(dot(d, u_SunDirL), 0.0);
+        vec3 cloud = mix(u_Zenith * 1.1, u_Horizon * 0.6, 0.45) * (0.55 + 0.7 * pow(sd, 3.0)) * (0.75 + 0.5 * c) + u_SunColor * pow(sd, 12.0) * 0.25 * (1.0 - cov);
+        col = mix(col, cloud, cov * smoothstep(0.0, 0.18, h) * 0.9);
+    }
+    if (withSun) {
+        float sd = max(dot(d, u_SunDirL), 0.0);
+        col += u_SunColor * smoothstep(0.99955, 0.99985, sd) * 5.0;   // disco del sole, velato
+    }
+    return col;
+}
+
 vec3 ComputeAmbient(vec3 N, vec3 V, vec3 albedo, float roughness, float metallic) {
     vec3 irradiance = mix(u_AmbientGroundColor, u_AmbientSkyColor, N.y * 0.5 + 0.5);
 
@@ -150,6 +308,7 @@ vec3 ComputeAmbient(vec3 N, vec3 V, vec3 albedo, float roughness, float metallic
 
     vec3 R = reflect(-V, N);
     vec3 envColor = mix(u_AmbientGroundColor, u_AmbientSkyColor, R.y * 0.5 + 0.5);
+    if (u_AtmoOn == 1) envColor = mix(SkyBase(R) * 1.5, envColor, roughness);   // riflessi del cielo vero, sfocati dalla ruvidita'
     float fresnelBoost = pow(1.0 - max(dot(N, V), 0.0), 5.0);
     vec3 specAmb = mix(envColor, envColor * 2.0, fresnelBoost) * F0;
 
@@ -239,7 +398,11 @@ void main() {
     float depth          = texture(u_GBufferDepth,    v_TexCoord).r;
 
     if (depth >= 0.9999) {
-        out_Color = vec4(0.01, 0.01, 0.015, 1.0);
+        if (u_AtmoOn == 1) {
+            vec3 dir = normalize(ReconstructWorldPos(v_TexCoord, 0.9999) - u_CameraPos);
+            out_Color = vec4(SkyColor(dir, true), 1.0);
+        }
+        else out_Color = vec4(0.01, 0.01, 0.015, 1.0);
         return;
     }
 
@@ -334,7 +497,9 @@ void main() {
         }
     }
 
-    vec3 ambient = ComputeAmbient(N, V, albedo, roughness, metallic) * ao;
+    float ssao = u_UseSSAO == 1 ? texture(u_SSAO, v_TexCoord).r : 1.0;
+    vec3 ambient = ComputeAmbient(N, V, albedo, roughness, metallic) * ao * ssao;
+    Lo *= mix(1.0, ssao, 0.25);   // un filo anche sulla luce diretta: gli oggetti "toccano" il terreno
     if (sss > 0.0) {
         // peluria e sebo: un leggero alone sul bordo controluce, e un'ambiente un po' piu' caldo
         float rim = pow(1.0 - NdotV, 4.0) * 0.18 * sss;
@@ -342,6 +507,25 @@ void main() {
     }
 
     vec3 color = ambient + Lo + albedo * emissive;
+
+    if (u_AtmoOn == 1) {
+        // Nebbia in altezza (piu' fitta in basso) con la luce del sole che la attraversa, e polvere che si muove nel vento
+        vec3 rd = (worldPos - u_CameraPos) / max(viewDist, 1e-4);
+        float k = max(u_FogFalloff, 1e-4);
+        float dy = worldPos.y - u_CameraPos.y;
+        float heightTerm = exp(-k * (u_CameraPos.y - u_FogBase)) * (abs(k * dy) > 1e-3 ? (1.0 - exp(-k * dy)) / (k * dy) : 1.0);
+        float dust = 0.0;
+        for (int i = 1; i <= 3; ++i) {
+            vec3 p = u_CameraPos + rd * min(viewDist, 60.0) * (float(i) / 4.0);
+            dust += ANoise(p * 0.3 + vec3(u_Time * 0.45, -u_Time * 0.05, u_Time * 0.16));
+        }
+        dust /= 3.0;
+        float density = u_FogDensity * max(0.0, 1.0 + u_Dust * (dust - 0.5) * 2.4);
+        float fog = 1.0 - exp(-density * viewDist * max(heightTerm, 0.0));
+        float sd = max(dot(rd, u_SunDirL), 0.0);
+        vec3 fogCol = mix(u_FogColor, SkyBase(rd), 0.5) + u_SunColor * (pow(sd, 8.0) * 0.4 + 0.04);
+        color = mix(color, fogCol, clamp(fog, 0.0, 0.94));
+    }
 
     out_Color = vec4(color, 1.0);
 }
@@ -355,6 +539,14 @@ out vec4 out_Color;
 uniform sampler2D u_HDRTexture;
 uniform sampler2D u_ExposureTex;   // 1x1 R32F dall'AutoExposure
 uniform float u_ExposureFallback;  // usato se auto-exposure disabilitata
+uniform int   u_Grade;             // 1 = correzione colore grimdark
+uniform float u_Saturation;
+uniform float u_Contrast;
+uniform float u_Vignette;
+uniform float u_Grain;
+uniform vec3  u_ShadowTint;
+uniform vec3  u_HighlightTint;
+uniform float u_Time;
 
 vec3 ACESFilm(vec3 x) {
     const float a = 2.51;
@@ -371,7 +563,24 @@ void main() {
 
     vec3 hdr = texture(u_HDRTexture, v_TexCoord).rgb * exposure;
     vec3 ldr = ACESFilm(hdr);
+    if (u_Grade == 1) {
+        float l = dot(ldr, vec3(0.2126, 0.7152, 0.0722));
+        // ombre fredde, luci calde
+        ldr *= mix(u_ShadowTint, u_HighlightTint, smoothstep(0.05, 0.7, l));
+        // meno saturazione, un po' piu' di contrasto (curva a S attorno al grigio medio)
+        l = dot(ldr, vec3(0.2126, 0.7152, 0.0722));
+        ldr = mix(vec3(l), ldr, u_Saturation);
+        ldr = clamp((ldr - 0.18) * u_Contrast + 0.18, 0.0, 1.0);
+        // vignetta
+        vec2 c = v_TexCoord - 0.5;
+        ldr *= 1.0 - u_Vignette * smoothstep(0.25, 0.85, dot(c, c) * 2.2);
+    }
     ldr = pow(ldr, vec3(1.0 / 2.2));
+    if (u_Grade == 1) {
+        // grana della pellicola (cambia ogni fotogramma)
+        float g = fract(sin(dot(v_TexCoord * 1000.0 + fract(u_Time) * 37.0, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+        ldr += g * u_Grain;
+    }
     out_Color = vec4(ldr, 1.0);
 }
     )";
@@ -650,6 +859,10 @@ void main() {
         // HDR target con un solo attachment RGBA16F
         m_HDRTarget.Create(width, height, { TextureFormat::RGBA16F },
             /*hasDepth*/ false, TextureFilter::Linear);
+        // Occlusione ambientale (grezza e sfocata) e immagine finale prima dell'antialiasing
+        m_SSAOTarget.Create(width, height, { TextureFormat::R8 }, false, TextureFilter::Linear);
+        m_SSAOBlurTarget.Create(width, height, { TextureFormat::R8 }, false, TextureFilter::Linear);
+        m_LDRTarget.Create(width, height, { TextureFormat::RGBA8 }, false, TextureFilter::Linear);
 
         // Shaders
         m_GBufferShader = std::make_unique<Shader>();
@@ -674,6 +887,13 @@ void main() {
             SUN_CORE_ERROR("DeferredRenderer: lighting shader fallito");
             return false;
         }
+
+        m_SSAOShader = std::make_unique<Shader>();
+        if (!m_SSAOShader->LoadFromSource(k_LightingVertSrc, k_SSAOFragSrc, "SSAO")) { SUN_CORE_WARN("DeferredRenderer: SSAO non disponibile"); m_SSAOShader.reset(); }
+        m_SSAOBlurShader = std::make_unique<Shader>();
+        if (!m_SSAOBlurShader->LoadFromSource(k_LightingVertSrc, k_SSAOBlurFragSrc, "SSAOBlur")) { SUN_CORE_WARN("DeferredRenderer: sfocatura SSAO non disponibile"); m_SSAOBlurShader.reset(); }
+        m_FXAAShader = std::make_unique<Shader>();
+        if (!m_FXAAShader->LoadFromSource(k_LightingVertSrc, k_FXAAFragSrc, "FXAA")) { SUN_CORE_WARN("DeferredRenderer: FXAA non disponibile"); m_FXAAShader.reset(); }
 
         m_TonemapShader = std::make_unique<Shader>();
         if (!m_TonemapShader->LoadFromSource(k_LightingVertSrc, k_TonemapFragSrc, "Tonemap")) {
@@ -741,6 +961,9 @@ void main() {
             if (!m_ShadowSkinnedShader->LoadFromSource(vert, frag, "ShadowSkinned")) {
                 SUN_CORE_WARN("DeferredRenderer: shader delle ombre skinnate fallito, i personaggi non proietteranno ombre");
                 m_ShadowSkinnedShader.reset();
+        m_SSAOShader.reset();
+        m_SSAOBlurShader.reset();
+        m_FXAAShader.reset();
             }
         }
 
@@ -796,6 +1019,9 @@ void main() {
         m_Height = height;
         m_GBuffer.Resize(width, height);
         m_HDRTarget.Resize(width, height);
+        m_SSAOTarget.Resize(width, height);
+        m_SSAOBlurTarget.Resize(width, height);
+        m_LDRTarget.Resize(width, height);
         m_CloakCopy.Resize(width, height);
         if (m_BloomEnabled) m_Bloom.Resize(width, height);
         if (m_AutoExposureEnabled) m_AutoExposure.Resize(width, height);
@@ -920,14 +1146,20 @@ void main() {
         // Upload luci
         UploadLights();
 
+        m_Time += m_LastFrameDelta;
+
+        // 0. Occlusione ambientale (dal G-Buffer)
+        RunSSAOPass();
+
         // 1. Lighting pass
         RunLightingPass();
 
         // 1b. Unita' mimetizzate: rifrangono la scena appena illuminata
         RunCloakPass();
 
-        // 2. Tonemap pass
+        // 2. Tonemap pass (con correzione colore), poi antialiasing verso lo schermo
         RunTonemapPass();
+        RunFXAAPass();
     }
 
     void DeferredRenderer::UploadLights() {
@@ -985,13 +1217,85 @@ void main() {
         // Fullscreen quad
         glBindVertexArray(Framebuffer::GetFullscreenQuadVAO());
         m_LightingShader->SetFloat("u_AmbientIntensity", m_AmbientIntensity);
-        m_LightingShader->SetVec3("u_AmbientSkyColor", m_AmbientSkyColor);
-        m_LightingShader->SetVec3("u_AmbientGroundColor", m_AmbientGroundColor);
+        {
+            const Atmosphere& a = m_Atmosphere;
+            // con l'atmosfera, la luce ambiente viene dal cielo (sopra) e dal terreno (sotto)
+            const glm::vec3 skyAmb = a.enabled ? glm::mix(a.zenith, a.horizon, 0.45f) * 1.25f : m_AmbientSkyColor;
+            const glm::vec3 groundAmb = a.enabled ? glm::mix(a.ground, a.horizon, 0.3f) : m_AmbientGroundColor;
+            m_LightingShader->SetVec3("u_AmbientSkyColor", skyAmb);
+            m_LightingShader->SetVec3("u_AmbientGroundColor", groundAmb);
+            m_LightingShader->SetInt("u_AtmoOn", a.enabled ? 1 : 0);
+            m_LightingShader->SetVec3("u_Zenith", a.zenith);
+            m_LightingShader->SetVec3("u_Horizon", a.horizon);
+            m_LightingShader->SetVec3("u_Ground", a.ground);
+            m_LightingShader->SetFloat("u_CloudCover", a.cloudCover);
+            m_LightingShader->SetVec3("u_SunDirL", -m_SunDirection);
+            const glm::vec3 sunCol = m_HasDirectional ? glm::vec3(m_DirectionalLight.colorIntensity) * m_DirectionalLight.colorIntensity.w : glm::vec3(1.0f);
+            m_LightingShader->SetVec3("u_SunColor", sunCol);
+            m_LightingShader->SetFloat("u_Time", m_Time);
+            m_LightingShader->SetFloat("u_FogDensity", a.fogDensity);
+            m_LightingShader->SetFloat("u_FogFalloff", a.fogHeightFalloff);
+            m_LightingShader->SetFloat("u_FogBase", a.fogBaseHeight);
+            m_LightingShader->SetVec3("u_FogColor", a.fogColor);
+            m_LightingShader->SetFloat("u_Dust", a.dust);
+            const bool ssao = m_SSAOEnabled && m_SSAOShader && m_SSAOBlurShader;
+            m_LightingShader->SetInt("u_UseSSAO", ssao ? 1 : 0);
+            if (ssao) {
+                glActiveTexture(GL_TEXTURE8);
+                glBindTexture(GL_TEXTURE_2D, m_SSAOBlurTarget.GetColorTexture(0)->GetID());
+                m_LightingShader->SetInt("u_SSAO", 8);
+            }
+        }
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
         m_HDRTarget.Unbind();
     }
+    void DeferredRenderer::RunSSAOPass() {
+        if (!m_SSAOEnabled || !m_SSAOShader || !m_SSAOBlurShader) return;
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glViewport(0, 0, m_Width, m_Height);
+        glBindVertexArray(Framebuffer::GetFullscreenQuadVAO());
+        // occlusione grezza
+        m_SSAOTarget.Bind();
+        m_SSAOShader->Bind();
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_GBuffer.GetDepth()->GetID());
+        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, m_GBuffer.GetNormal()->GetID());
+        m_SSAOShader->SetInt("u_Depth", 0);
+        m_SSAOShader->SetInt("u_Normal", 1);
+        m_SSAOShader->SetMat4("u_InvViewProjection", glm::inverse(m_ViewProjection));
+        m_SSAOShader->SetMat4("u_ViewProjection", m_ViewProjection);
+        m_SSAOShader->SetVec3("u_CameraPos", m_CameraPos);
+        m_SSAOShader->SetFloat("u_Radius", 0.45f);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // sfocatura che rispetta i bordi
+        m_SSAOBlurTarget.Bind();
+        m_SSAOBlurShader->Bind();
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_SSAOTarget.GetColorTexture(0)->GetID());
+        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, m_GBuffer.GetDepth()->GetID());
+        m_SSAOBlurShader->SetInt("u_AO", 0);
+        m_SSAOBlurShader->SetInt("u_Depth", 1);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    void DeferredRenderer::RunFXAAPass() {
+        if (!m_FXAAEnabled || !m_FXAAShader) return;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, m_Width, m_Height);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        m_FXAAShader->Bind();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_LDRTarget.GetColorTexture(0)->GetID());
+        m_FXAAShader->SetInt("u_Image", 0);
+        glBindVertexArray(Framebuffer::GetFullscreenQuadVAO());
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+    }
+
     void DeferredRenderer::RunTonemapPass() {
         GLuint hdrSource = m_HDRTarget.GetColorTexture(0)->GetID();
         if (m_BloomEnabled) {
@@ -1005,7 +1309,9 @@ void main() {
             m_AutoExposure.Update(hdrSource, dt);
         }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // con l'antialiasing il tonemap scrive nell'immagine intermedia, poi FXAA la porta sullo schermo
+        const bool fxaa = m_FXAAEnabled && m_FXAAShader;
+        glBindFramebuffer(GL_FRAMEBUFFER, fxaa ? m_LDRTarget.GetID() : 0);
         glViewport(0, 0, m_Width, m_Height);
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
@@ -1013,6 +1319,17 @@ void main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         m_TonemapShader->Bind();
+        {
+            const Atmosphere& a = m_Atmosphere;
+            m_TonemapShader->SetInt("u_Grade", a.enabled ? 1 : 0);
+            m_TonemapShader->SetFloat("u_Saturation", a.saturation);
+            m_TonemapShader->SetFloat("u_Contrast", a.contrast);
+            m_TonemapShader->SetFloat("u_Vignette", a.vignette);
+            m_TonemapShader->SetFloat("u_Grain", a.grain);
+            m_TonemapShader->SetVec3("u_ShadowTint", a.shadowTint);
+            m_TonemapShader->SetVec3("u_HighlightTint", a.highlightTint);
+            m_TonemapShader->SetFloat("u_Time", m_Time);
+        }
         m_TonemapShader->SetInt("u_HDRTexture", 0);
         m_TonemapShader->SetInt("u_ExposureTex", 1);
         m_TonemapShader->SetFloat("u_ExposureFallback", 1.0f);

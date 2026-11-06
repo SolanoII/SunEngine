@@ -1392,6 +1392,9 @@ namespace SunEngine {
         m_VolumeVoice = m_Profile.volumeVoice;
         m_VolumeMusic = m_Profile.volumeMusic;
         m_UseAnimatedPlayer = m_Profile.animatedPlayer;
+        m_DeferredRenderer.SetSSAOEnabled(m_Profile.gfxSSAO);
+        m_DeferredRenderer.SetFXAAEnabled(m_Profile.gfxFXAA);
+        m_DeferredRenderer.GetAtmosphere().enabled = m_Profile.gfxAtmosphere;
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 4);
     }
@@ -1475,6 +1478,9 @@ namespace SunEngine {
         m_Profile.volumeVoice = m_VolumeVoice;
         m_Profile.volumeMusic = m_VolumeMusic;
         m_Profile.animatedPlayer = m_UseAnimatedPlayer;
+        m_Profile.gfxSSAO = m_DeferredRenderer.IsSSAOEnabled();
+        m_Profile.gfxFXAA = m_DeferredRenderer.IsFXAAEnabled();
+        m_Profile.gfxAtmosphere = m_DeferredRenderer.GetAtmosphere().enabled;
         m_Profile.squadIndices = m_SelectedSquadIndices;
         m_Profile.selectedMapId = m_SelectedMapId;
         m_Profile.selectedEventIndex = m_SelectedEventIndex;
@@ -7119,6 +7125,17 @@ namespace SunEngine {
 
                     ImGui::Spacing();
                     ImGui::Checkbox("Schermo Intero (Fullscreen)", &m_IsFullscreen);
+
+                    ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "QUALITA' GRAFICA");
+                    {
+                        // effetti del renderer: si applicano subito (e restano nel profilo)
+                        bool ssao = m_DeferredRenderer.IsSSAOEnabled(), fxaa = m_DeferredRenderer.IsFXAAEnabled();
+                        bool& atmo = m_DeferredRenderer.GetAtmosphere().enabled;
+                        if (ImGui::Checkbox("Occlusione ambientale (angoli e contatti piu' scuri)", &ssao)) m_DeferredRenderer.SetSSAOEnabled(ssao);
+                        if (ImGui::Checkbox("Antialiasing (bordi morbidi)", &fxaa)) m_DeferredRenderer.SetFXAAEnabled(fxaa);
+                        ImGui::Checkbox("Atmosfera (cielo, nebbia, polvere, colore grimdark)", &atmo);
+                    }
 
                     ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 

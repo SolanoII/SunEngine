@@ -31,6 +31,9 @@ namespace SunEngine {
         float volumeVoice = 0.8f;
         float volumeMusic = 0.8f;
         bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
+        bool  gfxSSAO = true;           // occlusione ambientale
+        bool  gfxFXAA = true;           // antialiasing
+        bool  gfxAtmosphere = true;     // cielo, nebbia, polvere, correzione colore
 
         // --- Valute ---
         int64_t energy = 0;       // valuta principale: a fine partita meta' dei punti studio guadagnati
@@ -71,7 +74,8 @@ namespace SunEngine {
             j["version"] = kVersion;
             j["settings"] = { {"resolutionIdx", resolutionIdx}, {"fullscreen", fullscreen},
                               {"volumeSFX", volumeSFX}, {"volumeVoice", volumeVoice}, {"volumeMusic", volumeMusic},
-                              {"animatedPlayer", animatedPlayer} };
+                              {"animatedPlayer", animatedPlayer},
+                              {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
@@ -106,6 +110,9 @@ namespace SunEngine {
                 p.volumeVoice = clamp01(s.value("volumeVoice", 0.8f));
                 p.volumeMusic = clamp01(s.value("volumeMusic", 0.8f));
                 p.animatedPlayer = s.value("animatedPlayer", false);
+                p.gfxSSAO = s.value("gfxSSAO", true);
+                p.gfxFXAA = s.value("gfxFXAA", true);
+                p.gfxAtmosphere = s.value("gfxAtmosphere", true);
             }
             if (j.contains("currency") && j["currency"].is_object()) {
                 p.energy = std::max<int64_t>(0, j["currency"].value("energy", 0));

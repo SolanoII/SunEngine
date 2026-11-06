@@ -18,6 +18,28 @@ namespace SunEngine {
     // Orchestratore della pipeline HDR deferred.
     // Step 1B: 1 directional + N point/spot, Blinn-Phong placeholder.
     // Step 1C: sostituire lighting con Cook-Torrance PBR + IBL.
+    // Atmosfera e resa finale (cielo, nebbia, polvere, correzione colore). I valori di base sono "grimdark":
+    // cielo di smog caldo all'orizzonte e freddo in alto, nebbia bassa, ombre fredde e luci calde.
+    struct Atmosphere {
+        bool enabled = true;
+        glm::vec3 zenith{ 0.085f, 0.095f, 0.12f };       // cielo in alto
+        glm::vec3 horizon{ 0.50f, 0.37f, 0.26f };      // orizzonte (smog, polvere)
+        glm::vec3 ground{ 0.13f, 0.10f, 0.08f };       // sotto l'orizzonte
+        float cloudCover = 0.62f;                      // 0 sereno, 1 coperto
+        float fogDensity = 0.016f;                     // nebbia (per metro)
+        float fogHeightFalloff = 0.09f;                // quanto si dirada salendo
+        float fogBaseHeight = 0.0f;
+        glm::vec3 fogColor{ 0.36f, 0.30f, 0.24f };
+        float dust = 0.45f;                            // polvere che si muove nel vento (variazione della nebbia)
+        // correzione colore (dopo il tonemap)
+        float saturation = 0.86f;
+        float contrast = 1.14f;
+        float vignette = 0.30f;
+        float grain = 0.016f;
+        glm::vec3 shadowTint{ 0.90f, 0.97f, 1.08f };   // ombre fredde
+        glm::vec3 highlightTint{ 1.06f, 1.00f, 0.90f };// luci calde
+    };
+
     class DeferredRenderer {
     public:
         bool Init(int width, int height);
@@ -108,6 +130,11 @@ namespace SunEngine {
             float invHeight = 0.0f,  // 1 / altezza del corpo in posa T (scala dei dettagli; 0 = niente dettagli)
             const SkinnedDrawExtra* extra = nullptr);
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
+        Atmosphere& GetAtmosphere() { return m_Atmosphere; }
+        void SetSSAOEnabled(bool e) { m_SSAOEnabled = e; }
+        void SetFXAAEnabled(bool e) { m_FXAAEnabled = e; }
+        bool IsSSAOEnabled() const { return m_SSAOEnabled; }
+        bool IsFXAAEnabled() const { return m_FXAAEnabled; }
 
         // Mimetismo (camo cloak): fra BeginCloak ed EndCloak i cubi e le mesh skinnate non vanno nel G-Buffer ma in
         // una coda; dopo l'illuminazione vengono disegnati come "liquido trasparente": rifrangono la scena dietro
@@ -127,6 +154,18 @@ namespace SunEngine {
         std::unique_ptr<Shader> m_CloakShader;
         std::unique_ptr<Shader> m_CloakSkinnedShader;
         void RunLightingPass();
+        void RunSSAOPass();
+        void RunFXAAPass();
+        Atmosphere m_Atmosphere;
+        bool m_SSAOEnabled = true;
+        bool m_FXAAEnabled = true;
+        float m_Time = 0.0f;                         // tempo per nuvole, polvere e grana
+        Framebuffer m_SSAOTarget;                    // occlusione grezza (R8)
+        Framebuffer m_SSAOBlurTarget;                // occlusione sfocata (R8), letta dall'illuminazione
+        Framebuffer m_LDRTarget;                     // immagine finale prima dell'antialiasing (RGBA8)
+        std::unique_ptr<Shader> m_SSAOShader;
+        std::unique_ptr<Shader> m_SSAOBlurShader;
+        std::unique_ptr<Shader> m_FXAAShader;
         void RunTonemapPass();
         void UploadLights();
         float m_CascadeFade = 0.15f;  // ultimo 15% di ogni cascade fa blend
