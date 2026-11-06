@@ -41,7 +41,7 @@ namespace SunEngine {
 
     // Stile della pelle per razza (u_SkinStyle): x chiazze, y verruche, z definizione muscolare, w vene
     inline glm::vec4 RaceSkinStyle(const std::string& race) {
-        if (race == "ork")      return { 0.55f, 0.5f, 1.0f, 0.7f };
+        if (race == "ork")      return { 0.5f, 0.25f, 1.0f, 0.7f };
         if (race == "gretchin") return { 0.45f, 0.75f, 0.8f, 0.3f };
         if (race == "ogryn")    return { 0.15f, 0.3f, 0.75f, 0.45f };
         if (race == "astartes") return { 0.0f, 0.0f, 1.0f, 0.6f };

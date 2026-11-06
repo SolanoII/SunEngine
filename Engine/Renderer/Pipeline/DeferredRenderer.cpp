@@ -249,6 +249,7 @@ void main() {
     float roughness = clamp(materialSample.r, 0.04, 1.0);
     float metallic  = clamp(materialSample.g, 0.0, 1.0);
     float emissive  = materialSample.b;
+    float sss       = materialSample.a;   // pelle (0 = superficie normale)
 
     vec3 worldPos = ReconstructWorldPos(v_TexCoord, depth);
     vec3 V = normalize(u_CameraPos - worldPos);
@@ -256,6 +257,9 @@ void main() {
     float viewDist = length(worldPos - u_CameraPos);
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    if (sss > 0.0) F0 = vec3(0.028);   // pelle: riflesso speculare dell'acqua/sebo, non della plastica
+    // Colore della luce diffusa sotto la pelle: rossastra negli umani (sangue), calda e verde negli orki
+    vec3 sssTint = clamp(albedo * vec3(2.4, 1.25, 1.05) + vec3(0.12, 0.0, 0.0), 0.0, 1.0);
 
     vec3 Lo = vec3(0.0);
 
@@ -285,8 +289,12 @@ void main() {
             }
         }
 
-        float NdotL = max(dot(N, L), 0.0);
-        if (NdotL <= 0.0) continue;
+        float NdotLraw = dot(N, L);
+        float NdotL = max(NdotLraw, 0.0);
+        // Pelle: la luce "gira" oltre il terminatore (diffusione avvolgente) e il passaggio luce/ombra e' morbido e rosso
+        float wrap = 0.45 * sss;
+        float NdotLw = clamp((NdotLraw + wrap) / (1.0 + wrap), 0.0, 1.0);
+        if (NdotLw <= 0.0) continue;
 
         vec3 H = normalize(L + V);
         float NdotH = max(dot(N, H), 0.0);
@@ -299,7 +307,7 @@ void main() {
 
         vec3 numerator    = NDF * G * F;
         float denominator = 4.0 * NdotV * NdotL + 1e-6;
-        vec3 specular = numerator / denominator;
+        vec3 specular = NdotL > 0.0 ? numerator / denominator : vec3(0.0);
 
         vec3 kS = F;
         vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
@@ -307,15 +315,31 @@ void main() {
         // Shadow SOLO per la direzionale (type == 0)
         float shadowFactor = 1.0;
         if (type == 0) {
-            shadowFactor = GetShadow(worldPos, N, NdotL, viewDist);
+            shadowFactor = GetShadow(worldPos, N, max(NdotL, 0.05), viewDist);
         }
 
         vec3 radiance = u_Lights[i].colorIntensity.rgb * u_Lights[i].colorIntensity.w;
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL
-              * attenuation * spotFactor * shadowFactor;
+        vec3 lightAmt = radiance * attenuation * spotFactor;
+        if (sss > 0.0) {
+            // diffusa: la parte "in piu'" oltre il terminatore prende il colore del sangue sotto la pelle
+            vec3 diff = vec3(NdotL) + (NdotLw - NdotL) * sssTint;
+            // ombra colorata: nella penombra il rosso passa piu' del verde e del blu
+            vec3 sh = mix(vec3(shadowFactor), pow(vec3(shadowFactor), vec3(0.55, 1.15, 1.4)), sss);
+            // luce che attraversa le parti sottili (orecchie, dita, bordi) quando il sole e' dietro
+            float trans = pow(clamp(dot(V, -L), 0.0, 1.0), 6.0) * (1.0 - NdotV) * 0.35 * sss;
+            Lo += (kD * albedo / PI * (diff + trans * sssTint) * sh + specular * NdotL * shadowFactor) * lightAmt;
+        }
+        else {
+            Lo += (kD * albedo / PI + specular) * lightAmt * NdotL * shadowFactor;
+        }
     }
 
     vec3 ambient = ComputeAmbient(N, V, albedo, roughness, metallic) * ao;
+    if (sss > 0.0) {
+        // peluria e sebo: un leggero alone sul bordo controluce, e un'ambiente un po' piu' caldo
+        float rim = pow(1.0 - NdotV, 4.0) * 0.18 * sss;
+        ambient += (mix(u_AmbientSkyColor, vec3(1.0), 0.5) * rim + ambient * sssTint * 0.25 * sss) * u_AmbientIntensity;
+    }
 
     vec3 color = ambient + Lo + albedo * emissive;
 
@@ -507,7 +531,9 @@ void main() {
     }
     vec3 pn = v_BindPos * u_InvHeight;   // posizione in posa T, normalizzata sull'altezza del corpo
     float emissive = u_Emissive;
+    float subsurface = 0.0;   // pelle: la luce entra e si diffonde (canale w del materiale, vedi il passaggio di illuminazione)
     if (u_Detail == 1) {
+        subsurface = 1.0;
         // Pelle: macchie e venature leggere, pori (rilievo fine), un po' di rossore variabile
         float big = Noise3(pn * 16.0), mid = Noise3(pn * 55.0), fine = Noise3(pn * 380.0);
         color.rgb *= 0.9 + 0.14 * big + 0.05 * mid;
@@ -612,7 +638,7 @@ void main() {
     }
     out_Albedo   = vec4(color.rgb, color.a);
     out_Normal   = vec4(N, 1.0);
-    out_Material = vec4(rough, metal, emissive, 0.0);
+    out_Material = vec4(rough, metal, emissive, subsurface);
 }
 )";
     bool DeferredRenderer::Init(int width, int height) {
@@ -682,6 +708,42 @@ void main() {
             }
         }
 
+        // Ombre dei modelli animati: stesso shader di profondita' con lo skinning delle ossa
+        m_ShadowSkinnedShader = std::make_unique<Shader>();
+        {
+            std::string vert = R"(
+        #version 410 core
+        layout (location = 0) in vec3 a_Position;
+        layout (location = 3) in ivec4 a_BoneIDs;
+        layout (location = 4) in vec4 a_Weights;
+        uniform mat4 u_Model;
+        uniform mat4 u_LightSpaceMatrix;
+        uniform mat4 u_BoneMatrices[128];
+        void main() {
+            vec4 p = vec4(0.0);
+            float tw = 0.0;
+            for (int i = 0; i < 4; ++i) {
+                int b = a_BoneIDs[i];
+                if (b < 0 || b >= 128) continue;
+                float w = a_Weights[i];
+                if (w <= 0.0001) continue;
+                p += (u_BoneMatrices[b] * vec4(a_Position, 1.0)) * w;
+                tw += w;
+            }
+            if (tw < 0.001) p = vec4(a_Position, 1.0); else p /= tw;
+            gl_Position = u_LightSpaceMatrix * u_Model * vec4(p.xyz, 1.0);
+        }
+    )";
+            std::string frag = R"(
+        #version 410 core
+        void main() { }
+    )";
+            if (!m_ShadowSkinnedShader->LoadFromSource(vert, frag, "ShadowSkinned")) {
+                SUN_CORE_WARN("DeferredRenderer: shader delle ombre skinnate fallito, i personaggi non proietteranno ombre");
+                m_ShadowSkinnedShader.reset();
+            }
+        }
+
         if (!m_ShadowMap.Init()) {
             SUN_CORE_ERROR("DeferredRenderer: ShadowMap init fallita");
             return false;
@@ -696,6 +758,7 @@ void main() {
 
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_LightUBO);
         m_LightingShader->BindUniformBlock("LightBlock", 0);
+        m_LightingShader->BindUniformBlock("ShadowBlock", 1);   // FIX: matrici delle cascate (ShadowMap::UploadMatrices usa il punto 1)
 
         CreateTestGeometry();
 
@@ -723,6 +786,7 @@ void main() {
         m_Initialized = false;
         m_ShadowMap.Shutdown();
         m_ShadowDepthShader.reset();
+        m_ShadowSkinnedShader.reset();
         m_GBufferSkinnedShader.reset();
     }
 
@@ -903,7 +967,7 @@ void main() {
         m_LightingShader->SetInt("u_ShadowMap3", 7);
         m_LightingShader->SetFloat("u_ShadowBias", m_ShadowMap.GetShadowBias());
         m_LightingShader->SetFloat("u_ShadowNormalBias", m_ShadowMap.GetNormalBias());
-        m_LightingShader->SetFloat("u_CascadeCount", (float)ShadowMap::CASCADE_COUNT);
+        m_LightingShader->SetInt("u_CascadeCount", ShadowMap::CASCADE_COUNT);   // FIX: e' un int nello shader (con SetFloat restava 0: niente ombre)
 
         // Le splits le passiamo come array
         float splits[ShadowMap::CASCADE_COUNT];
@@ -961,6 +1025,7 @@ void main() {
         else {
             // bind dummy 1x1 R32F con valore 1
             static GLuint s_DummyExposureTex = 0;
+            glActiveTexture(GL_TEXTURE1);   // prima di crearla: sull'unita' 0 c'e' gia' l'immagine HDR
             if (s_DummyExposureTex == 0) {
                 glGenTextures(1, &s_DummyExposureTex);
                 glBindTexture(GL_TEXTURE_2D, s_DummyExposureTex);
@@ -1035,6 +1100,25 @@ void main() {
         glDrawElements(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }
+    bool DeferredRenderer::BeginShadowSkinned(int cascadeIndex, const glm::mat4& model, const std::vector<glm::mat4>& boneMatrices) {
+        if (!m_ShadowSkinnedShader || !m_ShadowSkinnedShader->IsValid()) return false;
+        m_ShadowSkinnedShader->Bind();
+        m_ShadowSkinnedShader->SetMat4("u_Model", model);
+        m_ShadowSkinnedShader->SetMat4("u_LightSpaceMatrix", m_ShadowMap.GetLightSpaceMatrix(cascadeIndex));
+        const int count = std::min(static_cast<int>(boneMatrices.size()), MAX_BONES);
+        if (count > 0)
+            glUniformMatrix4fv(glGetUniformLocation(m_ShadowSkinnedShader->GetID(), "u_BoneMatrices"), count, GL_FALSE, glm::value_ptr(boneMatrices[0]));
+        return true;
+    }
+    // twoSided: vestiti e armature sono gusci aperti, fanno ombra con tutte e due le facce. Il corpo (chiuso) resta
+    // con le facce frontali scartate come i cubi: niente acne d'ombra sulla pelle.
+    void DeferredRenderer::DrawShadowSkinned(const SkinnedMesh& mesh, bool twoSided) {
+        if (twoSided) glDisable(GL_CULL_FACE);
+        mesh.Draw();
+        if (twoSided) glEnable(GL_CULL_FACE);
+    }
+    void DeferredRenderer::EndShadowSkinned() {}
+
     void DeferredRenderer::DrawSkinnedMesh(
         const SkinnedMesh& mesh,
         const glm::mat4& model,

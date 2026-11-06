@@ -5076,6 +5076,20 @@ namespace SunEngine {
                     m_DeferredRenderer.RenderShadowPassCube(t.GetTransform(), c);
                 }
 
+                // Personaggi animati (corpo, vestiti, armature, squig): l'ombra segue l'animazione
+                auto skinned = m_Scene.GetRegistry().view<TransformComponent, SkinnedModelInstanceComponent>();
+                for (auto entity : skinned) {
+                    const auto& t = skinned.get<TransformComponent>(entity);
+                    const auto& sk = skinned.get<SkinnedModelInstanceComponent>(entity);
+                    if (!sk.sourceModel || !sk.boneMatrices || t.Scale.x < 1e-4f) continue;   // nascosto (scala 0)
+                    if (const auto* cloak = m_Scene.GetRegistry().try_get<CloakComponent>(entity); cloak && cloak->amount > 0.5f) continue;
+                    if (!m_DeferredRenderer.BeginShadowSkinned(c, t.GetTransform(), *sk.boneMatrices)) break;
+                    for (const auto& m : sk.sourceModel->meshes) m_DeferredRenderer.DrawShadowSkinned(m);
+                    for (const auto& g : sk.garments) if (g.mesh) m_DeferredRenderer.DrawShadowSkinned(*g.mesh, true);
+                    if (sk.extraParts) for (const auto& g : sk.extraParts->parts) if (g.mesh) m_DeferredRenderer.DrawShadowSkinned(*g.mesh);
+                    m_DeferredRenderer.EndShadowSkinned();
+                }
+
                 shadowMap.EndCascade();
             }
 

@@ -70,6 +70,11 @@ namespace SunEngine {
         // per fare DrawShadowCube per ogni mesh)
         Shader* GetShadowDepthShader() const { return m_ShadowDepthShader.get(); }
         void RenderShadowPassCube(const glm::mat4& transform, int cascadeIndex);
+        // Ombre dei modelli animati: Begin una volta per entita' (matrici delle ossa), poi una Draw per ogni mesh
+        // (corpo, vestiti, armature). Fra BeginCascade ed EndCascade della ShadowMap.
+        bool BeginShadowSkinned(int cascadeIndex, const glm::mat4& model, const std::vector<glm::mat4>& boneMatrices);
+        void DrawShadowSkinned(const SkinnedMesh& mesh, bool twoSided = false);
+        void EndShadowSkinned();
         void SetAmbient(float intensity, const glm::vec3& sky, const glm::vec3& ground) {
             m_AmbientIntensity = intensity;
             m_AmbientSkyColor = sky;
@@ -134,6 +139,7 @@ namespace SunEngine {
         int m_Height = 0;
         ShadowMap m_ShadowMap;
         std::unique_ptr<Shader> m_ShadowDepthShader;
+        std::unique_ptr<Shader> m_ShadowSkinnedShader;
         glm::vec3 m_SunDirection = glm::normalize(glm::vec3(-0.4f, -1.0f, 0.3f));
         std::unique_ptr<Shader> m_GBufferSkinnedShader;
         static constexpr int MAX_BONES = 128;
