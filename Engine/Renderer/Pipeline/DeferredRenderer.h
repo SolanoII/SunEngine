@@ -11,6 +11,7 @@
 #include "../PostFX/Bloom.h"
 #include "../PostFX/AutoExposure.h"
 #include "../SkinnedMesh.h"   // in cima al file
+#include "../SkinnedMaterial.h"
 namespace SunEngine {
 
     class Camera;
@@ -134,6 +135,7 @@ namespace SunEngine {
             int baked = 0;                       // 1: coordinate texture = curvatura/occlusione, canali dati negli slot liberi delle ossa
             glm::vec4 skinStyle{ 0.0f };         // pelle: x chiazze, y verruche, z definizione muscolare, w vene
             glm::vec4 color2{ 0.0f };            // seconda tinta (macchie)
+            const SkinnedMaterial* material = nullptr;   // modello d'autore: texture PBR della sotto-mesh (AuthoredModel.h)
         };
         // boneMatrices = transform di ogni osso (dal Animator).
 // Il chiamante deve aver già bindato il GBuffer (BeginGeometryPass).

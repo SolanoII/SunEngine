@@ -87,13 +87,33 @@ namespace SunEngine {
             float ratio = 1.0f;
             float lm = glm::length(mPos), la = glm::length(m_AnimBindPos);
             if (lm > 1e-4f && la > 1e-4f) ratio = std::clamp(lm / la, 1e-3f, 1e3f);
-            outPos = mPos + (keyPos - m_AnimBindPos) * ratio;
 
             glm::quat keyRot = SampleRotation(animationTime);
-            outRot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
+            if (m_GlobalRetarget) {
+                // Modelli d'autore: assi delle ossa diversi da quelli della clip (Blender, Maya...). La variazione
+                // rispetto alla posa di riposo si trasferisce nello spazio del mondo:
+                //   rot = pre * chiave * post, pre = M_padre^-1 * A_padre, post = A_osso^-1 * M_osso
+                // (A = rotazioni globali di riposo della clip, M = del modello). Rig uguali: pre = post = 1.
+                outRot = glm::normalize(m_RetargetPre * keyRot * m_RetargetPost);
+                outPos = m_HasPositionRetarget ? mPos + (m_RetargetPre * (keyPos - m_AnimBindPos)) * m_RetargetRatio : mPos;
+            }
+            else {
+                outPos = mPos + (keyPos - m_AnimBindPos) * ratio;
+                outRot = glm::normalize(mRot * (glm::inverse(m_AnimBindRot) * keyRot));
+            }
 
             glm::vec3 keyScale = SampleScale(animationTime);
             outScale = mScale * (keyScale / m_AnimBindScale);
+        }
+
+        // Retarget nello spazio del mondo (modelli d'autore). moveRatio: unita' del modello per unita' della clip;
+        // useKeyPositions: solo l'osso radice (Hips) prende gli spostamenti della clip, le altre ossa restano lunghe
+        // come nel modello.
+        void SetGlobalRetarget(const glm::quat& pre, const glm::quat& post, float moveRatio, bool useKeyPositions) {
+            m_GlobalRetarget = true;
+            m_RetargetPre = pre; m_RetargetPost = post;
+            m_RetargetRatio = moveRatio;
+            m_HasPositionRetarget = useKeyPositions && !m_Positions.empty();
         }
 
         glm::mat4 GetLocalTransform() const { return m_LocalTransform; }
@@ -166,6 +186,11 @@ namespace SunEngine {
         glm::quat m_AnimBindRot{ 1.0f, 0.0f, 0.0f, 0.0f };
         glm::vec3 m_AnimBindScale{ 1.0f };
         bool m_LockHorizontal = false;
+        bool m_GlobalRetarget = false;
+        bool m_HasPositionRetarget = false;
+        glm::quat m_RetargetPre{ 1.0f, 0.0f, 0.0f, 0.0f };
+        glm::quat m_RetargetPost{ 1.0f, 0.0f, 0.0f, 0.0f };
+        float m_RetargetRatio = 1.0f;
     };
 
     class Animation {
@@ -201,7 +226,7 @@ namespace SunEngine {
             std::unordered_map<std::string, glm::mat4> modelBind;
             CollectLocalBind(m_RootNode, modelBind);
 
-            ReadMissingBones(anim, *model, animBind, modelNodes);
+            ReadMissingBones(anim, *model, animBind, modelNodes, animRoot);
 
             SUN_CORE_INFO("Animazione caricata: {0} (durata: {1} tick, {2} ossa animate)", path, m_Duration, m_Bones.size());
             LogRetargetDiagnostics(path, animRoot, *model, animBind, modelBind);
@@ -245,16 +270,61 @@ namespace SunEngine {
             for (const auto& c : n.children) CollectNodeNames(c, out);
         }
 
+        // Rotazioni globali di riposo (senza scala) per nome; padre di ogni nodo. canonical: nomi portati a quelli del gioco
+        static void CollectGlobalRest(const AssimpNodeData& n, const glm::mat4& parent, const std::string& parentName, bool canonical,
+            std::unordered_map<std::string, glm::quat>& rot, std::unordered_map<std::string, glm::mat4>& global,
+            std::unordered_map<std::string, std::string>& parentOf) {
+            const glm::mat4 g = parent * n.transformation;
+            const std::string name = canonical ? CanonicalBoneName(n.name) : n.name;
+            glm::vec3 p, s; glm::quat r;
+            DecomposeLocalBind(g, p, r, s);
+            rot[name] = r; global[name] = g; parentOf[name] = parentName;
+            for (const auto& c : n.children) CollectGlobalRest(c, g, name, canonical, rot, global, parentOf);
+        }
+
         void ReadMissingBones(const aiAnimation* animation, SkinnedModel& model,
             const std::unordered_map<std::string, glm::mat4>& animBind,
-            const std::unordered_set<std::string>& modelNodes) {
+            const std::unordered_set<std::string>& modelNodes, const AssimpNodeData& animRoot) {
             m_BoneInfoMap = model.boneInfoMap;
+            // Modelli d'autore: pose di riposo globali di modello e clip per il retarget nello spazio del mondo
+            std::unordered_map<std::string, glm::quat> mRot, aRot;
+            std::unordered_map<std::string, glm::mat4> mGlob, aGlob;
+            std::unordered_map<std::string, std::string> mParent, aParent;
+            float moveRatio = 1.0f;
+            if (model.authored) {
+                CollectGlobalRest(model.rootNode, glm::mat4(1.0f), std::string(), false, mRot, mGlob, mParent);
+                CollectGlobalRest(animRoot, glm::mat4(1.0f), std::string(), true, aRot, aGlob, aParent);
+                // unita' del modello per unita' della clip: altezza delle anche sopra i piedi in posa di riposo, nello
+                // spazio della radice di ciascun file
+                const std::string hips = CanonicalBonePrefix() + "Hips", foot = CanonicalBonePrefix() + "LeftFoot";
+                auto rel = [](const std::unordered_map<std::string, glm::mat4>& g, const glm::mat4& rootInv, const std::string& a, const std::string& b) {
+                    auto ia = g.find(a), ib = g.find(b);
+                    if (ia == g.end() || ib == g.end()) return 0.0f;
+                    return glm::length(glm::vec3(rootInv * ia->second[3]) - glm::vec3(rootInv * ib->second[3]));
+                };
+                const glm::mat4 mRootInv = model.m_GlobalInverseTransform, aRootInv = glm::inverse(animRoot.transformation);
+                const float hm = rel(mGlob, mRootInv, hips, foot);
+                const float ha = rel(aGlob, aRootInv, hips, foot);
+                // le chiavi di posizione sono nello spazio del padre delle anche: si toglie la sua scala (es. armatura a 0.01)
+                auto parentScale = [](const std::unordered_map<std::string, glm::mat4>& g, const std::unordered_map<std::string, std::string>& par,
+                                      const glm::mat4& rootInv, const std::string& bone) {
+                    auto p = par.find(bone);
+                    if (p == par.end()) return 1.0f;
+                    auto it = g.find(p->second);
+                    if (it == g.end()) return 1.0f;
+                    const float sc = glm::length(glm::vec3((rootInv * it->second)[0]));
+                    return sc > 1e-6f ? sc : 1.0f;
+                };
+                const float sm = parentScale(mGlob, mParent, mRootInv, hips), sa = parentScale(aGlob, aParent, aRootInv, hips);
+                if (hm > 1e-5f && ha > 1e-5f) moveRatio = (hm / sm) / (ha / sa);
+            }
 
             int dropped = 0;
             std::string droppedNames;
             for (unsigned int i = 0; i < animation->mNumChannels; i++) {
                 auto channel = animation->mChannels[i];
-                std::string boneName = channel->mNodeName.C_Str();
+                const std::string fileBoneName = channel->mNodeName.C_Str();             // nome nel file della clip
+                std::string boneName = CanonicalBoneName(fileBoneName);                  // nome nel modello (BoneNames.h)
 
                 // Canale su un nodo che il modello non ha: non si puo' applicare. (Prima veniva creata
                 // una BoneInfo fittizia modificando model.boneCounter.)
@@ -265,7 +335,7 @@ namespace SunEngine {
                 }
 
                 glm::mat4 ab(1.0f);
-                auto ait = animBind.find(boneName);
+                auto ait = animBind.find(fileBoneName);
                 if (ait != animBind.end()) ab = ait->second;
 
                 int id = -1;
@@ -274,6 +344,18 @@ namespace SunEngine {
 
                 const bool isRoot = (boneName == m_RootBoneName);
                 m_Bones.push_back(Bone(boneName, id, channel, ab, isRoot));
+                if (model.authored) {
+                    auto mb = mRot.find(boneName), abr = aRot.find(boneName);
+                    if (mb != mRot.end() && abr != aRot.end()) {
+                        glm::quat Mp(1.0f, 0.0f, 0.0f, 0.0f), Ap(1.0f, 0.0f, 0.0f, 0.0f);
+                        auto pm = mParent.find(boneName), pa = aParent.find(boneName);
+                        if (pm != mParent.end()) { auto it = mRot.find(pm->second); if (it != mRot.end()) Mp = it->second; }
+                        if (pa != aParent.end()) { auto it = aRot.find(pa->second); if (it != aRot.end()) Ap = it->second; }
+                        const glm::quat pre = glm::normalize(glm::inverse(Mp) * Ap);
+                        const glm::quat post = glm::normalize(glm::inverse(abr->second) * mb->second);
+                        m_Bones.back().SetGlobalRetarget(pre, post, moveRatio, isRoot);
+                    }
+                }
                 if (isRoot && m_TicksPerSecond > 0.0f && m_Duration > 0.0f) {
                     m_RootTravelSpeed = m_Bones.back().HorizontalTravel() / (m_Duration / m_TicksPerSecond);
                 }

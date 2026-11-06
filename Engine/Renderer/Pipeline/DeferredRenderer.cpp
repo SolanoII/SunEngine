@@ -804,11 +804,13 @@ layout (location = 1) in vec3 a_Normal;
 layout (location = 2) in vec2 a_TexCoord;
 layout (location = 3) in ivec4 a_BoneIDs;
 layout (location = 4) in vec4 a_Weights;
+layout (location = 5) in vec4 a_Tangent;   // modelli d'autore: tangente per le normal map
 
 uniform mat4 u_Model;
 uniform mat4 u_ViewProjection;
 uniform mat4 u_BoneMatrices[128];
 
+out vec4 v_Tangent;
 out vec3 v_WorldPos;
 out vec3 v_Normal;
 out vec3 v_BindPos;      // posizione e normale in posa T: la texture dei vestiti resta "incollata" al corpo
@@ -823,6 +825,7 @@ void main() {
     v_UV = a_TexCoord;
     vec4 skinnedPos = vec4(0.0);
     vec3 skinnedNormal = vec3(0.0);
+    vec3 skinnedTangent = vec3(0.0);
     float totalWeight = 0.0;
 
     for (int i = 0; i < 4; ++i) {
@@ -834,6 +837,7 @@ void main() {
         mat4 boneMat = u_BoneMatrices[bID];
         skinnedPos += (boneMat * vec4(a_Position, 1.0)) * w;
         skinnedNormal += (mat3(boneMat) * a_Normal) * w;
+        skinnedTangent += (mat3(boneMat) * a_Tangent.xyz) * w;
         totalWeight += w;
     }
 
@@ -841,6 +845,7 @@ void main() {
     if (totalWeight < 0.001) {
         skinnedPos = vec4(a_Position, 1.0);
         skinnedNormal = a_Normal;
+        skinnedTangent = a_Tangent.xyz;
     }
 
     vec4 worldPos = u_Model * skinnedPos;
@@ -848,6 +853,7 @@ void main() {
 
     mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
     v_Normal = normalize(normalMatrix * skinnedNormal);
+    v_Tangent = vec4(mat3(u_Model) * skinnedTangent, a_Tangent.w);
 
     gl_Position = u_ViewProjection * worldPos;
 }
@@ -861,6 +867,7 @@ in vec3 v_BindPos;
 in vec3 v_BindNormal;
 in vec2 v_UV;
 in vec2 v_Data;
+in vec4 v_Tangent;
 
 layout (location = 0) out vec4 out_Albedo;
 layout (location = 1) out vec4 out_Normal;
@@ -877,6 +884,24 @@ uniform int   u_UseTexture;   // 1 = strato di vestito con texture
 uniform sampler2D u_Albedo;
 uniform float u_TexScale;     // ripetizioni per unita' del modello
 uniform float u_AlphaCut;     // alpha sotto soglia = buco (stracci)
+// Modelli d'autore (AuthoredModel.h): texture PBR sulle coordinate UV del modello, al posto dei dettagli procedurali
+uniform int   u_Authored;
+uniform sampler2D u_TexAlbedo;     // unita' 1, sRGB
+uniform sampler2D u_TexNormal;     // unita' 2
+uniform sampler2D u_TexORM;        // unita' 3: R occlusione, G rugosita', B metallo
+uniform sampler2D u_TexEmissive;   // unita' 4
+uniform int   u_HasAlbedo;
+uniform int   u_HasNormal;
+uniform int   u_HasORM;
+uniform int   u_HasEmissive;
+uniform vec4  u_BaseColor;
+uniform vec3  u_EmissiveColor;
+uniform float u_EmissiveStrength;
+uniform float u_NormalStrength;
+uniform float u_NormalY;           // -1 = normal map DirectX
+uniform int   u_MatKind;           // 1 pelle, 2 stoffa, 3 metallo, 4 occhio, 5 capelli
+uniform int   u_Tint;              // 1 = moltiplica per il colore dell'unita'
+uniform float u_MatGrime;          // sporco del motore sopra le texture
 uniform int   u_Detail;       // 0 niente, 1 pelle, 2 stoffa, 3 armatura/metallo, 5 occhio, 6 dente
 uniform float u_InvHeight;    // 1 / altezza del corpo in posa T (scala dei dettagli)
 uniform float u_Grime;        // opzioni grafiche: sporco su vestiti e armature
@@ -920,9 +945,44 @@ void main() {
         if (t.a < u_AlphaCut) discard;
         color.rgb *= t.rgb;
     }
+    float aoTex = 1.0;
+    if (u_Authored == 1) {
+        vec4 base = u_BaseColor;
+        if (u_HasAlbedo == 1) base *= texture(u_TexAlbedo, v_UV);
+        if (u_AlphaCut > 0.0 && base.a < u_AlphaCut) discard;
+        color = vec4(base.rgb * (u_Tint == 1 ? u_Color.rgb : vec3(1.0)), 1.0);
+        if (u_HasORM == 1) {
+            vec3 o = texture(u_TexORM, v_UV).rgb;
+            aoTex = o.r; rough *= o.g; metal *= o.b;
+        }
+        if (u_HasNormal == 1) {
+            vec3 tn = texture(u_TexNormal, v_UV).xyz * 2.0 - 1.0;
+            tn.y *= u_NormalY;
+            tn.xy *= u_NormalStrength;
+            vec3 T = v_Tangent.xyz - N * dot(N, v_Tangent.xyz);
+            if (dot(T, T) > 1e-10) {
+                T = normalize(T);
+                vec3 B = cross(N, T) * (v_Tangent.w < 0.0 ? -1.0 : 1.0);
+                N = normalize(T * tn.x + B * tn.y + N * max(tn.z, 0.001));
+            }
+        }
+        rough = clamp(rough, 0.04, 1.0);
+        metal = clamp(metal, 0.0, 1.0);
+    }
     vec3 pn = v_BindPos * u_InvHeight;   // posizione in posa T, normalizzata sull'altezza del corpo
     float emissive = u_Emissive;
     float subsurface = 0.0;   // pelle: la luce entra e si diffonde (canale w del materiale, vedi il passaggio di illuminazione)
+    if (u_Authored == 1) {
+        subsurface = u_MatKind == 1 ? 1.0 : 0.0;
+        // parti che si illuminano: il colore va verso quello emesso, l'intensita' fa il bagliore
+        vec3 E = u_EmissiveColor;
+        if (u_HasEmissive == 1) E = texture(u_TexEmissive, v_UV).rgb * (dot(u_EmissiveColor, vec3(1.0)) > 0.003 ? u_EmissiveColor : vec3(1.0));
+        float el = dot(E, vec3(0.299, 0.587, 0.114)) * u_EmissiveStrength;
+        if (el > 0.002) {
+            color.rgb = mix(color.rgb, E / max(max(E.r, max(E.g, E.b)), 1e-4), clamp(el * 2.0, 0.0, 1.0));
+            emissive = max(emissive, el * 4.0);
+        }
+    }
     if (u_Detail == 1) {
         subsurface = 1.0;
         // grimdark: anche la pelle e' spenta (il verde degli orki tende all'oliva) e i piedi nudi sono infangati
@@ -1035,12 +1095,13 @@ void main() {
             rough = clamp(mix(rough, 0.3, max(wear, scratches * 0.5)) + 0.1 * (n2 - 0.5), 0.15, 1.0);
         }
     }
-    if (u_Detail == 2 || u_Detail == 3) {
+    if (u_Detail == 2 || u_Detail == 3 || (u_Authored == 1 && u_MatGrime > 0.0)) {
         // Grimdark: niente colori accesi. Tinte spente, fango che sale dagli stivali, polvere sulle spalle,
         // macchie (sangue rappreso sulla stoffa, bruciature sull'armatura), ruggine nei graffi, colature d'olio.
         float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
         color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.62) * 0.9, u_Desat);
-        float gr = u_Grime;
+        float gr = u_Grime * (u_Authored == 1 ? u_MatGrime : 1.0);
+        bool cloth = u_Detail == 2 || (u_Authored == 1 && u_MatKind != 3);   // modelli d'autore: tutto cio' che non e' metallo come stoffa
         float g1 = Noise3(pn * 7.0 + 13.0), g2 = Noise3(pn * 31.0 + 5.0), g3 = Noise3(pn * 140.0);
         // fango dal basso: pieno sugli stivali, a schizzi fino al ginocchio
         float mudH = 1.0 - smoothstep(0.03, 0.30, pn.y + (g1 - 0.5) * 0.08);
@@ -1052,7 +1113,7 @@ void main() {
         // polvere sulle superfici rivolte in alto (spalle, elmetto, braccia)
         float up = smoothstep(0.35, 0.9, normalize(v_BindNormal).y);
         color.rgb = mix(color.rgb, vec3(0.30, 0.27, 0.22), clamp(up * (0.18 + 0.2 * g1) * (1.0 - mud) * gr, 0.0, 1.0));
-        if (u_Detail == 2) {
+        if (cloth) {
             // stoffa: sporco unto e qualche macchia scura di sangue rappreso
             color.rgb *= mix(1.0, 0.9 + 0.12 * g1, min(gr, 1.0));
             float blood = smoothstep(0.80, 0.86, Noise3(pn * 11.0 + 41.0)) * smoothstep(0.3, 0.7, g2) * gr;
@@ -1071,7 +1132,7 @@ void main() {
             rough = mix(rough, 0.25, oil * 0.5);
         }
     }
-    out_Albedo   = vec4(color.rgb, color.a);
+    out_Albedo   = vec4(color.rgb, color.a * aoTex);   // alfa del G-Buffer = occlusione ambientale
     out_Normal   = vec4(N, 1.0);
     out_Material = vec4(rough, metal, emissive, subsurface);
 }
@@ -1691,7 +1752,34 @@ void main() {
             m_GBufferSkinnedShader->SetFloat("u_TexScale", texScale);
             m_GBufferSkinnedShader->SetFloat("u_AlphaCut", alphaCut);
         }
-        m_GBufferSkinnedShader->SetInt("u_Detail", invHeight > 0.0f ? detail : 0);
+        const SkinnedMaterial* mat = extra ? extra->material : nullptr;
+        if (mat && mat->hidden) return;
+        m_GBufferSkinnedShader->SetInt("u_Detail", (invHeight > 0.0f && !mat) ? detail : 0);
+        m_GBufferSkinnedShader->SetInt("u_Authored", mat ? 1 : 0);
+        if (mat) {
+            // modello d'autore: texture del materiale sulle unita' 1-4, fattori al posto di rugosita'/metallo del chiamante
+            auto bindTex = [&](const std::shared_ptr<GpuTexture>& t, int unit, const char* sampler, const char* flag) {
+                m_GBufferSkinnedShader->SetInt(sampler, unit);
+                m_GBufferSkinnedShader->SetInt(flag, t ? 1 : 0);
+                if (t) t->Bind(unit);
+            };
+            bindTex(mat->albedo, 1, "u_TexAlbedo", "u_HasAlbedo");
+            bindTex(mat->normal, 2, "u_TexNormal", "u_HasNormal");
+            bindTex(mat->orm, 3, "u_TexORM", "u_HasORM");
+            bindTex(mat->emissive, 4, "u_TexEmissive", "u_HasEmissive");
+            glActiveTexture(GL_TEXTURE0);
+            m_GBufferSkinnedShader->SetVec4("u_BaseColor", mat->baseColor);
+            m_GBufferSkinnedShader->SetVec3("u_EmissiveColor", mat->emissiveColor);
+            m_GBufferSkinnedShader->SetFloat("u_EmissiveStrength", mat->emissiveStrength);
+            m_GBufferSkinnedShader->SetFloat("u_NormalStrength", mat->normalStrength);
+            m_GBufferSkinnedShader->SetFloat("u_NormalY", mat->normalDirectX ? -1.0f : 1.0f);
+            m_GBufferSkinnedShader->SetInt("u_MatKind", mat->kind);
+            m_GBufferSkinnedShader->SetInt("u_Tint", mat->tint ? 1 : 0);
+            m_GBufferSkinnedShader->SetFloat("u_MatGrime", mat->grime);
+            m_GBufferSkinnedShader->SetFloat("u_AlphaCut", mat->alphaCut);
+            roughness = mat->roughness;
+            metallic = mat->metallic;
+        }
         {
             static const SkinnedDrawExtra s_None;
             const SkinnedDrawExtra& ex = extra ? *extra : s_None;

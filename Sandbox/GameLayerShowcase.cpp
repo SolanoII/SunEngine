@@ -120,7 +120,7 @@ namespace SunEngine {
             vt.Position = a.pos;
             vt.Rotation = glm::vec3(0.0f, a.facing + m_AnimatedYawOffset, 0.0f);
             vt.AimYaw = a.facing;
-            vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale);
+            vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale * AnimatedBodyModel(a.kind).unitScale);
             reg.emplace<ColorComponent>(a.visual);
             auto& sk = reg.emplace<SkinnedModelInstanceComponent>(a.visual);
             sk.sourceModel = &AnimatedBodyModel(a.kind);
@@ -205,7 +205,7 @@ namespace SunEngine {
         if (m_ShowcaseStyle) {
             RaceMotionInput rin;
             rin.dt = dt; rin.speed = speed; rin.legLen = a.legLen;
-            rin.modelUnitsPerMeter = 1.0f / std::max(1e-4f, m_AnimatedModelScale * a.scale);
+            rin.modelUnitsPerMeter = 1.0f / std::max(1e-4f, m_AnimatedModelScale * a.scale * AnimatedBodyModel(a.kind).unitScale);
             rin.aiming = in.aiming; rin.sprinting = in.sprinting; rin.yaw = a.facing;
             rin.roar = mode == ShowcaseAnim::Roar || mode == ShowcaseAnim::MeleeHeavy || (mode == ShowcaseAnim::Run && a.kind != AnimatedBodyKind::Human);
             a.ctrl->SetStyleRate(ApplyRaceMotion(a.pose, GetRaceMotionProfile(RaceMotionOf(a.kind)), a.motion, rin));
@@ -288,7 +288,7 @@ namespace SunEngine {
         vt.Position = a.pos;
         vt.Rotation = glm::vec3(0.0f, a.facing + m_AnimatedYawOffset, 0.0f);
         vt.AimYaw = a.facing;
-        vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale);
+        vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale * AnimatedBodyModel(a.kind).unitScale);
 
         // Arma fra le mani, puntata davanti; poi le mani sulle impugnature
         auto& wt = reg.get<TransformComponent>(a.weapon);

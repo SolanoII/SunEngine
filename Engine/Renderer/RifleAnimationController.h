@@ -24,14 +24,27 @@ namespace SunEngine {
 
     class RifleAnimationController {
     public:
-        bool LoadClips(const std::string& animsDir, const std::string& modelPath, SkinnedModel* model) {
+        // fallbackDir: dove cercare le clip che mancano in animsDir (es. un artista che ha rifatto solo la camminata).
+        // Ogni clip puo' essere .fbx, .glb o .gltf.
+        bool LoadClips(const std::string& animsDir, const std::string& modelPath, SkinnedModel* model, const std::string& fallbackDir = std::string()) {
             bool allOk = true;
+            auto clip = [&](const char* name) {
+                std::error_code ec;
+                for (const std::string& dir : { animsDir, fallbackDir }) {
+                    if (dir.empty()) continue;
+                    for (const char* ext : { ".fbx", ".glb", ".gltf" }) {
+                        const std::string p = dir + name + ext;
+                        if (std::filesystem::exists(p, ec)) return p;
+                    }
+                }
+                return animsDir + name + ".fbx";   // non c'e': il messaggio d'errore indica il nome atteso
+            };
 
             // Idle: "rifle aiming idle.fbx" (fucile alzato, stesso set delle altre clip). La idle integrata
             // nel file master ha il fucile abbassato: usata come idle faceva "abbassare e rialzare" il
             // fucile a ogni sparo. Resta come ripiego se il file non c'e'.
             {
-                const std::string aimIdlePath = animsDir + "rifle aiming idle.fbx";
+                const std::string aimIdlePath = clip("rifle aiming idle");
                 std::error_code ec;
                 if (std::filesystem::exists(aimIdlePath, ec)) {
                     allOk &= LoadClip(RifleAnimState::AimIdle, aimIdlePath, model);
@@ -42,23 +55,23 @@ namespace SunEngine {
                 }
             }
 
-            allOk &= LoadClip(RifleAnimState::WalkStart, animsDir + "start walking.fbx", model);
-            allOk &= LoadClip(RifleAnimState::Walk, animsDir + "walking.fbx", model);
-            allOk &= LoadClip(RifleAnimState::WalkStop, animsDir + "stop walking.fbx", model);
-            allOk &= LoadClip(RifleAnimState::WalkBackStart, animsDir + "start walking backwards.fbx", model);
-            allOk &= LoadClip(RifleAnimState::WalkBack, animsDir + "walking backwards.fbx", model);
-            allOk &= LoadClip(RifleAnimState::WalkBackStop, animsDir + "walk backwards stop.fbx", model);
-            allOk &= LoadClip(RifleAnimState::StrafeLeft, animsDir + "strafe (2).fbx", model);
-            allOk &= LoadClip(RifleAnimState::StrafeRight, animsDir + "strafe.fbx", model);
-            allOk &= LoadClip(RifleAnimState::Sprint, animsDir + "rifle run.fbx", model);
-            allOk &= LoadClip(RifleAnimState::JumpForward, animsDir + "jump forward.fbx", model);
-            allOk &= LoadClip(RifleAnimState::JumpBackward, animsDir + "jump backward.fbx", model);
-            allOk &= LoadClip(RifleAnimState::Firing, animsDir + "firing rifle.fbx", model);
+            allOk &= LoadClip(RifleAnimState::WalkStart, clip("start walking"), model);
+            allOk &= LoadClip(RifleAnimState::Walk, clip("walking"), model);
+            allOk &= LoadClip(RifleAnimState::WalkStop, clip("stop walking"), model);
+            allOk &= LoadClip(RifleAnimState::WalkBackStart, clip("start walking backwards"), model);
+            allOk &= LoadClip(RifleAnimState::WalkBack, clip("walking backwards"), model);
+            allOk &= LoadClip(RifleAnimState::WalkBackStop, clip("walk backwards stop"), model);
+            allOk &= LoadClip(RifleAnimState::StrafeLeft, clip("strafe (2)"), model);
+            allOk &= LoadClip(RifleAnimState::StrafeRight, clip("strafe"), model);
+            allOk &= LoadClip(RifleAnimState::Sprint, clip("rifle run"), model);
+            allOk &= LoadClip(RifleAnimState::JumpForward, clip("jump forward"), model);
+            allOk &= LoadClip(RifleAnimState::JumpBackward, clip("jump backward"), model);
+            allOk &= LoadClip(RifleAnimState::Firing, clip("firing rifle"), model);
             // Accovacciato: clip facoltative (se mancano il modello animato resta in piedi, le hitbox si abbassano comunque)
             {
                 std::error_code ec;
-                if (std::filesystem::exists(animsDir + "crouch idle.fbx", ec)) LoadClip(RifleAnimState::CrouchIdle, animsDir + "crouch idle.fbx", model);
-                if (std::filesystem::exists(animsDir + "crouch walking.fbx", ec)) LoadClip(RifleAnimState::CrouchWalk, animsDir + "crouch walking.fbx", model);
+                if (std::filesystem::exists(clip("crouch idle"), ec)) LoadClip(RifleAnimState::CrouchIdle, clip("crouch idle"), model);
+                if (std::filesystem::exists(clip("crouch walking"), ec)) LoadClip(RifleAnimState::CrouchWalk, clip("crouch walking"), model);
             }
 
             auto it = Clips().find(m_CurrentState);

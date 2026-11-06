@@ -1,4 +1,4 @@
-﻿#define NOMINMAX
+#define NOMINMAX
 #include <glad/glad.h>
 
 #include "GameLayer.h"
@@ -47,6 +47,22 @@
 extern std::string FindValidDir(const std::string& targetDirName);
 
 namespace SunEngine {
+
+    // Cartella del modello d'autore per ogni corpo (GameData/Models/Characters/<cartella>/)
+    static std::string AuthoredFolderOf(const std::string& label) {
+        if (label == "neofita") return "neophyte";
+        return label;   // guardsman, ork, ogryn, gretchin, astartes
+    }
+    // Altezza indicativa di ogni corpo (cm): serve solo a riconoscere le unita' del file dell'artista (m, cm, mm)
+    static float DefaultBodyHeightCm(const std::string& label) {
+        if (label == "ork") return 195.0f;
+        if (label == "ogryn") return 275.0f;
+        if (label == "gretchin") return 90.0f;
+        if (label == "neofita" || label == "neophyte") return 195.0f;
+        if (label == "astartes") return 220.0f;
+        return 180.0f;
+    }
+
 
     // Versione delle dotazioni base salvata nel profilo: le unita' salvate con una versione piu' vecchia
     // ricevono la dotazione base del loro blueprint (se ne ha una) al caricamento. Alzala quando cambi
@@ -1260,11 +1276,24 @@ namespace SunEngine {
             // Il modello skinnato serve al personaggio animato (UpdateAnimatedPlayer). Rimossi i modelli di
             // prova: la copia statica in T-pose, il dummy animato accanto al giocatore e l'entity all'origine.
             m_SkinnedShader.Init();
-            m_SkinnedModelLoaded = m_SkinnedTestModel.LoadModel(fbxPath);
+            // Modello d'autore in Characters/guardsman/ (vedi AuthoredModel.h e la guida per gli artisti): sostituisce il
+            // corpo umano procedurale. Le altre razze allora non si adattano dal corpo umano (BodyFit).
+            AuthoredCharacterInfo humanAsset;
+            if (FindAuthoredCharacter(modelsDir + "Characters/guardsman", humanAsset) &&
+                LoadAuthoredCharacter(humanAsset, m_SkinnedTestModel, DefaultBodyHeightCm("guardsman"))) {
+                m_SkinnedModelLoaded = true;
+                fbxPath = humanAsset.modelPath;
+            }
+            else {
+                m_SkinnedModelLoaded = m_SkinnedTestModel.LoadModel(fbxPath);
+            }
             if (m_SkinnedModelLoaded) {
                 std::string animsDir = FindValidDir("Animations");
-                if (!animsDir.empty()) {
-                    m_RifleAnimLoaded = m_RifleAnimController.LoadClips(animsDir + "Human/", fbxPath, &m_SkinnedTestModel);
+                const bool ownClips = !humanAsset.animsDir.empty() && m_SkinnedTestModel.authored;
+                const std::string gameClips = animsDir.empty() ? std::string() : animsDir + "Human/";
+                if (!animsDir.empty() || ownClips) {
+                    m_RifleAnimLoaded = m_RifleAnimController.LoadClips(ownClips ? humanAsset.animsDir : gameClips, fbxPath, &m_SkinnedTestModel,
+                                                                        ownClips ? gameClips : std::string());
                 }
             }
 
@@ -1275,7 +1304,7 @@ namespace SunEngine {
             LoadAnimatedBody(Body(AnimatedBodyKind::Astartes), modelsDir, "astartes_master.fbx", "Astartes", "astartes");
             LoadAnimatedBody(Body(AnimatedBodyKind::Gretchin), modelsDir, "gretchin_master.fbx", "Gretchin", "gretchin");
             // Il corpo umano base serve da sorgente al BodyFit delle altre razze: muscoli solo dopo
-            if (m_SkinnedModelLoaded) {
+            if (m_SkinnedModelLoaded && !m_SkinnedTestModel.authored) {
                 ApplyMuscleTone(m_SkinnedTestModel, RaceMuscleTone("guardsman"));
             }
         }
@@ -2135,7 +2164,7 @@ namespace SunEngine {
             auto& vt = reg.get<TransformComponent>(inst.visual);
             vt.Position = glm::vec3(t.Position.x, FootYOf(reg, e), t.Position.z);
             vt.Rotation = glm::vec3(0.0f, t.Rotation.y + m_AnimatedYawOffset, 0.0f);
-            vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
+            vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale * AnimatedBodyModel(inst.kind).unitScale);
             auto& sk = reg.get<SkinnedModelInstanceComponent>(inst.visual);
             if (const auto* uc = reg.try_get<ColorComponent>(e)) sk.albedo = uc->BaseColor;
             ApplySkinStyle(sk, static_cast<int>(inst.kind));
@@ -2150,7 +2179,8 @@ namespace SunEngine {
             }
             // Pezzi della skin agganciati alle ossa (elmetti, zaini, mantelli...)
             std::vector<const SkinPart*> parts;
-            if (skin && !inst.bindPose) for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
+            const bool authoredBody = sk.sourceModel && sk.sourceModel->authored;   // modello d'autore: niente pezzi a cubi
+            if (skin && !inst.bindPose && !authoredBody) for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
             while (inst.skinParts.size() > parts.size()) { if (reg.valid(inst.skinParts.back())) m_Scene.DestroyEntity(inst.skinParts.back()); inst.skinParts.pop_back(); }
             while (inst.skinParts.size() < parts.size()) {
                 const entt::entity pe = m_Scene.CreateEntity();
@@ -3195,7 +3225,7 @@ namespace SunEngine {
         in.legLen = legLen;
         float unitScale = 1.0f;
         if (const auto* ubp = BlueprintManager::Get().GetUnit(unitId); ubp && ubp->model_scale > 0.05f) unitScale = ubp->model_scale;
-        in.modelUnitsPerMeter = 1.0f / std::max(1e-4f, m_AnimatedModelScale * unitScale);
+        in.modelUnitsPerMeter = 1.0f / std::max(1e-4f, m_AnimatedModelScale * unitScale * AnimatedBodyModel(kind).unitScale);
         in.yaw = t.Rotation.y;
         const auto* st = reg.try_get<UnitStatsComponent>(e);
         in.sprinting = st && (st->sprinting || in.speed > std::max(1.0f, st->baseSpeed) * 1.25f);
@@ -3668,8 +3698,31 @@ namespace SunEngine {
     // la cartella esiste, altrimenti quelle Human (il retarget le adatta alle proporzioni del rig).
     void GameLayer::LoadAnimatedBody(AnimatedBody& body, const std::string& modelsDir, const char* fbxName,
                                      const char* animFolder, const char* label) {
-        const std::string path = modelsDir + "Characters/" + fbxName;
         std::error_code ec;
+        // 1. Modello d'autore in Characters/<corpo>/ (AuthoredModel.h): texture dell'artista, niente corpo procedurale
+        {
+            const std::string folder = modelsDir + "Characters/" + AuthoredFolderOf(label);
+            AuthoredCharacterInfo info;
+            if (FindAuthoredCharacter(folder, info)) {
+                if (LoadAuthoredCharacter(info, body.model, DefaultBodyHeightCm(label))) {
+                    body.modelLoaded = true;
+                    // clip: quelle della cartella del modello, poi quelle della razza, poi quelle umane
+                    const std::string animsDir = FindValidDir("Animations");
+                    std::string gameClips;   // clip del gioco per questa razza (o umane)
+                    if (!animsDir.empty())
+                        gameClips = std::filesystem::is_directory(animsDir + animFolder + "/", ec) ? animsDir + animFolder + "/" : animsDir + "Human/";
+                    const std::string clips = !info.animsDir.empty() ? info.animsDir : gameClips;
+                    // le clip che mancano nella cartella dell'artista si prendono da quelle del gioco
+                    if (!clips.empty()) body.animLoaded = body.controller.LoadClips(clips, info.modelPath, &body.model, info.animsDir.empty() ? std::string() : gameClips);
+                    SUN_CORE_INFO("Corpo {0}: modello d'autore {1} (animazioni: {2})", label, info.modelPath, clips);
+                    return;
+                }
+                SUN_CORE_WARN("Corpo {0}: modello d'autore in {1} non caricato, uso quello del gioco", label, folder);
+                body.model = SkinnedModel();
+            }
+        }
+        // 2. Corpo del gioco (procedurale sopra il modello base della razza)
+        const std::string path = modelsDir + "Characters/" + fbxName;
         if (!std::filesystem::exists(path, ec)) {
             SUN_CORE_WARN("Modello {0} non trovato ({1}): usera' il modello umano", label, path);
             return;
@@ -3680,7 +3733,7 @@ namespace SunEngine {
         // ogryn e gretchin restano col loro modello (pancia dell'ogryn e torace del gretchin vengono meglio cosi').
         const std::string bodyLabel = label;
         const bool fitThisBody = bodyLabel == "ork" || bodyLabel == "neofita" || bodyLabel == "astartes";
-        if (body.modelLoaded && m_SkinnedModelLoaded && m_FitBodiesFromHuman && fitThisBody) {
+        if (body.modelLoaded && m_SkinnedModelLoaded && m_FitBodiesFromHuman && fitThisBody && !m_SkinnedTestModel.authored) {
             const BodyFitSkeleton hs = BodyFitSkeletonOf(m_SkinnedTestModel), rs = BodyFitSkeletonOf(body.model);
             std::vector<BodyFitMesh> hm, rm;
             for (const auto& m : m_SkinnedTestModel.meshes) hm.push_back({ &m.vertices, &m.indices });
@@ -3837,7 +3890,7 @@ namespace SunEngine {
         if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity)) {
             if (const auto* ubp = BlueprintManager::Get().GetUnit(uid->id); ubp && ubp->model_scale > 0.05f) unitScale = ubp->model_scale;
         }
-        vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale);
+        vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale * AnimatedBodyModel(kind).unitScale);   // unitScale: modelli d'autore in m/mm
 
         // Colore armatura scelto nel garage come albedo del modello
         if (auto* pc = reg.try_get<ColorComponent>(m_PlayerEntity)) {
@@ -3852,7 +3905,8 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         std::vector<const SkinPart*> parts;
         // In partita e nel garage (dove il personaggio animato gira su se' stesso)
-        if ((m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu) && IsAnimatedPlayerActive()) {
+        if ((m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu) && IsAnimatedPlayerActive() &&
+            !AnimatedBodyModel(CurrentAnimatedBodyKind()).authored) {   // modello d'autore: i pezzi sono gia' nel modello
             if (const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity))
                 for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
         }

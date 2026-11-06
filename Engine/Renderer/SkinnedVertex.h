@@ -11,6 +11,7 @@ namespace SunEngine {
         glm::vec2 TexCoords{ 0.0f };
         int   BoneIDs[MAX_BONE_INFLUENCE] = { -1, -1, -1, -1 };
         float Weights[MAX_BONE_INFLUENCE] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        glm::vec4 Tangent{ 0.0f };   // modelli d'autore: tangente (xyz) e verso della bitangente (w) per le normal map
 
         void AddBoneData(int boneID, float weight) {
             if (weight <= 0.0001f) return; // Ignora pesi trascurabili

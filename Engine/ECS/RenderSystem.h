@@ -80,7 +80,19 @@ namespace SunEngine {
                         DeferredRenderer::SkinnedDrawExtra bodyEx;
                         bodyEx.baked = skinnedInst->sourceModel->bakedSkin ? 1 : 0;
                         bodyEx.skinStyle = skinnedInst->skinStyle;
-                        for (const auto& submesh : skinnedInst->sourceModel->meshes) {
+                        const SunEngine::SkinnedModel& srcModel = *skinnedInst->sourceModel;
+                        for (const auto& submesh : srcModel.meshes) {
+                            // Modello d'autore: ogni sotto-mesh col suo materiale (texture dell'artista)
+                            if (srcModel.authored) {
+                                DeferredRenderer::SkinnedDrawExtra authEx;
+                                if (submesh.materialIndex >= 0 && submesh.materialIndex < static_cast<int>(srcModel.materials.size()))
+                                    authEx.material = &srcModel.materials[submesh.materialIndex];
+                                static const SunEngine::SkinnedMaterial s_Plain;   // sotto-mesh senza materiale: grigio neutro
+                                if (!authEx.material) authEx.material = &s_Plain;
+                                deferred.DrawSkinnedMesh(submesh, modelMat, bones, skinnedInst->albedo, 0.6f, 0.0f, 0.0f,
+                                    nullptr, 1.0f, 0.0f, 0, hIt->second, &authEx);
+                                continue;
+                            }
                             deferred.DrawSkinnedMesh(
                                 submesh,
                                 modelMat,

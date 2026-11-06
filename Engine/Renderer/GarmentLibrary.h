@@ -20,6 +20,7 @@ namespace SunEngine {
 
         // Strato 'd' sul corpo 'body'. Ritorna false se non c'e' niente da disegnare (zona vuota, file mancante).
         bool Get(const SkinnedModel& body, const GarmentDef& d, GarmentDraw& out) {
+            if (body.authored) return false;   // modello d'autore: vestiti e armature sono gia' nel modello dell'artista
             Entry* e = Find(body, d);
             if (!e || !e->mesh) return false;
             out.mesh = e->mesh.get();

@@ -7,6 +7,8 @@
 #include <utility>          // per std::move
 
 #include "SkinnedMesh.h"
+#include "SkinnedMaterial.h"
+#include "BoneNames.h"
 #include "../Core/Logger/Log.h"
 #include <assimp/Importer.hpp>
 #include <assimp/config.h>
@@ -27,6 +29,10 @@ namespace SunEngine {
         return to;
     }
 
+    class SkinnedModel;
+    // Materiali e texture di un modello d'autore (AuthoredModel.cpp): letti dalla scena appena importata
+    void ReadSkinnedMaterials(const aiScene* scene, const std::string& modelPath, SkinnedModel& model);
+
     struct AssimpNodeData {
         glm::mat4 transformation{ 1.0f };
         std::string name;
@@ -42,8 +48,14 @@ namespace SunEngine {
         AssimpNodeData rootNode;
         glm::mat4 m_GlobalInverseTransform{ 1.0f };
         bool bakedSkin = false;   // coordinate texture = curvatura e occlusione della pelle (vedi MuscleTone.h)
+        // Modello d'autore (AuthoredModel.h): texture PBR proprie per ogni sotto-mesh, niente dettagli procedurali,
+        // niente vestiti generati. unitScale porta le sue unita' a quelle dei modelli del gioco (centimetri).
+        bool authored = false;
+        std::vector<SkinnedMaterial> materials;
+        float unitScale = 1.0f;
 
-        bool LoadModel(const std::string& path) {
+        // withMaterials = true: tangenti per le normal map e materiali/texture del file (modelli d'autore)
+        bool LoadModel(const std::string& path, bool withMaterials = false) {
             Assimp::Importer importer;
             // FIX animazioni capovolte: di default Assimp spezza ogni osso FBX in nodi ausiliari
             // (X_$AssimpFbx$_Translation / _PreRotation / _Rotation) lasciando il nodo dell'osso con
@@ -52,8 +64,10 @@ namespace SunEngine {
             // due volte (piedi sopra la testa). Con PRESERVE_PIVOTS=false ogni osso e' un solo nodo.
             // DEVE essere identico in Animation::LoadFromFile: stessa gerarchia in modello e clip.
             importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
-            const aiScene* scene = importer.ReadFile(path,
-                aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs);
+            unsigned int flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs;
+            if (withMaterials) flags |= aiProcess_CalcTangentSpace | aiProcess_LimitBoneWeights;   // max 4 ossa per vertice
+            m_WithMaterials = withMaterials;
+            const aiScene* scene = importer.ReadFile(path, flags);
 
             if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
                 SUN_CORE_ERROR("Assimp Error (SkinnedModel) {0}: {1}", path, importer.GetErrorString());
@@ -64,6 +78,7 @@ namespace SunEngine {
             ReadHierarchyData(rootNode, scene->mRootNode);
 
             m_GlobalInverseTransform = glm::inverse(AiMatToGlm(scene->mRootNode->mTransformation));
+            if (withMaterials) ReadSkinnedMaterials(scene, path, *this);
 
             SUN_CORE_INFO("Modello skinnato caricato: {0} ({1} sub-mesh, {2} ossa)", path, meshes.size(), boneInfoMap.size());
             return true;
@@ -74,8 +89,11 @@ namespace SunEngine {
         }
 
     private:
+        bool m_WithMaterials = false;
+
         void ReadHierarchyData(AssimpNodeData& dest, const aiNode* src) {
-            dest.name = src->mName.C_Str();
+            // nomi delle ossa portati a quelli del gioco (BoneNames.h): per i modelli Mixamo del gioco non cambia nulla
+            dest.name = CanonicalBoneName(src->mName.C_Str());
             dest.transformation = AiMatToGlm(src->mTransformation);
             dest.childrenCount = src->mNumChildren;
 
@@ -107,6 +125,12 @@ namespace SunEngine {
                     v.Normal = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
                 if (mesh->mTextureCoords[0])
                     v.TexCoords = glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
+                if (mesh->HasTangentsAndBitangents() && mesh->HasNormals()) {
+                    const glm::vec3 T(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
+                    const glm::vec3 B(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
+                    const float handed = glm::dot(glm::cross(v.Normal, T), B) < 0.0f ? -1.0f : 1.0f;
+                    v.Tangent = glm::vec4(T, handed);
+                }
                 vertices[i] = v;
             }
 
@@ -118,7 +142,7 @@ namespace SunEngine {
 
             for (unsigned int boneIdx = 0; boneIdx < mesh->mNumBones; boneIdx++) {
                 aiBone* bone = mesh->mBones[boneIdx];
-                std::string boneName = bone->mName.C_Str();
+                std::string boneName = CanonicalBoneName(bone->mName.C_Str());
 
                 int boneID;
                 auto it = boneInfoMap.find(boneName);
@@ -137,7 +161,9 @@ namespace SunEngine {
                 }
             }
 
-            return SkinnedMesh(std::move(vertices), std::move(indices));
+            SkinnedMesh out(std::move(vertices), std::move(indices));
+            if (m_WithMaterials) out.materialIndex = static_cast<int>(mesh->mMaterialIndex);
+            return out;
         }
     };
 }

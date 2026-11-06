@@ -10,6 +10,7 @@ namespace SunEngine {
         std::vector<SkinnedVertex> vertices;
         std::vector<unsigned int> indices;
         unsigned int VAO = 0, VBO = 0, EBO = 0;
+        int materialIndex = -1;   // modelli d'autore: indice in SkinnedModel::materials (-1 = nessun materiale)
 
         SkinnedMesh(std::vector<SkinnedVertex> verts, std::vector<unsigned int> inds)
             : vertices(std::move(verts)), indices(std::move(inds)) {
@@ -44,6 +45,8 @@ namespace SunEngine {
             glVertexAttribIPointer(3, 4, GL_INT, sizeof(SkinnedVertex), (void*)offsetof(SkinnedVertex, BoneIDs));
             glEnableVertexAttribArray(4); // Weights
             glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(SkinnedVertex), (void*)offsetof(SkinnedVertex, Weights));
+            glEnableVertexAttribArray(5); // Tangent (normal map dei modelli d'autore)
+            glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(SkinnedVertex), (void*)offsetof(SkinnedVertex, Tangent));
 
             glBindVertexArray(0);
         }
