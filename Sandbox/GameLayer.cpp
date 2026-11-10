@@ -2186,8 +2186,117 @@ namespace SunEngine {
         return t.Position.y;
     }
 
+    // Parte del corpo (blocco del ragdoll) a cui appartiene un osso; stringa vuota = come l'osso padre
+    static const char* CorpseBlockOfBone(const std::string& name) {
+        const size_t cut = name.find_last_of(":|");
+        const std::string b = cut == std::string::npos ? name : name.substr(cut + 1);
+        auto starts = [&](const char* p) { return b.rfind(p, 0) == 0; };
+        if (b == "Hips" || starts("Spine") || b == "LeftShoulder" || b == "RightShoulder") return "Torso";
+        if (b == "Neck" || starts("Head")) return "Head";
+        if (starts("LeftArm") || starts("LeftForeArm") || starts("LeftHand")) return "Arm_L";
+        if (starts("RightArm") || starts("RightForeArm") || starts("RightHand")) return "Arm_R";
+        if (starts("LeftUpLeg") || starts("LeftLeg") || starts("LeftFoot") || starts("LeftToe")) return "Leg_L";
+        if (starts("RightUpLeg") || starts("RightLeg") || starts("RightFoot") || starts("RightToe")) return "Leg_R";
+        return "";
+    }
+
+    // Il corpo animato di un'unita' appena morta diventa un "morto con le ossa": si ferma sulla posa che aveva e
+    // da li' ogni parte segue il suo blocco del ragdoll. visual passa di proprieta' (non va piu' distrutto dal chiamante).
+    bool GameLayer::MakeSkinnedCorpse(entt::entity unit, entt::entity visual) {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(unit) || !reg.valid(visual) || m_SkinnedCorpses.count(unit)) return false;
+        if (!reg.all_of<SkeletonComponent>(unit) || !reg.all_of<SkinnedModelInstanceComponent, TransformComponent>(visual)) return false;
+        auto& sk = reg.get<SkinnedModelInstanceComponent>(visual);
+        if (!sk.sourceModel || !sk.boneMatrices || sk.boneMatrices->empty()) return false;
+        const auto& blocks = reg.get<SkeletonComponent>(unit).data.blocks;
+        if (blocks.empty()) return false;
+
+        auto corpse = std::make_unique<SkinnedCorpse>();
+        corpse->visual = visual;
+        corpse->bones = *sk.boneMatrices;
+        const auto& vt = reg.get<TransformComponent>(visual);
+        const glm::mat4 model = vt.GetTransform();
+        corpse->basePos = vt.Position;
+        corpse->frozenWorld.resize(corpse->bones.size());
+        for (size_t i = 0; i < corpse->bones.size(); ++i) corpse->frozenWorld[i] = model * corpse->bones[i];
+
+        auto blockIndex = [&](const std::string& n) { for (size_t i = 0; i < blocks.size(); ++i) if (blocks[i].name == n) return static_cast<int>(i); return -1; };
+        corpse->torso = (std::max)(0, blockIndex("Torso"));
+        corpse->boneBlock.assign(corpse->bones.size(), corpse->torso);
+        // dall'alto dello scheletro in giu': le ossa senza una parte loro (dita, mascella, orecchie...) seguono il padre
+        const auto& boneMap = sk.sourceModel->boneInfoMap;
+        std::function<void(const AssimpNodeData&, int)> walk = [&](const AssimpNodeData& node, int current) {
+            const char* part = CorpseBlockOfBone(node.name);
+            if (part[0]) { const int idx = blockIndex(part); current = idx >= 0 ? idx : corpse->torso; }
+            auto it = boneMap.find(node.name);
+            if (it != boneMap.end() && it->second.id >= 0 && it->second.id < static_cast<int>(corpse->boneBlock.size())) corpse->boneBlock[it->second.id] = current;
+            for (const auto& c : node.children) walk(c, current);
+        };
+        walk(sk.sourceModel->rootNode, corpse->torso);
+
+        sk.boneMatrices = &corpse->bones;
+        if (!reg.all_of<HideProceduralVisualTag>(unit)) reg.emplace<HideProceduralVisualTag>(unit);   // i cubi del ragdoll non si disegnano
+        m_SkinnedCorpses[unit] = std::move(corpse);
+        return true;
+    }
+
+    void GameLayer::ClearSkinnedCorpses() {
+        auto& reg = m_Scene.GetRegistry();
+        for (auto& [e, c] : m_SkinnedCorpses) {
+            if (reg.valid(c->visual)) m_Scene.DestroyEntity(c->visual);
+            if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
+        }
+        m_SkinnedCorpses.clear();
+    }
+
+    void GameLayer::UpdateSkinnedCorpses() {
+        auto& reg = m_Scene.GetRegistry();
+        const bool enabled = m_UseAnimatedPlayer && m_GameState == GameState::Gameplay;
+        for (auto it = m_SkinnedCorpses.begin(); it != m_SkinnedCorpses.end();) {
+            const entt::entity e = it->first;
+            SkinnedCorpse& c = *it->second;
+            const bool alive = enabled && reg.valid(e) && reg.valid(c.visual) && reg.any_of<CorpseComponent, RagdollComponent>(e)
+                && reg.all_of<SkinnedModelInstanceComponent, TransformComponent>(c.visual);
+            if (!alive) {   // cadavere sparito, unita' rientrata in gioco, o modalita' a cubi
+                if (reg.valid(c.visual)) m_Scene.DestroyEntity(c.visual);
+                if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
+                it = m_SkinnedCorpses.erase(it);
+                continue;
+            }
+            ++it;
+            reg.get<SkinnedModelInstanceComponent>(c.visual).boneMatrices = &c.bones;
+            const auto* rd = reg.try_get<RagdollComponent>(e);
+            if (!rd || rd->worldTransforms.empty()) continue;   // ragdoll non ancora partito: resta la posa di morte
+            const auto& W = rd->worldTransforms;
+            bool valid = true;
+            for (const auto& m : W) {
+                const float det = glm::determinant(glm::mat3(m));
+                if (!(std::abs(det) > 1e-12f) || std::isnan(m[3].x) || std::isnan(m[3].y) || std::isnan(m[3].z)) { valid = false; break; }
+            }
+            if (!valid) continue;
+            if (!c.started || c.invStart.size() != W.size()) {
+                c.invStart.resize(W.size());
+                for (size_t i = 0; i < W.size(); ++i) c.invStart[i] = glm::inverse(W[i]);
+                c.startTorso = glm::vec3(W[(std::min)(static_cast<size_t>(c.torso), W.size() - 1)][3]);
+                c.started = true;
+            }
+            const size_t torso = (std::min)(static_cast<size_t>(c.torso), W.size() - 1);
+            // l'entita' visiva segue il busto (serve al taglio di cio' che e' fuori vista e alle ombre)
+            auto& vt = reg.get<TransformComponent>(c.visual);
+            vt.Position = c.basePos + (glm::vec3(W[torso][3]) - c.startTorso);
+            const glm::mat4 invModel = glm::inverse(vt.GetTransform());
+            std::vector<glm::mat4> delta(W.size());
+            for (size_t i = 0; i < W.size(); ++i) delta[i] = invModel * W[i] * c.invStart[i];
+            for (size_t b = 0; b < c.bones.size(); ++b) {
+                const size_t blk = (std::min)(static_cast<size_t>((std::max)(0, c.boneBlock[b])), W.size() - 1);
+                c.bones[b] = delta[blk] * c.frozenWorld[b];
+            }
+        }
+    }
+
     void GameLayer::ClearUnitAnimations() {
         auto& reg = m_Scene.GetRegistry();
+        ClearSkinnedCorpses();
         for (auto& [e, inst] : m_UnitAnims) {
             if (reg.valid(inst.visual)) m_Scene.DestroyEntity(inst.visual);
             for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
@@ -2209,12 +2318,18 @@ namespace SunEngine {
         }
         for (auto e : drop) {
             auto& inst = m_UnitAnims[e];
-            if (reg.valid(inst.visual)) m_Scene.DestroyEntity(inst.visual);
+            // Morto: il corpo con le ossa non sparisce, passa al ragdoll (prima tornavano i cubi)
+            const bool died = enabled && reg.valid(e) && reg.any_of<CorpseComponent, RagdollComponent>(e);
+            if (died && MakeSkinnedCorpse(e, inst.visual)) inst.visual = entt::null;
+            else {
+                if (reg.valid(inst.visual)) m_Scene.DestroyEntity(inst.visual);
+                if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
+            }
             for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
-            if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
             m_UnitAnims.erase(e);
             m_RaceMotion.erase(e);
         }
+        UpdateSkinnedCorpses();
         if (!enabled) return;
 
         static const std::vector<glm::mat4> s_BindPose(ANIMATOR_MAX_BONES, glm::mat4(1.0f));   // posa in T del file
@@ -3977,7 +4092,15 @@ namespace SunEngine {
             && playerOk && !reg.all_of<CorpseComponent>(m_PlayerEntity);
 
         if (!wantAnimated) {
-            // Modalita' cuboni (o giocatore morto: ragdoll a cubi): niente modello animato
+            // Giocatore morto: il suo corpo con le ossa resta a terra e segue il ragdoll (prima tornavano i cubi)
+            if (m_UseAnimatedPlayer && playerOk && reg.all_of<CorpseComponent>(m_PlayerEntity)) {
+                if (reg.valid(m_AnimatedPlayerEntity) && MakeSkinnedCorpse(m_PlayerEntity, m_AnimatedPlayerEntity)) {
+                    m_AnimatedPlayerEntity = entt::null;
+                    m_AnimatedBodyAssigned = false;
+                }
+                if (m_SkinnedCorpses.count(m_PlayerEntity)) return;
+            }
+            // Modalita' cuboni: niente modello animato
             if (reg.valid(m_AnimatedPlayerEntity)) {
                 m_Scene.DestroyEntity(m_AnimatedPlayerEntity);
                 m_AnimatedPlayerEntity = entt::null;

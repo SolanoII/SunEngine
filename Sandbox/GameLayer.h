@@ -448,6 +448,22 @@ namespace SunEngine {
             std::vector<entt::entity> skinParts;   // pezzi della skin agganciati alle ossa
         };
         std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
+        // Morti: il corpo con le ossa resta e segue il ragdoll (i cubi fanno solo la fisica, nascosti). Ogni osso
+        // e' legato al blocco del ragdoll della sua parte del corpo e ne copia lo spostamento dalla posa di morte.
+        struct SkinnedCorpse {
+            entt::entity visual = entt::null;
+            std::vector<glm::mat4> bones;         // matrici correnti (il disegno punta qui)
+            std::vector<glm::mat4> frozenWorld;   // posa al momento della morte, in coordinate mondo
+            std::vector<int> boneBlock;           // blocco del ragdoll che muove ogni osso
+            std::vector<glm::mat4> invStart;      // inversa dei blocchi al primo fotogramma del ragdoll
+            glm::vec3 basePos{ 0.0f }, startTorso{ 0.0f };
+            int torso = 0;
+            bool started = false;
+        };
+        std::unordered_map<entt::entity, std::unique_ptr<SkinnedCorpse>> m_SkinnedCorpses;
+        bool MakeSkinnedCorpse(entt::entity unit, entt::entity visual);
+        void UpdateSkinnedCorpses();
+        void ClearSkinnedCorpses();
         bool m_FitBodiesFromHuman = true;   // corpi delle altre razze ricavati dal corpo umano base (BodyFit.h)
         // Modo di muoversi della razza (RaceMotion.h): stato per unita' (fase del passo, sguardo, molle)
         struct RaceMotionSlot { RaceMotionState state; glm::vec3 lastPos{ 0.0f }; bool has = false; };

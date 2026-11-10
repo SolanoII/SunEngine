@@ -130,9 +130,10 @@ namespace SunEngine {
                     }
                 }
 
-                // 1. RAGDOLL
+                // 1. RAGDOLL (se il morto ha il corpo con le ossa, i cubi restano nascosti: lo muovono soltanto)
                 if (scene.GetRegistry().all_of<RagdollComponent>(entity)) {
                     auto& ragdoll = scene.GetRegistry().get<RagdollComponent>(entity);
+                    if (scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) continue;
                     for (const auto& mat : ragdoll.worldTransforms) {
                         deferred.DrawCube(mat, baseColor, 0.85f, 0.0f, 0.0f);
                     }

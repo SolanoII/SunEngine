@@ -116,6 +116,8 @@ namespace SunEngine {
                         CombatVFX::SpawnSlashTrail(scene, entity, trans, melee, &node);
                     }
                     else if (melee.currentPhase == MeleePhase::Active && melee.stateTimer >= tm.active) {
+                        // fotogramma lungo: la fase attiva e' finita senza passare dal punto di contatto, il colpo vale lo stesso
+                        if (!melee.hasHitInThisAttack) CheckMeleeHits(scene, entity, stats, melee, trans);
                         melee.currentPhase = MeleePhase::Recovery;
                         melee.stateTimer = 0.0f;
                         // A vuoto: si resta scoperti piu' a lungo
@@ -130,7 +132,11 @@ namespace SunEngine {
                         melee.whiffPenalty = 0.0f;
                     }
 
-                    if (melee.currentPhase == MeleePhase::Active && !melee.hasHitInThisAttack) {
+                    // Il colpo va a segno quando l'arma ci arriva: a meta' circa della fase attiva (nell'animazione il
+                    // braccio parte caricato e passa sul bersaglio a meta' corsa). Prima colpiva al primo istante della
+                    // fase attiva, con il braccio ancora indietro: il danno arrivava prima del gesto.
+                    if (melee.currentPhase == MeleePhase::Active && !melee.hasHitInThisAttack &&
+                        melee.stateTimer >= tm.active * DamageResolver::kMeleeContactPoint) {
                         CheckMeleeHits(scene, entity, stats, melee, trans);
                     }
                 }

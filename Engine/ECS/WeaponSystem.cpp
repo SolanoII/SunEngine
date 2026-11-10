@@ -201,6 +201,7 @@ namespace SunEngine {
     }
 
     void WeaponSystem::Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime) {
+        UpdatePendingShots(scene, deltaTime);   // i colpi sparati prima arrivano adesso
         auto view = scene.GetRegistry().view<TransformComponent, UnitStatsComponent, WeaponStateComponent, InventoryComponent, CameraRecoilComponent>();
 
         for (auto entity : view) {
@@ -674,7 +675,6 @@ namespace SunEngine {
 
         for (int p = 0; p < numProjectiles; ++p) {
             glm::vec3 shootDir = baseDir;
-            bool feelKilled = false, feelArmored = false;   // per l'evento di impatto (suono, sussulto)
 
             if (isShotgun || totalSpread > 0.001f) {
                 float r = Random::Float01() * totalSpread;
@@ -690,64 +690,32 @@ namespace SunEngine {
             glm::vec3 hitPoint = hit.hit
                 ? hit.point
                 : (barrelOrigin + shootDir * wpBP.range_effective);
-            bool skipTrail = false;
             // Parata (Q) con scudo o "perfect deflect": il colpo viene deviato, niente danno
             const bool parried = hit.hitUnit && hit.entity != entt::null
                 && DamageResolver::TryParryRanged(scene, hit.entity, shootDir);
-            if (!parried && hit.hitUnit && hit.entity != entt::null &&
-                scene.GetRegistry().all_of<UnitStatsComponent, HealthComponent>(hit.entity)) {
 
-                auto& targetStats = scene.GetRegistry().get<UnitStatsComponent>(hit.entity);
-                auto& targetHealth = scene.GetRegistry().get<HealthComponent>(hit.entity);
+            // Il colpo e' deciso adesso (chi e dove), ma danno, sussulto e suono dell'impatto arrivano quando il
+            // proiettile che si vede ci arriva davvero. Prima il bersaglio perdeva vita (e moriva) all'istante,
+            // con il bolt o il globo di plasma ancora a meta' strada.
+            PendingShot ps;
+            ps.shooter = shooter; ps.target = hit.entity; ps.team = Explosives::TeamOf(scene.GetRegistry(), shooter);
+            ps.hit = hit.hit; ps.hitUnit = hit.hitUnit; ps.parried = parried;
+            ps.location = hit.location; ps.distance = hit.distance; ps.point = hit.point; ps.hitPoint = hitPoint; ps.dir = shootDir;
+            ps.underbarrelShotgun = isUnderbarrelShotgun;
+            ps.graze = Random::Chance(grazeChance);
+            ps.fx = fx; ps.pellets = numProjectiles;
+            ps.color = isUnderbarrelShotgun ? glm::vec4(1.0f, 0.7f, 0.2f, 1.0f) : wpBP.primary_color;
+            ps.baseDamage = wpBP.base_damage; ps.armorPenetration = wpBP.armor_penetration;
+            ps.falloffStart = wpBP.damage_falloff_start; ps.falloffEnd = wpBP.damage_falloff_end;
+            ps.meltaShot = wpBP.melta_shot; ps.meltaRange = wpBP.melta_range; ps.meltaMultiplier = wpBP.melta_multiplier;
+            ps.type = wpBP.projectile_type;
+            ps.explosionRadius = wpBP.explosion_radius; ps.explosionDamage = wpBP.explosion_damage; ps.structureMultiplier = wpBP.structure_damage_multiplier;
 
-                float finalDamage = isUnderbarrelShotgun ? 15.0f : wpBP.base_damage;
-                int effectiveAP = isUnderbarrelShotgun ? 5 : wpBP.armor_penetration;
-                const float healthBefore = targetHealth.currentHealth;
-                // Di striscio: con scarsa capacita' di tiro il colpo prende solo di lato (meno danno)
-                const bool graze = Random::Chance(grazeChance);
-                if (graze) finalDamage *= Marksmanship::kGrazeDamage;
-
-                finalDamage = CalculateDamageWithFalloff(finalDamage, hit.distance,
-                    wpBP.damage_falloff_start,
-                    wpBP.damage_falloff_end);
-                // Melta a colpo singolo: a bruciapelo scioglie tutto
-                if (wpBP.melta_shot && hit.distance <= wpBP.melta_range) {
-                    finalDamage *= (std::max)(1.0f, wpBP.melta_multiplier);
-                    effectiveAP += 20;
-                }
-
-                if (wpBP.projectile_type == ProjectileType::Grav) {
-                    ArmorPiece* armor = targetStats.armorSet.GetPiece(hit.location);
-                    int targetArmorRating = armor ? armor->armorRating
-                        : targetStats.armorSet.GetAverageRating();
-                    finalDamage = wpBP.base_damage + (targetArmorRating * 1.5f);
-                    // il danno grav veniva calcolato ma mai applicato
-                    DamageResolver::ResolveHit(finalDamage, effectiveAP, hit.location, targetStats, targetHealth);
-                }
-                else if (wpBP.projectile_type == ProjectileType::Psychic) {
-                    targetHealth.currentHealth -= finalDamage;
-                    skipTrail = true;   // era un "continue" prima
-                }
-                else {
-                    DamageResolver::ResolveHit(finalDamage, effectiveAP, hit.location,
-                        targetStats, targetHealth);
-                }
-                EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore, graze);
-                feelKilled = healthBefore > 0.0f && targetHealth.currentHealth <= 0.0f;
-                { const ArmorPiece* ap = targetStats.armorSet.GetPiece(hit.location); feelArmored = (ap ? ap->armorRating : targetStats.armorSet.GetAverageRating()) >= 40; }
+            // Colpo psichico su un'unita': nessun proiettile, effetto immediato
+            if (wpBP.projectile_type == ProjectileType::Psychic && !parried && hit.hitUnit && hit.entity != entt::null) {
+                ResolveShot(scene, ps);
+                continue;
             }
-            // Colpo su una struttura costruita (barricata, muro): meta' danno, puo' romperla
-            else if (!parried && hit.hit && !hit.hitUnit && hit.entity != entt::null && scene.GetRegistry().valid(hit.entity) &&
-                     scene.GetRegistry().all_of<StructureHealthComponent>(hit.entity)) {
-                const float dmg = CalculateDamageWithFalloff(wpBP.base_damage, hit.distance, wpBP.damage_falloff_start, wpBP.damage_falloff_end);
-                if (DamageStructure(scene.GetRegistry(), hit.entity, dmg * XpValues::StructureBulletDamage)) scene.DestroyEntity(hit.entity);
-            }
-            // Proiettile esplosivo (es. Rokkit Launcha): esplode dove arriva, colpendo i nemici attorno
-            if (wpBP.projectile_type == ProjectileType::Explosive && wpBP.explosion_radius > 0.0f && !parried) {
-                Explosives::Explode(scene, hitPoint, wpBP.explosion_radius, wpBP.explosion_damage, wpBP.armor_penetration,
-                                    shooter, Explosives::TeamOf(scene.GetRegistry(), shooter), wpBP.structure_damage_multiplier, false);
-            }
-            if (skipTrail) continue;
             entt::entity bulletTrailEntity = scene.CreateEntity();
             auto& bulletTrail = scene.GetRegistry().emplace<TrailRequestComponent>(bulletTrailEntity);
             bulletTrail.start = barrelOrigin;
@@ -777,14 +745,8 @@ namespace SunEngine {
             case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
             default: break;
             }
-            if ((hit.hit || fx == WeaponFx::Explosive) && !parried) {
-                FeelEvent fe; fe.kind = FeelKind::Impact; fe.fx = fx; fe.pos = hitPoint; fe.dir = shootDir; fe.color = bulletTrail.color;
-                fe.source = static_cast<std::uint32_t>(shooter); fe.target = static_cast<std::uint32_t>(hit.entity);
-                fe.hitUnit = hit.hitUnit; fe.killed = feelKilled; fe.armored = feelArmored;
-                fe.delay = bulletTrail.travelTime; fe.scale = fx == WeaponFx::Explosive ? std::max(1.0f, wpBP.explosion_radius) : wpBP.base_damage;
-                fe.variant = numProjectiles;
-                EmitFeel(fe);
-            }
+            if (bulletTrail.travelTime > 0.03f) { ps.timer = bulletTrail.travelTime; m_PendingShots.push_back(ps); }
+            else ResolveShot(scene, ps);
         }
         // Suono posizionale: sorgente = bocca di fuoco; l'attenuazione usa l'ascoltatore (vedi PlayWeaponSound)
         glm::vec3 listenerPos = trans.Position + glm::vec3(0.0f, 1.2f, 0.0f);
@@ -796,6 +758,81 @@ namespace SunEngine {
         if (isUnderbarrelShotgun) baseVol = 0.9f;
 
         PlayWeaponSound(barrelOrigin, listenerPos, baseVol);
+    }
+
+    // Il colpo arriva: danno, colpo sulle strutture, esplosione, e l'evento di impatto (suono, sussulto, segno)
+    void WeaponSystem::ResolveShot(Scene& scene, const PendingShot& ps) {
+        auto& reg = scene.GetRegistry();
+        const entt::entity shooter = reg.valid(ps.shooter) ? ps.shooter : entt::entity(entt::null);
+        const bool targetValid = ps.target != entt::null && reg.valid(ps.target);
+        bool killed = false, armored = false;
+
+        if (!ps.parried && ps.hitUnit && targetValid && !reg.all_of<CorpseComponent>(ps.target) &&
+            reg.all_of<UnitStatsComponent, HealthComponent>(ps.target)) {
+            auto& targetStats = reg.get<UnitStatsComponent>(ps.target);
+            auto& targetHealth = reg.get<HealthComponent>(ps.target);
+
+            float finalDamage = ps.underbarrelShotgun ? 15.0f : ps.baseDamage;
+            int effectiveAP = ps.underbarrelShotgun ? 5 : ps.armorPenetration;
+            const float healthBefore = targetHealth.currentHealth;
+            // Di striscio: con scarsa capacita' di tiro il colpo prende solo di lato (meno danno)
+            if (ps.graze) finalDamage *= Marksmanship::kGrazeDamage;
+
+            finalDamage = CalculateDamageWithFalloff(finalDamage, ps.distance, ps.falloffStart, ps.falloffEnd);
+            // Melta a colpo singolo: a bruciapelo scioglie tutto
+            if (ps.meltaShot && ps.distance <= ps.meltaRange) {
+                finalDamage *= (std::max)(1.0f, ps.meltaMultiplier);
+                effectiveAP += 20;
+            }
+
+            if (ps.type == ProjectileType::Grav) {
+                ArmorPiece* armor = targetStats.armorSet.GetPiece(ps.location);
+                int targetArmorRating = armor ? armor->armorRating : targetStats.armorSet.GetAverageRating();
+                finalDamage = ps.baseDamage + (targetArmorRating * 1.5f);
+                DamageResolver::ResolveHit(finalDamage, effectiveAP, ps.location, targetStats, targetHealth);
+            }
+            else if (ps.type == ProjectileType::Psychic) {
+                targetHealth.currentHealth -= finalDamage;
+            }
+            else {
+                DamageResolver::ResolveHit(finalDamage, effectiveAP, ps.location, targetStats, targetHealth);
+            }
+            EmitHitFeedback(scene, shooter, ps.target, ps.point, ps.location, healthBefore, ps.graze);
+            killed = healthBefore > 0.0f && targetHealth.currentHealth <= 0.0f;
+            { const ArmorPiece* ap = targetStats.armorSet.GetPiece(ps.location); armored = (ap ? ap->armorRating : targetStats.armorSet.GetAverageRating()) >= 40; }
+        }
+        // Colpo su una struttura costruita (barricata, muro): meta' danno, puo' romperla
+        else if (!ps.parried && ps.hit && !ps.hitUnit && targetValid && reg.all_of<StructureHealthComponent>(ps.target)) {
+            const float dmg = CalculateDamageWithFalloff(ps.baseDamage, ps.distance, ps.falloffStart, ps.falloffEnd);
+            if (DamageStructure(reg, ps.target, dmg * XpValues::StructureBulletDamage)) scene.DestroyEntity(ps.target);
+        }
+        // Proiettile esplosivo (es. Rokkit Launcha): esplode dove arriva, colpendo i nemici attorno
+        if (ps.type == ProjectileType::Explosive && ps.explosionRadius > 0.0f && !ps.parried) {
+            Explosives::Explode(scene, ps.hitPoint, ps.explosionRadius, ps.explosionDamage, ps.armorPenetration,
+                                shooter, ps.team, ps.structureMultiplier, false);
+        }
+        if (ps.type == ProjectileType::Psychic) return;
+        if ((ps.hit || ps.fx == WeaponFx::Explosive) && !ps.parried) {
+            FeelEvent fe; fe.kind = FeelKind::Impact; fe.fx = ps.fx; fe.pos = ps.hitPoint; fe.dir = ps.dir; fe.color = ps.color;
+            fe.source = static_cast<std::uint32_t>(ps.shooter); fe.target = static_cast<std::uint32_t>(ps.target);
+            fe.hitUnit = ps.hitUnit; fe.killed = killed; fe.armored = armored;
+            fe.scale = ps.fx == WeaponFx::Explosive ? std::max(1.0f, ps.explosionRadius) : ps.baseDamage;
+            fe.variant = ps.pellets;
+            EmitFeel(fe);
+        }
+    }
+
+    // Colpi in volo: quando il proiettile arriva si applica il danno
+    void WeaponSystem::UpdatePendingShots(Scene& scene, float deltaTime) {
+        for (size_t i = 0; i < m_PendingShots.size();) {
+            m_PendingShots[i].timer -= deltaTime;
+            if (m_PendingShots[i].timer <= 0.0f) {
+                const PendingShot ps = m_PendingShots[i];
+                m_PendingShots[i] = m_PendingShots.back(); m_PendingShots.pop_back();
+                ResolveShot(scene, ps);
+            }
+            else ++i;
+        }
     }
 
     void WeaponSystem::FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP,

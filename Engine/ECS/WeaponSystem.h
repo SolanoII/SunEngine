@@ -75,6 +75,25 @@ namespace SunEngine {
         // Riproduce lo sparo con attenuazione spaziale simulata sul volume.
         void PlayWeaponSound(const glm::vec3& sourcePos, const glm::vec3& listenerPos, float baseVolume = 1.0f);
 
+        // Colpo deciso allo sparo ma che deve ancora arrivare (il proiettile visibile e' in volo)
+        struct PendingShot {
+            entt::entity shooter = entt::null, target = entt::null;
+            int team = 0;
+            bool hit = false, hitUnit = false, parried = false, underbarrelShotgun = false, graze = false, meltaShot = false;
+            HitboxLocation location = HitboxLocation::Torso;
+            float distance = 0.0f, timer = 0.0f;
+            glm::vec3 point{ 0.0f }, hitPoint{ 0.0f }, dir{ 0.0f, 0.0f, -1.0f };
+            glm::vec4 color{ 1.0f };
+            WeaponFx fx = WeaponFx::Ballistic;
+            ProjectileType type = ProjectileType::Ballistic;
+            int pellets = 1, armorPenetration = 0;
+            float baseDamage = 0.0f, falloffStart = 0.0f, falloffEnd = 0.0f, meltaRange = 0.0f, meltaMultiplier = 1.0f;
+            float explosionRadius = 0.0f, explosionDamage = 0.0f, structureMultiplier = 1.0f;
+        };
+        std::vector<PendingShot> m_PendingShots;
+        void ResolveShot(Scene& scene, const PendingShot& shot);
+        void UpdatePendingShots(Scene& scene, float deltaTime);
+
         // --- Sistemi interni ---
         void FireWeapon(Scene& scene, entt::entity shooter,
             WeaponStateComponent& wState, CameraRecoilComponent& recoil,

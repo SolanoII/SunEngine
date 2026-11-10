@@ -68,6 +68,8 @@ namespace SunEngine {
         static constexpr float kHeavyStagger = 0.55f;      // pesante interrotto: barcolla
         static constexpr float kGuardBreakStun = 1.0f;     // parata rotta da un pesante
         static constexpr float kWhiffNormal = 0.2f, kWhiffHeavy = 0.3f;
+        // Punto della fase attiva in cui l'arma tocca il bersaglio (0 = inizio, 1 = fine): li' si applica il colpo
+        static constexpr float kMeleeContactPoint = 0.45f;
 
         inline static bool IsComboFollowUp(const std::string& node) {
             return node.find("_2") != std::string::npos || node.find("_3") != std::string::npos;

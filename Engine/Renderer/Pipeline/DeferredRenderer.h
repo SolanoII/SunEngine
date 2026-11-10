@@ -250,6 +250,8 @@ namespace SunEngine {
         std::unique_ptr<Shader> m_SSAOShader;
         std::unique_ptr<Shader> m_SSAOBlurShader;
         std::unique_ptr<Shader> m_FXAAShader;
+        std::unique_ptr<Shader> m_DepthCopyShader;   // profondita' della scena sullo schermo (per particelle e scie)
+        void WriteSceneDepthToScreen();
         void RunTonemapPass();
         void UploadLights();
         float m_CascadeFade = 0.15f;  // ultimo 15% di ogni cascade fa blend

@@ -316,7 +316,7 @@ namespace SunEngine {
             }
         }
 
-        void CreateRagdollFromSkeleton(Scene& scene, entt::entity entity, const SkeletonData& skeleton, float skeletonScale, const glm::vec3& rootPos, const glm::vec3& initialImpulse, int hitBlockIdx = -1) {
+        void CreateRagdollFromSkeleton(Scene& scene, entt::entity entity, const SkeletonData& skeleton, float skeletonScale, const glm::vec3& rootPos, const glm::vec3& initialImpulse, int hitBlockIdx = -1, float rootYawDeg = 0.0f) {
             DestroyJoltBody(scene, entity);
 
             JPH::BodyInterface& bodyInterface = m_PhysicsSystem.GetBodyInterface();
@@ -325,7 +325,8 @@ namespace SunEngine {
             uint32_t ragdollGroupID = m_NextRagdollGroupID++;
             RagdollComponent ragdollComp{};
 
-            auto physTransforms = skeleton.ComputePhysicsTransforms(rootPos, glm::vec3(0.0f), skeletonScale);
+            // Il ragdoll parte girato come l'unita' (prima partiva sempre rivolto a nord: il corpo scattava di lato alla morte)
+            auto physTransforms = skeleton.ComputePhysicsTransforms(rootPos, glm::vec3(0.0f, rootYawDeg, 0.0f), skeletonScale);
 
             for (size_t i = 0; i < skeleton.blocks.size(); ++i) {
                 const auto& block = skeleton.blocks[i];
@@ -399,9 +400,12 @@ namespace SunEngine {
                     constraintSettings.mPosition1 = jointWorldPos;
                     constraintSettings.mPosition2 = jointWorldPos;
 
-                    constraintSettings.mTwistAxis1 = JPH::Vec3::sAxisZ();
+                    // asse dei giunti girato come il corpo (limiti uguali a prima, ma nel verso dell'unita')
+                    const float yawRad = glm::radians(rootYawDeg);
+                    const JPH::Vec3 twistAxis(std::sin(yawRad), 0.0f, std::cos(yawRad));
+                    constraintSettings.mTwistAxis1 = twistAxis;
                     constraintSettings.mPlaneAxis1 = JPH::Vec3::sAxisY();
-                    constraintSettings.mTwistAxis2 = JPH::Vec3::sAxisZ();
+                    constraintSettings.mTwistAxis2 = twistAxis;
                     constraintSettings.mPlaneAxis2 = JPH::Vec3::sAxisY();
 
                     constraintSettings.mTwistMinAngle = glm::radians(-35.0f);
@@ -425,7 +429,7 @@ namespace SunEngine {
                 auto& skel = registry.get<SkeletonComponent>(entity);
                 auto& trans = registry.get<TransformComponent>(entity);
 
-                CreateRagdollFromSkeleton(scene, entity, skel.data, skel.scale, trans.Position, killImpulse, hitBlockIdx);
+                CreateRagdollFromSkeleton(scene, entity, skel.data, skel.scale, trans.Position, killImpulse, hitBlockIdx, trans.Rotation.y);
                 registry.emplace_or_replace<CorpseComponent>(entity);
             }
         }

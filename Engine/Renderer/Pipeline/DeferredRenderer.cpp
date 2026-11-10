@@ -1196,6 +1196,16 @@ void main() {
         if (!m_SSAOBlurShader->LoadFromSource(k_LightingVertSrc, k_SSAOBlurFragSrc, "SSAOBlur")) { SUN_CORE_WARN("DeferredRenderer: sfocatura SSAO non disponibile"); m_SSAOBlurShader.reset(); }
         m_FXAAShader = std::make_unique<Shader>();
         if (!m_FXAAShader->LoadFromSource(k_LightingVertSrc, k_FXAAFragSrc, "FXAA")) { SUN_CORE_WARN("DeferredRenderer: FXAA non disponibile"); m_FXAAShader.reset(); }
+        {
+            static const char* k_DepthCopyFragSrc = R"(
+        #version 410 core
+        in vec2 v_TexCoord;
+        uniform sampler2D u_Depth;
+        void main() { gl_FragDepth = texture(u_Depth, v_TexCoord).r; }
+    )";
+            m_DepthCopyShader = std::make_unique<Shader>();
+            if (!m_DepthCopyShader->LoadFromSource(k_LightingVertSrc, k_DepthCopyFragSrc, "DepthCopy")) { SUN_CORE_WARN("DeferredRenderer: copia della profondita' non disponibile"); m_DepthCopyShader.reset(); }
+        }
 
         m_TonemapShader = std::make_unique<Shader>();
         if (!m_TonemapShader->LoadFromSource(k_LightingVertSrc, k_TonemapFragSrc, "Tonemap")) {
@@ -1319,6 +1329,7 @@ void main() {
         if (m_CubeInstVAO != 0) { glDeleteVertexArrays(1, &m_CubeInstVAO); glDeleteBuffers(1, &m_CubeInstVBO); m_CubeInstVAO = 0; }
         if (m_ShadowInstVAO != 0) { glDeleteVertexArrays(1, &m_ShadowInstVAO); glDeleteBuffers(1, &m_ShadowInstVBO); m_ShadowInstVAO = 0; }
         m_ShadowInstShader.reset();
+        m_DepthCopyShader.reset();
         if (m_GpuQueries[0][0] != 0) { glDeleteQueries(2 * GpuT_Count, &m_GpuQueries[0][0]); m_GpuQueries[0][0] = 0; }
         m_GBufferShader.reset();
         m_LightingShader.reset();
@@ -1662,6 +1673,7 @@ void main() {
         GpuTimerBegin(GpuT_Post);
         RunTonemapPass();
         RunFXAAPass();
+        WriteSceneDepthToScreen();
         GpuTimersEndFrame();
 
         m_CulledLastFrame = m_Culled;
@@ -1791,6 +1803,32 @@ void main() {
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    // Particelle, scie e sovrimpressioni si disegnano dopo, direttamente sullo schermo, col test di profondita':
+    // ma la profondita' dello schermo era vuota (la scena sta nel G-Buffer), quindi passavano tutte e si vedevano
+    // attraverso i muri. Qui la profondita' della scena viene scritta sullo schermo (funziona anche con la
+    // risoluzione di rendering ridotta, dove una copia diretta fra buffer di misura diversa non e' affidabile).
+    void DeferredRenderer::WriteSceneDepthToScreen() {
+        if (!m_DepthCopyShader || !m_GBuffer.GetDepth()) return;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, m_OutWidth, m_OutHeight);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_ALWAYS);
+        glDepthMask(GL_TRUE);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        m_DepthCopyShader->Bind();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_GBuffer.GetDepth()->GetID());
+        m_DepthCopyShader->SetInt("u_Depth", 0);
+        glBindVertexArray(Framebuffer::GetFullscreenQuadVAO());
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthFunc(GL_LESS);
+        glDisable(GL_DEPTH_TEST);
     }
 
     void DeferredRenderer::RunFXAAPass() {
