@@ -20,6 +20,7 @@
 #include <cfloat>
 #include <cstring>
 #include <cctype>
+#include <cstdarg>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -1320,6 +1321,7 @@ namespace SunEngine {
             IMGUI_CHECKVERSION();
             ImGui::CreateContext();
             ImGui::StyleColorsDark();
+            Ui::Apply(FindValidDir("Fonts"));   // tema dell'interfaccia: colori, misure, caratteri (UiTheme.h)
 
             if (window) {
                 ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -2840,8 +2842,7 @@ namespace SunEngine {
         for (const auto& [unitId, lines] : m_MatchXp)
             for (size_t c = 0; c < lines.size(); ++c) { totals[c].count += lines[c].count; totals[c].xp += lines[c].xp; }
 
-        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "RIEPILOGO DELLA PARTITA");
-        ImGui::Separator();
+        Ui::Heading("RIEPILOGO DELLA PARTITA");
         int shown = 0;
         const int visibleRows = static_cast<int>(m_MatchRevealTimer / 0.3f);
         if (ImGui::BeginTable("##recap", 3, ImGuiTableFlags_SizingStretchProp)) {
@@ -2854,7 +2855,7 @@ namespace SunEngine {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0); ImGui::Text("%s", kNames[c]);
                 ImGui::TableSetColumnIndex(1); ImGui::Text("x%d", totals[c].count);
-                ImGui::TableSetColumnIndex(2); ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "+%lld", static_cast<long long>(totals[c].xp));
+                ImGui::TableSetColumnIndex(2); ImGui::TextColored(ImVec4(0.50f, 0.74f, 0.44f, 1.0f), "+%lld", static_cast<long long>(totals[c].xp));
             }
             ImGui::EndTable();
         }
@@ -2863,15 +2864,15 @@ namespace SunEngine {
         if (m_MatchXpApplied && static_cast<int>(m_MatchRevealTimer / 0.3f) > shown) {
             ImGui::Text("Esperienza della partita: %lld", static_cast<long long>(m_MatchRawXp));
             if (!m_MatchOutcomeLabel.empty()) {
-                const ImVec4 oc = m_MatchOutcomeMult >= 1.0f ? ImVec4(0.4f, 1.0f, 0.5f, 1.0f) : (m_MatchOutcomeMult >= 0.75f ? ImVec4(1.0f, 0.85f, 0.3f, 1.0f) : ImVec4(1.0f, 0.45f, 0.35f, 1.0f));
+                const ImVec4 oc = m_MatchOutcomeMult >= 1.0f ? ImVec4(0.50f, 0.74f, 0.44f, 1.0f) : (m_MatchOutcomeMult >= 0.75f ? ImVec4(0.95f, 0.77f, 0.36f, 1.0f) : ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
                 ImGui::TextColored(oc, "%s: %d%%", m_MatchOutcomeLabel.c_str(), static_cast<int>(std::lround(m_MatchOutcomeMult * 100.0f)));
             }
-            if (m_MatchVip) ImGui::TextColored(ImVec4(0.75f, 0.45f, 1.0f, 1.0f), "VIP: +25%%");
+            if (m_MatchVip) ImGui::TextColored(ImVec4(0.64f, 0.47f, 0.84f, 1.0f), "VIP: +25%%");
             else ImGui::TextDisabled("VIP: non attivo (+25%% nel negozio)");
         }
-        ImGui::TextColored(ImVec4(0.65f, 0.80f, 1.0f, 1.0f), "Punti studio: +%lld", static_cast<long long>(m_MatchXpTotal));
+        ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Punti studio: +%lld", static_cast<long long>(m_MatchXpTotal));
         ImGui::SameLine(0.0f, 30.0f);
-        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "Energia: +%lld", static_cast<long long>(m_MatchEnergy));
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "Energia: +%lld", static_cast<long long>(m_MatchEnergy));
         ImGui::Spacing();
 
         // Barre: punti studio di ogni unita' usata verso le sue prossime ricerche (si riempiono dopo il riepilogo)
@@ -2886,7 +2887,7 @@ namespace SunEngine {
             const int64_t before = m_MatchPsBefore.count(unitId) ? m_MatchPsBefore.at(unitId) : ResearchTree::GetStudyPoints(m_Profile, unitId) - unitXp;
             const int64_t now = before + static_cast<int64_t>(static_cast<double>(unitXp) * eased);
             const auto* ubp = BlueprintManager::Get().GetUnit(unitId);
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "%s: %lld PS  (+%lld)", ubp ? ubp->displayName.c_str() : unitId.c_str(),
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "%s: %lld PS  (+%lld)", ubp ? ubp->displayName.c_str() : unitId.c_str(),
                 static_cast<long long>(now), static_cast<long long>(unitXp));
             bool any = false;
             if (m_ResearchTree.IsLoaded()) {
@@ -2905,7 +2906,7 @@ namespace SunEngine {
                         else std::snprintf(overlay, sizeof(overlay), "mancano %lld PS", static_cast<long long>(n.researchCost - now));
                         ImGui::Text("  %s", n.name.c_str());
                         ImGui::SameLine(220.0f);
-                        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, now >= n.researchCost ? ImVec4(0.3f, 0.9f, 0.4f, 1.0f) : ImVec4(0.3f, 0.6f, 1.0f, 1.0f));
+                        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, now >= n.researchCost ? ImVec4(0.50f, 0.74f, 0.44f, 1.0f) : ImVec4(0.36f, 0.80f, 0.74f, 1.0f));
                         ImGui::ProgressBar(frac, ImVec2(-1, 16), overlay);
                         ImGui::PopStyleColor();
                     }
@@ -3306,25 +3307,35 @@ namespace SunEngine {
         if (const auto* h = reg.try_get<HealthComponent>(m_PlayerEntity)) {
             const float frac = std::clamp(h->currentHealth / std::max(1.0f, h->maxHealth), 0.0f, 1.0f);
             const float bh = 24.0f;
-            dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(60, 8, 8, 210), 3.0f);
-            const ImU32 col = frac > 0.4f ? IM_COL32(40, 210, 70, 255) : IM_COL32(230, 40, 35, 255);
-            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w * frac, y + bh), col, 3.0f);
-            dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(0, 0, 0, 200), 3.0f, 0, 1.5f);
+            // Salute: piastra smussata col bordo d'ottone, riempimento verde spento che vira al sangue sotto il 40%
+            const ImVec2 a(x, y), b(x + w, y + bh);
+            Ui::ChamferRect(dl, a, b, 7.0f, IM_COL32(14, 12, 12, 215), 0);
+            if (frac > 0.0f) {
+                const ImU32 top = frac > 0.4f ? IM_COL32(96, 150, 84, 255) : IM_COL32(190, 44, 34, 255);
+                const ImU32 bot = frac > 0.4f ? IM_COL32(52, 88, 48, 255) : IM_COL32(110, 20, 16, 255);
+                dl->PushClipRect(a, ImVec2(x + w * frac, y + bh), true);
+                dl->AddRectFilledMultiColor(ImVec2(x + 1.0f, y + 1.0f), ImVec2(x + w - 1.0f, y + bh - 1.0f), top, top, bot, bot);
+                dl->PopClipRect();
+            }
+            for (int k = 1; k < 4; ++k) dl->AddLine(ImVec2(x + w * 0.25f * k, y + bh - 6.0f), ImVec2(x + w * 0.25f * k, y + bh - 1.0f), IM_COL32(0, 0, 0, 150));   // tacche dei quarti
+            Ui::ChamferRect(dl, a, b, 7.0f, 0, Ui::U32(Ui::Col::Brass, 0.95f), 1.5f);
             char txt[64];
             std::snprintf(txt, sizeof(txt), "%.0f / %.0f", std::max(0.0f, h->currentHealth), h->maxHealth);
-            const ImVec2 ts = ImGui::CalcTextSize(txt);
-            dl->AddText(ImVec2(x + (w - ts.x) * 0.5f + 1.0f, y + (bh - ts.y) * 0.5f + 1.0f), IM_COL32(0, 0, 0, 220), txt);
-            dl->AddText(ImVec2(x + (w - ts.x) * 0.5f, y + (bh - ts.y) * 0.5f), IM_COL32(255, 255, 255, 255), txt);
+            ImFont* hf = Ui::FontStrong();
+            const float hfs = hf->FontSize * 0.86f;
+            const ImVec2 ts = hf->CalcTextSizeA(hfs, FLT_MAX, 0.0f, txt);
+            dl->AddText(hf, hfs, ImVec2(x + (w - ts.x) * 0.5f + 1.0f, y + (bh - ts.y) * 0.5f + 1.0f), IM_COL32(0, 0, 0, 230), txt);
+            dl->AddText(hf, hfs, ImVec2(x + (w - ts.x) * 0.5f, y + (bh - ts.y) * 0.5f), Ui::U32(Ui::Col::Bone), txt);
             y += bh + 5.0f;
         }
         if (const auto* st = reg.try_get<UnitStatsComponent>(m_PlayerEntity)) {
             const float frac = std::clamp(st->stamina / std::max(1.0f, st->maxStamina), 0.0f, 1.0f);
             const float bh = 10.0f;
-            dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(45, 40, 10, 200), 2.0f);
-            // Senza fiato: barra arancione finche' non si torna a poter correre
-            const ImU32 stCol = st->staminaExhausted ? IM_COL32(230, 110, 40, 255) : IM_COL32(235, 200, 50, 255);
-            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w * frac, y + bh), stCol, 2.0f);
-            dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(0, 0, 0, 200), 2.0f, 0, 1.0f);
+            dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + bh), IM_COL32(14, 12, 12, 205));
+            // Senza fiato: barra ambra finche' non si torna a poter correre
+            const ImU32 stCol = st->staminaExhausted ? Ui::U32(Ui::Col::Rust) : Ui::U32(Ui::Col::Gold, 0.95f);
+            if (frac > 0.0f) dl->AddRectFilled(ImVec2(x + 1.0f, y + 1.0f), ImVec2(x + (w - 1.0f) * frac, y + bh - 1.0f), stCol);
+            dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), Ui::U32(Ui::Col::Steel, 0.9f), 0.0f, 0, 1.0f);
             y += bh + 8.0f;
             if (st->staminaExhausted) { dl->AddText(ImVec2(x, y), IM_COL32(230, 130, 60, 255), "Senza fiato"); y += 16.0f; }
             // Rigenerazione passiva della vita (fuori dal combattimento)
@@ -3634,19 +3645,22 @@ namespace SunEngine {
 
         // Testo allineato a destra, con ombra per leggerlo su ogni sfondo
         auto textRight = [&](const std::string& t, float size, ImU32 col) {
-            const ImVec2 sz = font->CalcTextSizeA(size, FLT_MAX, 0.0f, t.c_str());
+            ImFont* f = size > baseSize * 1.5f ? Ui::FontStrong() : font;   // i numeri grandi col carattere pieno
+            const ImVec2 sz = f->CalcTextSizeA(size, FLT_MAX, 0.0f, t.c_str());
             y -= sz.y;
             const ImVec2 p(right - sz.x, y);
-            dl->AddText(font, size, ImVec2(p.x + 2.0f, p.y + 2.0f), IM_COL32(0, 0, 0, 170), t.c_str());
-            dl->AddText(font, size, p, col, t.c_str());
+            dl->AddText(f, size, ImVec2(p.x + 2.0f, p.y + 2.0f), IM_COL32(0, 0, 0, 190), t.c_str());
+            dl->AddText(f, size, p, col, t.c_str());
             y -= 4.0f;
         };
 
         const std::string heldId = inv->GetActiveWeaponId();
         const auto* held = BlueprintManager::Get().GetWeapon(heldId);
         const int rangedIdx = Ammo::HeldRangedIndex(*inv);
-        const ImU32 white = IM_COL32(235, 235, 235, 255), grey = IM_COL32(160, 160, 160, 255);
-        const ImU32 red = IM_COL32(255, 80, 60, 255), yellow = IM_COL32(255, 200, 60, 255);
+        const ImU32 white = Ui::U32(Ui::Col::Bone), grey = Ui::U32(Ui::Col::Ash);
+        const ImU32 red = Ui::U32(Ui::Col::Ember), yellow = Ui::U32(Ui::Col::Gold);
+        // filo d'ottone a destra del blocco delle munizioni
+        dl->AddRectFilled(ImVec2(right + 8.0f, io.DisplaySize.y - 110.0f), ImVec2(right + 10.0f, io.DisplaySize.y - 30.0f), Ui::U32(Ui::Col::Brass, 0.85f));
 
         if (held && held->is_equipment && ammo) {
             const std::string& type = held->equipment_type;
@@ -5688,14 +5702,14 @@ namespace SunEngine {
                     bool isActive = (i == inv.currentSlot);
                     bool hasWeapon = inv.HasSlotItem(i);
 
-                    glm::vec4 boxColor = isActive ? glm::vec4(0.0f, 0.8f, 1.0f, 0.9f) :
-                        hasWeapon ? glm::vec4(0.25f, 0.25f, 0.35f, 0.8f) :
-                        glm::vec4(0.12f, 0.12f, 0.12f, 0.5f);
+                    glm::vec4 boxColor = isActive ? glm::vec4(0.55f, 0.42f, 0.20f, 0.92f) :
+                        hasWeapon ? glm::vec4(0.13f, 0.12f, 0.115f, 0.85f) :
+                        glm::vec4(0.06f, 0.06f, 0.065f, 0.5f);
 
                     Renderer::DrawQuadUI(pos, glm::vec2(slotSize, slotSize), boxColor, screen);
 
                     if (isActive) {
-                        Renderer::DrawQuadUI(pos + glm::vec2(3.0f, 3.0f), glm::vec2(slotSize - 6.0f, 4.0f), glm::vec4(1.0f, 0.9f, 0.0f, 1.0f), screen);
+                        Renderer::DrawQuadUI(pos + glm::vec2(3.0f, 3.0f), glm::vec2(slotSize - 6.0f, 3.0f), glm::vec4(0.95f, 0.77f, 0.36f, 1.0f), screen);
                     }
                 }
             }
@@ -5866,7 +5880,7 @@ namespace SunEngine {
                     // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
                     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 20.0f, 20.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
                     ImGui::Begin("KillCounterOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
-                    ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
+                    ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
                     ImGui::End();
                 }
             }
@@ -5885,26 +5899,35 @@ namespace SunEngine {
             else if (m_IsPaused) {
                 ImGuiIO& io = ImGui::GetIO();
                 ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-                ImGui::SetNextWindowSize(ImVec2(380, 420));
+                ImGui::SetNextWindowSize(ImVec2(380, 470));
 
                 ImGui::Begin("MENU DI PAUSA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-                ImGui::Text("--- SUN ENGINE ---");
-                ImGui::Separator(); ImGui::Spacing();
+                {   // sole in eclissi e nome, centrati
+                    const ImVec2 p = ImGui::GetCursorScreenPos();
+                    const float cw = ImGui::GetContentRegionAvail().x;
+                    Ui::EclipseSigil(ImGui::GetWindowDrawList(), ImVec2(p.x + cw * 0.5f, p.y + 26.0f), 22.0f, Ui::U32(Ui::Col::Gold));
+                    ImGui::Dummy(ImVec2(cw, 54.0f));
+                    ImFont* ft = Ui::FontTitle();
+                    const float tw = ft->CalcTextSizeA(ft->FontSize, FLT_MAX, 0.0f, "SUN ENGINE").x;
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (cw - tw) * 0.5f);
+                    Ui::Title("SUN ENGINE");
+                    Ui::Divider();
+                }
 
-                if (ImGui::Button("Riprendi Gioco", ImVec2(-1, 40))) {
+                if (Ui::PlainButton("Riprendi Gioco", ImVec2(-1, 40))) {
                     m_IsPaused = false;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                 }
 
                 ImGui::Spacing();
 
-                if (ImGui::Button("Opzioni", ImVec2(-1, 40))) {
+                if (Ui::PlainButton("Opzioni", ImVec2(-1, 40))) {
                     m_ShowOptionsMenu = true;
                 }
 
                 ImGui::Spacing();
 
-                bool backToMenu = ImGui::Button("Torna al Menu Principale", ImVec2(-1, 40));
+                bool backToMenu = Ui::PlainButton("Torna al Menu Principale", ImVec2(-1, 40));
                 if (backToMenu && m_VsBotActive) {
                     LeaveVsBotMatch();   // abbandono della partita Vs Bot: nessuna ricompensa
                     backToMenu = false;
@@ -5931,7 +5954,7 @@ namespace SunEngine {
                     if (window) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
                 }
 
-                if (ImGui::Button("Esci dal Gioco", ImVec2(-1, 40))) {
+                if (Ui::PlainButton("Esci dal Gioco", ImVec2(-1, 40))) {
                     // FIX #15: uscita pulita. Application::Run controlla glfwWindowShouldClose, poi
                     // vengono eseguiti i distruttori (ImGui/audio/GL). std::exit(0) li saltava tutti.
                     if (window) glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -5949,15 +5972,16 @@ namespace SunEngine {
             ImGui::SetNextWindowSize(ImVec2(std::min(620.0f, ds.x - 40.0f), 0.0f));
             ImGui::SetNextWindowBgAlpha(0.9f);
             if (ImGui::Begin("##GfxAuto", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::TextColored(ImVec4(0.85f, 0.7f, 0.4f, 1.0f), "QUALITA' GRAFICA");
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "QUALITA' GRAFICA");
                 ImGui::TextWrapped("%s", m_GfxAutoNotice.c_str());
-                if (ImGui::Button("Ok", ImVec2(90, 0))) m_GfxAutoNotice.clear();
+                if (Ui::PlainButton("Ok", ImVec2(90, 0))) m_GfxAutoNotice.clear();
                 ImGui::SameLine();
-                if (ImGui::Button("Apri le opzioni", ImVec2(140, 0))) { m_GfxAutoNotice.clear(); m_ShowOptionsMenu = true; }
+                if (Ui::PlainButton("Apri le opzioni", ImVec2(140, 0))) { m_GfxAutoNotice.clear(); m_ShowOptionsMenu = true; }
             }
             ImGui::End();
         }
         if (m_ShowPerf) RenderPerfOverlay();
+        Ui::DecorateWindows();   // angolari d'ottone e testate su tutte le finestre
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
@@ -5970,11 +5994,11 @@ namespace SunEngine {
                                     ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoInputs;
         if (ImGui::Begin("##Perf", nullptr, fl)) {
             const float fps = m_PerfFrameMs > 0.01f ? 1000.0f / m_PerfFrameMs : 0.0f;
-            const ImVec4 col = fps >= 55.0f ? ImVec4(0.55f, 0.85f, 0.45f, 1.0f) : (fps >= 30.0f ? ImVec4(0.95f, 0.8f, 0.35f, 1.0f) : ImVec4(0.95f, 0.4f, 0.3f, 1.0f));
+            const ImVec4 col = fps >= 55.0f ? ImVec4(0.50f, 0.74f, 0.44f, 1.0f) : (fps >= 30.0f ? ImVec4(0.95f, 0.77f, 0.36f, 1.0f) : ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
             ImGui::TextColored(col, "%.0f FPS  (%.1f ms)", fps, m_PerfFrameMs);
 #ifndef NDEBUG
-            ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1.0f), "VERSIONE DEBUG: molto piu' lenta.");
-            ImGui::TextColored(ImVec4(0.95f, 0.4f, 0.3f, 1.0f), "Compila in x64-Release per giocare.");
+            ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "VERSIONE DEBUG: molto piu' lenta.");
+            ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "Compila in x64-Release per giocare.");
 #endif
             const RenderQuality& q = m_DeferredRenderer.GetQuality();
             ImGui::TextDisabled("%dx%d interna (%.0f%%)%s", m_DeferredRenderer.GetRenderWidth(), m_DeferredRenderer.GetRenderHeight(),
@@ -6002,60 +6026,80 @@ namespace SunEngine {
         ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, 60));
-        ImGui::Begin("TopBar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::Begin("TopBar", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::PopStyleVar(2);
 
-        ImGui::SetCursorPos(ImVec2(20, 15));
-        ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "PROJECT TRAZYN");
+        // Fascia: ferro scuro che sfuma, filo d'ottone sotto, sole in eclissi accanto al nome
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 barA(0.0f, 0.0f), barB(io.DisplaySize.x, 60.0f);
+        dl->AddRectFilledMultiColor(barA, barB, IM_COL32(26, 23, 20, 255), IM_COL32(26, 23, 20, 255), IM_COL32(10, 10, 12, 255), IM_COL32(10, 10, 12, 255));
+        dl->AddRectFilled(ImVec2(0.0f, 58.0f), barB, Ui::U32(Ui::Col::Brass, 0.9f));
+        dl->AddRectFilled(ImVec2(0.0f, 55.0f), ImVec2(io.DisplaySize.x, 56.0f), Ui::U32(Ui::Col::Brass, 0.25f));
+        Ui::EclipseSigil(dl, ImVec2(34.0f, 29.0f), 19.0f, Ui::U32(Ui::Col::Gold));
+        {
+            ImFont* ft = Ui::FontTitle(); ImFont* fs = Ui::FontSmall();
+            dl->AddText(ft, ft->FontSize * 0.80f, ImVec2(64.0f, 8.0f), Ui::U32(Ui::Col::Bone), "PROJECT TRAZYN");
+            dl->AddText(fs, fs->FontSize, ImVec2(66.0f, 35.0f), Ui::U32(Ui::Col::Ash), "S U N   E N G I N E");
+        }
 
-        ImGui::SetCursorPos(ImVec2(std::max(190.0f, io.DisplaySize.x * 0.5f - 345.0f), 10));
-
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
-
-        // Pulsante di navigazione: evidenziato se attivo. Ritorna true al click.
-        auto navButton = [&](const char* label, float width, bool active, const ImVec4& activeColor) {
-            ImGui::PushStyleColor(ImGuiCol_Button, active ? activeColor : ImVec4(0.1f, 0.1f, 0.15f, 1.0f));
-            bool clicked = ImGui::Button(label, ImVec2(width, 40));
-            ImGui::PopStyleColor();
-            ImGui::SameLine();
-            return clicked;
-        };
-        const ImVec4 activeBlue(0.2f, 0.5f, 0.8f, 1.0f);
         const bool inMenu = (m_GameState == GameState::MainMenu);
+        // Schede di navigazione, centrate
+        struct Nav { const char* label; bool active; ImVec4 accent; };
+        const Nav navs[] = {
+            { "GARAGE", inMenu && m_CurrentTab == MenuTab::StasisVault, Ui::Col::Gold },
+            { "SCHIERAMENTO", inMenu && m_CurrentTab == MenuTab::Deployment, Ui::Col::Gold },
+            { "RICERCA", inMenu && m_CurrentTab == MenuTab::Research, Ui::Col::Gold },
+            { "NEGOZIO", inMenu && m_CurrentTab == MenuTab::Shop, Ui::Col::Amethyst },
+            { "VETRINA", inMenu && m_CurrentTab == MenuTab::Showcase, Ui::Col::Gold },
+            { "EDITOR", m_GameState == GameState::MapEditor, Ui::Col::Rust },
+            { "OPZIONI", false, Ui::Col::Phosphor },
+        };
+        float navW[7], totalNav = 0.0f;
+        {
+            ImFont* fh = Ui::FontHeading();
+            for (int i = 0; i < 7; ++i) { navW[i] = fh->CalcTextSizeA(fh->FontSize * 0.92f, FLT_MAX, 0.0f, navs[i].label).x + 34.0f; totalNav += navW[i]; }
+        }
+        ImGui::SetCursorPos(ImVec2(std::max(300.0f, io.DisplaySize.x * 0.5f - totalNav * 0.5f), 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
+        int clickedNav = -1;
+        for (int i = 0; i < 7; ++i) {
+            if (Ui::NavTab(navs[i].label, navW[i], 58.0f, navs[i].active, navs[i].accent)) clickedNav = i;
+            if (i < 6) ImGui::SameLine();
+        }
+        ImGui::PopStyleVar();
 
-        if (navButton("GARAGE", 120, inMenu && m_CurrentTab == MenuTab::StasisVault, activeBlue)) {
+        if (clickedNav == 0) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::StasisVault;
             if (!m_PlayerRoster.empty() && m_SelectedVaultIndex < static_cast<int>(m_PlayerRoster.size())) {
                 ApplyUnitVisuals(m_PlayerRoster[m_SelectedVaultIndex]);
             }
         }
-
-        if (navButton("SCHIERAMENTO", 150, inMenu && m_CurrentTab == MenuTab::Deployment, activeBlue)) {
+        else if (clickedNav == 1) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Deployment;
             if (!m_SelectedSquadIndices.empty() && m_SelectedSquadIndices[0] < static_cast<int>(m_PlayerRoster.size())) {
                 ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
             }
         }
-
-        if (navButton("RICERCA", 100, inMenu && m_CurrentTab == MenuTab::Research, activeBlue)) {
+        else if (clickedNav == 2) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Research;
         }
-
-        if (navButton("NEGOZIO", 100, inMenu && m_CurrentTab == MenuTab::Shop, ImVec4(0.55f, 0.30f, 0.80f, 1.0f))) {
+        else if (clickedNav == 3) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Shop;
         }
-
-        if (navButton("VETRINA", 100, inMenu && m_CurrentTab == MenuTab::Showcase, ImVec4(0.75f, 0.55f, 0.15f, 1.0f))) {
+        else if (clickedNav == 4) {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Showcase;
             m_ShowcaseFocusUnit.clear();
             m_ShowcaseFromResearch = false;
         }
-
-        if (navButton("EDITOR", 90, m_GameState == GameState::MapEditor, ImVec4(0.8f, 0.4f, 0.0f, 1.0f))) {
+        else if (clickedNav == 5) {
             m_GameState = GameState::MapEditor;
             if (m_EditorMap.structures.empty()) {
                 m_EditorMap.playerSpawns.push_back(glm::vec3(0.0f, 0.5f, 10.0f));
@@ -6063,25 +6107,24 @@ namespace SunEngine {
             }
             SyncEditorEntitiesWithScene();
         }
-
-        if (navButton("OPZIONI", 90, false, activeBlue)) {
+        else if (clickedNav == 6) {
             m_ShowOptionsMenu = true;
         }
 
         // Valute del profilo, allineate a destra
         {
-            char energyBuf[48], stoneBuf[48];
-            std::snprintf(energyBuf, sizeof(energyBuf), "ENERGIA: %lld", static_cast<long long>(m_Profile.energy));
-            std::snprintf(stoneBuf, sizeof(stoneBuf), "PIETRA NERA: %lld", static_cast<long long>(m_Profile.blackStone));
-            const float spacing = 24.0f;
-            const float totalW = ImGui::CalcTextSize(energyBuf).x + ImGui::CalcTextSize(stoneBuf).x + spacing;
-            ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - totalW - 20.0f, 19.0f));
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "%s", energyBuf);
-            ImGui::SameLine(0.0f, spacing);
-            ImGui::TextColored(ImVec4(0.7f, 0.4f, 1.0f, 1.0f), "%s", stoneBuf);
+            ImFont* fs = Ui::FontSmall(); ImFont* fv = Ui::FontStrong();
+            char eb[32], sb[32];
+            std::snprintf(eb, sizeof(eb), "%lld", static_cast<long long>(m_Profile.energy));
+            std::snprintf(sb, sizeof(sb), "%lld", static_cast<long long>(m_Profile.blackStone));
+            const float wE = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "ENERGIA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, eb).x;
+            const float wS = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "PIETRA NERA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, sb).x;
+            ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - wE - wS - 48.0f, 18.0f));
+            Ui::Currency("ENERGIA", static_cast<long long>(m_Profile.energy), Ui::Col::Gold);
+            ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - wS - 22.0f, 18.0f));
+            Ui::Currency("PIETRA NERA", static_cast<long long>(m_Profile.blackStone), Ui::Col::Amethyst);
         }
 
-        ImGui::PopStyleVar();
         ImGui::End();
     }
 
@@ -6175,13 +6218,18 @@ namespace SunEngine {
 
     void GameLayer::RenderResearchUI() {
         ImGuiIO& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(20.0f, 70.0f));
-        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x - 40.0f, io.DisplaySize.y - 90.0f));
-        ImGui::SetNextWindowBgAlpha(1.0f);
-        ImGui::Begin("RICERCA", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 60.0f));
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y - 60.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(26.0f, 16.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::Begin("##RICERCA", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::PopStyleVar(2);
+        Ui::Backdrop(ImGui::GetWindowDrawList(), ImVec2(0.0f, 60.0f), io.DisplaySize);
 
         if (!m_ResearchTree.IsLoaded()) {
-            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Albero di ricerca non caricato.");
+            Ui::Title("ARCHIVIO DI RICERCA");
+            ImGui::TextColored(Ui::Col::Ember, "Albero di ricerca non caricato.");
             ImGui::TextDisabled("Manca GameData/Research/research_tree.json (controlla anche la copia nella cartella di build).");
             ImGui::End();
             return;
@@ -6189,34 +6237,53 @@ namespace SunEngine {
 
         if (m_ResearchMessageTimer > 0.0f) m_ResearchMessageTimer -= io.DeltaTime;
 
-        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "ENERGIA: %lld", static_cast<long long>(m_Profile.energy));
-        ImGui::SameLine(0.0f, 24.0f);
-        ImGui::TextDisabled("I punti studio si guadagnano giocando con un'unita' e si spendono per sbloccare le unita' successive.");
-        ImGui::Spacing();
-
-        if (ImGui::BeginTabBar("##ResearchFactions")) {
-            for (const auto& faction : m_ResearchTree.GetFactions()) {
-                if (ImGui::BeginTabItem(faction.name.c_str())) {
-                    DrawResearchFactionTree(faction);
-                    ImGui::EndTabItem();
-                }
+        // Testata: titolo a sinistra, come funziona a destra
+        Ui::Title("ARCHIVIO DI RICERCA");
+        {
+            const char* hint = "I punti studio si guadagnano giocando un'unita' e aprono le sue ricerche e le unita' che seguono.";
+            ImFont* fs = Ui::FontSmall();
+            const float w = fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, hint).x;
+            if (io.DisplaySize.x > w + 520.0f) {
+                ImGui::SameLine(ImGui::GetWindowWidth() - w - 26.0f);
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 12.0f);
+                Ui::TextIn(fs, Ui::Col::Ash, hint);
             }
-            ImGui::EndTabBar();
         }
+
+        // Fazioni: schede col colore della fazione
+        const auto& factions = m_ResearchTree.GetFactions();
+        static std::string s_Faction;
+        const ResearchFaction* current = nullptr;
+        for (const auto& f : factions) if (f.id == s_Faction) current = &f;
+        if (!current && !factions.empty()) { current = &factions.front(); s_Faction = current->id; }
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4.0f, 0.0f));
+        for (const auto& f : factions) {
+            std::string label = f.name;
+            for (auto& ch : label) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            label += "##fac_" + f.id;
+            if (Ui::NavTab(label.c_str(), 0.0f, 38.0f, current == &f, ImVec4(f.accent[0], f.accent[1], f.accent[2], 1.0f))) { s_Faction = f.id; current = &f; }
+            ImGui::SameLine();
+        }
+        ImGui::PopStyleVar();
+        ImGui::NewLine();
+        {   // filo sotto le schede
+            const ImVec2 p = ImGui::GetCursorScreenPos();
+            ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(p.x, p.y - 5.0f), ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y - 4.0f), Ui::U32(Ui::Col::Brass, 0.45f));
+        }
+        if (current) DrawResearchFactionTree(*current);
         ImGui::End();
     }
 
     void GameLayer::DrawResearchFactionTree(const ResearchFaction& faction) {
         ImGuiIO& io = ImGui::GetIO();
-        const float nodeW = 210.0f, nodeH = 88.0f, gapX = 90.0f, gapY = 26.0f, pad = 24.0f;
+        const float nodeW = 240.0f, nodeH = 92.0f, gapX = 84.0f, gapY = 30.0f, pad = 30.0f;
+        const ImVec4 accent(faction.accent[0], faction.accent[1], faction.accent[2], 1.0f);
 
         // Nell'albero solo i personaggi; gli oggetti di ciascuno si vedono selezionandolo (pannello sotto)
         float maxCol = 0.0f, maxRow = 0.0f;
         for (const auto& n : faction.nodes) { if (n.unitId.empty()) continue; maxCol = std::max(maxCol, n.col); maxRow = std::max(maxRow, n.row); }
         const float totalW = pad * 2.0f + (maxCol + 1.0f) * nodeW + maxCol * gapX;
         const float totalH = pad * 2.0f + (maxRow + 1.0f) * nodeH + maxRow * gapY;
-
-        auto col32 = [](float r, float g, float b, float a = 1.0f) { return ImGui::GetColorU32(ImVec4(r, g, b, a)); };
 
         // Selezione valida solo se appartiene a questa fazione
         const ResearchNode* selected = nullptr;
@@ -6228,59 +6295,44 @@ namespace SunEngine {
 
         // Ricerche che si pagano coi punti studio di un personaggio (oggetti e personaggi successivi)
         auto researchesOf = [&](const ResearchNode& unitNode) { return m_ResearchTree.ResearchesOf(unitNode); };
-        // Maestria: tutte le ricerche legate al personaggio completate (stellina dorata)
+        // Maestria: tutte le ricerche legate al personaggio completate (sole in eclissi dorato)
         auto isMastered = [&](const ResearchNode& unitNode) { return m_ResearchTree.IsMastered(m_Profile, unitNode); };
-        auto drawStar = [](ImDrawList* d, ImVec2 c, float r, ImU32 fill, ImU32 edge) {
-            ImVec2 pts[10];
-            for (int i = 0; i < 10; ++i) {
-                const float ang = -1.5707963f + i * 0.6283185f;
-                const float rr = (i % 2) ? r * 0.45f : r;
-                pts[i] = ImVec2(c.x + std::cos(ang) * rr, c.y + std::sin(ang) * rr);
-            }
-            for (int i = 0; i < 10; ++i) d->AddTriangleFilled(c, pts[i], pts[(i + 1) % 10], fill);
-            for (int i = 0; i < 10; ++i) d->AddLine(pts[i], pts[(i + 1) % 10], edge, 1.2f);
-        };
 
         // ---------- Albero (da sinistra a destra) ----------
-        ImGui::BeginChild(("##tree_" + faction.id).c_str(), ImVec2(0, io.DisplaySize.y * 0.48f), true,
-            ImGuiWindowFlags_HorizontalScrollbar);
+        const float treeH = std::max(220.0f, (io.DisplaySize.y - 60.0f) * 0.50f);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.35f));
+        ImGui::BeginChild(("##tree_" + faction.id).c_str(), ImVec2(0, treeH), true, ImGuiWindowFlags_HorizontalScrollbar);
         ImDrawList* dl = ImGui::GetWindowDrawList();
+        // si puo' trascinare l'albero col tasto destro o centrale
+        if (ImGui::IsWindowHovered() && (ImGui::IsMouseDragging(ImGuiMouseButton_Right, 2.0f) || ImGui::IsMouseDragging(ImGuiMouseButton_Middle, 2.0f))) {
+            ImGui::SetScrollX(ImGui::GetScrollX() - io.MouseDelta.x);
+            ImGui::SetScrollY(ImGui::GetScrollY() - io.MouseDelta.y);
+        }
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         auto nodePos = [&](const ResearchNode& n) {
-            return ImVec2(origin.x + pad + n.col * (nodeW + gapX), origin.y + pad + n.row * (nodeH + gapY));
+            return ImVec2(std::floor(origin.x + pad + n.col * (nodeW + gapX)), std::floor(origin.y + pad + n.row * (nodeH + gapY)));
         };
 
-        // Connettori padre -> figlio (linee a gomito)
+        // Rami padre -> figlio (a gomito), anche dai padri alternativi (ne basta uno)
         for (const auto& n : faction.nodes) {
             if (n.unitId.empty()) continue;   // oggetti: non nell'albero
-            const ResearchNode* parent = m_ResearchTree.FindParent(n);
-            if (!parent) continue;
-            const ImVec2 pp = nodePos(*parent), cp = nodePos(n);
-            const ImVec2 a(pp.x + nodeW, pp.y + nodeH * 0.5f), b(cp.x, cp.y + nodeH * 0.5f);
-            const float midX = (a.x + b.x) * 0.5f;
             const bool unlocked = m_ResearchTree.IsResearched(m_Profile, n);
-            const ImU32 lc = unlocked ? col32(faction.accent[0], faction.accent[1], faction.accent[2]) : col32(0.35f, 0.35f, 0.40f);
-            dl->AddLine(a, ImVec2(midX, a.y), lc, 2.0f);
-            dl->AddLine(ImVec2(midX, a.y), ImVec2(midX, b.y), lc, 2.0f);
-            dl->AddLine(ImVec2(midX, b.y), b, lc, 2.0f);
-        }
-        // Padri alternativi (ne basta uno): stesso connettore a gomito anche dagli altri padri
-        for (const auto& n : faction.nodes) {
-            if (n.unitId.empty() || n.anyParents.empty()) continue;
-            for (const ResearchNode* par : m_ResearchTree.Parents(n)) {
-                if (par->id == n.parentId) continue;   // il primo e' gia' disegnato sopra
-                const ImVec2 pp = nodePos(*par), cp = nodePos(n);
-                const ImVec2 a(pp.x + nodeW, pp.y + nodeH * 0.5f), b(cp.x, cp.y + nodeH * 0.5f);
-                const float midX = (a.x + b.x) * 0.5f;
-                const bool unlocked = m_ResearchTree.IsResearched(m_Profile, n);
-                const ImU32 lc = unlocked ? col32(faction.accent[0], faction.accent[1], faction.accent[2]) : col32(0.35f, 0.35f, 0.40f);
-                dl->AddLine(a, ImVec2(midX, a.y), lc, 2.0f);
-                dl->AddLine(ImVec2(midX, a.y), ImVec2(midX, b.y), lc, 2.0f);
-                dl->AddLine(ImVec2(midX, b.y), b, lc, 2.0f);
+            const ImVec2 cp = nodePos(n);
+            const ImVec2 b(cp.x, cp.y + nodeH * 0.5f);
+            if (const ResearchNode* parent = m_ResearchTree.FindParent(n)) {
+                const ImVec2 pp = nodePos(*parent);
+                Ui::DrawBranch(dl, ImVec2(pp.x + nodeW, pp.y + nodeH * 0.5f), b, unlocked, accent);
+            }
+            if (!n.anyParents.empty()) {
+                for (const ResearchNode* par : m_ResearchTree.Parents(n)) {
+                    if (par->id == n.parentId) continue;   // il primo e' gia' disegnato sopra
+                    const ImVec2 pp = nodePos(*par);
+                    Ui::DrawBranch(dl, ImVec2(pp.x + nodeW, pp.y + nodeH * 0.5f), b, unlocked, accent);
+                }
             }
         }
-        // Rami che si riuniscono: dall'unita' da padroneggiare scende (o sale) una linea dorata fino alla riga del
-        // nodo e poi entra da sinistra. Dorata piena = stellina ottenuta.
+        // Rami che si riuniscono: dall'unita' da padroneggiare scende (o sale) un tratteggio fino alla riga del
+        // nodo e poi entra da sinistra. Oro pieno = maestria ottenuta.
         for (const auto& n : faction.nodes) {
             if (n.unitId.empty()) continue;
             for (const auto& reqId : n.requiresMastered) {
@@ -6289,12 +6341,7 @@ namespace SunEngine {
                 if (!req) continue;
                 const ImVec2 rp = nodePos(*req), cp = nodePos(n);
                 const bool down = cp.y > rp.y;
-                const ImVec2 a(rp.x + nodeW * 0.5f, down ? rp.y + nodeH : rp.y);
-                const ImVec2 b(cp.x, cp.y + nodeH * 0.5f);
-                const ImU32 lc = isMastered(*req) ? col32(1.0f, 0.82f, 0.15f) : col32(0.55f, 0.45f, 0.20f);
-                dl->AddLine(a, ImVec2(a.x, b.y), lc, 2.0f);
-                dl->AddLine(ImVec2(a.x, b.y), b, lc, 2.0f);
-                drawStar(dl, ImVec2(a.x, (a.y + b.y) * 0.5f), 7.0f, lc, col32(0.3f, 0.2f, 0.0f));
+                Ui::DrawMasteryBranch(dl, ImVec2(rp.x + nodeW * 0.5f, down ? rp.y + nodeH : rp.y), ImVec2(cp.x, cp.y + nodeH * 0.5f), isMastered(*req));
             }
         }
 
@@ -6302,68 +6349,56 @@ namespace SunEngine {
         for (const auto& n : faction.nodes) {
             if (n.unitId.empty()) continue;
             const ImVec2 p = nodePos(n);
-            const ImVec2 p2(p.x + nodeW, p.y + nodeH);
             const ResearchStatus st = m_ResearchTree.GetStatus(m_Profile, n);
-            const bool isItem = !n.itemId.empty();
-            const bool hasBp = isItem ? (BlueprintManager::Get().GetWeapon(n.itemId) != nullptr || BlueprintManager::Get().GetArmorPiece(n.itemId) != nullptr)
-                                      : BlueprintManager::Get().GetUnit(n.unitId) != nullptr;
+            const bool hasBp = BlueprintManager::Get().GetUnit(n.unitId) != nullptr;
             int owned = 0;
-            for (const auto& u : m_PlayerRoster) owned += isItem ? (u.OwnsItem(n.itemId) ? 1 : 0) : (u.blueprintId == n.unitId ? 1 : 0);
-
-            ImVec4 border(0.40f, 0.40f, 0.45f, 1.0f);                       // bloccato
-            if (st == ResearchStatus::Researched) border = ImVec4(0.30f, 0.85f, 0.40f, 1.0f);
-            else if (st == ResearchStatus::Researchable) border = ImVec4(1.0f, 0.80f, 0.20f, 1.0f);
+            for (const auto& u : m_PlayerRoster) owned += (u.blueprintId == n.unitId ? 1 : 0);
 
             ImGui::SetCursorScreenPos(p);
             ImGui::InvisibleButton(("##node_" + n.id).c_str(), ImVec2(nodeW, nodeH));
             const bool hovered = ImGui::IsItemHovered();
             if (ImGui::IsItemClicked()) m_ResearchSelectedNode = n.id;
-            const bool isSel = (selectedUnit && selectedUnit->id == n.id);
 
-            dl->AddRectFilled(p, p2, col32(0.10f, 0.11f, 0.14f), 6.0f);
-            dl->AddRectFilled(p, ImVec2(p.x + 7.0f, p2.y), col32(n.color[0], n.color[1], n.color[2]), 6.0f);   // banda colore unita'
-            dl->AddRect(p, p2, ImGui::GetColorU32(border), 6.0f, 0, isSel ? 3.0f : (hovered ? 2.5f : 1.5f));
+            const long long ps = static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId));
+            char info[96];
+            int itemsTotal = 0, itemsDone = 0;
+            for (const auto* r : researchesOf(n)) if (!r->itemId.empty()) { ++itemsTotal; itemsDone += m_ResearchTree.IsResearched(m_Profile, *r) ? 1 : 0; }
+            if (itemsTotal > 0) std::snprintf(info, sizeof(info), "PUNTI STUDIO %lld   -   OGGETTI %d/%d", ps, itemsDone, itemsTotal);
+            else std::snprintf(info, sizeof(info), "PUNTI STUDIO %lld", ps);
+            char status[96];
+            if (!hasBp && st == ResearchStatus::Researched) std::snprintf(status, sizeof(status), "IN ARRIVO (sbloccata)");
+            else if (!hasBp && st == ResearchStatus::Researchable) std::snprintf(status, sizeof(status), "IN ARRIVO - %lld PS", static_cast<long long>(n.researchCost));
+            else if (st == ResearchStatus::LockedMastery) std::snprintf(status, sizeof(status), "SERVE LA MAESTRIA");
+            else if (!hasBp && st == ResearchStatus::LockedPoints) std::snprintf(status, sizeof(status), "IN ARRIVO - servono %lld PS", static_cast<long long>(n.researchCost));
+            else if (!hasBp) std::snprintf(status, sizeof(status), "IN ARRIVO");
+            else if (st == ResearchStatus::Researched) std::snprintf(status, sizeof(status), "SBLOCCATA - in garage %d", owned);
+            else if (st == ResearchStatus::Researchable) std::snprintf(status, sizeof(status), "RICERCA - %lld PS", static_cast<long long>(n.researchCost));
+            else if (st == ResearchStatus::LockedPoints) std::snprintf(status, sizeof(status), "SERVONO %lld PS", static_cast<long long>(n.researchCost));
+            else std::snprintf(status, sizeof(status), "BLOCCATA");
 
-            dl->PushClipRect(p, p2, true);
-            const float tx = p.x + 16.0f;
-            dl->AddText(ImVec2(tx, p.y + 8.0f), col32(0.95f, 0.95f, 0.95f), n.name.c_str());
-            char line2[96];
-            if (isItem) {
-                const ResearchNode* src = m_ResearchTree.FindStudySource(n);
-                std::snprintf(line2, sizeof(line2), "OGGETTO   PS %s: %lld", src ? src->name.c_str() : "-",
-                    static_cast<long long>(src ? ResearchTree::GetStudyPoints(m_Profile, src->unitId) : 0));
+            Ui::NodeCard card;
+            card.name = n.name.c_str(); card.status = status; card.info = info; card.tier = n.tier;
+            card.unitColor = ImVec4(n.color[0], n.color[1], n.color[2], 1.0f);
+            card.state = st == ResearchStatus::Researched ? Ui::NodeState::Done : (st == ResearchStatus::Researchable ? Ui::NodeState::Available : Ui::NodeState::Locked);
+            card.selected = (selectedUnit && selectedUnit->id == n.id);
+            card.hovered = hovered;
+            card.mastered = isMastered(n);
+            card.missing = !hasBp;
+            // barra: quanto manca al costo, coi punti studio di chi paga la ricerca
+            if (st != ResearchStatus::Researched && n.researchCost > 0) {
+                if (const ResearchNode* payer = m_ResearchTree.PaySource(m_Profile, n))
+                    card.progress = static_cast<float>(ResearchTree::GetStudyPoints(m_Profile, payer->unitId)) / static_cast<float>(n.researchCost);
             }
-            else {
-                int itemsTotal = 0, itemsDone = 0;
-                for (const auto* r : researchesOf(n)) if (!r->itemId.empty()) { ++itemsTotal; itemsDone += m_ResearchTree.IsResearched(m_Profile, *r) ? 1 : 0; }
-                if (itemsTotal > 0)
-                    std::snprintf(line2, sizeof(line2), "T%d   PS: %lld   oggetti %d/%d", n.tier, static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)), itemsDone, itemsTotal);
-                else std::snprintf(line2, sizeof(line2), "T%d   PS: %lld", n.tier, static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
-            }
-            dl->AddText(ImVec2(tx, p.y + 30.0f), col32(0.65f, 0.80f, 1.0f), line2);
-            char line3[96];
-            if (!hasBp && isItem) std::snprintf(line3, sizeof(line3), "BLUEPRINT MANCANTE");
-            else if (!hasBp && st == ResearchStatus::Researched) std::snprintf(line3, sizeof(line3), "IN ARRIVO   (sbloccata)");
-            else if (!hasBp && st == ResearchStatus::Researchable) std::snprintf(line3, sizeof(line3), "IN ARRIVO   ricerca: %lld PS", static_cast<long long>(n.researchCost));
-            else if (st == ResearchStatus::LockedMastery) std::snprintf(line3, sizeof(line3), "SERVE MAESTRIA");
-            else if (!hasBp && st == ResearchStatus::LockedPoints) std::snprintf(line3, sizeof(line3), "IN ARRIVO   servono %lld PS", static_cast<long long>(n.researchCost));
-            else if (!hasBp) std::snprintf(line3, sizeof(line3), "IN ARRIVO");
-            else if (st == ResearchStatus::Researched && isItem) std::snprintf(line3, sizeof(line3), "SBLOCCATO   comprato da: %d", owned);
-            else if (st == ResearchStatus::Researched) std::snprintf(line3, sizeof(line3), "SBLOCCATA   in garage: %d", owned);
-            else if (st == ResearchStatus::Researchable) std::snprintf(line3, sizeof(line3), "RICERCA: %lld PS", static_cast<long long>(n.researchCost));
-            else if (st == ResearchStatus::LockedPoints) std::snprintf(line3, sizeof(line3), "servono %lld PS", static_cast<long long>(n.researchCost));
-            else std::snprintf(line3, sizeof(line3), "BLOCCATA");
-            dl->AddText(ImVec2(tx, p.y + 54.0f), ImGui::GetColorU32(border), line3);
-            dl->PopClipRect();
-            // Stellina dorata: maestria completa del personaggio
-            if (!isItem && isMastered(n)) drawStar(dl, ImVec2(p2.x - 16.0f, p.y + 16.0f), 11.0f, col32(1.0f, 0.82f, 0.15f), col32(0.55f, 0.38f, 0.0f));
+            Ui::DrawNodeCard(dl, p, ImVec2(nodeW, nodeH), card);
         }
 
         ImGui::SetCursorScreenPos(origin);
         ImGui::Dummy(ImVec2(totalW, totalH));   // estende l'area scorrevole fino ai nodi piu' lontani
         ImGui::EndChild();
+        ImGui::PopStyleColor();
 
         // ---------- Dettaglio del nodo selezionato ----------
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.043f, 0.042f, 0.92f));
         ImGui::BeginChild(("##detail_" + faction.id).c_str(), ImVec2(0, 0), true);
         if (selected) {
             const ResearchNode& n = *selected;
@@ -6373,122 +6408,185 @@ namespace SunEngine {
             const auto* itemBp = BlueprintManager::Get().GetWeapon(n.itemId);
             const bool isItem = !n.itemId.empty();
             const ResearchNode* studySource = m_ResearchTree.FindStudySource(n);
+            auto tile = [](const char* label, float width, const char* fmt, ...) {
+                char buf[64]; va_list args; va_start(args, fmt); std::vsnprintf(buf, sizeof(buf), fmt, args); va_end(args);
+                Ui::StatTile(label, buf, width); ImGui::SameLine(0.0f, 6.0f);
+            };
 
+            // Testata: nome, grado, stato
             if (isItem && studySource) {
-                if (ImGui::SmallButton(("< " + studySource->name).c_str())) m_ResearchSelectedNode = studySource->id;
+                if (Ui::Button(("< " + studySource->name + "##back").c_str(), ImVec2(0.0f, 26.0f), Ui::Btn::Ghost)) m_ResearchSelectedNode = studySource->id;
                 ImGui::SameLine();
             }
-            ImGui::TextColored(ImVec4(faction.accent[0], faction.accent[1], faction.accent[2], 1.0f), "%s   (Tier %d)", n.name.c_str(), n.tier);
-            ImGui::SameLine(0.0f, 20.0f);
-            ImGui::TextDisabled("%s", isItem ? n.itemId.c_str() : n.unitId.c_str());
-            if (!isItem && isMastered(n)) {
-                ImGui::SameLine(0.0f, 20.0f);
-                ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.15f, 1.0f), "MAESTRIA COMPLETA");
+            {
+                std::string upper = n.name;
+                for (auto& ch : upper) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                const float titleY = ImGui::GetCursorPosY();
+                Ui::Title(upper.c_str(), accent);
+                // targhette sulla stessa riga del titolo, a meta' altezza
+                auto chip = [&](const char* text, const ImVec4& col) { ImGui::SameLine(0.0f, 10.0f); ImGui::SetCursorPosY(titleY + 8.0f); Ui::Chip(text, col); };
+                char tierBuf[32]; std::snprintf(tierBuf, sizeof(tierBuf), "GRADO %s", Ui::Roman(n.tier));
+                chip(tierBuf, Ui::Col::Brass);
+                if (st == ResearchStatus::Researched) chip(isItem ? "RICERCATO" : "SBLOCCATA", Ui::Col::Verdigris);
+                else if (st == ResearchStatus::Researchable) chip("RICERCA DISPONIBILE", Ui::Col::Gold);
+                else chip("BLOCCATA", Ui::Col::Ash);
+                if (!isItem && isMastered(n)) chip("MAESTRIA COMPLETA", Ui::Col::Gold);
+                ImGui::SameLine(0.0f, 14.0f);
+                ImGui::SetCursorPosY(titleY + 11.0f);
+                Ui::TextIn(Ui::FontSmall(), Ui::Col::Ash, isItem ? n.itemId.c_str() : n.unitId.c_str());
+                ImGui::SetCursorPosY(titleY + Ui::FontTitle()->FontSize + 6.0f);
             }
-            ImGui::Separator();
+            Ui::Divider();
 
-            ImGui::Columns(2, "##detailcols", false);
+            const float actionW = 380.0f;
+            const float leftW = std::max(300.0f, ImGui::GetContentRegionAvail().x - actionW - 20.0f);
+            ImGui::BeginGroup();   // ----- sinistra: scheda -----
             const auto* armorBp = BlueprintManager::Get().GetArmorPiece(n.itemId);
             if (isItem && armorBp) {
-                ImGui::Text("Armatura | AR: %d | Durabilita': %.0f | Copertura: %.0f%% | Peso: %.1f kg", armorBp->armorRating,
-                    armorBp->maxDurability, armorBp->coverage * 100.0f, armorBp->weight);
-                if (armorBp->blocks_headshot_bonus) ImGui::TextWrapped("Finche' regge annulla il bonus del colpo in testa.");
+                tile("ARMATURA", 100.0f, "%d", armorBp->armorRating);
+                tile("DURABILITA'", 110.0f, "%.0f", armorBp->maxDurability);
+                tile("COPERTURA", 110.0f, "%.0f%%", armorBp->coverage * 100.0f);
+                tile("PESO", 100.0f, "%.1f kg", armorBp->weight);
+                ImGui::NewLine();
+                if (armorBp->blocks_headshot_bonus) ImGui::TextColored(Ui::Col::Ash, "Finche' regge annulla il bonus del colpo in testa.");
             }
             else if (isItem) {
                 if (itemBp) {
-                    if (itemBp->is_equipment) ImGui::Text("Dotazione tattica | Usi: %d | Peso: %.1f kg", itemBp->equipment_uses, itemBp->weight_kg);
-                    else if (itemBp->is_melee) ImGui::Text("Arma da mischia | Danno: %.0f | Peso: %.1f kg", itemBp->base_damage, itemBp->weight_kg);
-                    else ImGui::Text("Arma da fuoco | Danno: %.0f x%d | Colpi: %d + %d caricatori | Ricarica: %.1f s", itemBp->base_damage,
-                        std::max(1, itemBp->pellet_count), itemBp->magazine_size, itemBp->spare_magazines, itemBp->reload_time_sec);
+                    if (itemBp->is_equipment) {
+                        tile("DOTAZIONE", 130.0f, "%d usi", itemBp->equipment_uses);
+                        tile("PESO", 100.0f, "%.1f kg", itemBp->weight_kg);
+                    }
+                    else if (itemBp->is_melee) {
+                        tile("DANNO IN MISCHIA", 150.0f, "%.0f", itemBp->base_damage);
+                        tile("PESO", 100.0f, "%.1f kg", itemBp->weight_kg);
+                    }
+                    else {
+                        if (itemBp->pellet_count > 1) tile("DANNO", 110.0f, "%.0f x%d", itemBp->base_damage, itemBp->pellet_count);
+                        else tile("DANNO", 100.0f, "%.0f", itemBp->base_damage);
+                        tile("CARICATORE", 110.0f, "%d", itemBp->magazine_size);
+                        tile("DI RISERVA", 110.0f, "%d", itemBp->spare_magazines);
+                        tile("RICARICA", 100.0f, "%.1f s", itemBp->reload_time_sec);
+                    }
+                    ImGui::NewLine();
                     if (!itemBp->allowed_units.empty()) {
                         std::string who;
                         for (const auto& u : itemBp->allowed_units) {
                             const auto* ub = BlueprintManager::Get().GetUnit(u);
                             who += (who.empty() ? "" : ", ") + (ub ? ub->displayName : u);
                         }
-                        ImGui::TextWrapped("Per: %s", who.c_str());
+                        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + leftW);
+                        ImGui::TextColored(Ui::Col::Ash, "Per: %s", who.c_str());
+                        ImGui::PopTextWrapPos();
                     }
                 }
-                else ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Blueprint '%s' non trovato in GameData/Weapons.", n.itemId.c_str());
+                else ImGui::TextColored(Ui::Col::Ember, "Blueprint '%s' non trovato in GameData/Weapons.", n.itemId.c_str());
             }
             else if (bp) {
-                ImGui::Text("Salute: %.0f   Velocita': %.1f   Armatura: %d", bp->health, bp->base_speed, bp->armor_rating);
-                ImGui::Text("Forza: %.0f   Mischia: %.0f   Mira: %.0f", bp->strength, bp->melee_skill, bp->accuracy_skill);
-                ImGui::Text("Costo in punti squadra: %d (+ equipaggiamento)", bp->point_cost);
+                tile("SALUTE", 92.0f, "%.0f", bp->health);
+                tile("VELOCITA'", 92.0f, "%.1f", bp->base_speed);
+                tile("ARMATURA", 92.0f, "%d", bp->armor_rating);
+                tile("FORZA", 92.0f, "%.0f", bp->strength);
+                tile("MISCHIA", 92.0f, "%.0f", bp->melee_skill);
+                tile("MIRA", 92.0f, "%.0f", bp->accuracy_skill);
+                tile("PUNTI SQUADRA", 120.0f, "%d", bp->point_cost);
+                ImGui::NewLine();
+                ImGui::Spacing();
                 // Anteprima 3D: l'unita' nella vetrina con la sua dotazione base e il suo modo di muoversi
-                if (ImGui::Button("ANTEPRIMA 3D", ImVec2(200, 30))) OpenShowcasePreview(n.unitId);
+                if (Ui::Button("ANTEPRIMA 3D", ImVec2(180, 30))) OpenShowcasePreview(n.unitId);
+                ImGui::SameLine(0.0f, 16.0f);
+                const float psY = ImGui::GetCursorPosY() + 6.0f;
+                ImGui::SetCursorPosY(psY);
+                ImGui::TextColored(Ui::Col::Ash, "Punti studio di questa unita':");
+                ImGui::SameLine();
+                ImGui::SetCursorPosY(psY);
+                ImGui::TextColored(Ui::Col::Phosphor, "%lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
             }
             else {
-                ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "UNITA' IN ARRIVO");
-                ImGui::TextWrapped("Non ancora giocabile ('%s' non e' in GameData/Units): si puo' gia' ricercare per proseguire "
+                ImGui::TextColored(Ui::Col::Rust, "UNITA' IN ARRIVO");
+                ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + leftW);
+                ImGui::TextColored(Ui::Col::Ash, "Non ancora giocabile ('%s' non e' in GameData/Units): si puo' gia' ricercare per proseguire "
                                    "nel ramo, ma non ancora acquistare.", n.unitId.c_str());
+                ImGui::PopTextWrapPos();
             }
-            if (!isItem) ImGui::Text("Punti studio di questa unita': %lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
-            ImGui::NextColumn();
+            ImGui::EndGroup();
 
-            auto actionButton = [&](const char* label, bool enabled) {
-                if (!enabled) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.40f);
-                const bool clicked = ImGui::Button(label, ImVec2(320, 36));
-                if (!enabled) ImGui::PopStyleVar();
-                return clicked && enabled;
-            };
+            // ----- destra: requisiti e azione -----
+            ImGui::SameLine(leftW + 20.0f);
+            ImGui::BeginGroup();
             auto setMessage = [&](const std::string& msg) { m_ResearchMessage = msg; m_ResearchMessageTimer = 4.0f; };
+            // riga di requisito: rombo pieno = soddisfatto
+            auto requirement = [&](bool ok, const std::string& text) {
+                const ImVec2 p = ImGui::GetCursorScreenPos();
+                ImDrawList* d = ImGui::GetWindowDrawList();
+                const ImU32 c = Ui::U32(ok ? Ui::Col::Gold : Ui::Col::Rust);
+                const ImVec2 ctr(p.x + 7.0f, p.y + ImGui::GetTextLineHeight() * 0.5f + 1.0f);
+                const ImVec2 q[4] = { ImVec2(ctr.x, ctr.y - 5.0f), ImVec2(ctr.x + 5.0f, ctr.y), ImVec2(ctr.x, ctr.y + 5.0f), ImVec2(ctr.x - 5.0f, ctr.y) };
+                if (ok) d->AddConvexPolyFilled(q, 4, c); else d->AddPolyline(q, 4, c, ImDrawFlags_Closed, 1.5f);
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 20.0f);
+                ImGui::TextColored(ok ? Ui::Col::Bone : Ui::Col::Rust, "%s", text.c_str());
+            };
 
             if (st != ResearchStatus::Researched) {
                 // Fase 1: ricerca con i punti studio del PADRE
                 if (const ResearchNode* payer = m_ResearchTree.PaySource(m_Profile, n)) {
-                    ImGui::Text("Punti studio di %s: %lld / %lld", payer->name.c_str(),
-                        static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, payer->unitId)),
-                        static_cast<long long>(n.researchCost));
+                    const long long have = static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, payer->unitId));
+                    ImGui::TextColored(Ui::Col::Ash, "Punti studio di %s", payer->name.c_str());
+                    ImGui::SameLine();
+                    ImGui::TextColored(have >= n.researchCost ? Ui::Col::Gold : Ui::Col::Bone, "%lld / %lld", have, static_cast<long long>(n.researchCost));
+                    Ui::Meter(n.researchCost > 0 ? static_cast<float>(have) / static_cast<float>(n.researchCost) : 1.0f, ImVec2(actionW - 40.0f, 6.0f),
+                        have >= n.researchCost ? Ui::Col::Gold : Ui::Col::Brass);
                 }
-                // Padri alternativi: ne basta uno (sbloccato e, per un personaggio, con la stellina)
+                // Padri alternativi: ne basta uno (sbloccato e, per un personaggio, con la maestria)
                 std::string alternatives;
                 for (const ResearchNode* par : m_ResearchTree.Parents(n)) alternatives += (alternatives.empty() ? "" : " oppure ") + par->name;
-                if (st == ResearchStatus::LockedParent && parent) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Sblocca prima: %s", n.anyParents.empty() ? parent->name.c_str() : alternatives.c_str());
-                }
-                if (!n.anyParents.empty() && !isItem) {
-                    const bool ok = m_ResearchTree.AnyParentReady(m_Profile, n);
-                    ImGui::TextColored(ok ? ImVec4(1.0f, 0.82f, 0.15f, 1.0f) : ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s Maestria di %s",
-                        ok ? "[*]" : "[ ]", alternatives.c_str());
-                }
-                // Maestria richiesta: il personaggio padre (e i rami che si riuniscono) completati fino alla stellina
+                if (st == ResearchStatus::LockedParent && parent) requirement(false, "Sblocca prima: " + (n.anyParents.empty() ? parent->name : alternatives));
+                if (!n.anyParents.empty() && !isItem) requirement(m_ResearchTree.AnyParentReady(m_Profile, n), "Maestria di " + alternatives);
+                // Maestria richiesta: il personaggio padre (e i rami che si riuniscono) completati
                 for (const ResearchNode* req : m_ResearchTree.MasteryRequirements(n)) {
                     const std::string& reqId = req->id;
                     const bool ok = isMastered(*req);
-                    ImGui::TextColored(ok ? ImVec4(1.0f, 0.82f, 0.15f, 1.0f) : ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "%s Maestria di %s",
-                        ok ? "[*]" : "[ ]", req->name.c_str());
+                    requirement(ok, "Maestria di " + req->name);
                     if (!ok) {
                         ImGui::SameLine();
                         if (ImGui::SmallButton(("vai##req_" + reqId).c_str())) m_ResearchSelectedNode = reqId;
                     }
                 }
+                ImGui::Spacing();
                 char label[96];
-                std::snprintf(label, sizeof(label), "RICERCA  (-%lld PS)", static_cast<long long>(n.researchCost));
-                if (actionButton(label, st == ResearchStatus::Researchable)) {
+                std::snprintf(label, sizeof(label), "RICERCA   -%lld PS", static_cast<long long>(n.researchCost));
+                if (Ui::Button(label, ImVec2(actionW - 40.0f, 40.0f), Ui::Btn::Primary, st == ResearchStatus::Researchable)) {
                     if (m_ResearchTree.Research(m_Profile, n)) setMessage("Ricerca completata: " + n.name);
                 }
             }
             else if (isItem) {
                 // Oggetto: si compra nel garage, unita' per unita' (Personalizza -> Equipaggiamento)
-                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "Ricercato.");
-                ImGui::TextWrapped("Si compra nel garage per ogni unita' che lo deve usare: Personalizza -> Equipaggiamento, "
-                                   "scegli l'oggetto e conferma l'acquisto (%lld energia).", static_cast<long long>(n.purchaseCost));
+                ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + actionW - 40.0f);
+                ImGui::TextColored(Ui::Col::Ash, "Si compra nel garage per ogni unita' che lo deve usare: Personalizza -> Equipaggiamento, "
+                                   "scegli l'oggetto e conferma l'acquisto.");
+                ImGui::PopTextWrapPos();
+                Ui::Currency("COSTO IN ENERGIA", static_cast<long long>(n.purchaseCost), Ui::Col::Gold);
             }
             else {
                 // Fase 2: acquisto con energia -> nuova unita' nel garage
-                ImGui::Text("Unita' in garage: %d / %d", static_cast<int>(m_PlayerRoster.size()), MAX_ROSTER_SIZE);
-                char label[96];
-                std::snprintf(label, sizeof(label), "ACQUISTA UNITA  (%lld ENERGIA)", static_cast<long long>(n.purchaseCost));
                 const bool roomLeft = static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE;
                 const bool canPay = m_Profile.energy >= n.purchaseCost;
-                if (actionButton(label, bp != nullptr && roomLeft && canPay)) {
+                ImGui::TextColored(Ui::Col::Ash, "Unita' in garage");
+                ImGui::SameLine();
+                ImGui::TextColored(roomLeft ? Ui::Col::Bone : Ui::Col::Ember, "%d / %d", static_cast<int>(m_PlayerRoster.size()), MAX_ROSTER_SIZE);
+                ImGui::Spacing();
+                char label[96];
+                std::snprintf(label, sizeof(label), "ACQUISTA UNITA'   %lld ENERGIA", static_cast<long long>(n.purchaseCost));
+                if (Ui::Button(label, ImVec2(actionW - 40.0f, 40.0f), Ui::Btn::Primary, bp != nullptr && roomLeft && canPay)) {
                     if (PurchaseResearchedUnit(n)) setMessage("Aggiunta al garage: " + n.name);
                 }
-                if (!roomLeft) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Garage pieno.");
-                else if (!canPay) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Energia insufficiente.");
+                if (!roomLeft) ImGui::TextColored(Ui::Col::Ember, "Garage pieno.");
+                else if (!canPay) ImGui::TextColored(Ui::Col::Ember, "Energia insufficiente.");
             }
-            ImGui::Columns(1);
+            if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
+                ImGui::Spacing();
+                ImGui::TextColored(Ui::Col::Verdigris, "%s", m_ResearchMessage.c_str());
+            }
+            ImGui::EndGroup();
 
             // Oggetti del personaggio: si ricercano coi suoi punti studio. Click = dettaglio e ricerca.
             if (!isItem) {
@@ -6499,79 +6597,99 @@ namespace SunEngine {
                 if (!items.empty()) {
                     int done = 0;
                     for (const auto* r : items) done += m_ResearchTree.IsResearched(m_Profile, *r) ? 1 : 0;
-                    ImGui::Spacing(); ImGui::Separator();
-                    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "EQUIPAGGIAMENTO DA RICERCARE  (%d / %d)", done, static_cast<int>(items.size()));
-                    for (const auto* r : items) {
-                        const ResearchStatus rs = m_ResearchTree.GetStatus(m_Profile, *r);
-                        int depth = 0;   // oggetti a catena (es. busto -> spallacci -> gambali): rientro
-                        for (const ResearchNode* q = m_ResearchTree.FindParent(*r); q && q->unitId.empty(); q = m_ResearchTree.FindParent(*q)) ++depth;
-                        char status[96];
-                        ImVec4 sc(0.6f, 0.6f, 0.65f, 1.0f);
-                        if (rs == ResearchStatus::Researched) { std::snprintf(status, sizeof(status), "RICERCATO"); sc = ImVec4(0.3f, 0.85f, 0.4f, 1.0f); }
-                        else if (rs == ResearchStatus::Researchable) { std::snprintf(status, sizeof(status), "RICERCA: %lld PS", static_cast<long long>(r->researchCost)); sc = ImVec4(1.0f, 0.8f, 0.2f, 1.0f); }
-                        else if (rs == ResearchStatus::LockedPoints) std::snprintf(status, sizeof(status), "servono %lld PS", static_cast<long long>(r->researchCost));
-                        else { const ResearchNode* q = m_ResearchTree.FindParent(*r); std::snprintf(status, sizeof(status), "prima: %s", q ? q->name.c_str() : "-"); }
-                        ImGui::PushID(r->id.c_str());
-                        ImGui::Indent(12.0f + depth * 18.0f);
-                        if (ImGui::Selectable(r->name.c_str(), false, 0, ImVec2(260.0f, 0.0f))) m_ResearchSelectedNode = r->id;
-                        ImGui::SameLine(300.0f);
-                        ImGui::TextColored(sc, "%s", status);
-                        ImGui::Unindent(12.0f + depth * 18.0f);
-                        ImGui::PopID();
+                    ImGui::Spacing(); ImGui::Spacing();
+                    char head[96]; std::snprintf(head, sizeof(head), "EQUIPAGGIAMENTO DA RICERCARE   %d / %d", done, static_cast<int>(items.size()));
+                    Ui::Heading(head);
+                    // a due colonne, ogni riga: nome (rientrato se dipende da un altro oggetto) e stato
+                    if (ImGui::BeginTable("##items", 2, ImGuiTableFlags_SizingStretchSame)) {
+                        for (const auto* r : items) {
+                            const ResearchStatus rs = m_ResearchTree.GetStatus(m_Profile, *r);
+                            int depth = 0;   // oggetti a catena (es. busto -> spallacci -> gambali): rientro
+                            for (const ResearchNode* q = m_ResearchTree.FindParent(*r); q && q->unitId.empty(); q = m_ResearchTree.FindParent(*q)) ++depth;
+                            char status[96];
+                            ImVec4 sc = Ui::Col::Ash;
+                            if (rs == ResearchStatus::Researched) { std::snprintf(status, sizeof(status), "RICERCATO"); sc = Ui::Col::Verdigris; }
+                            else if (rs == ResearchStatus::Researchable) { std::snprintf(status, sizeof(status), "RICERCA - %lld PS", static_cast<long long>(r->researchCost)); sc = Ui::Col::Gold; }
+                            else if (rs == ResearchStatus::LockedPoints) std::snprintf(status, sizeof(status), "servono %lld PS", static_cast<long long>(r->researchCost));
+                            else { const ResearchNode* q = m_ResearchTree.FindParent(*r); std::snprintf(status, sizeof(status), "prima: %s", q ? q->name.c_str() : "-"); }
+                            ImGui::TableNextColumn();
+                            ImGui::PushID(r->id.c_str());
+                            const float indent = 4.0f + depth * 18.0f;
+                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + indent);
+                            const float rowW = ImGui::GetContentRegionAvail().x - 8.0f;
+                            const ImVec2 rp = ImGui::GetCursorScreenPos();
+                            if (ImGui::Selectable("##row", false, 0, ImVec2(rowW, 0.0f))) m_ResearchSelectedNode = r->id;
+                            ImDrawList* d = ImGui::GetWindowDrawList();
+                            d->AddRectFilled(ImVec2(rp.x, rp.y + 2.0f), ImVec2(rp.x + 2.0f, rp.y + ImGui::GetTextLineHeight()), Ui::U32(sc, 0.9f));
+                            d->AddText(ImVec2(rp.x + 10.0f, rp.y), Ui::U32(rs == ResearchStatus::Researched || rs == ResearchStatus::Researchable ? Ui::Col::Bone : Ui::Col::Ash), r->name.c_str());
+                            const float sw = ImGui::CalcTextSize(status).x;
+                            d->AddText(ImVec2(rp.x + rowW - sw - 6.0f, rp.y), Ui::U32(sc), status);
+                            ImGui::PopID();
+                        }
+                        ImGui::EndTable();
                     }
                 }
             }
-
-            if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
-                ImGui::Spacing();
-                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "%s", m_ResearchMessage.c_str());
-            }
         }
         ImGui::EndChild();
+        ImGui::PopStyleColor();
     }
 
     // ===================== NEGOZIO =====================
     void GameLayer::RenderShopUI() {
         ImGuiIO& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(20.0f, 70.0f));
-        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x - 40.0f, io.DisplaySize.y - 90.0f));
-        ImGui::SetNextWindowBgAlpha(1.0f);
-        ImGui::Begin("NEGOZIO", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 60.0f));
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y - 60.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(26.0f, 16.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::Begin("##NEGOZIO", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::PopStyleVar(2);
+        Ui::Backdrop(ImGui::GetWindowDrawList(), ImVec2(0.0f, 60.0f), io.DisplaySize);
 
-        ImGui::TextColored(ImVec4(0.7f, 0.4f, 1.0f, 1.0f), "PIETRA NERA: %lld", static_cast<long long>(m_Profile.blackStone));
-        ImGui::Separator();
-
+        Ui::Title("EMPORIO DELLA PIETRA NERA", Ui::Col::Amethyst);
+        ImGui::TextColored(Ui::Col::Ash, "Qui si usa solo la valuta premium.");
+        ImGui::SameLine(0.0f, 24.0f);
+        Ui::Currency("PIETRA NERA", static_cast<long long>(m_Profile.blackStone), Ui::Col::Amethyst);
+        Ui::Divider(0.0f, Ui::Col::Amethyst);
         ImGui::Spacing();
+
         // ---- VIP: +25% di punti studio ed energia a fine partita, per sempre ----
         constexpr int64_t kVipPrice = 1000;
-        ImGui::BeginChild("##vip", ImVec2(420, 190), true);
-        ImGui::TextColored(ImVec4(0.75f, 0.45f, 1.0f, 1.0f), "VIP");
-        ImGui::Separator();
-        ImGui::TextWrapped("+25%% di punti studio ed energia alla fine di ogni partita, in tutti i casi "
+        {
+            const ImVec2 a = ImGui::GetCursorScreenPos(), b(a.x + 440.0f, a.y + 210.0f);
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            Ui::ChamferRect(dl, a, b, 16.0f, IM_COL32(16, 14, 18, 240), Ui::U32(m_Profile.vip ? Ui::Col::Gold : Ui::Col::Amethyst, 0.9f), 1.5f);
+            Ui::EclipseSigil(dl, ImVec2(b.x - 46.0f, a.y + 46.0f), 26.0f, Ui::U32(m_Profile.vip ? Ui::Col::Gold : Ui::Col::Amethyst), 0.9f);
+        }
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        ImGui::BeginChild("##vip", ImVec2(440, 210), false);
+        ImGui::SetCursorPos(ImVec2(18.0f, 14.0f));
+        ImGui::BeginGroup();
+        Ui::Title("VIP", Ui::Col::Bone);
+        ImGui::PushTextWrapPos(330.0f);
+        ImGui::TextColored(Ui::Col::Ash, "+25%% di punti studio ed energia alla fine di ogni partita, in tutti i casi "
                            "(anche quando la ricompensa e' ridotta perche' sei caduto o hai perso).");
-        ImGui::Spacing();
+        ImGui::PopTextWrapPos();
+        ImGui::Spacing(); ImGui::Spacing();
         if (m_Profile.vip) {
-            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "VIP ATTIVO");
+            Ui::Chip("VIP ATTIVO", Ui::Col::Gold);
         }
         else {
             const bool canBuy = m_Profile.blackStone >= kVipPrice;
             char label[64];
-            std::snprintf(label, sizeof(label), "ACQUISTA  (%lld PIETRA NERA)", static_cast<long long>(kVipPrice));
-            if (!canBuy) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.4f);
-            if (ImGui::Button(label, ImVec2(-1, 40)) && canBuy) {
+            std::snprintf(label, sizeof(label), "ACQUISTA   %lld PIETRA NERA", static_cast<long long>(kVipPrice));
+            if (Ui::Button(label, ImVec2(400.0f, 40.0f), Ui::Btn::Primary, canBuy)) {
                 m_Profile.blackStone -= kVipPrice;
                 m_Profile.vip = true;
                 SaveProfileIfChanged();
                 SUN_CORE_INFO("Negozio: VIP acquistato");
             }
-            if (!canBuy) {
-                ImGui::PopStyleVar();
-                ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "Pietra Nera insufficiente.");
-            }
+            if (!canBuy) ImGui::TextColored(Ui::Col::Rust, "Pietra Nera insufficiente.");
         }
+        ImGui::EndGroup();
         ImGui::EndChild();
-        ImGui::Spacing();
-        ImGui::TextDisabled("Nel negozio si usa solo la valuta premium (Pietra Nera).");
+        ImGui::PopStyleColor();
 
         ImGui::End();
     }
@@ -6588,11 +6706,11 @@ namespace SunEngine {
 
         for (int i = 0; i < static_cast<int>(m_PlayerRoster.size()); ++i) {
             bool isSelected = (m_SelectedVaultIndex == i);
-            if (isSelected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.4f, 0.7f, 1.0f));
+            if (isSelected) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.42f, 0.31f, 0.13f, 1.0f));
             else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 
             std::string btnText = m_PlayerRoster[i].customName + "\n(" + m_PlayerRoster[i].blueprintId + ")  EXP " + std::to_string(m_PlayerRoster[i].exp);
-            if (ImGui::Button(btnText.c_str(), ImVec2(-1, 50))) {
+            if (Ui::PlainButton(btnText.c_str(), ImVec2(-1, 50))) {
                 m_SelectedVaultIndex = i;
                 ApplyUnitVisuals(m_PlayerRoster[i]);
             }
@@ -6605,7 +6723,7 @@ namespace SunEngine {
         if (static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE) {
             ImGui::Spacing();
             // Le nuove unita' non si reclutano piu' liberamente: si sbloccano e si acquistano nella Ricerca
-            if (ImGui::Button("+ NUOVA UNITA (RICERCA)", ImVec2(-1, 40))) {
+            if (Ui::PlainButton("+ NUOVA UNITA (RICERCA)", ImVec2(-1, 40))) {
                 m_CurrentTab = MenuTab::Research;
             }
         }
@@ -6619,7 +6737,7 @@ namespace SunEngine {
             ImGui::SetNextWindowSize(ImVec2(360, io.DisplaySize.y - 100.0f));
             ImGui::Begin("RESOCONTO UNITA'", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "%s", activeUnit.customName.c_str());
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "%s", activeUnit.customName.c_str());
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("%s", activeUnit.customName.c_str());
             }
@@ -6631,7 +6749,7 @@ namespace SunEngine {
 
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "STATISTICHE COMBATTIMENTO");
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "STATISTICHE COMBATTIMENTO");
             if (currentBp) {
                 ImGui::Text("Salute MAX: %.0f HP", currentBp->health);
                 if (m_Scene.GetRegistry().all_of<UnitStatsComponent>(m_PlayerEntity)) {
@@ -6648,7 +6766,7 @@ namespace SunEngine {
             }
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "DOTAZIONE ATTUALE");
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "DOTAZIONE ATTUALE");
 
             const auto* primBP = BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
             ImGui::Text("Primaria: %s", primBP ? primBP->displayName.c_str() : "[Vuoto]");
@@ -6676,9 +6794,9 @@ namespace SunEngine {
 
             ImGui::SetCursorPosY(io.DisplaySize.y - 180.0f);
             ImGui::Separator(); ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.2f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.15f, 0.7f, 0.3f, 1.0f));
-            if (ImGui::Button("MODIFICA ED EQUIPAGGIA", ImVec2(-1, 60))) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.34f, 0.17f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.34f, 0.17f, 1.0f));
+            if (Ui::PlainButton("MODIFICA ED EQUIPAGGIA", ImVec2(-1, 60))) {
                 m_ShowCustomizeModal = true;
                 m_CustomizeMainTab = 0;
                 m_CustomizeHasBackup = false;   // la copia per ANNULLA si prende alla prima schermata
@@ -6699,24 +6817,23 @@ namespace SunEngine {
 
         if (ImGui::BeginPopupModal("Reclutamento Nuova Unita", &m_ShowRecruitModal, ImGuiWindowFlags_AlwaysAutoResize)) {
             if (m_RecruitStep == 0) {
-                ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "FASE 1: SELEZIONA LA FAZIONE");
-                ImGui::Separator(); ImGui::Spacing();
+                Ui::Heading("FASE 1: SELEZIONA LA FAZIONE");
 
-                if (ImGui::Button("IMPERIUM OF MAN", ImVec2(280, 45))) {
+                if (Ui::PlainButton("IMPERIUM OF MAN", ImVec2(280, 45))) {
                     m_SelectedFaction = "Imperium";
                     m_RecruitStep = 1;
                 }
-                if (ImGui::Button("SPACE MARINES", ImVec2(280, 45))) {
+                if (Ui::PlainButton("SPACE MARINES", ImVec2(280, 45))) {
                     m_SelectedFaction = "SpaceMarines";
                     m_RecruitStep = 1;
                 }
-                if (ImGui::Button("ORKS", ImVec2(280, 45))) {
+                if (Ui::PlainButton("ORKS", ImVec2(280, 45))) {
                     m_SelectedFaction = "Orks";
                     m_RecruitStep = 1;
                 }
             }
             else if (m_RecruitStep == 1) {
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "FASE 2: SELEZIONA TRUPPA (%s)", m_SelectedFaction.c_str());
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "FASE 2: SELEZIONA TRUPPA (%s)", m_SelectedFaction.c_str());
                 ImGui::Separator(); ImGui::Spacing();
 
                 auto recruitAction = [&](const std::string& bpId, const std::string& defaultName, const glm::vec4& defaultColor) {
@@ -6730,32 +6847,32 @@ namespace SunEngine {
                 };
 
                 if (m_SelectedFaction == "Imperium") {
-                    if (ImGui::Button("Recluta della Guardia (10 Pti)\n(Guardsman Recruit)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Recluta della Guardia (10 Pti)\n(Guardsman Recruit)", ImVec2(280, 50))) {
                         recruitAction("imperium_guardsman_recruit", "Recluta Vance", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
                     }
-                    if (ImGui::Button("Kasrkin (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Kasrkin (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
                         recruitAction("imperium_kasrkin", "Kasrkin Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "SpaceMarines") {
-                    if (ImGui::Button("Neofita Astartes (40 Pti)\n(Neophyte)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Neofita Astartes (40 Pti)\n(Neophyte)", ImVec2(280, 50))) {
                         recruitAction("spacemarines_neophyte", "Neofita Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
-                    if (ImGui::Button("Fratello di Battaglia (75 Pti)\n(Battle Brother)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Fratello di Battaglia (75 Pti)\n(Battle Brother)", ImVec2(280, 50))) {
                         recruitAction("spacemarines_battle_brother", "Fratello Titus", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "Orks") {
-                    if (ImGui::Button("Ork Boy (15 Pti)\n(Fante Orco)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Ork Boy (15 Pti)\n(Fante Orco)", ImVec2(280, 50))) {
                         recruitAction("orks_boy", "Gor-Gath", glm::vec4(0.24f, 0.33f, 0.15f, 1.0f));
                     }
-                    if (ImGui::Button("Ork Nob (50 Pti)\n(Capoclan Orco)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Ork Nob (50 Pti)\n(Capoclan Orco)", ImVec2(280, 50))) {
                         recruitAction("orks_nob", "Uzgrak", glm::vec4(0.17f, 0.25f, 0.11f, 1.0f));
                     }
                 }
 
                 ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-                if (ImGui::Button("< Indietro alla Fazione", ImVec2(150, 30))) {
+                if (Ui::PlainButton("< Indietro alla Fazione", ImVec2(150, 30))) {
                     m_RecruitStep = 0;
                 }
             }
@@ -6789,7 +6906,7 @@ namespace SunEngine {
             const int bodyKind = static_cast<int>(BodyKindForUnit(activeUnit.blueprintId));
             const char* bodyLabel = BodyLabelOf(bodyKind);
 
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "PERSONALIZZA");
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "PERSONALIZZA");
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.85f, 0.85f, 0.85f, 1.0f), "%s  -  %s", activeUnit.customName.c_str(), unitBpHead ? unitBpHead->displayName.c_str() : activeUnit.blueprintId.c_str());
             ImGui::Separator();
@@ -6800,8 +6917,8 @@ namespace SunEngine {
             for (int i = 0; i < 3; ++i) {
                 if (i > 0) ImGui::SameLine();
                 const bool on = m_CustomizeMainTab == tabOrder[i];
-                ImGui::PushStyleColor(ImGuiCol_Button, on ? ImVec4(0.0f, 0.4f, 0.7f, 1.0f) : ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-                if (ImGui::Button(tabNames[i], ImVec2(tabW, 38))) m_CustomizeMainTab = tabOrder[i];
+                ImGui::PushStyleColor(ImGuiCol_Button, on ? ImVec4(0.42f, 0.31f, 0.13f, 1.0f) : ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
+                if (Ui::PlainButton(tabNames[i], ImVec2(tabW, 38))) m_CustomizeMainTab = tabOrder[i];
                 ImGui::PopStyleColor();
             }
 
@@ -6809,7 +6926,7 @@ namespace SunEngine {
             ImGui::BeginChild("##contenuto", ImVec2(0, io.DisplaySize.y - 190.0f), false);
 
             if (m_CustomizeMainTab == 0) {
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ANAGRAFICA E IDENTITA'");
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "ANAGRAFICA E IDENTITA'");
                 char nameBuf[64];
                 std::snprintf(nameBuf, sizeof(nameBuf), "%s", activeUnit.customName.c_str());
                 if (ImGui::InputText("Nome Unita'", nameBuf, IM_ARRAYSIZE(nameBuf))) {
@@ -6817,7 +6934,7 @@ namespace SunEngine {
                 }
 
                 ImGui::Spacing(); ImGui::Spacing();
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "CARNAGIONE");
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "CARNAGIONE");
                 // tinte tipiche della razza (orki e grot verdi, ogryn e umani dal pallido allo scuro)
                 std::vector<glm::vec3> tones;
                 const std::string lb = bodyLabel;
@@ -6838,7 +6955,7 @@ namespace SunEngine {
                 ImGui::TextDisabled("La pelle ha gia' i muscoli, le vene e le chiazze della razza: la tinta li colora.");
 
                 ImGui::Spacing(); ImGui::Spacing();
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "ANTEPRIMA");
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "ANTEPRIMA");
                 ImGui::TextWrapped("Trascina col tasto sinistro sul personaggio per girarlo, rotellina per avvicinarti.");
             }
             else if (m_CustomizeMainTab == 1) {
@@ -6850,13 +6967,13 @@ namespace SunEngine {
 
                 if (m_EquipSubTab == 0) {
                     ImGui::Text("Filtro Categoria Armi:");
-                    if (ImGui::Button("Armi Laser", ImVec2(100, 25))) m_WeaponCategoryTab = 0; ImGui::SameLine();
-                    if (ImGui::Button("Proiettili", ImVec2(100, 25))) m_WeaponCategoryTab = 1; ImGui::SameLine();
-                    if (ImGui::Button("Plasma (WIP)", ImVec2(100, 25))) m_WeaponCategoryTab = 2;
+                    if (Ui::PlainButton("Armi Laser", ImVec2(100, 25))) m_WeaponCategoryTab = 0; ImGui::SameLine();
+                    if (Ui::PlainButton("Proiettili", ImVec2(100, 25))) m_WeaponCategoryTab = 1; ImGui::SameLine();
+                    if (Ui::PlainButton("Plasma (WIP)", ImVec2(100, 25))) m_WeaponCategoryTab = 2;
                     ImGui::Spacing();
 
                     if (m_WeaponCategoryTab == 2) {
-                        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "Le armi al Plasma sono attualmente in sviluppo nella Forgia.");
+                        ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "Le armi al Plasma sono attualmente in sviluppo nella Forgia.");
                     }
                     else {
                         const auto* primBP = BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
@@ -6938,7 +7055,7 @@ namespace SunEngine {
                 }
                 else if (m_EquipSubTab == 1) {
                     // Slot equipaggiamento 1-3 (in partita: tasti 4, 5, 6). Solo la dotazione permessa all'unita'.
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "SLOT EQUIPAGGIAMENTO (tasti 4 - 5 - 6 in partita)");
+                    ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "SLOT EQUIPAGGIAMENTO (tasti 4 - 5 - 6 in partita)");
                     ImGui::Spacing();
                     for (int slot = 0; slot < 3; ++slot) {
                         const auto* eqBP = BlueprintManager::Get().GetWeapon(activeUnit.equipmentSlots[slot]);
@@ -6961,7 +7078,7 @@ namespace SunEngine {
                         }
                     }
                     ImGui::Spacing();
-                    if (ImGui::Button("Ripristina dotazione base", ImVec2(220, 28))) {
+                    if (Ui::PlainButton("Ripristina dotazione base", ImVec2(220, 28))) {
                         activeUnit.ApplyDefaultLoadout();
                         ApplyUnitVisuals(activeUnit);
                     }
@@ -6974,7 +7091,7 @@ namespace SunEngine {
                 if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
                     m_ResearchMessageTimer -= ImGui::GetIO().DeltaTime;
                     ImGui::Spacing();
-                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "%s", m_ResearchMessage.c_str());
+                    ImGui::TextColored(ImVec4(0.50f, 0.74f, 0.44f, 1.0f), "%s", m_ResearchMessage.c_str());
                 }
             }
             else if (m_CustomizeMainTab == 2) {
@@ -6983,17 +7100,17 @@ namespace SunEngine {
                 float currentWeight = activeUnit.CalculateTotalWeight();
                 int unitPoints = activeUnit.CalculateBattlePoints();
 
-                ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "ISPEZIONE HITBOX E PIASTRE CORAZZATE");
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "ISPEZIONE HITBOX E PIASTRE CORAZZATE");
                 ImGui::Text("Punti Unita': %d Pti  |  Carico: %.1f / %.1f kg", unitPoints, currentWeight, maxWeight);
 
                 float weightRatio = std::clamp(currentWeight / maxWeight, 0.0f, 1.0f);
-                ImVec4 weightColor = (weightRatio > 1.0f) ? ImVec4(1.0f, 0.1f, 0.1f, 1.0f) : ImVec4(0.2f, 0.7f, 1.0f, 1.0f);
+                ImVec4 weightColor = (weightRatio > 1.0f) ? ImVec4(0.90f, 0.30f, 0.17f, 1.0f) : ImVec4(0.42f, 0.31f, 0.13f, 1.0f);
                 ImGui::PushStyleColor(ImGuiCol_PlotHistogram, weightColor);
                 ImGui::ProgressBar(weightRatio, ImVec2(-1, 12), "");
                 ImGui::PopStyleColor();
 
                 if (currentWeight > maxWeight) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ATTENZIONE: Sovraccarico! L'unita' subira' penalita' di movimento.");
+                    ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "ATTENZIONE: Sovraccarico! L'unita' subira' penalita' di movimento.");
                 }
 
                 ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
@@ -7002,7 +7119,7 @@ namespace SunEngine {
                     const auto* currentBp = BlueprintManager::Get().GetArmorPiece(currentId);
 
                     ImGui::PushID(slotLabel);
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "[%s]", slotLabel);
+                    ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "[%s]", slotLabel);
 
                     std::string comboName = currentBp ? currentBp->displayName + " (" + std::to_string(currentBp->pointCost) + " Pti)" : "[Scoperto / Nessuna Protezione]";
 
@@ -7069,7 +7186,7 @@ namespace SunEngine {
                             currentBp->maxDurability, currentBp->weight);
                     }
                     else {
-                        ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "  ! ATTENZIONE: Questo arto subira' danni letali completi !");
+                        ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "  ! ATTENZIONE: Questo arto subira' danni letali completi !");
                     }
                     ImGui::PopID();
                     ImGui::Spacing();
@@ -7088,14 +7205,14 @@ namespace SunEngine {
                 drawArmorSlotCombo("GAMBA DX", HitboxLocation::RightLeg, activeUnit.armorRightLegId);
 
                 ImGui::Columns(1);
-                if (ImGui::Button("Ripristina armatura base", ImVec2(220, 26))) {
+                if (Ui::PlainButton("Ripristina armatura base", ImVec2(220, 26))) {
                     activeUnit.ApplyDefaultArmor();
                     ApplyUnitVisuals(activeUnit);
                 }
                 if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
                     m_ResearchMessageTimer -= ImGui::GetIO().DeltaTime;
                     ImGui::SameLine();
-                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "%s", m_ResearchMessage.c_str());
+                    ImGui::TextColored(ImVec4(0.50f, 0.74f, 0.44f, 1.0f), "%s", m_ResearchMessage.c_str());
                 }
             }
 
@@ -7103,15 +7220,15 @@ namespace SunEngine {
 
             ImGui::Separator(); ImGui::Spacing();
             const float half = (panelW - 24.0f) * 0.5f;
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.2f, 1.0f));
-            if (ImGui::Button("SALVA E CHIUDI", ImVec2(half, 44))) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.34f, 0.17f, 1.0f));
+            if (Ui::PlainButton("SALVA E CHIUDI", ImVec2(half, 44))) {
                 m_ShowCustomizeModal = false;
                 m_CustomizeHasBackup = false;
                 SaveProfileIfChanged();
             }
             ImGui::PopStyleColor();
             ImGui::SameLine();
-            if (ImGui::Button("ANNULLA MODIFICHE", ImVec2(half, 44))) {
+            if (Ui::PlainButton("ANNULLA MODIFICHE", ImVec2(half, 44))) {
                 if (m_CustomizeHasBackup) { activeUnit = m_CustomizeBackup; ApplyUnitVisuals(activeUnit); }
                 m_ShowCustomizeModal = false;
                 m_CustomizeHasBackup = false;
@@ -7134,7 +7251,7 @@ namespace SunEngine {
             ImGui::SameLine();
             ImGui::Checkbox("Ruota", &m_CustomizeAutoRotate);
             ImGui::SameLine();
-            if (ImGui::Button("Centra")) { m_CustomizeYaw = 200.0f; m_CustomizeZoom = 1.0f; }
+            if (Ui::PlainButton("Centra")) { m_CustomizeYaw = 200.0f; m_CustomizeZoom = 1.0f; }
             ImGui::End();
         }
     }
@@ -7148,8 +7265,8 @@ namespace SunEngine {
 
         ImGui::Begin("MAP BUILDER (Solemnace Forge)", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.3f, 0.0f, 1.0f));
-        if (ImGui::Button("+ CREA NUOVA MAPPA DA ZERO", ImVec2(-1, 35))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.42f, 0.22f, 0.08f, 1.0f));
+        if (Ui::PlainButton("+ CREA NUOVA MAPPA DA ZERO", ImVec2(-1, 35))) {
             CreateNewMap();
         }
         ImGui::PopStyleColor();
@@ -7157,21 +7274,21 @@ namespace SunEngine {
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         ImGui::Text("Modalita' Manipolazione (Tasti Rapidi):");
-        if (m_GizmoMode == EditorGizmoMode::Translate) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.8f, 1.0f));
+        if (m_GizmoMode == EditorGizmoMode::Translate) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.95f, 0.77f, 0.36f, 1.0f));
         else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-        if (ImGui::Button("[W] Sposta", ImVec2(110, 28))) m_GizmoMode = EditorGizmoMode::Translate;
+        if (Ui::PlainButton("[W] Sposta", ImVec2(110, 28))) m_GizmoMode = EditorGizmoMode::Translate;
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
-        if (m_GizmoMode == EditorGizmoMode::Rotate) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.8f, 1.0f));
+        if (m_GizmoMode == EditorGizmoMode::Rotate) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.95f, 0.77f, 0.36f, 1.0f));
         else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-        if (ImGui::Button("[E] Ruota", ImVec2(110, 28))) m_GizmoMode = EditorGizmoMode::Rotate;
+        if (Ui::PlainButton("[E] Ruota", ImVec2(110, 28))) m_GizmoMode = EditorGizmoMode::Rotate;
         ImGui::PopStyleColor();
 
         ImGui::SameLine();
-        if (m_GizmoMode == EditorGizmoMode::Scale) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.8f, 1.0f));
+        if (m_GizmoMode == EditorGizmoMode::Scale) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.95f, 0.77f, 0.36f, 1.0f));
         else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.2f, 0.2f, 1.0f));
-        if (ImGui::Button("[R] Scala", ImVec2(110, 28))) m_GizmoMode = EditorGizmoMode::Scale;
+        if (Ui::PlainButton("[R] Scala", ImVec2(110, 28))) m_GizmoMode = EditorGizmoMode::Scale;
         ImGui::PopStyleColor();
 
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
@@ -7190,30 +7307,30 @@ namespace SunEngine {
         }
 
         if (ImGui::CollapsingHeader("2. Punti di Spawn")) {
-            if (ImGui::Button("Aggiungi Spawn Giocatore")) m_EditorMap.playerSpawns.push_back(m_EditorCameraTarget);
+            if (Ui::PlainButton("Aggiungi Spawn Giocatore")) m_EditorMap.playerSpawns.push_back(m_EditorCameraTarget);
             for (size_t i = 0; i < m_EditorMap.playerSpawns.size(); ++i) {
                 ImGui::PushID(static_cast<int>(i) + 1000);
                 ImGui::DragFloat3("Spawn P.", glm::value_ptr(m_EditorMap.playerSpawns[i]), 0.5f);
                 ImGui::SameLine();
-                if (ImGui::Button("X")) { m_EditorMap.playerSpawns.erase(m_EditorMap.playerSpawns.begin() + i); }
+                if (Ui::PlainButton("X")) { m_EditorMap.playerSpawns.erase(m_EditorMap.playerSpawns.begin() + i); }
                 ImGui::PopID();
             }
 
             ImGui::Separator();
 
-            if (ImGui::Button("Aggiungi Spawn Nemici")) m_EditorMap.enemySpawns.push_back(m_EditorCameraTarget);
+            if (Ui::PlainButton("Aggiungi Spawn Nemici")) m_EditorMap.enemySpawns.push_back(m_EditorCameraTarget);
             for (size_t i = 0; i < m_EditorMap.enemySpawns.size(); ++i) {
                 ImGui::PushID(static_cast<int>(i) + 2000);
                 ImGui::DragFloat3("Spawn E.", glm::value_ptr(m_EditorMap.enemySpawns[i]), 0.5f);
                 ImGui::SameLine();
-                if (ImGui::Button("X")) { m_EditorMap.enemySpawns.erase(m_EditorMap.enemySpawns.begin() + i); }
+                if (Ui::PlainButton("X")) { m_EditorMap.enemySpawns.erase(m_EditorMap.enemySpawns.begin() + i); }
                 ImGui::PopID();
             }
         }
 
         if (ImGui::CollapsingHeader("3. Inserisci Blocchi Primitivi", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto addBlockShape = [&](const std::string& shapeType, const std::string& label, const glm::vec3& defaultScale) {
-                if (ImGui::Button(label.c_str(), ImVec2(115, 28))) {
+                if (Ui::PlainButton(label.c_str(), ImVec2(115, 28))) {
                     EditorStructure st;
                     st.type = "block";
                     st.shape = shapeType;
@@ -7242,7 +7359,7 @@ namespace SunEngine {
 
         if (ImGui::CollapsingHeader("4. Inserisci Edifici Cavi", ImGuiTreeNodeFlags_DefaultOpen)) {
             auto addBuildingStyle = [&](const std::string& roofStyle, const std::string& label) {
-                if (ImGui::Button(label.c_str(), ImVec2(115, 32))) {
+                if (Ui::PlainButton(label.c_str(), ImVec2(115, 32))) {
                     EditorStructure st;
                     st.type = "building";
                     st.shape = roofStyle;
@@ -7278,7 +7395,7 @@ namespace SunEngine {
 
         if (m_SelectedStructureIdx >= 0 && m_SelectedStructureIdx < (int)m_EditorMap.structures.size()) {
             auto& st = m_EditorMap.structures[m_SelectedStructureIdx];
-            ImGui::TextColored(ImVec4(0.0f, 0.80f, 1.0f, 1.0f), "Modifica [%s - %s]:", st.type.c_str(), st.shape.c_str());
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "Modifica [%s - %s]:", st.type.c_str(), st.shape.c_str());
 
             bool changed = false;
             if (ImGui::DragFloat3("Posizione", glm::value_ptr(st.position), 0.5f)) changed = true;
@@ -7299,8 +7416,8 @@ namespace SunEngine {
 
             if (changed) SyncEditorEntitiesWithScene();
 
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.1f, 0.1f, 1.0f));
-            if (ImGui::Button("Elimina Oggetto", ImVec2(-1, 26))) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
+            if (Ui::PlainButton("Elimina Oggetto", ImVec2(-1, 26))) {
                 m_EditorMap.structures.erase(m_EditorMap.structures.begin() + m_SelectedStructureIdx);
                 m_SelectedStructureIdx = -1;
                 SyncEditorEntitiesWithScene();
@@ -7310,8 +7427,8 @@ namespace SunEngine {
 
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.1f, 0.5f, 0.2f, 1.0f));
-        if (ImGui::Button("SALVA E GIOCA IN-GAME", ImVec2(-1, 38))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.34f, 0.17f, 1.0f));
+        if (Ui::PlainButton("SALVA E GIOCA IN-GAME", ImVec2(-1, 38))) {
             SaveMapToJSON();
             LoadMapIntoPreview();
         }
@@ -7319,8 +7436,8 @@ namespace SunEngine {
 
         ImGui::Spacing();
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.4f, 0.7f, 1.0f));
-        if (ImGui::Button("ESPORTA PER CONDIVISIONE (External)", ImVec2(-1, 38))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.42f, 0.31f, 0.13f, 1.0f));
+        if (Ui::PlainButton("ESPORTA PER CONDIVISIONE (External)", ImVec2(-1, 38))) {
             ExportMapToExternal();
         }
         ImGui::PopStyleColor();
@@ -7340,7 +7457,7 @@ namespace SunEngine {
         ImGui::SetNextWindowSize(ImVec2(320, io.DisplaySize.y - 100.0f));
         ImGui::Begin("TERMINALE MISSIONI", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
-        ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "1. SELEZIONA MAPPA TARGET");
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "1. SELEZIONA MAPPA TARGET");
 
         // id del file mappa (non cambiarli: il profilo salva l'id) e nome mostrato
         const char* defaultMaps[] = { "warzone_sector4", "vaulting_test" };
@@ -7374,7 +7491,7 @@ namespace SunEngine {
 
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-        ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "2. MODALITA' DI GIOCO");
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "2. MODALITA' DI GIOCO");
 
         const char* events[] = {
             "Difesa del Settore (Ondata Orki)",
@@ -7386,7 +7503,7 @@ namespace SunEngine {
 
         for (int i = 0; i < 5; ++i) {
             bool isSelected = (m_SelectedEventIndex == i);
-            if (isSelected) ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.8f, 0.4f, 0.0f, 1.0f));
+            if (isSelected) ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.88f, 0.52f, 0.24f, 1.0f));
 
             if (ImGui::Selectable(events[i], isSelected)) {
                 m_SelectedEventIndex = i;
@@ -7401,13 +7518,13 @@ namespace SunEngine {
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         if (m_SelectedEventIndex == 4) {
-            ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "[VS BOT - 5 CONTRO 5]");
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "[VS BOT - 5 CONTRO 5]");
             ImGui::TextWrapped("La tua squadra (fino a 5 unita', completata da alleati IA) contro 5 bot su 'Trincee di "
                 "Solemnace'. Vince chi elimina la squadra avversaria; dopo 10 minuti vince chi ha piu' punti in campo. "
                 "Se cadi prendi il controllo di un alleato vivo. Scegli la coda nel pannello di destra.");
         }
         else if (m_SelectedEventIndex == 3) {
-            ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.3f, 1.0f), "[MODALITA' SANDBOX]");
+            ImGui::TextColored(ImVec4(0.50f, 0.74f, 0.44f, 1.0f), "[MODALITA' SANDBOX]");
             ImGui::TextWrapped("Entrerai nella mappa '%s' senza nemici o eventi temporizzati. Ideale per testare il movimento, il vaulting, le armi e l'architettura.", m_SelectedMapId.c_str());
         }
         else {
@@ -7437,11 +7554,11 @@ namespace SunEngine {
 
             std::string label = m_PlayerRoster[i].customName + " [" + std::to_string(cost) + " Pti]";
 
-            if (isInSquad) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.65f, 0.15f, 0.9f));
+            if (isInSquad) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.34f, 0.17f, 0.9f));
             else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.20f, 0.20f, 0.6f));
 
             std::string btnText = isInSquad ? "[IN SQUADRA] " + label : "[RISERVA] " + label;
-            if (ImGui::Button(btnText.c_str(), ImVec2(-1, 40))) {
+            if (Ui::PlainButton(btnText.c_str(), ImVec2(-1, 40))) {
                 if (isInSquad) {
                     if (m_SelectedSquadIndices.size() > 1) {
                         m_SelectedSquadIndices.erase(it);
@@ -7481,7 +7598,7 @@ namespace SunEngine {
         ImGui::SetNextWindowSize(ImVec2(360, io.DisplaySize.y - 100.0f));
         ImGui::Begin("SCHIERAMENTO FINALE", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
 
-        ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "COMPOSIZIONE SQUADRA (%d Unita):", static_cast<int>(m_SelectedSquadIndices.size()));
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "COMPOSIZIONE SQUADRA (%d Unita):", static_cast<int>(m_SelectedSquadIndices.size()));
         ImGui::Separator(); ImGui::Spacing();
 
         for (size_t squadIdx = 0; squadIdx < m_SelectedSquadIndices.size(); ++squadIdx) {
@@ -7489,7 +7606,7 @@ namespace SunEngine {
             if (rosterIdx >= 0 && rosterIdx < static_cast<int>(m_PlayerRoster.size())) {
                 const auto& unit = m_PlayerRoster[rosterIdx];
                 if (squadIdx == 0) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "LEADER APRIPISTA: %s", unit.customName.c_str());
+                    ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "LEADER APRIPISTA: %s", unit.customName.c_str());
                 }
                 else {
                     ImGui::Text("  - Rincalzo %d: %s", static_cast<int>(squadIdx), unit.customName.c_str());
@@ -7508,9 +7625,9 @@ namespace SunEngine {
             return;
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.85f, 0.25f, 0.10f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.00f, 0.35f, 0.15f, 1.0f));
-        if (ImGui::Button("AVVIA SIMULAZIONE", ImVec2(-1, 65))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
+        if (Ui::PlainButton("AVVIA SIMULAZIONE", ImVec2(-1, 65))) {
             if (!m_SelectedSquadIndices.empty()) {
 
                 auto view = m_Scene.GetRegistry().view<ColliderComponent>(entt::exclude<PlayerTag>);
@@ -7585,20 +7702,19 @@ namespace SunEngine {
             ApplyMatchXp();   // una volta sola: fine della sopravvivenza
             ImGui::SetNextWindowSize(ImVec2(620, 0));
             ImGui::Begin("SQUADRA DISTRUTTA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-            ImGui::TextColored(ImVec4(1.0f, 0.1f, 0.1f, 1.0f), "--- SQUADRONE ELIMINATO ---");
-            ImGui::Separator(); ImGui::Spacing();
+            Ui::Heading("--- SQUADRONE ELIMINATO ---");
             ImGui::TextWrapped("Tutti i membri della squadra schierati sono stati travolti.");
 
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "PUNTEGGIO FINALE:");
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "PUNTEGGIO FINALE:");
             ImGui::Text("Orki Eliminati: %d", m_KillCount);
             ImGui::Spacing();
             RenderMatchRecap();
 
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-            if (ImGui::Button("Torna al Menu Principale (Garage)", ImVec2(-1, 50))) {
+            if (Ui::PlainButton("Torna al Menu Principale (Garage)", ImVec2(-1, 50))) {
                 m_GameState = GameState::MainMenu;
                 m_PlayerDeathHandled = false;
                 g_WaaaghActive = false;
@@ -7624,7 +7740,7 @@ namespace SunEngine {
         }
 
         ImGui::Begin("CADUTO IN BATTAGLIA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "UNITA' SOPRAVVISSUTE:");
+        ImGui::TextColored(ImVec4(0.88f, 0.52f, 0.24f, 1.0f), "UNITA' SOPRAVVISSUTE:");
         ImGui::Text("Orki eliminati finora: %d", m_KillCount);
         ImGui::Text("Seleziona quale membro far scendere sul campo:");
         ImGui::Separator(); ImGui::Spacing();
@@ -7636,7 +7752,7 @@ namespace SunEngine {
 
                 if (member.isAlive) {
                     std::string label = "SCHIERA: " + unit.customName + " [" + unit.blueprintId + "]";
-                    if (ImGui::Button(label.c_str(), ImVec2(-1, 45))) {
+                    if (Ui::PlainButton(label.c_str(), ImVec2(-1, 45))) {
                         // Cleanup stato morte: rimuove ragdoll Jolt e CorpseComponent.
                         // DestroyJoltBody rimuove sia JoltBodyComponent sia RagdollComponent,
                         // e fa scattare gli observer di cleanup dei body Jolt.
@@ -7717,11 +7833,11 @@ namespace SunEngine {
             if (i) ImGui::SameLine();
             const bool active = curPreset == i;
             if (active) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.45f, 0.36f, 0.16f, 1.0f));   // ottone: il preset in uso
-            if (ImGui::Button(k_GraphicsPresets[i].name, ImVec2(90, 28))) ApplyGraphicsPreset(r, i);
+            if (Ui::PlainButton(k_GraphicsPresets[i].name, ImVec2(90, 28))) ApplyGraphicsPreset(r, i);
             if (active) ImGui::PopStyleColor();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Rileva automaticamente", ImVec2(-1, 28))) {
+        if (Ui::PlainButton("Rileva automaticamente", ImVec2(-1, 28))) {
             std::string gpu, why;
             const int level = DetectGraphicsLevel(gpu, why);
             ApplyGraphicsPreset(r, level);
@@ -7852,8 +7968,7 @@ namespace SunEngine {
 
                 if (ImGui::BeginTabItem("VIDEO")) {
                     ImGui::Spacing();
-                    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "IMPOSTAZIONI DISPLAY");
-                    ImGui::Separator(); ImGui::Spacing();
+                    Ui::Heading("IMPOSTAZIONI DISPLAY");
 
                     const char* currentResLabel = g_Resolutions[m_SelectedResolutionIdx].name;
                     if (ImGui::BeginCombo("Risoluzione", currentResLabel)) {
@@ -7883,7 +7998,7 @@ namespace SunEngine {
 
                     ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-                    if (ImGui::Button("Applica Video", ImVec2(140, 35))) {
+                    if (Ui::PlainButton("Applica Video", ImVec2(140, 35))) {
                         ApplyDisplaySettings(g_Resolutions[m_SelectedResolutionIdx].width, g_Resolutions[m_SelectedResolutionIdx].height, m_IsFullscreen);
                     }
                     ImGui::EndTabItem();
@@ -7891,8 +8006,7 @@ namespace SunEngine {
 
                 if (ImGui::BeginTabItem("AUDIO")) {
                     ImGui::Spacing();
-                    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "CONTROLLO VOLUMI CANALI");
-                    ImGui::Separator(); ImGui::Spacing();
+                    Ui::Heading("CONTROLLO VOLUMI CANALI");
 
                     // Ogni barra agisce subito (e resta nel profilo): generale = tutto il motore audio, poi un gruppo per canale
                     auto volumeBar = [this](const char* label, const char* id, float& v) {
@@ -7910,8 +8024,7 @@ namespace SunEngine {
                     volumeBar("Voci, Schiamazzi & Versi:", "##VolumeVoice", m_VolumeVoice);
                     volumeBar("Musica di Sottofondo:", "##VolumeMusic", m_VolumeMusic);
 
-                    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SENSAZIONE DEI COLPI");
-                    ImGui::Separator(); ImGui::Spacing();
+                    Ui::Heading("SENSAZIONE DEI COLPI");
                     {
                         ImGui::Text("Scossoni della telecamera (spari, esplosioni, colpi presi):");
                         float pct = m_Feel.shakeScale * 100.0f;
@@ -7922,7 +8035,7 @@ namespace SunEngine {
                     }
 
                     if (!m_AudioEngineInitialized) {
-                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Audio non disponibile (nessun dispositivo di uscita).");
+                        ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "Audio non disponibile (nessun dispositivo di uscita).");
                     }
                     else if (m_MusicTracks.empty()) {
                         ImGui::TextDisabled("Nessun brano: metti file .mp3 / .wav / .flac in GameData/Audio/Music.");
@@ -7956,7 +8069,7 @@ namespace SunEngine {
                         animAvailable |= AnimatedBodyReady(static_cast<AnimatedBodyKind>(k));
                     if (ImGui::RadioButton("Animato (FBX)", m_UseAnimatedPlayer) && animAvailable) m_UseAnimatedPlayer = true;
                     ImGui::TextDisabled("In partita: F2 per passare dall'uno all'altro.");
-                    if (!animAvailable) ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Modello/animazioni non caricati.");
+                    if (!animAvailable) ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "Modello/animazioni non caricati.");
 
                     ImGui::Spacing();
                     ImGui::Text("Taratura armi sul modello animato:");
@@ -7983,7 +8096,7 @@ namespace SunEngine {
 
             ImGui::SetCursorPosY(310.0f);
             ImGui::Separator(); ImGui::Spacing();
-            if (ImGui::Button("Chiudi Menu", ImVec2(-1, 32))) {
+            if (Ui::PlainButton("Chiudi Menu", ImVec2(-1, 32))) {
                 m_ShowOptionsMenu = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -7998,14 +8111,14 @@ namespace SunEngine {
     void GameLayer::RenderVsBotQueues() {
         const int pts = CalculateSquadPoints();
         const int n = static_cast<int>(m_SelectedSquadIndices.size());
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "VS BOT - SCEGLI LA CODA");
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "VS BOT - SCEGLI LA CODA");
         ImGui::Text("La tua squadra: %d punti battaglia, %d unita'", pts, n);
         ImGui::TextWrapped("5 contro 5: tu e 4 alleati IA contro 5 avversari IA. Ogni giocatore porta una squadra entro il cap "
             "della coda (unita' + equipaggiamento) e rientra con un'altra unita' quando quella in campo cade.");
         ImGui::Spacing();
 
         const std::string capProblem = SquadTypeCapProblem();
-        if (!capProblem.empty()) ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", capProblem.c_str());
+        if (!capProblem.empty()) ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "%s", capProblem.c_str());
         for (int i = 0; i < 3; ++i) {
             const auto& tier = kVsBotTiers[i];
             const bool ok = VsBotEligible(pts, n, tier) && capProblem.empty();
@@ -8020,18 +8133,18 @@ namespace SunEngine {
             else if (pts > tier.cap) std::snprintf(status, sizeof(status), "NON IDONEA: squadra troppo forte (%d > %d)", pts, tier.cap);
             else std::snprintf(status, sizeof(status), "NON IDONEA: servono piu' di %d punti (hai %d)", tier.minExclusive, pts);
 
-            ImGui::PushStyleColor(ImGuiCol_Button, ok ? ImVec4(0.15f, 0.55f, 0.20f, 1.0f) : ImVec4(0.35f, 0.12f, 0.12f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ok ? ImVec4(0.20f, 0.70f, 0.28f, 1.0f) : ImVec4(0.35f, 0.12f, 0.12f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Button, ok ? ImVec4(0.20f, 0.34f, 0.17f, 1.0f) : ImVec4(0.34f, 0.08f, 0.07f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ok ? ImVec4(0.20f, 0.34f, 0.17f, 1.0f) : ImVec4(0.34f, 0.08f, 0.07f, 1.0f));
             ImGui::BeginDisabled(!ok);
-            if (ImGui::Button(label, ImVec2(-1, 58))) {
+            if (Ui::PlainButton(label, ImVec2(-1, 58))) {
                 StartVsBotMatch(i);
             }
             ImGui::EndDisabled();
             ImGui::PopStyleColor(2);
-            ImGui::TextColored(ok ? ImVec4(0.4f, 1.0f, 0.5f, 1.0f) : ImVec4(1.0f, 0.45f, 0.35f, 1.0f), "%s", status);
+            ImGui::TextColored(ok ? ImVec4(0.50f, 0.74f, 0.44f, 1.0f) : ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "%s", status);
             ImGui::Spacing();
         }
-        if (!m_VsBotMessage.empty()) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%s", m_VsBotMessage.c_str());
+        if (!m_VsBotMessage.empty()) ImGui::TextColored(ImVec4(0.88f, 0.52f, 0.24f, 1.0f), "%s", m_VsBotMessage.c_str());
     }
 
     // Unita' generata per un bot: nome e colore dall'albero di ricerca, armi in base alla fazione.
@@ -8723,9 +8836,9 @@ namespace SunEngine {
         ImGui::Begin("VsBotHUD", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoInputs);
         const int left = std::max(0, static_cast<int>(m_VsBotTimeLimit - m_VsBotTime));
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "%s", kVsBotTiers[std::clamp(m_VsBotTier, 0, 2)].name);
-        ImGui::SameLine(); ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "  ALLEATI: %d unita' rimaste", allyLeft);
-        ImGui::SameLine(); ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.35f, 1.0f), "  AVVERSARI: %d abbattute", enemyFallen);
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "%s", kVsBotTiers[std::clamp(m_VsBotTier, 0, 2)].name);
+        ImGui::SameLine(); ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "  ALLEATI: %d unita' rimaste", allyLeft);
+        ImGui::SameLine(); ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "  AVVERSARI: %d abbattute", enemyFallen);
         ImGui::SameLine(); ImGui::Text("   %02d:%02d", left / 60, left % 60);
         ImGui::SameLine(); ImGui::TextDisabled("   [TAB] squadre");
         ImGui::End();
@@ -8808,8 +8921,8 @@ namespace SunEngine {
         int chosen = -1;
         const VsBotPlayer* me = (!m_VsBotPlayers.empty() && m_VsBotPlayers[0].human) ? &m_VsBotPlayers[0] : nullptr;
         if (me && me->CountState(VsBotSlotState::Reserve) > 0) {
-            if (me->respawnTimer > 0.0f) ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Rinforzi pronti tra %.0f s", std::ceil(me->respawnTimer));
-            else ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.5f, 1.0f), "Scegli l'unita' con cui rientrare:");
+            if (me->respawnTimer > 0.0f) ImGui::TextColored(ImVec4(0.88f, 0.52f, 0.24f, 1.0f), "Rinforzi pronti tra %.0f s", std::ceil(me->respawnTimer));
+            else ImGui::TextColored(ImVec4(0.50f, 0.74f, 0.44f, 1.0f), "Scegli l'unita' con cui rientrare:");
             ImGui::Separator(); ImGui::Spacing();
             ImDrawList* dl = ImGui::GetWindowDrawList();
             for (int i = 0; i < static_cast<int>(me->squad.size()); ++i) {
@@ -8820,23 +8933,23 @@ namespace SunEngine {
                 std::snprintf(label, sizeof(label), "        %s  (%s)  %d pti%s##rientro%d", s.unit.customName.c_str(),
                     bp ? bp->displayName.c_str() : "?", s.points, s.state == VsBotSlotState::Fallen ? "  - CADUTO" : "", i);
                 ImGui::BeginDisabled(s.state != VsBotSlotState::Reserve || me->respawnTimer > 0.0f);
-                if (ImGui::Button(label, ImVec2(-1, 40))) chosen = i;
+                if (Ui::PlainButton(label, ImVec2(-1, 40))) chosen = i;
                 ImGui::EndDisabled();
                 DrawVsBotUnitIcon(dl, ImVec2(cur.x + 22.0f, cur.y + 20.0f), 12.0f, s.unit, s.state);
             }
         }
         else {
-            ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.3f, 1.0f), "Non hai piu' unita' in riserva.");
+            ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "Non hai piu' unita' in riserva.");
             ImGui::TextWrapped("Osserva i tuoi alleati: la partita continua finche' una delle due parti resta senza unita'.");
         }
         ImGui::Spacing(); ImGui::Separator();
         ImGui::TextDisabled("Spettatore");
-        if (ImGui::Button("< Alleato precedente", ImVec2(196, 28))) --m_VsBotSpectate;
+        if (Ui::PlainButton("< Alleato precedente", ImVec2(196, 28))) --m_VsBotSpectate;
         ImGui::SameLine();
-        if (ImGui::Button("Alleato successivo >", ImVec2(196, 28))) ++m_VsBotSpectate;
+        if (Ui::PlainButton("Alleato successivo >", ImVec2(196, 28))) ++m_VsBotSpectate;
         ImGui::TextDisabled("Tieni premuto TAB per vedere le squadre");
         ImGui::Spacing();
-        const bool leave = ImGui::Button("Abbandona la partita", ImVec2(-1, 32));
+        const bool leave = Ui::PlainButton("Abbandona la partita", ImVec2(-1, 32));
         ImGui::End();
         if (chosen >= 0) VsBotRespawnHuman(chosen);
         else if (leave) LeaveVsBotMatch();
@@ -8857,7 +8970,7 @@ namespace SunEngine {
         ImDrawList* dl = ImGui::GetWindowDrawList();
         const float iconR = 10.0f, iconStep = 28.0f, rowH = 30.0f;
         const int secs = std::max(0, static_cast<int>(m_VsBotTimeLimit - m_VsBotTime));
-        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "%s  -  cap squadra %d pti", tier.name, tier.cap);
+        ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "%s  -  cap squadra %d pti", tier.name, tier.cap);
         ImGui::SameLine(ImGui::GetWindowWidth() - 120.0f); ImGui::Text("%02d:%02d", secs / 60, secs % 60);
         ImGui::Separator();
 
@@ -8869,8 +8982,8 @@ namespace SunEngine {
                 fallen += p.CountState(VsBotSlotState::Fallen);
             }
             ImGui::Spacing();
-            if (ally) ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "ALLEATI   -   unita' rimaste: %d   cadute: %d", unitsLeft, fallen);
-            else ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.35f, 1.0f), "AVVERSARI   -   unita' abbattute: %d", fallen);
+            if (ally) ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "ALLEATI   -   unita' rimaste: %d   cadute: %d", unitsLeft, fallen);
+            else ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "AVVERSARI   -   unita' abbattute: %d", fallen);
             ImGui::Separator();
             for (const auto& p : m_VsBotPlayers) {
                 if (p.team != team) continue;
@@ -8923,7 +9036,7 @@ namespace SunEngine {
         ImGui::SetNextWindowSize(ImVec2(620, 0));
         ImGui::Begin("FINE PARTITA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
         const char* title = m_VsBotResult == 1 ? "VITTORIA" : (m_VsBotResult == 2 ? "SCONFITTA" : "PAREGGIO");
-        const ImVec4 col = m_VsBotResult == 1 ? ImVec4(0.3f, 1.0f, 0.4f, 1.0f) : (m_VsBotResult == 2 ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f) : ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
+        const ImVec4 col = m_VsBotResult == 1 ? ImVec4(0.50f, 0.74f, 0.44f, 1.0f) : (m_VsBotResult == 2 ? ImVec4(0.90f, 0.30f, 0.17f, 1.0f) : ImVec4(0.95f, 0.77f, 0.36f, 1.0f));
         ImGui::TextColored(col, "%s", title);
         ImGui::Text("%s", m_VsBotEndReason.c_str());
         ImGui::Separator(); ImGui::Spacing();
@@ -8934,7 +9047,7 @@ namespace SunEngine {
         ImGui::Spacing();
         RenderMatchRecap();
         ImGui::Spacing();
-        const bool back = ImGui::Button("Torna al garage", ImVec2(-1, 44));
+        const bool back = Ui::PlainButton("Torna al garage", ImVec2(-1, 44));
         ImGui::End();
         if (back) LeaveVsBotMatch();
     }

@@ -22,6 +22,7 @@
 #include "Engine/ECS/CorpseSystem.h"
 #include "PlayerProfile.h"
 #include "GameFeel.h"
+#include "UiTheme.h"
 #include "ResearchTree.h"
 #include "Engine/ECS/BlockModel.h"
 #include "Engine/ECS/RenderSystem.h"

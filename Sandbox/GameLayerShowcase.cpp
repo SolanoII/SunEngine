@@ -386,15 +386,15 @@ namespace SunEngine {
         ImGui::Begin("VETRINA", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
         if (single) {
             const auto* bp = BlueprintManager::Get().GetUnit(m_ShowcaseFocusUnit);
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "%s", bp ? bp->displayName.c_str() : m_ShowcaseFocusUnit.c_str());
-            if (m_ShowcaseFromResearch && ImGui::Button("< Torna alla ricerca", ImVec2(-1, 30))) {
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "%s", bp ? bp->displayName.c_str() : m_ShowcaseFocusUnit.c_str());
+            if (m_ShowcaseFromResearch && Ui::PlainButton("< Torna alla ricerca", ImVec2(-1, 30))) {
                 m_CurrentTab = MenuTab::Research;
                 m_ShowcaseFocusUnit.clear();
                 m_ShowcaseFromResearch = false;
             }
-            if (ImGui::Button("Tutte le razze", ImVec2(-1, 26))) { m_ShowcaseFocusUnit.clear(); m_ShowcaseFromResearch = false; }
+            if (Ui::PlainButton("Tutte le razze", ImVec2(-1, 26))) { m_ShowcaseFocusUnit.clear(); m_ShowcaseFromResearch = false; }
         }
-        else ImGui::TextColored(ImVec4(0.4f, 0.85f, 1.0f, 1.0f), "Le razze di Project Trazyn");
+        else ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Le razze di Project Trazyn");
         ImGui::Separator();
         ImGui::TextDisabled("Animazione");
         for (int i = 0; i < static_cast<int>(ShowcaseAnim::Count); ++i) {
@@ -415,10 +415,10 @@ namespace SunEngine {
             if (std::find(shown.begin(), shown.end(), k) != shown.end()) continue;
             shown.push_back(k);
             const RaceNote n = NoteFor(k);
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "%s", n.race);
+            ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "%s", n.race);
             ImGui::PushTextWrapPos(310.0f);
             ImGui::TextWrapped("%s", n.moves);
-            if (std::string(n.bones) != "-") ImGui::TextColored(ImVec4(0.6f, 0.85f, 1.0f, 1.0f), "Ossa in piu': %s", n.bones);
+            if (std::string(n.bones) != "-") ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Ossa in piu': %s", n.bones);
             ImGui::PopTextWrapPos();
         }
         ImGui::End();
