@@ -31,6 +31,8 @@ namespace SunEngine {
         float volumeVoice = 0.8f;
         float volumeMusic = 0.8f;
         float volumeMaster = 1.0f;
+        float cameraShake = 1.0f;       // scossoni della telecamera (0 = spenti)
+        bool  hitStop = true;           // fermo-immagine sui colpi di mischia
         bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
         bool  gfxSSAO = true;           // occlusione ambientale
         bool  gfxFXAA = true;           // antialiasing
@@ -82,7 +84,8 @@ namespace SunEngine {
                               {"volumeMaster", volumeMaster},
                               {"animatedPlayer", animatedPlayer},
                               {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere},
-                              {"graphics", graphics}, {"gfxAutoDone", gfxAutoDone} };
+                              {"graphics", graphics}, {"gfxAutoDone", gfxAutoDone},
+                              {"cameraShake", cameraShake}, {"hitStop", hitStop} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
@@ -123,6 +126,8 @@ namespace SunEngine {
                 p.gfxAtmosphere = s.value("gfxAtmosphere", true);
                 if (s.contains("graphics") && s["graphics"].is_object()) p.graphics = s["graphics"];
                 p.gfxAutoDone = s.value("gfxAutoDone", false);
+                p.cameraShake = std::clamp(s.value("cameraShake", 1.0f), 0.0f, 1.5f);
+                p.hitStop = s.value("hitStop", true);
             }
             if (j.contains("currency") && j["currency"].is_object()) {
                 p.energy = std::max<int64_t>(0, j["currency"].value("energy", 0));

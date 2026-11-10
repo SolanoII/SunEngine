@@ -16,18 +16,25 @@ namespace SunEngine {
         #version 410 core
         layout (location = 0) in vec3 a_Position;
         layout (location = 1) in vec3 a_Normal;
+        // un cubo per istanza: matrice (4 colonne), colore, parametri (ruvidita', metallo, emissivo, materiale)
+        layout (location = 2) in mat4 i_Model;
+        layout (location = 6) in vec4 i_Color;
+        layout (location = 7) in vec4 i_Params;
 
-        uniform mat4 u_Model;
         uniform mat4 u_ViewProjection;
 
         out vec3 v_WorldPos;
         out vec3 v_Normal;
+        flat out vec4 v_Color;
+        flat out vec4 v_Params;
 
         void main() {
-            vec4 worldPos = u_Model * vec4(a_Position, 1.0);
+            vec4 worldPos = i_Model * vec4(a_Position, 1.0);
             v_WorldPos = worldPos.xyz;
-            mat3 normalMatrix = transpose(inverse(mat3(u_Model)));
+            mat3 normalMatrix = transpose(inverse(mat3(i_Model)));
             v_Normal = normalize(normalMatrix * a_Normal);
+            v_Color = i_Color;
+            v_Params = i_Params;
             gl_Position = u_ViewProjection * worldPos;
         }
     )";
@@ -43,11 +50,14 @@ namespace SunEngine {
         layout (location = 1) out vec4 out_Normal;
         layout (location = 2) out vec4 out_Material;
 
-        uniform vec4  u_Color;
-        uniform float u_Roughness;
-        uniform float u_Metallic;
-        uniform float u_Emissive;
-        uniform int   u_Material;   // 0 tinta unita, 1 fango, 2 cemento, 3 lamiera, 4 sacchi, 5 legno, 6 chioma, 7 terrapieno, 8 detriti
+        // dati del cubo (per istanza, vedi il vertex shader); i nomi u_* restano quelli usati qui sotto
+        flat in vec4 v_Color;
+        flat in vec4 v_Params;
+        #define u_Color v_Color
+        #define u_Roughness v_Params.x
+        #define u_Metallic v_Params.y
+        #define u_Emissive v_Params.z
+        #define u_Material int(v_Params.w + 0.5)   // 0 tinta unita, 1 fango, 2 cemento, 3 lamiera, 4 sacchi, 5 legno, 6 chioma, 7 terrapieno, 8 detriti
         uniform float u_Relief;     // rilievo dei materiali (opzioni grafiche)
 
         float H31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -1218,6 +1228,19 @@ void main() {
                 SUN_CORE_ERROR("DeferredRenderer: shadow depth shader fallito");
                 return false;
             }
+            // stessa cosa, ma un cubo per istanza (tutti i cubi di una cascata in una chiamata)
+            m_ShadowInstShader = std::make_unique<Shader>();
+            const std::string instVert = R"(
+        #version 410 core
+        layout (location = 0) in vec3 a_Position;
+        layout (location = 2) in mat4 i_Model;
+        uniform mat4 u_LightSpaceMatrix;
+        void main() { gl_Position = u_LightSpaceMatrix * i_Model * vec4(a_Position, 1.0); }
+    )";
+            if (!m_ShadowInstShader->LoadFromSource(instVert, shadowFrag, "ShadowDepthInstanced")) {
+                SUN_CORE_ERROR("DeferredRenderer: shadow depth shader a istanze fallito");
+                return false;
+            }
         }
 
         // Ombre dei modelli animati: stesso shader di profondita' con lo skinning delle ossa
@@ -1293,6 +1316,9 @@ void main() {
             glDeleteBuffers(1, &m_TestCubeEBO);
             m_TestCubeVAO = 0;
         }
+        if (m_CubeInstVAO != 0) { glDeleteVertexArrays(1, &m_CubeInstVAO); glDeleteBuffers(1, &m_CubeInstVBO); m_CubeInstVAO = 0; }
+        if (m_ShadowInstVAO != 0) { glDeleteVertexArrays(1, &m_ShadowInstVAO); glDeleteBuffers(1, &m_ShadowInstVBO); m_ShadowInstVAO = 0; }
+        m_ShadowInstShader.reset();
         if (m_GpuQueries[0][0] != 0) { glDeleteQueries(2 * GpuT_Count, &m_GpuQueries[0][0]); m_GpuQueries[0][0] = 0; }
         m_GBufferShader.reset();
         m_LightingShader.reset();
@@ -1489,6 +1515,73 @@ void main() {
         glBindVertexArray(0);
 
         m_TestCubeIndexCount = 36;
+
+        // VAO per i cubi a gruppi: stessa geometria, piu' un buffer con una riga per cubo
+        auto makeInstanced = [&](unsigned int& vao, unsigned int& vbo, GLsizei stride, bool withColor) {
+            glGenVertexArrays(1, &vao);
+            glGenBuffers(1, &vbo);
+            glBindVertexArray(vao);
+            glBindBuffer(GL_ARRAY_BUFFER, m_TestCubeVBO);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_TestCubeEBO);
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+            glBindBuffer(GL_ARRAY_BUFFER, vbo);
+            for (int c = 0; c < 4; ++c) {   // la matrice occupa 4 attributi (una colonna ciascuno)
+                glEnableVertexAttribArray(2 + c);
+                glVertexAttribPointer(2 + c, 4, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * 4 * c));
+                glVertexAttribDivisor(2 + c, 1);
+            }
+            if (withColor) {
+                glEnableVertexAttribArray(6);
+                glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * 16));
+                glVertexAttribDivisor(6, 1);
+                glEnableVertexAttribArray(7);
+                glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float) * 20));
+                glVertexAttribDivisor(7, 1);
+            }
+            glBindVertexArray(0);
+        };
+        makeInstanced(m_CubeInstVAO, m_CubeInstVBO, sizeof(CubeInstance), true);
+        makeInstanced(m_ShadowInstVAO, m_ShadowInstVBO, sizeof(glm::mat4), false);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+
+    // Tutti i cubi del fotogramma in una sola chiamata. Lo stato del G-Buffer viene reimpostato: fra un DrawCube
+    // e l'altro possono essere passati altri disegni (personaggi, anelli a terra).
+    void DeferredRenderer::FlushCubes() {
+        if (m_CubeQueue.empty()) return;
+        m_GBuffer.BindForWriting();
+        glViewport(0, 0, m_Width, m_Height);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+        m_GBufferShader->Bind();
+        m_GBufferShader->SetMat4("u_ViewProjection", m_ViewProjection);
+        m_GBufferShader->SetFloat("u_Relief", m_Quality.materialRelief);
+        glBindVertexArray(m_CubeInstVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_CubeInstVBO);
+        glBufferData(GL_ARRAY_BUFFER, m_CubeQueue.size() * sizeof(CubeInstance), m_CubeQueue.data(), GL_STREAM_DRAW);
+        glDrawElementsInstanced(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0, static_cast<GLsizei>(m_CubeQueue.size()));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+        m_CubeQueue.clear();
+    }
+
+    void DeferredRenderer::FlushShadowCubes(int cascadeIndex) {
+        if (m_ShadowCubeQueue.empty()) return;
+        m_ShadowInstShader->Bind();
+        m_ShadowInstShader->SetMat4("u_LightSpaceMatrix", m_ShadowMap.GetLightSpaceMatrix(cascadeIndex));
+        glBindVertexArray(m_ShadowInstVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_ShadowInstVBO);
+        glBufferData(GL_ARRAY_BUFFER, m_ShadowCubeQueue.size() * sizeof(glm::mat4), m_ShadowCubeQueue.data(), GL_STREAM_DRAW);
+        glDrawElementsInstanced(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0, static_cast<GLsizei>(m_ShadowCubeQueue.size()));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+        m_ShadowCubeQueue.clear();
     }
 
     Shader* DeferredRenderer::BeginGeometryPass(const Camera& camera) {
@@ -1498,6 +1591,11 @@ void main() {
         m_CloakCubes.clear();
         m_CloakSkinned.clear();
         m_CloakCapture = false;
+        m_CubeQueue.clear();
+        m_CubesLastFrame = m_CubesDrawn;
+        m_CubesDrawn = 0;
+        m_LastBonePtr = nullptr;
+        m_LastBoneCount = -1;
 
         // --- SHADOW PASS ---
         // Calcola le light-space matrices, poi il chiamante disegna
@@ -1540,6 +1638,9 @@ void main() {
         // → Strategia alternativa: estrarre dalla view matrix è più pulito,
         //   ma dato che Camera qui è una black box, uso l'inversa di VP e
         //   prendo la posizione "di fronte". Non perfetto ma funziona per test.
+
+        // Cubi accodati dal chiamante: tutti insieme nel G-Buffer
+        FlushCubes();
 
         // Upload luci
         UploadLights();
@@ -1794,19 +1895,11 @@ void main() {
             if (!SphereInPlanes(m_CamPlanes, c, r, false)) { ++m_Culled; return; }   // fuori dalla vista
         }
         if (m_CloakCapture) { m_CloakCubes.push_back({ transform, m_CloakAmount }); return; }   // mimetizzato
-        m_GBufferShader->Bind();
-        m_GBufferShader->SetMat4("u_Model", transform);
-        m_GBufferShader->SetMat4("u_ViewProjection", m_ViewProjection);
-        m_GBufferShader->SetVec4("u_Color", color);
-        m_GBufferShader->SetFloat("u_Roughness", roughness);
-        m_GBufferShader->SetFloat("u_Metallic", metallic);
-        m_GBufferShader->SetFloat("u_Emissive", emissive);
-        m_GBufferShader->SetInt("u_Material", m_Quality.mapMaterials ? material : 0);
-        m_GBufferShader->SetFloat("u_Relief", m_Quality.materialRelief);
-
-        glBindVertexArray(m_TestCubeVAO);
-        glDrawElements(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        // in coda: FlushCubes li disegna tutti con una chiamata sola
+        m_CubeQueue.push_back({ transform, color,
+            glm::vec4(roughness, metallic, emissive, static_cast<float>(m_Quality.mapMaterials ? material : 0)) });
+        ++m_CubesDrawn;
+        if (m_CubeQueue.size() >= 16384) FlushCubes();
     }
 
     void DeferredRenderer::DrawTestGround(float size) {
@@ -1846,17 +1939,11 @@ void main() {
             CubeSphere(transform, c, r);
             if (!IsSphereInShadowCascade(cascadeIndex, c, r)) { ++m_Culled; return; }   // fuori dall'area della cascata
         }
-        m_ShadowDepthShader->Bind();
-        m_ShadowDepthShader->SetMat4("u_Model", transform);
-        m_ShadowDepthShader->SetMat4("u_LightSpaceMatrix",
-            m_ShadowMap.GetLightSpaceMatrix(cascadeIndex));
-
-        glBindVertexArray(m_TestCubeVAO);
-        glDrawElements(GL_TRIANGLES, m_TestCubeIndexCount, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        m_ShadowCubeQueue.push_back(transform);   // FlushShadowCubes li disegna tutti insieme
     }
     bool DeferredRenderer::BeginShadowSkinned(int cascadeIndex, const glm::mat4& model, const std::vector<glm::mat4>& boneMatrices) {
         if (!m_ShadowSkinnedShader || !m_ShadowSkinnedShader->IsValid()) return false;
+        FlushShadowCubes(cascadeIndex);   // i cubi in coda prima di cambiare shader
         m_ShadowSkinnedShader->Bind();
         m_ShadowSkinnedShader->SetMat4("u_Model", model);
         m_ShadowSkinnedShader->SetMat4("u_LightSpaceMatrix", m_ShadowMap.GetLightSpaceMatrix(cascadeIndex));
@@ -1940,10 +2027,16 @@ void main() {
         m_GBufferSkinnedShader->SetFloat("u_Emissive", emissive);
 
         int count = std::min((int)boneMatrices.size(), MAX_BONES);
-        if (count > 0) {
-            glUniformMatrix4fv(
-                glGetUniformLocation(m_GBufferSkinnedShader->GetID(), "u_BoneMatrices"),
-                count, GL_FALSE, glm::value_ptr(boneMatrices[0]));
+        // Corpo, vestiti e armature dello stesso personaggio usano le stesse ossa: si caricano una volta sola
+        // (prima 128 matrici per ogni pezzo). Il confronto e' sul vettore passato; si azzera a ogni fotogramma.
+        const glm::mat4* bonePtr = count > 0 ? boneMatrices.data() : nullptr;
+        if (bonePtr == m_LastBonePtr && count == m_LastBoneCount) {
+            // gia' caricate per questo personaggio
+        }
+        else if (count > 0) {
+            static GLint s_BonesLoc = -1; static GLuint s_BonesProg = 0;
+            if (s_BonesProg != m_GBufferSkinnedShader->GetID()) { s_BonesProg = m_GBufferSkinnedShader->GetID(); s_BonesLoc = glGetUniformLocation(s_BonesProg, "u_BoneMatrices"); }
+            glUniformMatrix4fv(s_BonesLoc, count, GL_FALSE, glm::value_ptr(boneMatrices[0]));
         }
         else {
             // Bind identity matrices se boneMatrices è vuoto (fallback)
@@ -1952,6 +2045,8 @@ void main() {
                 glGetUniformLocation(m_GBufferSkinnedShader->GetID(), "u_BoneMatrices"),
                 MAX_BONES, GL_FALSE, glm::value_ptr(s_Identity[0]));
         }
+        m_LastBonePtr = bonePtr;
+        m_LastBoneCount = count;
 
         mesh.Draw();
     }

@@ -130,6 +130,7 @@ namespace SunEngine {
     void WeaponSystem::PlayWeaponSound(const glm::vec3& sourcePos, const glm::vec3& listenerPos,
         float baseVolume) {
         if (!m_AudioInitialized || baseVolume <= 0.001f) return;
+        if (FeelAudioActive()) return;   // il gioco suona gli spari per tipo di arma (GameFeel): qui resta la riserva
 
         // Falloff lineare da 1.0 a 0.0 in 40 metri (più secco delle voci Ork)
         // L'ascoltatore vero e' il giocatore locale (il GameLayer lo passa a miniaudio a ogni frame): prima si usava la
@@ -507,6 +508,7 @@ namespace SunEngine {
         beamTrail.hitSomething = hit.hit && Random::Chance(0.3f);   // metallo fuso ogni tanto, non a ogni frame
         beamTrail.hitUnit = hit.hitUnit;
         if (Random::Chance(0.35f)) { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Melta; mz.pos = barrelOrigin; mz.dir = baseDir; EmitVfx(mz); }
+        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::Melta; fe.pos = barrelOrigin; fe.dir = baseDir; fe.source = static_cast<std::uint32_t>(shooter); fe.flag = true; EmitFeel(fe); }   // flag = raggio continuo
     }
 
     void WeaponSystem::FireWeapon(Scene& scene, entt::entity shooter,
@@ -610,6 +612,7 @@ namespace SunEngine {
             // Getto di fiamme vero (particelle che volano, crescono e diventano fumo) al posto della striscia arancione
             VfxEvent jet; jet.kind = VfxKind::FlamerJet; jet.pos = barrelOrigin; jet.dir = baseDir; jet.scale = wpBP.range_effective;
             EmitVfx(jet);
+            { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::Flamer; fe.pos = barrelOrigin; fe.dir = baseDir; fe.source = static_cast<std::uint32_t>(shooter); fe.flag = true; EmitFeel(fe); }
             return;
         }
 
@@ -627,6 +630,7 @@ namespace SunEngine {
             }
             Explosives::ThrowGrenade(scene, shooter, wpBP, barrelOrigin, vel, nullptr);   // nullptr: niente modello dell'arma come granata
             { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Ballistic; mz.pos = barrelOrigin; mz.dir = baseDir; EmitVfx(mz); }
+            { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::Explosive; fe.pos = barrelOrigin; fe.dir = baseDir; fe.source = static_cast<std::uint32_t>(shooter); fe.scale = wpBP.base_damage; EmitFeel(fe); }
             PlayWeaponSound(barrelOrigin, trans.Position + glm::vec3(0.0f, 1.2f, 0.0f), 0.8f);
             return;
         }
@@ -665,9 +669,12 @@ namespace SunEngine {
         const float grazeChance = Marksmanship::GrazeChance(skill, shotSteady) * steadyMult;
         const WeaponFx fx = FxFor(wpBP, isUnderbarrelShotgun);
         { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = fx; mz.pos = barrelOrigin; mz.dir = baseDir; mz.color = wpBP.primary_color; EmitVfx(mz); }
+        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = fx; fe.pos = barrelOrigin; fe.dir = baseDir; fe.color = wpBP.primary_color;
+          fe.source = static_cast<std::uint32_t>(shooter); fe.scale = wpBP.base_damage * static_cast<float>(std::max(1, numProjectiles)); EmitFeel(fe); }
 
         for (int p = 0; p < numProjectiles; ++p) {
             glm::vec3 shootDir = baseDir;
+            bool feelKilled = false, feelArmored = false;   // per l'evento di impatto (suono, sussulto)
 
             if (isShotgun || totalSpread > 0.001f) {
                 float r = Random::Float01() * totalSpread;
@@ -726,6 +733,8 @@ namespace SunEngine {
                         targetStats, targetHealth);
                 }
                 EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore, graze);
+                feelKilled = healthBefore > 0.0f && targetHealth.currentHealth <= 0.0f;
+                { const ArmorPiece* ap = targetStats.armorSet.GetPiece(hit.location); feelArmored = (ap ? ap->armorRating : targetStats.armorSet.GetAverageRating()) >= 40; }
             }
             // Colpo su una struttura costruita (barricata, muro): meta' danno, puo' romperla
             else if (!parried && hit.hit && !hit.hitUnit && hit.entity != entt::null && scene.GetRegistry().valid(hit.entity) &&
@@ -767,6 +776,14 @@ namespace SunEngine {
             case WeaponFx::Explosive: flight(90.0f, 0.05f, 0.8f, 0.9f); bulletTrail.impactScale = std::max(1.0f, wpBP.explosion_radius); bulletTrail.hitSomething = !parried; break;
             case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
             default: break;
+            }
+            if ((hit.hit || fx == WeaponFx::Explosive) && !parried) {
+                FeelEvent fe; fe.kind = FeelKind::Impact; fe.fx = fx; fe.pos = hitPoint; fe.dir = shootDir; fe.color = bulletTrail.color;
+                fe.source = static_cast<std::uint32_t>(shooter); fe.target = static_cast<std::uint32_t>(hit.entity);
+                fe.hitUnit = hit.hitUnit; fe.killed = feelKilled; fe.armored = feelArmored;
+                fe.delay = bulletTrail.travelTime; fe.scale = fx == WeaponFx::Explosive ? std::max(1.0f, wpBP.explosion_radius) : wpBP.base_damage;
+                fe.variant = numProjectiles;
+                EmitFeel(fe);
             }
         }
         // Suono posizionale: sorgente = bocca di fuoco; l'attenuazione usa l'ascoltatore (vedi PlayWeaponSound)
@@ -879,6 +896,8 @@ namespace SunEngine {
         tr.hitSomething = hit.hit;
         tr.hitUnit = hit.hitUnit;
         { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::LongLas; mz.pos = origin; mz.dir = dir; mz.color = bp.primary_color; EmitVfx(mz); }
+        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::LongLas; fe.pos = origin; fe.dir = dir; fe.color = bp.primary_color; fe.scale = bp.base_damage; EmitFeel(fe); }
+        if (hit.hit) { FeelEvent fe; fe.kind = FeelKind::Impact; fe.fx = WeaponFx::LongLas; fe.pos = end; fe.dir = dir; fe.target = static_cast<std::uint32_t>(hit.entity); fe.hitUnit = hit.hitUnit; fe.scale = bp.base_damage; EmitFeel(fe); }
     }
 
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,

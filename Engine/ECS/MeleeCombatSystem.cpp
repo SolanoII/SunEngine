@@ -258,6 +258,12 @@ namespace SunEngine {
                 e.pos2 = glm::vec3(vt->Position.x, vy, vt->Position.z);
             }
             EmitVfx(e);
+            // Sensazione: tonfo, scossone e fermo-immagine (GameFeel)
+            FeelEvent fe; fe.kind = FeelKind::MeleeHit; fe.pos = best.point; fe.dir = e.dir; fe.variant = e.variant; fe.flag = e.flag;
+            fe.source = static_cast<std::uint32_t>(attacker); fe.target = static_cast<std::uint32_t>(best.e);
+            fe.killed = healthBefore > 0.0f && reg.get<HealthComponent>(best.e).currentHealth <= 0.0f;
+            if (const auto* ts = reg.try_get<UnitStatsComponent>(best.e)) fe.armored = ts->armorSet.GetAverageRating() >= 40;
+            EmitFeel(fe);
         }
         (void)atkStats;
     }

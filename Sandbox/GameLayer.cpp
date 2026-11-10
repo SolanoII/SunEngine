@@ -1399,6 +1399,8 @@ namespace SunEngine {
                 m_SFXGroupInitialized ? &m_SFXGroup : nullptr,
                 audioDir
             );
+            // Suoni per tipo di arma, impatti, esplosioni, passi per corpo (GameData/Audio/Feel)
+            m_Feel.Init(&m_AudioEngine, m_SFXGroupInitialized ? &m_SFXGroup : nullptr, audioDir);
         }
         m_Scene.GetRegistry().emplace<ParticleEmitterComponent>(m_PlayerEntity);
 
@@ -1704,6 +1706,8 @@ namespace SunEngine {
         m_VolumeVoice = m_Profile.volumeVoice;
         m_VolumeMusic = m_Profile.volumeMusic;
         m_VolumeMaster = m_Profile.volumeMaster;
+        m_Feel.shakeScale = m_Profile.cameraShake;
+        m_Feel.hitStopEnabled = m_Profile.hitStop;
         m_UseAnimatedPlayer = m_Profile.animatedPlayer;
         m_DeferredRenderer.SetSSAOEnabled(m_Profile.gfxSSAO);
         m_DeferredRenderer.SetFXAAEnabled(m_Profile.gfxFXAA);
@@ -1803,6 +1807,8 @@ namespace SunEngine {
         m_Profile.volumeVoice = m_VolumeVoice;
         m_Profile.volumeMusic = m_VolumeMusic;
         m_Profile.volumeMaster = m_VolumeMaster;
+        m_Profile.cameraShake = m_Feel.shakeScale;
+        m_Profile.hitStop = m_Feel.hitStopEnabled;
         m_Profile.animatedPlayer = m_UseAnimatedPlayer;
         m_Profile.gfxSSAO = m_DeferredRenderer.IsSSAOEnabled();
         m_Profile.gfxFXAA = m_DeferredRenderer.IsFXAAEnabled();
@@ -1908,6 +1914,7 @@ namespace SunEngine {
             ma_sound_uninit(&m_MusicSound);
             m_MusicLoaded = false;
         }
+        m_Feel.Shutdown();   // prima del gruppo SFX a cui sono agganciati i suoi suoni
         if (m_SFXGroupInitialized) {
             ma_sound_group_uninit(&m_SFXGroup);
             m_SFXGroupInitialized = false;
@@ -3429,6 +3436,8 @@ namespace SunEngine {
             if (ap->action == 1) PoseLib::Throw(pose, ap->time / ap->duration);
             else if (ap->action == 2) PoseLib::UseItem(pose, ap->time / ap->duration, thigh, shin);
         }
+        // Sussulto di chi viene colpito (sopra tutto il resto)
+        m_Feel.ApplyFlinch(e, pose);
     }
 
     // HUD della torretta: dentro (carica del colpo, colpi, salute dell'arma, uscita) o vicino (entra / smonta)
@@ -4397,9 +4406,25 @@ namespace SunEngine {
         }
         escPressedLastFrame = escPressed;
 
+        // Sensazione di gioco: consuma gli eventi di spari, impatti, esplosioni, mischia e passi del fotogramma
+        // precedente (suoni, scossoni, lampi, bossoli, segni). Usa il tempo vero; poi il fermo-immagine dei colpi
+        // di mischia rallenta il resto dell'aggiornamento per qualche centesimo di secondo.
+        {
+            const bool inMatch = m_GameState == GameState::Gameplay;
+            const glm::vec3 camPos = glm::vec3(glm::inverse(m_Camera.GetView())[3]);
+            m_Feel.Update(deltaTime, m_IsPaused || !inMatch, m_Scene, inMatch ? m_PlayerEntity : entt::entity(entt::null), camPos,
+                [this](entt::entity e) {
+                    if (e == m_PlayerEntity) return static_cast<int>(CurrentAnimatedBodyKind());
+                    const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(e);
+                    return static_cast<int>(BodyKindForUnit(uid ? uid->id : std::string()));
+                });
+            if (inMatch && !m_IsPaused) deltaTime *= m_Feel.TimeScale();
+        }
+
         // Fuori dalla partita niente squig in giro (garage, editor)
         if (m_GameState != GameState::Gameplay) {
             XpEventLog().clear();   // eventi rimasti fuori partita: non contano
+            m_Feel.Reset();
             m_SquigSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
             const bool showcase = m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Showcase;
@@ -5168,9 +5193,14 @@ namespace SunEngine {
                 }
             }
 
+            // Scossoni (trauma), calci dei colpi presi e pugno di FOV: sopra il rinculo dell'arma
+            const GameFeel::CameraKick feelKick = m_Feel.GetCameraKick();
+            extraFov += feelKick.fov;
+            shakeOffset += feelKick.offset;
+
             glm::vec3 lookTarget = transform.Position + glm::vec3(0.0f, unitHeight * 0.65f, 0.0f);
-            float totalPitch = transform.AimPitch + recoilPitch;
-            float totalYaw = transform.AimYaw + recoilYaw;
+            float totalPitch = transform.AimPitch + recoilPitch + feelKick.pitch;
+            float totalYaw = transform.AimYaw + recoilYaw + feelKick.yaw;
 
             float pitchRad = glm::radians(totalPitch);
             float yawRad = glm::radians(totalYaw);
@@ -5240,7 +5270,7 @@ namespace SunEngine {
             m_Camera.SetTarget(lookTarget, transform.AimYaw);
 
             m_Camera.SetPitch(totalPitch);
-            m_Camera.SetYawOffset(recoilYaw);
+            m_Camera.SetYawOffset(recoilYaw + feelKick.yaw);
             m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight, extraFov);
             m_Camera.Update(shakeOffset, 1.0f);
 
@@ -5437,6 +5467,7 @@ namespace SunEngine {
                         glm::vec3(0.70f, 0.80f, 1.0f),
                         0.45f));
             }
+            m_Feel.SubmitLights(m_DeferredRenderer);   // lampi di spari ed esplosioni
             m_DeferredRenderer.SetSunDirection(glm::vec3(-0.4f, -1.0f, 0.3f));
             // ===== SHADOW PASS =====
             const glm::vec3 sunDir = glm::normalize(glm::vec3(-0.4f, -1.0f, 0.3f));
@@ -5468,6 +5499,7 @@ namespace SunEngine {
                     }
                     m_DeferredRenderer.RenderShadowPassCube(t.GetTransform(), c);
                 }
+                m_DeferredRenderer.FlushShadowCubes(c);   // tutti i cubi della cascata in una chiamata
 
                 // Personaggi animati (corpo, vestiti, armature, squig): l'ombra segue l'animazione
                 auto skinned = m_Scene.GetRegistry().view<TransformComponent, SkinnedModelInstanceComponent>();
@@ -5494,6 +5526,7 @@ namespace SunEngine {
             // ===== FINE SHADOW PASS =====
             m_DeferredRenderer.BeginGeometryPass(m_Camera);
             m_RenderSystem.RenderDeferred(m_Scene, m_DeferredRenderer);
+            m_Feel.Draw(m_DeferredRenderer);   // bossoli a terra e segni dei colpi
             RenderParryRings(true);
             RenderHealZones(true);
             RenderSummonRings(true);
@@ -7753,6 +7786,17 @@ namespace SunEngine {
                     volumeBar("Ambienza & Effetti Gioco (armi, passi, impatti):", "##VolumeSFX", m_VolumeSFX);
                     volumeBar("Voci, Schiamazzi & Versi:", "##VolumeVoice", m_VolumeVoice);
                     volumeBar("Musica di Sottofondo:", "##VolumeMusic", m_VolumeMusic);
+
+                    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SENSAZIONE DEI COLPI");
+                    ImGui::Separator(); ImGui::Spacing();
+                    {
+                        ImGui::Text("Scossoni della telecamera (spari, esplosioni, colpi presi):");
+                        float pct = m_Feel.shakeScale * 100.0f;
+                        ImGui::SetNextItemWidth(-1);
+                        if (ImGui::SliderFloat("##CameraShake", &pct, 0.0f, 150.0f, "%.0f%%")) m_Feel.shakeScale = std::clamp(pct / 100.0f, 0.0f, 1.5f);
+                        ImGui::Checkbox("Fermo-immagine sui colpi di mischia", &m_Feel.hitStopEnabled);
+                        ImGui::Spacing();
+                    }
 
                     if (!m_AudioEngineInitialized) {
                         ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "Audio non disponibile (nessun dispositivo di uscita).");

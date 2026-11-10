@@ -123,6 +123,10 @@ namespace SunEngine {
         // per fare DrawShadowCube per ogni mesh)
         Shader* GetShadowDepthShader() const { return m_ShadowDepthShader.get(); }
         void RenderShadowPassCube(const glm::mat4& transform, int cascadeIndex);
+        // I cubi (ombre e G-Buffer) non si disegnano uno alla volta: finiscono in una coda e partono tutti insieme
+        // con una sola chiamata (instancing). Per le ombre va chiamata prima di EndCascade della ShadowMap.
+        void FlushShadowCubes(int cascadeIndex);
+        int GetCubeDrawCount() const { return m_CubesLastFrame; }   // cubi disegnati nel fotogramma precedente
         // Ombre dei modelli animati: Begin una volta per entita' (matrici delle ossa), poi una Draw per ogni mesh
         // (corpo, vestiti, armature). Fra BeginCascade ed EndCascade della ShadowMap.
         bool BeginShadowSkinned(int cascadeIndex, const glm::mat4& model, const std::vector<glm::mat4>& boneMatrices);
@@ -202,6 +206,18 @@ namespace SunEngine {
         Framebuffer m_CloakCopy;                       // copia della scena illuminata (da rifrangere)
         std::unique_ptr<Shader> m_CloakShader;
         std::unique_ptr<Shader> m_CloakSkinnedShader;
+        // --- cubi a gruppi (instancing) ---
+        struct CubeInstance { glm::mat4 model; glm::vec4 color; glm::vec4 params; };   // params: ruvidita', metallo, emissivo, materiale
+        std::vector<CubeInstance> m_CubeQueue;
+        std::vector<glm::mat4> m_ShadowCubeQueue;
+        unsigned int m_CubeInstVAO = 0, m_CubeInstVBO = 0;        // G-Buffer: una riga per cubo
+        unsigned int m_ShadowInstVAO = 0, m_ShadowInstVBO = 0;    // ombre: solo la matrice
+        std::unique_ptr<Shader> m_ShadowInstShader;
+        void FlushCubes();
+        int m_CubesDrawn = 0, m_CubesLastFrame = 0;
+        // ossa: caricate una volta per personaggio, non per ogni pezzo di vestito
+        const glm::mat4* m_LastBonePtr = nullptr;
+        int m_LastBoneCount = -1;
         void RunLightingPass();
         void RunSSAOPass();
         void RunFXAAPass();

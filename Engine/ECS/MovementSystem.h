@@ -19,6 +19,7 @@
 #include "../Core/Logger/Log.h"
 #include <memory>
 #include "Components.h"
+#include "VfxEvents.h"
 #include "SunPhysicsSystem.h"
 
 namespace SunEngine {
@@ -613,6 +614,10 @@ public:
 
         for (int i = 0; i < count; ++i) {
             const auto& cand = candidates[i];
+            // Passo come evento di sensazione: il gioco sceglie suono e peso in base al corpo (gretchin, astartes...)
+            { FeelEvent fe; fe.kind = FeelKind::Step; fe.pos = cand.position; fe.source = static_cast<std::uint32_t>(cand.entity);
+              fe.variant = static_cast<int>(cand.surface); EmitFeel(fe); }
+            if (FeelAudioActive()) continue;
             float volume = 0.0f;
 
             if (cand.isPlayer) {

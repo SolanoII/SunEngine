@@ -56,6 +56,8 @@ namespace SunEngine {
         const auto* wbp = DamageResolver::ResolveMeleeWeapon(scene.GetRegistry(), attacker);
         e.flag = wbp && (wbp->id.find("chain") != std::string::npos || wbp->id.find("eviscerator") != std::string::npos);
         EmitVfx(e);
+        { FeelEvent fe; fe.kind = FeelKind::MeleeSwing; fe.pos = (startPos + endPos) * 0.5f; fe.variant = e.variant; fe.flag = e.flag;
+          fe.source = static_cast<std::uint32_t>(attacker); EmitFeel(fe); }
     }
 
 }

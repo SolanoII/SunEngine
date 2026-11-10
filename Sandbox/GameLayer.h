@@ -21,6 +21,7 @@
 #include "Engine/ECS/ParticleSystem.h"
 #include "Engine/ECS/CorpseSystem.h"
 #include "PlayerProfile.h"
+#include "GameFeel.h"
 #include "ResearchTree.h"
 #include "Engine/ECS/BlockModel.h"
 #include "Engine/ECS/RenderSystem.h"
@@ -526,6 +527,7 @@ namespace SunEngine {
         bool m_SquigSkeletonLoaded = false;
         RepairSystem m_RepairSystem;         // chiave inglese: ripara veicoli, strutture, torrette
         ParticleSystem m_ParticleSystem;
+        GameFeel m_Feel;   // suoni a strati, scossoni, lampi, bossoli, segni dei colpi (vedi GameFeel.h)
         RenderSystem m_RenderSystem;
 
         Model m_TestModel;
