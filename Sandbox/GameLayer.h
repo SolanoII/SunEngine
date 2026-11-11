@@ -70,7 +70,8 @@ namespace SunEngine {
         Deployment,
         Research,   // albero di ricerca delle unita'
         Shop,       // negozio (Pietra Nera): per ora WIP
-        Showcase    // vetrina: razze affiancate (o un'unita' dall'albero di ricerca) con le loro animazioni
+        Showcase,   // vetrina: razze affiancate (o un'unita' dall'albero di ricerca) con le loro animazioni
+        Servers     // lobby aperte in rete locale e sul server d'incontro, apertura della propria
     };
 
     enum class EditorGizmoMode {
@@ -504,6 +505,10 @@ namespace SunEngine {
         void ClearPartyActors();
         void RenderPartyPanel();
         void RenderPartyOverlay();
+        void RenderServerBrowserUI();               // schermata SERVER
+        char m_ServerAddrBuf[96] = "";
+        char m_LobbyNameBuf[41] = "";
+        bool m_ServerShowFull = true;               // elenco: anche le lobby piene / in partita
         std::string m_ShowcaseFocusUnit;            // vuoto = tutte le razze in fila; altrimenti anteprima di un'unita'
         std::string m_ShowcaseBuiltFor = "#";       // per cosa sono stati creati gli attori
         bool m_ShowcaseFromResearch = false;
@@ -620,6 +625,8 @@ namespace SunEngine {
 
         bool m_IsPaused = false;
         GameState m_GameState = GameState::MainMenu;
+        GameState m_PrevGameState = GameState::MainMenu;   // per accorgersi di quando si entra o si esce da una partita
+        void ResetMatchState(bool leaving);                            // tutto quello che una partita lascia in giro (vedi GameLayer.cpp)
         MenuTab m_CurrentTab = MenuTab::StasisVault;
 
         float m_GarageCameraAngle = 0.0f;

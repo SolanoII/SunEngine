@@ -1,7 +1,9 @@
 #pragma once
 // Squadra (party), lobby e collegamento peer to peer.
 //
-// Non c'e' un server: i giocatori si collegano fra loro direttamente (UDP affidabile, libreria ENet).
+// La partita e' peer to peer: l'host e' sempre uno dei giocatori (UDP affidabile, libreria ENet). Per trovarsi via
+// internet senza aprire porte c'e' il server d'incontro (Tools/TrazynServer, vedi ServerProtocol.h): elenco delle
+// lobby, codici a 6 cifre, apertura dei router e, se proprio non si aprono, ponte. Senza server funziona la rete locale.
 //   - SQUADRA: chi la crea ne e' il capo; gli altri entrano col codice a 6 cifre (o quello esteso), dall'elenco delle lobby in rete
 //     locale, o su approvazione del capo. Tutti sono collegati con tutti (maglia), non solo col capo: cosi' ognuno
 //     misura la latenza verso gli altri e, se il capo o l'host cadono, la squadra resta in piedi.
@@ -12,9 +14,10 @@
 //     l'host esce o cade, subentra il successivo della lista (sempre il migliore rimasto) e riparte dall'ultima
 //     istantanea. La lista di successione e' la stessa per tutti, quindi non serve votare.
 //
-// Limite senza server: via internet chi ospita il primo contatto deve essere raggiungibile (porta UDP aperta sul
-// router, oppure una rete virtuale tipo Tailscale/ZeroTier/Radmin). In rete locale funziona sempre. Il server
-// (amici, stato online, attraversamento automatico dei router) si appoggera' a questa stessa classe.
+// Senza server d'incontro, via internet chi ospita il primo contatto deve essere raggiungibile (porta UDP aperta, o una
+// rete virtuale tipo Tailscale/ZeroTier/Radmin); in rete locale funziona sempre.
+//   - HOST DURANTE LA PARTITA: se nel frattempo entra (o migliora) qualcuno con una connessione nettamente migliore
+//     per tutti, l'host gli passa il ruolo da solo, senza interrompere.
 //
 // Questo file non espone ENet ne' le socket: si puo' includere ovunque.
 #include <cstdint>
@@ -37,7 +40,8 @@ namespace SunEngine::Net {
         bool ready = false;
         bool leader = false;
         bool self = false;
-        bool linked = false;       // collegamento diretto attivo con me
+        bool linked = false;       // collegamento attivo con me
+        bool relayed = false;      // ...ma passa dal ponte del server d'incontro (router che non si aprono)
         int joinOrder = 0;
         float rttMs = 0.0f;        // latenza fra me e lui
         float lossPct = 0.0f;      // pacchetti persi fra me e lui (%)
@@ -47,6 +51,10 @@ namespace SunEngine::Net {
     struct LobbyInfo {
         PeerId leaderId = 0;
         std::string leaderName;
+        std::string name;          // nome della lobby
+        bool inSession = false;    // partita gia' iniziata (si puo' entrare lo stesso)
+        bool online = false;       // dal server d'incontro (via internet); false = rete locale
+        int pingMs = -1;           // latenza del capo verso il server d'incontro (indicativa)
         std::string address;       // "ip:porta"
         int members = 0, maxMembers = 0;
         Privacy privacy = Privacy::Open;
@@ -98,13 +106,24 @@ namespace SunEngine::Net {
         const std::vector<JoinRequest>& Requests() const;     // lobby chiusa: chi chiede di entrare
         void AnswerRequest(PeerId id, bool accept);
 
-        // --- lobby visibili in rete locale ---
+        // --- lobby visibili: rete locale + server d'incontro ---
         const std::vector<LobbyInfo>& Lobbies() const;
+        void SetLobbyName(const std::string& name);            // solo il capo
+        const std::string& LobbyName() const;
+
+        // --- server d'incontro ---
+        void SetServer(const std::string& hostPort);           // "indirizzo[:porta]"; vuoto = solo rete locale
+        const std::string& ServerAddress() const;
+        bool ServerOnline() const;
+        float ServerRttMs() const;
+        void RefreshServerList();                              // chiede l'elenco; arriva in Lobbies()
 
         // --- sessione di gioco ---
-        bool StartSession();                                  // solo il capo: sceglie l'host migliore e avvia
-        void EndSession();                                    // solo il capo
-        bool InSession() const;
+        // L'host c'e' sempre, dalla creazione della lobby (e' chi l'ha aperta, poi chi ha la connessione migliore).
+        bool StartSession();                                  // solo il capo: avvia la partita (l'host diventa subito il migliore)
+        void EndSession();                                    // solo il capo: fine della partita, si torna in lobby
+        bool Playing() const;                                 // partita avviata
+        bool InSession() const;                               // c'e' un host
         PeerId HostId() const;
         bool IsHost() const;
         std::uint32_t Epoch() const;                          // cresce a ogni cambio di host

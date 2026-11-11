@@ -211,6 +211,11 @@ add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/Renderer/PostFX/AutoExpo
 target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
 
 # ==========================
+# Server d'incontro (programma a parte: lobby via internet senza aprire porte, vedi Tools/TrazynServer)
+# ==========================
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Tools/TrazynServer")
+
+# ==========================
 # OPZIONI DI COMPILAZIONE MIRATE MSVC
 # ==========================
 if (MSVC)

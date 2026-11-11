@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <cstdio>
+#include <cctype>
 #include <cstring>
 
 namespace SunEngine {
@@ -32,6 +33,8 @@ namespace SunEngine {
         std::snprintf(m_PartyNameBuf, sizeof(m_PartyNameBuf), "%s", m_Profile.netName.c_str());
         if (!m_Party.Init(m_Profile.netId, m_Profile.netName)) SUN_CORE_WARN("Squadra: rete non disponibile ({0})", m_Party.StatusText());
         else SUN_CORE_INFO("Squadra: rete pronta sulla porta UDP {0}", m_Party.Port());
+        m_Party.SetServer(m_Profile.netServer);   // server d'incontro (schermata SERVER); vuoto = solo rete locale
+        std::snprintf(m_ServerAddrBuf, sizeof(m_ServerAddrBuf), "%s", m_Profile.netServer.c_str());
         m_Party.onHostChanged = [](Net::PeerId host, bool iAmHost, bool migrated) {
             if (host) SUN_CORE_INFO("Squadra: host della partita {0}{1}", iAmHost ? "(io)" : "(un compagno)", migrated ? " dopo una migrazione" : "");
         };
@@ -195,6 +198,8 @@ namespace SunEngine {
             if (ImGui::InputText("##nome", m_PartyNameBuf, sizeof(m_PartyNameBuf))) {
                 if (m_PartyNameBuf[0]) { m_Profile.netName = m_PartyNameBuf; m_Party.SetName(m_Profile.netName); }
             }
+            ImGui::SameLine(0.0f, 16.0f);
+            if (Ui::PlainButton("ELENCO SERVER")) { m_CurrentTab = MenuTab::Servers; m_Party.RefreshServerList(); }
             ImGui::Spacing();
             Ui::Heading("CREA UNA SQUADRA");
             for (int i = 0; i < 3; ++i) {
@@ -268,7 +273,7 @@ namespace SunEngine {
             if (Ui::PlainButton("COPIA", ImVec2(90.0f, 0.0f))) { ImGui::SetClipboardText(code.c_str()); m_PartyToasts.push_back({ "Codice copiato: " + code, 3.0f }); }
             ImGui::SameLine();
             if (Ui::PlainButton("COPIA CODICE ESTESO", ImVec2(190.0f, 0.0f))) { ImGui::SetClipboardText(m_Party.InviteCode().c_str()); m_PartyToasts.push_back({ "Codice esteso copiato (per chi entra via internet)", 3.0f }); }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Il codice a 6 cifre funziona fra computer della stessa rete (anche virtuale).\nQuello esteso contiene indirizzo e porta: serve a chi entra via internet,\ncon la porta UDP %d aperta sul router del capo.", static_cast<int>(m_Party.Port()));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Il codice a 6 cifre funziona in rete locale e, col server d'incontro (schermata SERVER),\nanche via internet senza aprire porte. Quello esteso contiene indirizzo e porta:\nserve solo senza server, con la porta UDP %d aperta sul router del capo.", static_cast<int>(m_Party.Port()));
             ImGui::EndGroup();
         }
         // tipo di lobby
@@ -306,12 +311,12 @@ namespace SunEngine {
             ImGui::SameLine(x);
             if (mb.self) ImGui::TextColored(Ui::Col::Ash, "-");
             else if (!mb.linked) ImGui::TextColored(Ui::Col::Rust, "collego...");
-            else ImGui::TextColored(PingColor(mb.rttMs, mb.lossPct), "%.0f ms%s", mb.rttMs, mb.lossPct > 1.0f ? " !" : "");
-            if (!mb.self && mb.linked && ImGui::IsItemHovered()) ImGui::SetTooltip("Latenza %.0f ms, pacchetti persi %.1f%%", mb.rttMs, mb.lossPct);
+            else ImGui::TextColored(PingColor(mb.rttMs, mb.lossPct), "%.0f ms%s", mb.rttMs, mb.relayed ? " ponte" : (mb.lossPct > 1.0f ? " !" : ""));
+            if (!mb.self && mb.linked && ImGui::IsItemHovered()) ImGui::SetTooltip(mb.relayed ? "Latenza %.0f ms (stimata), via ponte del server d'incontro:\ni vostri router non si aprono l'uno all'altro" : "Latenza %.0f ms, pacchetti persi %.1f%%", mb.rttMs, mb.lossPct);
             x = fullW * 0.60f;
             ImGui::SameLine(x);
             if (hostNow == mb.id) ImGui::TextColored(Ui::Col::Phosphor, "HOST");
-            else if (!hostNow && best == mb.id) ImGui::TextColored(Ui::Col::Phosphor, "miglior host");
+            else if (best == mb.id) ImGui::TextColored(Ui::Col::Ash, "miglior host");
             else ImGui::TextColored(Ui::Col::Ash, " ");
             if (ImGui::IsItemHovered() && members.size() > 1) ImGui::SetTooltip("Qualita' verso tutti gli altri: %.0f (piu' basso = meglio)", mb.score);
             x = fullW * 0.80f;
@@ -343,7 +348,7 @@ namespace SunEngine {
 
         // collegamento di partita: host scelto per la connessione migliore, successione se cade
         ImGui::Spacing();
-        Ui::Heading("COLLEGAMENTO DI PARTITA");
+        Ui::Heading(m_Party.Playing() ? "PARTITA IN CORSO" : "PEER PRINCIPALE");
         if (m_Party.InSession()) {
             std::string hostName = "?", order;
             for (const auto& mb : members) if (mb.id == m_Party.HostId()) hostName = mb.name;
@@ -363,15 +368,14 @@ namespace SunEngine {
                 }
             }
             if (!order.empty()) { ImGui::TextColored(Ui::Col::Ash, "Se cade subentra, in ordine:"); ImGui::SameLine(); ImGui::TextColored(Ui::Col::Bone, "%s", order.c_str()); }
-            if (leader && Ui::PlainButton("CHIUDI IL COLLEGAMENTO", ImVec2(240.0f, 0.0f))) m_Party.EndSession();
-        }
-        else {
             ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + fullW);
-            ImGui::TextColored(Ui::Col::Ash, "All'avvio fa da host chi ha la connessione migliore verso tutti; se esce o cade subentra il successivo. "
-                               "La partita giocata insieme arriva col prossimo aggiornamento: per ora si prova il collegamento.");
+            ImGui::TextColored(Ui::Col::Ash, "L'host e' chi ha aperto la lobby; se entra qualcuno con una connessione nettamente migliore per tutti, "
+                               "il ruolo passa a lui da solo. Se l'host esce o cade, subentra il successivo. La partita giocata insieme "
+                               "arriva col prossimo aggiornamento: per ora si prova il collegamento.");
             ImGui::PopTextWrapPos();
             if (leader) {
-                if (Ui::Button("PROVA IL COLLEGAMENTO", ImVec2(240.0f, 34.0f), Ui::Btn::Normal, members.size() > 1)) m_Party.StartSession();
+                if (!m_Party.Playing()) { if (Ui::Button("AVVIA (PROVA)", ImVec2(200.0f, 34.0f), Ui::Btn::Normal, members.size() > 1)) m_Party.StartSession(); }
+                else if (Ui::PlainButton("TORNA IN LOBBY", ImVec2(200.0f, 0.0f))) m_Party.EndSession();
             }
         }
 
@@ -379,6 +383,187 @@ namespace SunEngine {
         if (Ui::Button(selfReady ? "NON PRONTO" : "PRONTO", ImVec2(160.0f, 36.0f), selfReady ? Ui::Btn::Normal : Ui::Btn::Primary)) m_Party.SetReady(!selfReady);
         ImGui::SameLine();
         if (Ui::Button("LASCIA LA SQUADRA", ImVec2(200.0f, 36.0f), Ui::Btn::Danger)) m_Party.Leave();
+        ImGui::End();
+    }
+}
+
+namespace SunEngine {
+
+    // Schermata SERVER: le lobby aperte (rete locale e server d'incontro), con la possibilita' di entrare anche in una
+    // partita gia' iniziata; a destra la propria lobby (renderla visibile, nome, codice) e il server d'incontro.
+    void GameLayer::RenderServerBrowserUI() {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 60.0f));
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y - 60.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(26.0f, 16.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::Begin("##SERVER", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoScrollbar);
+        ImGui::PopStyleVar(2);
+        Ui::Backdrop(ImGui::GetWindowDrawList(), ImVec2(0.0f, 60.0f), io.DisplaySize);
+        m_Party.RefreshServerList();   // finche' la schermata e' aperta l'elenco si aggiorna da solo
+
+        const Net::PartyState state = m_Party.GetState();
+        Ui::Title("SERVER");
+        {   // stato del server d'incontro, a destra del titolo
+            const bool on = m_Party.ServerOnline();
+            char st[96];
+            if (m_Party.ServerAddress().empty()) std::snprintf(st, sizeof(st), "SOLO RETE LOCALE");
+            else if (on) std::snprintf(st, sizeof(st), "SERVER D'INCONTRO COLLEGATO  %.0f ms", m_Party.ServerRttMs());
+            else std::snprintf(st, sizeof(st), "SERVER D'INCONTRO NON RAGGIUNGIBILE");
+            ImGui::SameLine(0.0f, 24.0f);
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8.0f);
+            Ui::Chip(st, m_Party.ServerAddress().empty() ? Ui::Col::Ash : (on ? Ui::Col::Verdigris : Ui::Col::Ember));
+        }
+        Ui::Divider();
+
+        const float rightW = std::min(470.0f, io.DisplaySize.x * 0.36f);
+        const float leftW = ImGui::GetContentRegionAvail().x - rightW - 18.0f;
+        const float listH = ImGui::GetContentRegionAvail().y;
+
+        // ---------------- elenco ----------------
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.40f));
+        ImGui::BeginChild("##lista", ImVec2(leftW, listH), true);
+        Ui::Heading("LOBBY APERTE");
+        ImGui::Checkbox("Mostra anche le piene", &m_ServerShowFull);
+        ImGui::Spacing();
+        const auto& lobbies = m_Party.Lobbies();
+        int shown = 0;
+        if (ImGui::BeginTable("##lobby", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_PadOuterX)) {
+            ImGui::TableSetupColumn("LOBBY", ImGuiTableColumnFlags_WidthStretch, 2.6f);
+            ImGui::TableSetupColumn("HOST", ImGuiTableColumnFlags_WidthStretch, 1.5f);
+            ImGui::TableSetupColumn("GIOCATORI", ImGuiTableColumnFlags_WidthStretch, 0.9f);
+            ImGui::TableSetupColumn("STATO", ImGuiTableColumnFlags_WidthStretch, 1.1f);
+            ImGui::TableSetupColumn("PING", ImGuiTableColumnFlags_WidthStretch, 0.7f);
+            ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableHeadersRow();
+            for (const auto& lb : lobbies) {
+                const bool full = lb.members >= lb.maxMembers;
+                if (full && !m_ServerShowFull) continue;
+                ++shown;
+                ImGui::TableNextRow(0, 30.0f);
+                ImGui::PushID(static_cast<int>(lb.leaderId & 0x7FFFFFFF));
+                ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding();
+                ImGui::TextColored(Ui::Col::Bone, "%s", lb.name.empty() ? ("Lobby di " + lb.leaderName).c_str() : lb.name.c_str());
+                if (!lb.online) { ImGui::SameLine(); ImGui::TextColored(Ui::Col::Phosphor, " LAN"); if (ImGui::IsItemHovered()) ImGui::SetTooltip("Nella tua rete locale"); }
+                ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(Ui::Col::Ash, "%s", lb.leaderName.c_str());
+                ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::TextColored(full ? Ui::Col::Ember : Ui::Col::Bone, "%d / %d", lb.members, lb.maxMembers);
+                ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding();
+                if (lb.inSession) ImGui::TextColored(Ui::Col::Rust, "IN PARTITA"); else ImGui::TextColored(Ui::Col::Verdigris, "IN LOBBY");
+                if (lb.privacy == Net::Privacy::Closed) { ImGui::SameLine(); ImGui::TextColored(Ui::Col::Ash, " chiusa"); if (ImGui::IsItemHovered()) ImGui::SetTooltip("Chiusa: l'host deve accettarti (o entra col codice)"); }
+                ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding();
+                if (lb.pingMs >= 0) ImGui::TextColored(lb.pingMs > 120 ? Ui::Col::Rust : Ui::Col::Ash, "%d", lb.pingMs); else ImGui::TextColored(Ui::Col::Ash, "-");
+                if (ImGui::IsItemHovered() && lb.pingMs >= 0) ImGui::SetTooltip("Latenza dell'host verso il server d'incontro (indicativa)");
+                ImGui::TableNextColumn();
+                const bool can = state == Net::PartyState::Idle && !full;
+                if (Ui::Button(lb.privacy == Net::Privacy::Closed ? "CHIEDI" : "ENTRA", ImVec2(104.0f, 26.0f), Ui::Btn::Primary, can)) m_Party.Join(lb);
+                if (!can && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip(full ? "Lobby al completo" : "Esci prima dalla tua lobby o squadra");
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
+        if (shown == 0) {
+            ImGui::Spacing();
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextColored(Ui::Col::Ash, m_Party.ServerAddress().empty()
+                ? "Nessuna lobby nella tua rete locale. Per vedere quelle via internet imposta un server d'incontro qui a destra."
+                : (m_Party.ServerOnline() ? "Nessuna lobby aperta in questo momento: aprine una tu." : "Il server d'incontro non risponde: si vedono solo le lobby della rete locale."));
+            ImGui::PopTextWrapPos();
+        }
+        if (state == Net::PartyState::Joining) { ImGui::Spacing(); ImGui::TextColored(Ui::Col::Gold, "%s", m_Party.StatusText().c_str()); ImGui::SameLine(); if (ImGui::SmallButton("annulla")) m_Party.Leave(); }
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
+
+        // ---------------- destra: la mia lobby, codice, server ----------------
+        ImGui::SameLine(0.0f, 18.0f);
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.045f, 0.043f, 0.042f, 0.92f));
+        ImGui::BeginChild("##mia", ImVec2(rightW, listH), true);
+        if (!m_LobbyNameBuf[0]) std::snprintf(m_LobbyNameBuf, sizeof(m_LobbyNameBuf), "%s", m_Party.LobbyName().empty() ? ("Lobby di " + m_Profile.netName).c_str() : m_Party.LobbyName().c_str());
+        if (state == Net::PartyState::InParty) {
+            Ui::Heading("LA TUA LOBBY");
+            const bool leader = m_Party.IsLeader();
+            if (leader) {
+                ImGui::TextColored(Ui::Col::Ash, "Nome");
+                ImGui::SetNextItemWidth(-1);
+                if (ImGui::InputText("##nomelobby", m_LobbyNameBuf, sizeof(m_LobbyNameBuf))) m_Party.SetLobbyName(m_LobbyNameBuf);
+                bool visible = m_Party.GetPrivacy() != Net::Privacy::Private;
+                if (ImGui::Checkbox("Visibile nella schermata SERVER", &visible)) m_Party.SetPrivacy(visible ? Net::Privacy::Open : Net::Privacy::Private);
+                if (visible) {
+                    bool closed = m_Party.GetPrivacy() == Net::Privacy::Closed;
+                    ImGui::SameLine();
+                    if (ImGui::Checkbox("Chiedi a me chi entra", &closed)) m_Party.SetPrivacy(closed ? Net::Privacy::Closed : Net::Privacy::Open);
+                }
+            }
+            else ImGui::TextColored(Ui::Col::Bone, "%s", m_Party.LobbyName().c_str());
+            const std::string code = m_Party.Code6();
+            ImGui::Spacing();
+            ImGui::TextColored(Ui::Col::Ash, "CODICE");
+            ImGui::SameLine();
+            Ui::TextIn(Ui::FontStrong(), Ui::Col::Gold, code.size() == 6 ? (code.substr(0, 3) + " " + code.substr(3)).c_str() : code.c_str());
+            ImGui::SameLine();
+            if (Ui::PlainButton("COPIA")) { ImGui::SetClipboardText(code.c_str()); m_PartyToasts.push_back({ "Codice copiato: " + code, 3.0f }); }
+            std::string hostName = "-";
+            for (const auto& mb : m_Party.Members()) if (mb.id == m_Party.HostId()) hostName = mb.name;
+            ImGui::TextColored(Ui::Col::Ash, "Giocatori"); ImGui::SameLine(); ImGui::TextColored(Ui::Col::Bone, "%d / %d", static_cast<int>(m_Party.Members().size()), m_Party.MaxMembers());
+            ImGui::SameLine(0.0f, 20.0f);
+            ImGui::TextColored(Ui::Col::Ash, "Host"); ImGui::SameLine(); ImGui::TextColored(Ui::Col::Phosphor, "%s%s", hostName.c_str(), m_Party.IsHost() ? " (tu)" : "");
+            ImGui::Spacing();
+            if (Ui::Button("APRI IL PANNELLO SQUADRA", ImVec2(-1, 32.0f))) { m_CurrentTab = MenuTab::StasisVault; m_PartyPanelOpen = true; }
+            if (Ui::Button("LASCIA LA LOBBY", ImVec2(-1, 32.0f), Ui::Btn::Danger)) m_Party.Leave();
+        }
+        else {
+            Ui::Heading("APRI UNA LOBBY");
+            ImGui::TextColored(Ui::Col::Ash, "Nome");
+            ImGui::SetNextItemWidth(-1);
+            ImGui::InputText("##nomelobby", m_LobbyNameBuf, sizeof(m_LobbyNameBuf));
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextColored(Ui::Col::Ash, "Compare nell'elenco a chi gioca in rete locale e, col server d'incontro, a tutti. Fai da host finche' "
+                               "non entra qualcuno con una connessione nettamente migliore.");
+            ImGui::PopTextWrapPos();
+            const bool idle = state == Net::PartyState::Idle;
+            if (Ui::Button("APRI LOBBY VISIBILE", ImVec2(-1, 38.0f), Ui::Btn::Primary, idle)) {
+                m_Party.SetLobbyName(m_LobbyNameBuf);
+                if (m_Party.Create(Net::Privacy::Open, 5)) m_Party.SetLobbyName(m_LobbyNameBuf);
+            }
+            if (Ui::Button("APRI LOBBY PRIVATA (SOLO CODICE)", ImVec2(-1, 32.0f), Ui::Btn::Normal, idle)) {
+                if (m_Party.Create(Net::Privacy::Private, 5)) m_Party.SetLobbyName(m_LobbyNameBuf);
+            }
+            ImGui::Spacing();
+            Ui::Heading("ENTRA COL CODICE");
+            ImGui::SetNextItemWidth(rightW - 230.0f);
+            const bool enter = ImGui::InputTextWithHint("##codice2", "6 cifre", m_PartyCodeBuf, sizeof(m_PartyCodeBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+            ImGui::SameLine();
+            if (Ui::PlainButton("INCOLLA")) {
+                if (const char* clip = ImGui::GetClipboardText()) {
+                    size_t n = 0;
+                    for (const char* c = clip; *c && n + 1 < sizeof(m_PartyCodeBuf); ++c) if (!std::isspace(static_cast<unsigned char>(*c))) m_PartyCodeBuf[n++] = *c;
+                    m_PartyCodeBuf[n] = 0;
+                }
+            }
+            ImGui::SameLine();
+            if ((Ui::Button("ENTRA", ImVec2(90.0f, 0.0f), Ui::Btn::Primary, idle && m_PartyCodeBuf[0] != 0) || enter) && idle && m_PartyCodeBuf[0]) m_Party.Join(m_PartyCodeBuf);
+        }
+
+        // server d'incontro
+        ImGui::Spacing(); ImGui::Spacing();
+        Ui::Heading("SERVER D'INCONTRO", Ui::Col::Phosphor);
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextColored(Ui::Col::Ash, "Serve a trovarsi via internet senza aprire porte: elenco delle lobby, codici, apertura dei router "
+                           "(e ponte se non si aprono). La partita resta fra i giocatori. Lo fa girare TrazynServer su un computer sempre "
+                           "acceso: tutti devono usare lo stesso indirizzo.");
+        ImGui::PopTextWrapPos();
+        ImGui::SetNextItemWidth(rightW - 150.0f);
+        ImGui::InputTextWithHint("##srv", "indirizzo:porta (es. 203.0.113.7:27640)", m_ServerAddrBuf, sizeof(m_ServerAddrBuf));
+        ImGui::SameLine();
+        if (Ui::PlainButton("COLLEGA", ImVec2(110.0f, 0.0f))) {
+            m_Profile.netServer = m_ServerAddrBuf;
+            m_Party.SetServer(m_Profile.netServer);
+            m_Party.RefreshServerList();
+        }
+        if (!m_Party.ServerAddress().empty() && !m_Party.ServerOnline()) ImGui::TextColored(Ui::Col::Rust, "%s", m_Party.StatusText().c_str());
+        ImGui::EndChild();
+        ImGui::PopStyleColor();
         ImGui::End();
     }
 }

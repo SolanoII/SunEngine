@@ -1253,6 +1253,59 @@ namespace SunEngine {
         }
     }
 
+    // Tutto quello che una partita lascia in giro. Si chiama da sola quando si esce da una partita (qualunque strada:
+    // pausa, squadra distrutta, fine del Vs Bot) e quando se ne inizia una: prima ogni uscita resettava solo una parte
+    // e il resto passava alla partita dopo (colpi in volo, scie, bersagli colpiti, cadaveri, mimetismo, scavalcamento
+    // a meta', mischia o ricarica in corso, mira col mirino...).
+    void GameLayer::ResetMatchState(bool leaving) {
+        auto& reg = m_Scene.GetRegistry();
+        m_WeaponSystem.ClearPendingShots();
+        FeelEventQueue().clear();
+        VfxEventQueue().clear();
+        XpEventLog().clear();
+        m_Feel.Reset();
+        m_ParticleSystem.Clear();
+        // entita' di passaggio della partita
+        std::vector<entt::entity> junk;
+        for (auto e : reg.view<TrailRequestComponent>()) junk.push_back(e);
+        for (auto e : reg.view<HitMarkerComponent>()) if (e != m_PlayerEntity) junk.push_back(e);
+        for (auto e : reg.view<ProjectileComponent>()) junk.push_back(e);
+        for (auto e : reg.view<CorpseComponent>()) if (e != m_PlayerEntity) junk.push_back(e);
+        std::sort(junk.begin(), junk.end());
+        junk.erase(std::unique(junk.begin(), junk.end()), junk.end());
+        for (auto e : junk) {
+            if (!reg.valid(e)) continue;
+            m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
+            m_Scene.DestroyEntity(e);
+        }
+        if (leaving) {   // all'ingresso no: la partita che parte li ha appena impostati (ondata WAAAGH! della sopravvivenza)
+            g_WaaaghActive = false;
+            g_WaaaghTimer = 0.0f;
+            g_WaaaghSpawnCount = 1;
+            ResetFactionBuff();
+        }
+        m_IsPaused = false;
+        m_PlayerDeathHandled = false;
+        if (!reg.valid(m_PlayerEntity)) return;
+        // il giocatore: niente stati a meta'
+        ClearPlayerDeathState();
+        reg.remove<VaultComponent, TurretMountComponent, SpeedBoostComponent, MoraleAuraComponent, HitMarkerComponent, ActionPoseComponent>(m_PlayerEntity);
+        if (auto* cloak = reg.try_get<CloakComponent>(m_PlayerEntity)) { cloak->amount = 0.0f; cloak->timeLeft = 0.0f; }
+        if (auto* crouch = reg.try_get<CrouchComponent>(m_PlayerEntity)) crouch->amount = 0.0f;
+        if (auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
+            melee->currentPhase = MeleePhase::None; melee->currentAttack = MeleeAttackType::None; melee->currentAttackNode.clear();
+            melee->stateTimer = 0.0f; melee->stunTimer = 0.0f; melee->lungeTimer = 0.0f; melee->lungeVelocity = glm::vec3(0.0f);
+            melee->bufferedInput.clear(); melee->hasHitInThisAttack = false; melee->whiffPenalty = 0.0f; melee->parrySuccessTimer = 0.0f;
+        }
+        if (auto* rc = reg.try_get<CameraRecoilComponent>(m_PlayerEntity)) { rc->recoilPitch = rc->recoilYaw = rc->shakeIntensity = rc->fovOffset = 0.0f; }
+        if (auto* ws = reg.try_get<WeaponStateComponent>(m_PlayerEntity)) {
+            ws->isReloading = false; ws->reloadTimer = 0.0f; ws->fireCooldown = 0.0f; ws->currentHeat = 0.0f; ws->isOverheating = false; ws->isScopeActive = false;
+        }
+        if (auto* am = reg.try_get<AmmoComponent>(m_PlayerEntity)) { am->useTimer = 0.0f; am->useSlot = -1; am->useTarget = entt::null; am->feedbackTimer = 0.0f; }
+        if (auto* aim = reg.try_get<AimRayComponent>(m_PlayerEntity)) aim->valid = false;
+        if (auto* t = reg.try_get<TransformComponent>(m_PlayerEntity)) { t->Rotation.x = 0.0f; t->Rotation.z = 0.0f; t->AimPitch = 0.0f; }
+    }
+
     GameLayer::GameLayer() : Layer("Game Layer")
     {
         m_PhysicsSystem.Init(m_Scene);
@@ -4524,6 +4577,11 @@ namespace SunEngine {
         m_DeferredRenderer.SetFrameDelta(deltaTime);
         GLFWwindow* window = glfwGetCurrentContext();
         UpdateWindowSize();
+        // Entrata o uscita da una partita: si riparte puliti
+        if (m_GameState != m_PrevGameState) {
+            if (m_PrevGameState == GameState::Gameplay || m_GameState == GameState::Gameplay) ResetMatchState(m_PrevGameState == GameState::Gameplay);
+            m_PrevGameState = m_GameState;
+        }
 
         // Autosave del profilo ogni 2 secondi (scrive solo se qualcosa e' cambiato)
         UpdateMusic(deltaTime);
@@ -5857,6 +5915,9 @@ namespace SunEngine {
             else if (m_CurrentTab == MenuTab::Shop) {
                 RenderShopUI();
             }
+            else if (m_CurrentTab == MenuTab::Servers) {
+                RenderServerBrowserUI();
+            }
             else if (m_CurrentTab == MenuTab::Showcase) {
                 RenderShowcaseUI();
             }
@@ -6063,25 +6124,35 @@ namespace SunEngine {
         const Nav navs[] = {
             { "GARAGE", inMenu && m_CurrentTab == MenuTab::StasisVault, Ui::Col::Gold },
             { "SCHIERAMENTO", inMenu && m_CurrentTab == MenuTab::Deployment, Ui::Col::Gold },
+            { "SERVER", inMenu && m_CurrentTab == MenuTab::Servers, Ui::Col::Phosphor },
             { "RICERCA", inMenu && m_CurrentTab == MenuTab::Research, Ui::Col::Gold },
             { "NEGOZIO", inMenu && m_CurrentTab == MenuTab::Shop, Ui::Col::Amethyst },
             { "VETRINA", inMenu && m_CurrentTab == MenuTab::Showcase, Ui::Col::Gold },
             { "EDITOR", m_GameState == GameState::MapEditor, Ui::Col::Rust },
             { "OPZIONI", false, Ui::Col::Phosphor },
         };
-        float navW[7], totalNav = 0.0f;
+        constexpr int kNavCount = static_cast<int>(sizeof(navs) / sizeof(navs[0]));
+        float navW[kNavCount], totalNav = 0.0f;
         {
             ImFont* fh = Ui::FontHeading();
-            for (int i = 0; i < 7; ++i) { navW[i] = fh->CalcTextSizeA(fh->FontSize * 0.92f, FLT_MAX, 0.0f, navs[i].label).x + 34.0f; totalNav += navW[i]; }
+            for (int i = 0; i < kNavCount; ++i) { navW[i] = fh->CalcTextSizeA(fh->FontSize * 0.92f, FLT_MAX, 0.0f, navs[i].label).x + 34.0f; totalNav += navW[i]; }
         }
         ImGui::SetCursorPos(ImVec2(std::max(300.0f, io.DisplaySize.x * 0.5f - totalNav * 0.5f), 0.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
         int clickedNav = -1;
-        for (int i = 0; i < 7; ++i) {
+        for (int i = 0; i < kNavCount; ++i) {
             if (Ui::NavTab(navs[i].label, navW[i], 58.0f, navs[i].active, navs[i].accent)) clickedNav = i;
-            if (i < 6) ImGui::SameLine();
+            if (i < kNavCount - 1) ImGui::SameLine();
         }
         ImGui::PopStyleVar();
+        // dalla scheda cliccata all'azione (per nome: l'ordine delle schede si puo' cambiare liberamente)
+        const std::string nav = clickedNav >= 0 ? navs[clickedNav].label : "";
+        if (nav == "SERVER") {
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Servers;
+            m_Party.RefreshServerList();
+        }
+        clickedNav = nav == "GARAGE" ? 0 : nav == "SCHIERAMENTO" ? 1 : nav == "RICERCA" ? 2 : nav == "NEGOZIO" ? 3 : nav == "VETRINA" ? 4 : nav == "EDITOR" ? 5 : nav == "OPZIONI" ? 6 : -1;
 
         if (clickedNav == 0) {
             m_GameState = GameState::MainMenu;

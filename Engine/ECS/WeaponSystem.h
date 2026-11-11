@@ -35,6 +35,8 @@ namespace SunEngine {
         void ShutdownAudio();
 
         void Update(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime);
+        // Fine o inizio partita: via i colpi ancora in volo (puntano a entita' che non esistono piu')
+        void ClearPendingShots() { m_PendingShots.clear(); }
 
         // --- Raycast ---
         struct RaycastResult {

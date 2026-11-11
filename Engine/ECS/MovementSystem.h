@@ -250,6 +250,22 @@ namespace SunEngine {
                             outTargetPos.y = targetY;
                         }
 
+                        // L'atterraggio deve essere libero: prima si poteva finire dentro un muro dietro l'ostacolo (o
+                        // dentro un ostacolo piu' spesso di 1,3 m) e da li' ogni passo era bloccato. Se il punto
+                        // previsto e' occupato si provano altre distanze; se nessuna e' libera non si scavalca.
+                        if (CheckWallCollision(scene, outTargetPos, outTargetPos.y)) {
+                            const glm::vec3 base = outTargetPos;
+                            const bool onTop = hasFarHit && (farDownHitPoint.y > trans.Position.y + 0.25f);
+                            const float tries[] = { 0.35f, -0.35f, 0.7f, -0.6f, 1.0f };
+                            bool found = false;
+                            for (float d : tries) {
+                                glm::vec3 p = base + forwardDir * d;
+                                if (!onTop) p.y = GetGroundHeightAt(scene, p, base.y).value_or(base.y);
+                                if (glm::dot(p - trans.Position, forwardDir) < wallDist + 0.3f) continue;   // non tornare davanti al muro
+                                if (!CheckWallCollision(scene, p, p.y)) { outTargetPos = p; found = true; break; }
+                            }
+                            if (!found) return false;
+                        }
                         return true;
                     }
                 }
@@ -363,7 +379,8 @@ namespace SunEngine {
             if (progress >= 1.0f) {
                 // Snap finale preciso per garantire che il corpo Jolt sia pulito fuori dai collider
                 trans.Position = vault.targetPos;
-                physicsSystem.SetBodyPosition(scene, entity, vault.targetPos);
+                PushOutOfWalls(scene, trans.Position);   // ultima garanzia: mai fermi dentro un muro
+                physicsSystem.SetBodyPosition(scene, entity, trans.Position);
 
                 vault.isVaulting = false;
                 vault.vaultTimer = 0.0f;
@@ -371,6 +388,34 @@ namespace SunEngine {
             }
         }
         
+        // Se il corpo e' dentro un muro (atterraggio sbagliato, spinta di un'esplosione, muro costruito addosso) lo
+        // porta fuori dalla parte piu' vicina. Senza questo, dentro un muro ogni passo risultava bloccato.
+        bool PushOutOfWalls(Scene& scene, glm::vec3& pos, float playerRadius = 0.35f) {
+            bool moved = false;
+            for (int iter = 0; iter < 4; ++iter) {
+                bool any = false;
+                auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(entt::exclude<PlayerTag, HealthComponent, CorpseComponent>);
+                for (auto entity : view) {
+                    const auto& col = view.get<ColliderComponent>(entity);
+                    const auto& t = view.get<TransformComponent>(entity);
+                    const glm::vec3 half = col.halfExtents * t.Scale;
+                    const glm::vec3 c = GetColliderWorldCenter(t, col);
+                    const glm::vec3 mn = c - half, mx = c + half;
+                    if (mx.y <= pos.y + 0.6f) continue;                    // gradino: ci si cammina sopra
+                    if (!(pos.y < mx.y && pos.y + 1.8f > mn.y)) continue;
+                    const float ox1 = (pos.x + playerRadius) - mn.x, ox2 = mx.x - (pos.x - playerRadius);
+                    const float oz1 = (pos.z + playerRadius) - mn.z, oz2 = mx.z - (pos.z - playerRadius);
+                    if (ox1 <= 0.0f || ox2 <= 0.0f || oz1 <= 0.0f || oz2 <= 0.0f) continue;
+                    const float px = ox1 < ox2 ? -ox1 : ox2, pz = oz1 < oz2 ? -oz1 : oz2;   // uscita piu' corta su ciascun asse
+                    if (std::abs(px) < std::abs(pz)) pos.x += px + (px < 0.0f ? -0.01f : 0.01f);
+                    else pos.z += pz + (pz < 0.0f ? -0.01f : 0.01f);
+                    any = moved = true;
+                }
+                if (!any) break;
+            }
+            return moved;
+        }
+
         bool CheckWallCollision(Scene& scene, const glm::vec3& targetPos, float currentY, float playerRadius = 0.35f) {
             auto view = scene.GetRegistry().view<ColliderComponent, TransformComponent>(
                 entt::exclude<PlayerTag, HealthComponent, CorpseComponent>   // <-- AGGIUNTO
@@ -413,6 +458,7 @@ public:
                 continue;
             }
             if (scene.GetRegistry().all_of<TurretMountComponent>(entity)) continue;   // dentro una torretta: la posizione la tiene TurretSystem
+            if (PushOutOfWalls(scene, transform.Position)) physicsSystem.SetBodyPosition(scene, entity, transform.Position);   // dentro un muro: fuori
 
             // Accovacciamento: CTRL tenuto (transizione di ~0,15 s)
             auto& crouch = scene.GetRegistry().get_or_emplace<CrouchComponent>(entity);

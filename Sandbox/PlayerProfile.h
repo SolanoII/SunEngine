@@ -33,6 +33,7 @@ namespace SunEngine {
         float volumeMaster = 1.0f;
         std::uint64_t netId = 0;        // identificativo in rete (casuale, creato al primo avvio)
         std::string netName;            // nome mostrato ai compagni di squadra
+        std::string netServer;          // server d'incontro ("indirizzo[:porta]"), vuoto = solo rete locale
         float cameraShake = 1.0f;       // scossoni della telecamera (0 = spenti)
         bool  hitStop = true;           // fermo-immagine sui colpi di mischia
         bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
@@ -88,7 +89,7 @@ namespace SunEngine {
                               {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere},
                               {"graphics", graphics}, {"gfxAutoDone", gfxAutoDone},
                               {"cameraShake", cameraShake}, {"hitStop", hitStop},
-                              {"netId", std::to_string(netId)}, {"netName", netName} };
+                              {"netId", std::to_string(netId)}, {"netName", netName}, {"netServer", netServer} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
@@ -136,6 +137,8 @@ namespace SunEngine {
                     p.netId = id.empty() ? 0 : std::strtoull(id.c_str(), nullptr, 10);
                     p.netName = s.value("netName", std::string());
                     if (p.netName.size() > 24) p.netName.resize(24);
+                    p.netServer = s.value("netServer", std::string());
+                    if (p.netServer.size() > 90) p.netServer.resize(90);
                 }
             }
             if (j.contains("currency") && j["currency"].is_object()) {

@@ -4,6 +4,7 @@
 #endif
 #include <enet/enet.h>
 #include "NetParty.h"
+#include "ServerProtocol.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -17,7 +18,7 @@
 namespace SunEngine::Net {
 
     namespace {
-        const std::uint32_t kProto = 0x53554E32u;        // "SUN2": versione del protocollo
+        const std::uint32_t kProto = 0x53554E33u;        // "SUN3": versione del protocollo
         const std::uint16_t kDiscoveryPort = 27649;
         const std::uint32_t kDiscoveryMagic = 0x53554E4Cu;   // "SUNL": annuncio di una lobby visibile
         const std::uint32_t kQueryMagic = 0x53554E51u;       // "SUNQ": chi ha la squadra con questo codice a 6 cifre?
@@ -29,30 +30,12 @@ namespace SunEngine::Net {
 
         enum Msg : std::uint8_t {
             MsgHello = 1, MsgDenied, MsgPending, MsgRedirect, MsgState, MsgMemberUpdate, MsgLeave, MsgPing,
-            MsgSessionStart, MsgSessionEnd, MsgHostAnnounce, MsgSnapshot, MsgGameToHost, MsgGameToAll
+            MsgSessionStart, MsgSessionEnd, MsgHostAnnounce, MsgSnapshot, MsgGameToHost, MsgGameToAll,
+            MsgHandoff     // l'host passa il ruolo a chi ha una connessione migliore
         };
 
-        // --- scrittura/lettura dei messaggi: la lettura controlla sempre i limiti (i dati arrivano dalla rete) ---
-        struct Writer {
-            std::vector<std::uint8_t> b;
-            void U8(std::uint8_t v) { b.push_back(v); }
-            void U16(std::uint16_t v) { U8(static_cast<std::uint8_t>(v)); U8(static_cast<std::uint8_t>(v >> 8)); }
-            void U32(std::uint32_t v) { U16(static_cast<std::uint16_t>(v)); U16(static_cast<std::uint16_t>(v >> 16)); }
-            void U64(std::uint64_t v) { U32(static_cast<std::uint32_t>(v)); U32(static_cast<std::uint32_t>(v >> 32)); }
-            void Str(const std::string& s) { const size_t n = (std::min)(s.size(), static_cast<size_t>(64)); U8(static_cast<std::uint8_t>(n)); b.insert(b.end(), s.begin(), s.begin() + n); }
-            void Bytes(const std::uint8_t* d, size_t n) { U32(static_cast<std::uint32_t>(n)); b.insert(b.end(), d, d + n); }
-        };
-        struct Reader {
-            const std::uint8_t* p; size_t n; bool ok = true;
-            Reader(const std::uint8_t* d, size_t len) : p(d), n(len) {}
-            bool Need(size_t k) { if (!ok || n < k) { ok = false; return false; } return true; }
-            std::uint8_t U8() { if (!Need(1)) return 0; const std::uint8_t v = *p; ++p; --n; return v; }
-            std::uint16_t U16() { const std::uint16_t a = U8(); return static_cast<std::uint16_t>(a | (static_cast<std::uint16_t>(U8()) << 8)); }
-            std::uint32_t U32() { const std::uint32_t a = U16(); return a | (static_cast<std::uint32_t>(U16()) << 16); }
-            std::uint64_t U64() { const std::uint64_t a = U32(); return a | (static_cast<std::uint64_t>(U32()) << 32); }
-            std::string Str() { const size_t k = U8(); if (k > 64 || !Need(k)) { ok = false; return {}; } std::string s(reinterpret_cast<const char*>(p), k); p += k; n -= k; return s; }
-            bool Bytes(std::vector<std::uint8_t>& out, size_t maxLen) { const size_t k = U32(); if (k > maxLen || !Need(k)) { ok = false; return false; } out.assign(p, p + k); p += k; n -= k; return true; }
-        };
+        using Wire::Writer;   // scrittura/lettura dei messaggi (ServerProtocol.h): la lettura controlla i limiti
+        using Wire::Reader;
 
         double NowSeconds() {
             using clock = std::chrono::steady_clock;
@@ -115,6 +98,11 @@ namespace SunEngine::Net {
         }
 
         int g_EnetUsers = 0;
+        // prova del ponte: si scarta tutto quello che non arriva dal server d'incontro (come due router che non si aprono)
+        ENetAddress g_TestServerAddr{};
+        int ENET_CALLBACK DropNonServer(ENetHost* h, ENetEvent*) {
+            return (h->receivedAddress.host == g_TestServerAddr.host && h->receivedAddress.port == g_TestServerAddr.port) ? 0 : 1;
+        }
     }
 
     PeerId RandomPeerId() {
@@ -134,6 +122,8 @@ namespace SunEngine::Net {
             bool joinAttempt = false;  // e' il mio tentativo di entrare in una squadra
             double created = 0.0;
             std::string helloName;
+            bool relay = false;        // non c'e' collegamento diretto: i messaggi passano dal server d'incontro
+            double lastHeard = 0.0;    // (ponte) ultimo messaggio ricevuto
         };
         // Dove si trova un compagno: come lo vede il capo (indirizzo pubblico, dietro il router) e come si vede lui
         // nella sua rete (indirizzo locale). Si usa il locale fra computer dietro lo stesso router.
@@ -169,13 +159,32 @@ namespace SunEngine::Net {
         std::unordered_map<PeerId, int> attempts;            // tentativi di collegamento diretto (si alternano gli indirizzi)
         double lastPunch = 0.0;
         std::uint32_t localIp = 0;                           // il mio indirizzo nella rete locale
+        std::string lobbyName;
+
+        // --- server d'incontro ---
+        std::string serverAddr;
+        ENetPeer* server = nullptr;
+        bool serverReady = false;                            // collegato e presentato
+        double serverRetry = 0.0, lastPublish = 0.0, lastList = 0.0, listUntil = 0.0;
+        std::uint32_t myPublicIp = 0; std::uint16_t myPublicPort = 0;
+        std::vector<LobbyInfo> netLobbies, allLobbies;
+        std::unordered_map<PeerId, Addr> knownPub;           // dove sono i giocatori presentati dal server
+        struct Punch { std::uint32_t ip; std::uint16_t port; double until; };
+        std::vector<Punch> punches;                          // router da aprire verso chi sta per chiamarmi
+        std::unordered_map<PeerId, float> theirServerRtt;    // per stimare la latenza di un collegamento via ponte
+        PeerId joinLeader = 0;                               // capo che sto raggiungendo (trovato dal server)
+        Addr joinAddr; bool joinViaServer = false; double joinRelayAt = 0.0;
+        double lastDirectRetry = 0.0;
+        double betterSince = 0.0, lastElect = 0.0;
+        double leaderMissingSince = 0.0;           // host migliore di me da quando (passaggio del ruolo)
         std::unordered_map<PeerId, std::unordered_map<PeerId, Report>> matrix;   // chi -> verso chi
         std::unordered_map<PeerId, double> suspectSince;
         std::vector<JoinRequest> requests;
         double joinStarted = 0.0;
         std::uint16_t joinKey = 0; bool joinHasKey = false;
 
-        bool session = false;
+        bool session = false;              // c'e' un host (dalla creazione della lobby: e' il "peer principale")
+        bool playing = false;              // partita avviata dal capo (nell'elenco: "in partita")
         PeerId hostId = 0;
         std::uint32_t epoch = 0;
         std::vector<PeerId> succession;
@@ -194,17 +203,51 @@ namespace SunEngine::Net {
         void Event(const std::string& s) { events.push_back(s); status = s; if (events.size() > 32) events.erase(events.begin()); }
         std::string NameOf(PeerId id) { if (auto* mb = Find(id)) return mb->name; return "?"; }
 
+        bool ServerUp() const { return server && serverReady && server->state == ENET_PEER_STATE_CONNECTED; }
+        void SendServer(const Writer& w, bool reliable = true) {
+            if (!server || server->state != ENET_PEER_STATE_CONNECTED) return;
+            ENetPacket* pkt = enet_packet_create(w.b.data(), w.b.size(), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
+            if (pkt && enet_peer_send(server, reliable ? 0 : 1, pkt) < 0) enet_packet_destroy(pkt);
+        }
         void Send(Link* l, const Writer& w, bool reliable = true, int channel = 0) {
-            if (!l || !l->peer || l->peer->state != ENET_PEER_STATE_CONNECTED) return;
+            if (!l) return;
+            if (l->relay) {   // via ponte: il server lo passa all'altro
+                if (!ServerUp() || !l->id) return;
+                Writer x; x.U8(Wire::C_Relay); x.U64(l->id); x.U8(reliable ? 1 : 0); x.Bytes(w.b.data(), w.b.size());
+                SendServer(x, reliable);
+                return;
+            }
+            if (!l->peer || l->peer->state != ENET_PEER_STATE_CONNECTED) return;
             ENetPacket* pkt = enet_packet_create(w.b.data(), w.b.size(), reliable ? ENET_PACKET_FLAG_RELIABLE : 0);
             if (pkt && enet_peer_send(l->peer, static_cast<enet_uint8>(channel), pkt) < 0) enet_packet_destroy(pkt);
+        }
+        float ServerRtt() const { return server ? static_cast<float>(server->roundTripTime) : 0.0f; }
+        // latenza e perdite di un collegamento (via ponte: io -> server -> lui)
+        float testExtraRtt = 0.0f;   // prova: latenza finta aggiunta alle mie misure (TRAZYN_NET_TEST_EXTRA_RTT)
+        float Rtt(const Link* l) const { return RttRaw(l) + testExtraRtt; }
+        float RttRaw(const Link* l) const {
+            if (l->relay) { auto it = theirServerRtt.find(l->id); return ServerRtt() + (it != theirServerRtt.end() ? it->second : ServerRtt()) + 5.0f; }
+            return l->peer ? static_cast<float>(l->peer->roundTripTime) : 999.0f;
+        }
+        float Loss(const Link* l) const { return (l->relay || !l->peer) ? 0.0f : 100.0f * static_cast<float>(l->peer->packetLoss) / static_cast<float>(ENET_PEER_PACKET_LOSS_SCALE); }
+        // indirizzo da cui lo vedo arrivare (via ponte: quello che ha visto il server)
+        bool Observed(const Link* l, std::uint32_t& ip, std::uint16_t& port) const {
+            if (l->relay) { auto it = knownPub.find(l->id); if (it == knownPub.end()) return false; ip = it->second.ip; port = it->second.port; return true; }
+            if (!l->peer) return false;
+            ip = FromEnet(l->peer->address.host); port = l->peer->address.port; return true;
+        }
+        Link* MakeRelay(PeerId id, bool outgoing, bool joinAttempt) {
+            auto* l = new Link(); l->relay = true; l->id = id; l->outgoing = outgoing; l->joinAttempt = joinAttempt; l->created = now; l->lastHeard = 0.0;
+            links.push_back(l);
+            return l;
         }
         void SendMembers(const Writer& w, bool reliable = true, int channel = 0) {
             for (auto* l : links) if (l->established) Send(l, w, reliable, channel);
         }
 
+        bool forceRelay = false;   // prova: nessun collegamento diretto (variabile d'ambiente TRAZYN_NET_FORCE_RELAY=1)
         Link* Connect(std::uint32_t ip, std::uint16_t prt, bool joinAttempt) {
-            if (!host) return nullptr;
+            if (!host || forceRelay) return nullptr;
             ENetAddress a; a.host = ToEnet(ip); a.port = prt;
             ENetPeer* p = enet_host_connect(host, &a, 2, 0);
             if (!p) return nullptr;
@@ -219,11 +262,14 @@ namespace SunEngine::Net {
         }
         void Drop(Link* l, bool hard) {
             if (!l) return;
-            if (l->peer) { l->peer->data = nullptr; if (hard || l->peer->state != ENET_PEER_STATE_CONNECTED) enet_peer_reset(l->peer); else enet_peer_disconnect_later(l->peer, 0); }
+            if (l->peer && !l->relay) { l->peer->data = nullptr; if (hard || l->peer->state != ENET_PEER_STATE_CONNECTED) enet_peer_reset(l->peer); else enet_peer_disconnect_later(l->peer, 0); }
             links.erase(std::remove(links.begin(), links.end(), l), links.end());
             delete l;
         }
+        // chiude un collegamento dopo l'ultimo messaggio (via ponte: subito, non c'e' niente da salutare)
+        void Hangup(Link* l) { if (l->relay) Drop(l, true); else if (l->peer) enet_peer_disconnect_later(l->peer, 0); }
         double SilentFor(Link* l) const {
+            if (l && l->relay) return now - (l->lastHeard > 0.0 ? l->lastHeard : l->created);
             if (!l || !l->peer) return 1e9;
             if (l->peer->lastReceiveTime == 0) return (std::max)(0.0, now - l->created);   // ancora nessuna conferma da lui
             const enet_uint32 diff = enet_time_get() - l->peer->lastReceiveTime;   // millisecondi dall'ultima conferma ricevuta
@@ -233,9 +279,11 @@ namespace SunEngine::Net {
         void ResetParty(const std::string& why) {
             for (auto* l : std::vector<Link*>(links)) Drop(l, false);
             members.clear(); addrs.clear(); matrix.clear(); suspectSince.clear(); requests.clear(); lastAttempt.clear(); attempts.clear();
-            leaderId = 0; version = 0; nextOrder = 0; key = 0; code6 = 0; lookupCode = 0;
             const bool had = session;
-            session = false; hostId = 0; epoch = 0; succession.clear(); snapshot.clear(); snapshotTime = -1.0;
+            if (leaderId == selfId && ServerUp()) { Writer w; w.U8(Wire::C_Unpublish); SendServer(w); }   // la mia lobby sparisce dall'elenco
+            session = false; playing = false; hostId = 0; epoch = 0; succession.clear(); snapshot.clear(); snapshotTime = -1.0;
+            joinLeader = 0; joinViaServer = false; punches.clear(); betterSince = 0.0;
+            leaderId = 0; version = 0; nextOrder = 0; key = 0; code6 = 0; lookupCode = 0;
             state = host ? PartyState::Idle : PartyState::Offline;
             if (!why.empty()) Event(why);
             if (had && owner->onHostChanged) owner->onHostChanged(0, false, false);
@@ -251,7 +299,7 @@ namespace SunEngine::Net {
         // ---------- stato della squadra (lo decide il capo) ----------
         Writer BuildState() {
             Writer w; w.U8(MsgState); w.U32(version); w.U64(leaderId); w.U8(static_cast<std::uint8_t>(privacy)); w.U8(static_cast<std::uint8_t>(maxMembers)); w.U16(key);
-            w.U32(code6);
+            w.U32(code6); w.Str(lobbyName); w.U8(playing ? 1 : 0);
             w.U8(session ? 1 : 0); w.U32(epoch); w.U64(hostId);
             w.U8(static_cast<std::uint8_t>((std::min)(succession.size(), static_cast<size_t>(16))));
             for (size_t i = 0; i < succession.size() && i < 16; ++i) w.U64(succession[i]);
@@ -272,8 +320,8 @@ namespace SunEngine::Net {
                 mb.self = mb.id == selfId; mb.leader = mb.id == leaderId;
                 Link* l = LinkOf(mb.id);
                 mb.linked = mb.self || l != nullptr;
-                if (l && l->peer) { mb.rttMs = static_cast<float>(l->peer->roundTripTime); mb.lossPct = 100.0f * static_cast<float>(l->peer->packetLoss) / static_cast<float>(ENET_PEER_PACKET_LOSS_SCALE); }
-                else { mb.rttMs = 0.0f; mb.lossPct = 0.0f; }
+                if (l) { mb.rttMs = Rtt(l); mb.lossPct = Loss(l); mb.relayed = l->relay; }
+                else { mb.rttMs = 0.0f; mb.lossPct = 0.0f; mb.relayed = false; }
                 mb.score = mb.id == 0 ? 0.0f : Score(mb.id);
             }
             std::sort(members.begin(), members.end(), [](const Member& a, const Member& b) { return a.joinOrder < b.joinOrder; });
@@ -282,7 +330,7 @@ namespace SunEngine::Net {
         // Latenza fra due compagni: quella che misuro io se c'entro, altrimenti quella che riferiscono loro
         bool PairQuality(PeerId a, PeerId b, float& rtt, float& loss) {
             float sum = 0.0f, ls = 0.0f; int n = 0;
-            auto mine = [&](PeerId other) { if (Link* l = LinkOf(other)) { sum += static_cast<float>(l->peer->roundTripTime); ls += 100.0f * static_cast<float>(l->peer->packetLoss) / static_cast<float>(ENET_PEER_PACKET_LOSS_SCALE); ++n; } };
+            auto mine = [&](PeerId other) { if (Link* l = LinkOf(other)) { sum += Rtt(l); ls += Loss(l); ++n; } };
             if (a == selfId) mine(b); else if (b == selfId) mine(a);
             auto rep = [&](PeerId from, PeerId to) {
                 auto it = matrix.find(from); if (it == matrix.end()) return;
@@ -320,13 +368,14 @@ namespace SunEngine::Net {
             std::vector<Addr> out;
             const Addr a = addrs[id];
             const Link* ll = LinkOf(leaderId);
-            const std::uint32_t leaderSeen = (ll && ll->peer) ? FromEnet(ll->peer->address.host) : 0x7F000001u;
+            std::uint32_t leaderSeen = 0x7F000001u; std::uint16_t leaderPort = 0;
+            if (ll && !Observed(ll, leaderSeen, leaderPort)) leaderSeen = 0x7F000001u;
             // indirizzo pubblico (0 = il capo stesso: quello da cui lo vedo io)
-            Addr pub; pub.ip = (a.ip == 0 || IsLoopback(a.ip)) ? leaderSeen : a.ip; pub.port = a.ip == 0 ? ((ll && ll->peer) ? ll->peer->address.port : a.port) : a.port;
+            Addr pub; pub.ip = (a.ip == 0 || IsLoopback(a.ip)) ? leaderSeen : a.ip; pub.port = (a.ip == 0 && leaderPort) ? leaderPort : a.port;
             if (pub.port == 0) pub.port = a.lport;
             // io come mi vede il capo: se il compagno e' dietro il mio stesso router, meglio il suo indirizzo locale
             const Addr me = addrs[selfId];
-            const std::uint32_t myPub = me.ip;
+            const std::uint32_t myPub = me.ip ? me.ip : myPublicIp;
             const bool sameRouter = myPub != 0 && myPub == a.ip;
             Addr loc; loc.ip = a.lip; loc.port = a.lport;
             if (a.lip == localIp && a.lip != 0) loc.ip = 0x7F000001u;   // stesso computer
@@ -341,9 +390,11 @@ namespace SunEngine::Net {
             const bool punch = now - lastPunch > 0.5;
             if (punch) lastPunch = now;
             for (const auto& mb : members) {
-                if (mb.id == selfId || LinkOf(mb.id)) continue;
+                if (mb.id == selfId) continue;
+                Link* cur = LinkOf(mb.id);
+                if (cur && !cur->relay) continue;                   // collegamento diretto: a posto
                 const std::vector<Addr> cand = Candidates(mb.id);
-                if (cand.empty()) continue;
+                if (cand.empty() && !ServerUp()) continue;
                 if (selfId < mb.id) {
                     // fra due compagni chiama quello con l'id piu' alto; io intanto mando pacchetti vuoti verso di lui:
                     // aprono il mio router alla sua chiamata (ENet ignora i pacchetti da un byte)
@@ -357,21 +408,31 @@ namespace SunEngine::Net {
                 for (auto* l : links) if (l->outgoing && !l->established && !l->joinAttempt && l->id == mb.id) pending = true;
                 if (pending) continue;
                 double& last = lastAttempt[mb.id];
-                if (last > 0.0 && now - last < 2.0) continue;
+                // gia' collegati via ponte: ogni tanto si riprova il collegamento diretto (i router cambiano idea)
+                if (last > 0.0 && now - last < (cur ? 15.0 : 2.0)) continue;
                 last = now;
-                // un tentativo per volta, alternando gli indirizzi
                 const int k = attempts[mb.id]++;
+                if (!cur && ServerUp() && (cand.empty() || k >= static_cast<int>(cand.size()) * 2)) {
+                    // i router non si aprono: ponte del server d'incontro (la partita resta fra noi, passa solo di li')
+                    Link* l = MakeRelay(mb.id, true, false);
+                    SendHello(l, true);
+                    continue;
+                }
+                if (cand.empty()) continue;
+                // un tentativo per volta, alternando gli indirizzi
                 const Addr& c = cand[static_cast<size_t>(k) % cand.size()];
+                if (ServerUp()) { Writer w; w.U8(Wire::C_Introduce); w.U64(mb.id); SendServer(w); }   // lui intanto apre il suo router verso di me
                 if (Link* l = Connect(c.ip, c.port, false)) { l->id = mb.id; enet_peer_timeout(l->peer, 0, 1800, 1800); }   // tentativo breve
             }
         }
 
         // ---------- sessione ----------
-        void ApplyHost(PeerId h, std::uint32_t e, const std::vector<PeerId>& list, bool migrated) {
+        void ApplyHost(PeerId h, std::uint32_t e, const std::vector<PeerId>& list, bool migrated, const char* why = nullptr) {
             const bool changed = !session || h != hostId || e != epoch;
+            const bool hostChanged = !session || h != hostId;
             session = true; hostId = h; epoch = e; succession = list;
             if (changed) {
-                Event((migrated ? "Nuovo host: " : "Host della partita: ") + NameOf(h));
+                if (hostChanged) Event(why ? std::string(why) + NameOf(h) : (migrated ? "Nuovo host: " : "Host: ") + NameOf(h));
                 if (owner->onHostChanged) owner->onHostChanged(h, h == selfId, migrated);
             }
         }
@@ -382,6 +443,19 @@ namespace SunEngine::Net {
             for (size_t i = 0; i < succession.size() && i < 16; ++i) w.U64(succession[i]);
             SendMembers(w);
             lastAnnounce = now;
+        }
+        // Passaggio del ruolo di host a chi ha una connessione nettamente migliore (senza interrompere: io ci sono ancora)
+        void Handoff(PeerId to) {
+            const std::uint32_t e = epoch + 1;
+            const std::vector<PeerId> list = ComputeSuccession(to);
+            Writer w; w.U8(MsgHandoff); w.U32(e); w.U64(to);
+            w.U8(static_cast<std::uint8_t>((std::min)(list.size(), static_cast<size_t>(16))));
+            for (size_t i = 0; i < list.size() && i < 16; ++i) w.U64(list[i]);
+            if (!snapshot.empty()) { Writer sn; sn.U8(MsgSnapshot); sn.U32(epoch); sn.Bytes(snapshot.data(), snapshot.size()); SendMembers(sn); }   // ultima istantanea prima di passare la mano
+            SendMembers(w);
+            ApplyHost(to, e, list, false, "Connessione migliore, nuovo host: ");
+            betterSince = 0.0;
+            if (IsLeader()) BroadcastState();
         }
         // L'host non c'e' piu': subentra il primo della lista ancora presente
         void Migrate() {
@@ -396,7 +470,7 @@ namespace SunEngine::Net {
                 Announce();
                 if (IsLeader()) BroadcastState();
             }
-            else hostId = next;   // provvisorio: lo conferma il suo annuncio (con l'epoca nuova)
+            else { hostId = next; Event("Nuovo host: " + NameOf(next)); }   // provvisorio: lo conferma il suo annuncio (con l'epoca nuova)
         }
 
         // ---------- un compagno non c'e' piu' ----------
@@ -428,8 +502,9 @@ namespace SunEngine::Net {
             const std::uint32_t proto = r.U32(); const PeerId id = r.U64(); const std::string nm = r.Str(), un = r.Str();
             const std::uint16_t lport = r.U16(), k = r.U16(); const bool hasKey = r.U8() != 0, wantMesh = r.U8() != 0;
             const std::uint32_t lip = r.U32();
-            auto deny = [&](const char* why) { Writer w; w.U8(MsgDenied); w.Str(why); Send(l, w); enet_peer_disconnect_later(l->peer, 0); };
+            auto deny = [&](const char* why) { Writer w; w.U8(MsgDenied); w.Str(why); Send(l, w); Hangup(l); };
             if (!r.ok || proto != kProto || id == 0 || id == selfId) { deny("Versione del gioco diversa"); return; }
+            if (l->relay && l->id && l->id != id) { Hangup(l); return; }   // via ponte l'identita' la garantisce il server
             l->id = id; l->helloName = nm;
             if (state != PartyState::InParty) { deny("Nessuna squadra a questo indirizzo"); return; }
             if (Find(id)) {   // un compagno che apre il collegamento diretto con me
@@ -442,10 +517,10 @@ namespace SunEngine::Net {
             if (wantMesh) return;   // forse non mi e' ancora arrivato l'elenco che lo contiene: resta in attesa (vedi ApplyState)
             if (!IsLeader()) {      // si entra dal capo
                 Writer w; w.U8(MsgRedirect);
-                const Addr a = addrs[leaderId]; std::uint32_t ip = a.ip;
-                if (Link* ll = LinkOf(leaderId)) ip = FromEnet(ll->peer->address.host);
-                w.U32(ip); w.U16(LinkOf(leaderId) ? LinkOf(leaderId)->peer->address.port : a.port);
-                Send(l, w); enet_peer_disconnect_later(l->peer, 0);
+                const Addr a = addrs[leaderId]; std::uint32_t ip = a.ip; std::uint16_t prt = a.port;
+                if (Link* ll = LinkOf(leaderId)) Observed(ll, ip, prt);
+                w.U32(ip); w.U16(prt);
+                Send(l, w); Hangup(l);
                 return;
             }
             if (static_cast<int>(members.size()) >= maxMembers) { deny("Squadra al completo"); return; }
@@ -454,7 +529,7 @@ namespace SunEngine::Net {
             if (privacy == Privacy::Closed && !keyOk) {
                 bool known = false; for (auto& q : requests) if (q.id == id) known = true;
                 if (!known) { requests.push_back({ id, nm }); Event(nm + " chiede di entrare"); }
-                addrs[id] = { FromEnet(l->peer->address.host), l->peer->address.port, lip, lport };
+                { std::uint32_t oip = 0; std::uint16_t op = 0; Observed(l, oip, op); addrs[id] = { oip, op, lip, lport }; }
                 pendingUnit[id] = un;
                 Writer w; w.U8(MsgPending); Send(l, w);
                 return;
@@ -465,7 +540,7 @@ namespace SunEngine::Net {
         void Admit(Link* l, PeerId id, const std::string& nm, const std::string& un, std::uint16_t lport, std::uint32_t lip) {
             Member mb; mb.id = id; mb.name = nm.empty() ? "Giocatore" : nm; mb.unitId = un; mb.joinOrder = nextOrder++;
             members.push_back(mb);
-            addrs[id] = { FromEnet(l->peer->address.host), l->peer->address.port, lip, lport };   // porta vista dal capo: e' quella aperta nel router
+            { std::uint32_t oip = 0; std::uint16_t op = 0; Observed(l, oip, op); addrs[id] = { oip, op, lip, lport }; }   // porta vista dal capo: e' quella aperta nel router
             l->established = true;
             Event(mb.name + " e' entrato in squadra");
             RefreshFlags();
@@ -474,7 +549,7 @@ namespace SunEngine::Net {
 
         void ApplyState(Link* from, Reader& r) {
             const std::uint32_t ver = r.U32(); const PeerId lead = r.U64(); const std::uint8_t priv = r.U8(), mx = r.U8(); const std::uint16_t k = r.U16();
-            const std::uint32_t c6 = r.U32();
+            const std::uint32_t c6 = r.U32(); const std::string lname = r.Str(); const bool play = r.U8() != 0;
             const bool sess = r.U8() != 0; const std::uint32_t ep = r.U32(); const PeerId hst = r.U64();
             std::vector<PeerId> succ; { const int n = r.U8(); if (n > 16) return; for (int i = 0; i < n; ++i) succ.push_back(r.U64()); }
             const int count = r.U8();
@@ -492,10 +567,15 @@ namespace SunEngine::Net {
             if (!joining && (state != PartyState::InParty || ver <= version)) return;
             bool hasMe = false; for (auto& mb : list) if (mb.id == selfId) hasMe = true;
             if (!hasMe) { if (state == PartyState::InParty) ResetParty("Sei stato rimosso dalla squadra"); return; }
-            if (joining) { from->joinAttempt = false; from->established = true; state = PartyState::InParty; Event("Sei entrato nella squadra di " + list.front().name); }
+            if (joining) {
+                from->joinAttempt = false; from->established = true; state = PartyState::InParty; Event("Sei entrato nella squadra di " + list.front().name);
+                for (auto* o : std::vector<Link*>(links)) if (o != from && o->joinAttempt) Drop(o, true);   // l'altra strada tentata (diretta o ponte)
+                joinViaServer = false; joinLeader = 0;
+            }
             // chi e' uscito (per l'avviso) e l'host, prima di sostituire l'elenco
             for (auto& old : members) { bool still = false; for (auto& mb : list) if (mb.id == old.id) still = true; if (!still && old.id != selfId) { if (Link* l = LinkOf(old.id)) Drop(l, false); } }
             members = list; addrs = la; leaderId = lead; privacy = static_cast<Privacy>(priv); maxMembers = mx; key = k; code6 = c6; version = ver;
+            lobbyName = lname; playing = play;
             for (auto& mb : members) if (mb.id == selfId) { mb.name = name; }
             // collegamenti arrivati prima dell'elenco: ora sono compagni
             for (auto* l : links) if (!l->established && !l->outgoing && l->id && Find(l->id)) l->established = true;
@@ -516,7 +596,7 @@ namespace SunEngine::Net {
                 else if (type == MsgRedirect) {
                     std::uint32_t ip = r.U32(); const std::uint16_t p = r.U16();
                     if (!r.ok) return;
-                    if (IsLoopback(ip)) ip = FromEnet(l->peer->address.host);
+                    if (IsLoopback(ip) && !l->relay) ip = FromEnet(l->peer->address.host);
                     Drop(l, false);
                     if (!Connect(ip, p, true)) { state = PartyState::Idle; Event("Impossibile raggiungere il capo della squadra"); }
                 }
@@ -542,6 +622,8 @@ namespace SunEngine::Net {
                 break;
             }
             case MsgPing: {
+                const float srvRtt = static_cast<float>(r.U16());
+                if (srvRtt > 0.0f) theirServerRtt[from] = srvRtt;
                 const int n = r.U8(); if (n > 16) break;
                 auto& row = matrix[from];
                 for (int i = 0; i < n; ++i) {
@@ -560,6 +642,14 @@ namespace SunEngine::Net {
                 if (type == MsgHostAnnounce && from != h) break;
                 // vale l'epoca piu' alta; a pari epoca resta l'host che conosco (o, se sono due, quello con l'id piu' basso)
                 if (!session || ep > epoch || (ep == epoch && (h == hostId || h < hostId))) ApplyHost(h, ep, list, session && ep > epoch);
+                break;
+            }
+            case MsgHandoff: {
+                const std::uint32_t ep = r.U32(); const PeerId h = r.U64(); const int n = r.U8(); if (n > 16) break;
+                std::vector<PeerId> list; for (int i = 0; i < n; ++i) list.push_back(r.U64());
+                if (!r.ok || !session || from != hostId || ep <= epoch || !Find(h)) break;
+                ApplyHost(h, ep, list, false, "Connessione migliore, nuovo host: ");
+                if (h == selfId) Announce();
                 break;
             }
             case MsgSessionEnd:
@@ -590,13 +680,144 @@ namespace SunEngine::Net {
             Send(LinkOf(leaderId), w);
         }
 
+        // ---------- server d'incontro ----------
+        // Indirizzo da usare per raggiungere qualcuno di cui il server mi ha detto dove sta
+        Addr Reach(const Addr& a) const {
+            if (a.ip && a.ip == myPublicIp && a.lip) {   // dietro il mio stesso router: indirizzo locale (stesso computer: 127.0.0.1)
+                Addr loc; loc.ip = a.lip == localIp ? 0x7F000001u : a.lip; loc.port = a.lport; return loc;
+            }
+            return a;
+        }
+        void AddPunch(const Addr& a) {
+            if (a.ip && a.port) punches.push_back({ a.ip, a.port, now + 5.0 });
+            if (a.lip && a.lport && a.lip != a.ip) punches.push_back({ a.lip, a.lport, now + 5.0 });
+        }
+        // Ingresso via ponte: il collegamento diretto col capo non e' riuscito
+        void JoinViaRelay() {
+            if (!ServerUp() || !joinLeader || state != PartyState::Joining) return;
+            for (auto* l : links) if (l->joinAttempt && l->relay) return;
+            for (auto* l : std::vector<Link*>(links)) if (l->joinAttempt) Drop(l, true);
+            Link* l = MakeRelay(joinLeader, true, true);
+            SendHello(l, false);
+            joinStarted = now;
+            status = "Router chiusi: collegamento tramite il ponte del server d'incontro...";
+            joinRelayAt = 1e18;
+        }
+        void ServerTick() {
+            if (!host) return;
+            if (serverAddr.empty()) { if (server) { enet_peer_disconnect_later(server, 0); server = nullptr; serverReady = false; } return; }
+            if (!server && now >= serverRetry) {
+                serverRetry = now + 6.0;
+                std::string hostPart = serverAddr; std::uint16_t prt = Wire::kDefaultServerPort;
+                const size_t colon = serverAddr.rfind(':');
+                if (colon != std::string::npos) { hostPart = serverAddr.substr(0, colon); const int pv = std::atoi(serverAddr.c_str() + colon + 1); if (pv > 0 && pv < 65536) prt = static_cast<std::uint16_t>(pv); }
+                ENetAddress a; a.port = prt;
+                if (enet_address_set_host(&a, hostPart.c_str()) != 0) { status = "Server d'incontro: indirizzo non trovato (" + hostPart + ")"; return; }
+                if (forceRelay) { g_TestServerAddr = a; host->intercept = DropNonServer; }
+                server = enet_host_connect(host, &a, 2, 0);
+                if (server) { server->data = nullptr; enet_peer_timeout(server, 0, 4000, 8000); }
+            }
+            if (!ServerUp()) return;
+            // la mia lobby nell'elenco (solo il capo). Anche le private: servono per il codice, l'elenco le nasconde
+            if (IsLeader() && now - lastPublish > 2.0) {
+                lastPublish = now;
+                Writer w; w.U8(Wire::C_Publish); w.U32(code6); w.U16(key); w.Str(lobbyName); w.Str(name);
+                w.U8(static_cast<std::uint8_t>(privacy)); w.U8(static_cast<std::uint8_t>(members.size())); w.U8(static_cast<std::uint8_t>(maxMembers)); w.U8(playing ? 1 : 0);
+                SendServer(w);
+            }
+            if (listUntil > now && now - lastList > 3.0) { lastList = now; Writer w; w.U8(Wire::C_List); SendServer(w); }
+            if (state == PartyState::Joining && joinLeader && now > joinRelayAt) JoinViaRelay();
+        }
+        void OnServerMessage(const std::uint8_t* data, size_t size) {
+            if (size < 1) return;
+            Reader r(data + 1, size - 1);
+            switch (data[0]) {
+            case Wire::S_Welcome: {
+                myPublicIp = r.U32(); myPublicPort = r.U16();
+                if (!r.ok) return;
+                serverReady = true; lastPublish = -10.0; lastList = -10.0;
+                if (addrs.count(selfId) && IsLeader()) addrs[selfId].ip = 0;
+                status = "Collegato al server d'incontro";
+                break;
+            }
+            case Wire::S_Code: {
+                const std::uint32_t c = r.U32();
+                if (r.ok && IsLeader() && c != code6) { code6 = c; BroadcastState(); }
+                break;
+            }
+            case Wire::S_List: {
+                const int n = r.U8();
+                std::vector<LobbyInfo> list;
+                for (int i = 0; i < n; ++i) {
+                    LobbyInfo info; info.leaderId = r.U64(); info.name = r.Str(); info.leaderName = r.Str();
+                    const std::uint8_t priv = r.U8(); info.members = r.U8(); info.maxMembers = r.U8(); info.inSession = r.U8() != 0; info.pingMs = r.U16();
+                    if (!r.ok) break;
+                    if (priv > 1 || info.leaderId == selfId) continue;
+                    info.privacy = static_cast<Privacy>(priv); info.online = true;
+                    list.push_back(info);
+                }
+                netLobbies.swap(list);
+                break;
+            }
+            case Wire::S_Found: {
+                const PeerId lead = r.U64(); Addr a; a.ip = r.U32(); a.port = r.U16(); a.lip = r.U32(); a.lport = r.U16();
+                const std::uint16_t k = r.U16(); const bool hasKey = r.U8() != 0;
+                if (!r.ok || state != PartyState::Joining || !joinViaServer || joinLeader) break;
+                for (auto* l : links) if (l->joinAttempt) return;   // trovata prima in rete locale
+                joinLeader = lead; knownPub[lead] = a; lookupCode = 0;
+                if (hasKey) { joinKey = k; joinHasKey = true; }
+                const Addr to = Reach(a);
+                if (Link* l = Connect(to.ip, to.port, true)) { l->id = 0; enet_peer_timeout(l->peer, 0, 2500, 2500); }
+                AddPunch(a);
+                joinStarted = now; joinRelayAt = now + 3.0;
+                status = "Lobby trovata, collegamento a " + IpToString(to.ip) + ":" + std::to_string(to.port) + "...";
+                break;
+            }
+            case Wire::S_NotFound:
+                if (state == PartyState::Joining && joinViaServer && !joinLeader) {
+                    joinViaServer = false;
+                    if (!lookupCode) { state = PartyState::Idle; Event("Nessuna lobby con questo codice"); }
+                }
+                break;
+            case Wire::S_Incoming: {
+                // qualcuno sta per chiamarmi (entra nella mia lobby, o e' un compagno): apro il router verso di lui
+                const PeerId who = r.U64(); (void)r.Str(); Addr a; a.ip = r.U32(); a.port = r.U16(); a.lip = r.U32(); a.lport = r.U16();
+                if (!r.ok || who == selfId) break;
+                knownPub[who] = a;
+                const Addr to = Reach(a);
+                AddPunch(to);
+                if (to.ip != a.ip) AddPunch(a);
+                break;
+            }
+            case Wire::S_Relay: {
+                const PeerId from = r.U64(); std::vector<std::uint8_t> bytes;
+                if (!r.Bytes(bytes, kMaxSnapshot + 64) || from == 0 || from == selfId || bytes.empty()) break;
+                Link* l = nullptr;
+                for (auto* x : links) if (x->relay && x->id == from) { l = x; if (x->established) break; }
+                if (!l) {
+                    if (state == PartyState::Offline) break;
+                    l = MakeRelay(from, false, false);   // mi chiama via ponte
+                }
+                l->lastHeard = now;
+                if (!l->established && l->outgoing && !l->joinAttempt && Find(from)) {
+                    l->established = true;
+                    for (auto* o : std::vector<Link*>(links)) if (o != l && o->id == from && o->established && !o->relay) { l->established = false; break; }   // c'e' gia' il diretto
+                    RefreshFlags();
+                }
+                OnMessage(l, bytes.data(), bytes.size(), 0);
+                break;
+            }
+            default: break;
+            }
+        }
+
         // ---------- lobby in rete locale ----------
         void Discovery() {
             if (disc == ENET_SOCKET_NULL) return;
             if (IsLeader() && privacy != Privacy::Private && now - lastBroadcast > 1.0) {
                 lastBroadcast = now;
                 Writer w; w.U32(kDiscoveryMagic); w.U64(selfId); w.Str(name); w.U8(static_cast<std::uint8_t>(members.size())); w.U8(static_cast<std::uint8_t>(maxMembers));
-                w.U8(static_cast<std::uint8_t>(privacy)); w.U16(port);
+                w.U8(static_cast<std::uint8_t>(privacy)); w.U16(port); w.Str(lobbyName); w.U8(playing ? 1 : 0);
                 ENetAddress to; to.host = ENET_HOST_BROADCAST; to.port = kDiscoveryPort;
                 ENetBuffer buf; buf.data = w.b.data(); buf.dataLength = w.b.size();
                 enet_socket_send(disc, &to, &buf, 1);
@@ -609,8 +830,12 @@ namespace SunEngine::Net {
             // Ingresso col codice a 6 cifre: chiedo in rete chi ha quella squadra, finche' qualcuno risponde o scade il tempo
             if (lookupCode && state == PartyState::Joining) {
                 if (now > lookupUntil) {
-                    lookupCode = 0; state = PartyState::Idle;
-                    Event("Nessuna squadra con questo codice in rete. Via internet serve l'indirizzo o il codice esteso.");
+                    lookupCode = 0;
+                    if (!joinViaServer) {   // col server d'incontro la risposta puo' ancora arrivare da li'
+                        state = PartyState::Idle;
+                        Event(serverAddr.empty() ? "Nessuna lobby con questo codice in rete locale. Via internet serve il server d'incontro (schermata SERVER)."
+                                                 : "Nessuna lobby con questo codice.");
+                    }
                 }
                 else if (now - lastLookup > 0.4) {
                     lastLookup = now;
@@ -647,6 +872,7 @@ namespace SunEngine::Net {
                 if (magic != kDiscoveryMagic) continue;
                 LobbyInfo info; info.leaderId = r.U64(); info.leaderName = r.Str(); info.members = r.U8(); info.maxMembers = r.U8();
                 const std::uint8_t priv = r.U8(); const std::uint16_t p = r.U16();
+                info.name = r.Str(); info.inSession = r.U8() != 0;
                 if (!r.ok || priv > 1 || info.leaderId == selfId || info.leaderId == 0) continue;
                 info.privacy = static_cast<Privacy>(priv);
                 const std::uint32_t ip = FromEnet(from.host);
@@ -675,7 +901,8 @@ namespace SunEngine::Net {
         }
         if (!m->host) { if (--g_EnetUsers == 0) enet_deinitialize(); m->status = "Nessuna porta UDP libera per il gioco in rete"; return false; }
         // socket per trovare le lobby in rete locale (se non si apre, resta tutto il resto)
-        m->disc = enet_socket_create(ENET_SOCKET_TYPE_DATAGRAM);
+        const char* noLan = std::getenv("TRAZYN_NET_NO_LAN");   // prova: solo server d'incontro
+        m->disc = (noLan && noLan[0] == '1') ? ENET_SOCKET_NULL : enet_socket_create(ENET_SOCKET_TYPE_DATAGRAM);
         if (m->disc != ENET_SOCKET_NULL) {
             enet_socket_set_option(m->disc, ENET_SOCKOPT_REUSEADDR, 1);
             enet_socket_set_option(m->disc, ENET_SOCKOPT_NONBLOCK, 1);
@@ -684,6 +911,8 @@ namespace SunEngine::Net {
             if (enet_socket_bind(m->disc, &a) < 0) { enet_socket_destroy(m->disc); m->disc = ENET_SOCKET_NULL; }
         }
         { std::uint32_t ip = 0; if (ParseIp(LocalIp(), ip) && !IsLoopback(ip)) m->localIp = ip; }
+        if (const char* fr = std::getenv("TRAZYN_NET_FORCE_RELAY")) m->forceRelay = fr[0] == '1';
+        if (const char* er = std::getenv("TRAZYN_NET_TEST_EXTRA_RTT")) m->testExtraRtt = static_cast<float>(std::atof(er));
         m->state = PartyState::Idle;
         m->now = NowSeconds();
         return true;
@@ -710,24 +939,43 @@ namespace SunEngine::Net {
             auto* l = ev.peer ? static_cast<Impl::Link*>(ev.peer->data) : nullptr;
             switch (ev.type) {
             case ENET_EVENT_TYPE_CONNECT:
+                if (ev.peer == m->server) {   // server d'incontro: presentazione
+                    Wire::Writer w; w.U8(Wire::C_Hello); w.U32(Wire::kServerProto); w.U64(m->selfId); w.Str(m->name); w.U32(m->localIp); w.U16(m->port);
+                    m->SendServer(w);
+                    break;
+                }
                 m->Tune(ev.peer);
                 if (!l) {   // qualcuno mi chiama: aspetto il suo Hello
                     l = new Impl::Link(); l->peer = ev.peer; l->created = now; ev.peer->data = l; m->links.push_back(l);
                 }
                 else m->SendHello(l, !l->joinAttempt);
-                if (l->outgoing && !l->joinAttempt) { l->established = true; m->suspectSince.erase(l->id); m->attempts.erase(l->id); m->RefreshFlags(); }
+                if (l->outgoing && !l->joinAttempt) {
+                    l->established = true; m->suspectSince.erase(l->id); m->attempts.erase(l->id);
+                    for (auto* o : std::vector<Impl::Link*>(m->links)) if (o != l && o->relay && o->id == l->id) m->Drop(o, true);   // diretto riuscito: via il ponte
+                    m->RefreshFlags();
+                }
                 break;
             case ENET_EVENT_TYPE_RECEIVE:
-                if (l) m->OnMessage(l, ev.packet->data, ev.packet->dataLength, ev.channelID);
+                if (ev.peer == m->server) m->OnServerMessage(ev.packet->data, ev.packet->dataLength);
+                else if (l) m->OnMessage(l, ev.packet->data, ev.packet->dataLength, ev.channelID);
                 enet_packet_destroy(ev.packet);
                 break;
             case ENET_EVENT_TYPE_DISCONNECT:
+                if (ev.peer == m->server) {
+                    m->server = nullptr; m->serverReady = false; m->serverRetry = now + 5.0;
+                    if (!m->serverAddr.empty()) m->status = "Server d'incontro non raggiungibile: riprovo...";
+                    break;
+                }
                 if (l) {
                     const PeerId id = l->id; const bool wasMember = l->established, wasJoin = l->joinAttempt;
                     ev.peer->data = nullptr; l->peer = nullptr;
                     m->links.erase(std::remove(m->links.begin(), m->links.end(), l), m->links.end());
                     delete l;
-                    if (wasJoin && m->state == PartyState::Joining) { m->state = PartyState::Idle; m->Event("Nessuna risposta dalla squadra"); }
+                    if (wasJoin && m->state == PartyState::Joining) {
+                        bool other = false; for (auto* o : m->links) if (o->joinAttempt) other = true;
+                        if (m->joinLeader && m->ServerUp()) m->JoinViaRelay();          // router chiusi: si passa dal ponte
+                        else if (!other) { m->state = PartyState::Idle; m->Event("Nessuna risposta dalla squadra"); }
+                    }
                     else if (wasMember && m->state == PartyState::InParty && m->Find(id) && !m->suspectSince.count(id)) m->suspectSince[id] = now - kSilentSuspect;
                 }
                 break;
@@ -767,17 +1015,23 @@ namespace SunEngine::Net {
                 it = m->suspectSince.erase(it);
             }
             if (isolatedFrom) { m->ResetParty("Collegamento con la squadra perso"); return; }
+            // nessun collegamento col capo per 8 s (ne' diretto ne' ponte): sono rimasto fuori
+            if (!m->IsLeader() && !m->LinkOf(m->leaderId)) {
+                if (m->leaderMissingSince <= 0.0) m->leaderMissingSince = now;
+                else if (now - m->leaderMissingSince > 8.0) { m->leaderMissingSince = 0.0; m->ResetParty("Collegamento con la squadra perso"); return; }
+            }
+            else m->leaderMissingSince = 0.0;
             for (PeerId id : gone) m->MemberGone(id, false);
 
             // --- rapporto delle latenze a tutti (serve a scegliere l'host) ---
             if (now - m->lastReport > 0.5) {
                 m->lastReport = now;
-                Writer w; w.U8(MsgPing);
+                Writer w; w.U8(MsgPing); w.U16(static_cast<std::uint16_t>((std::min)(m->ServerRtt(), 65000.0f)));
                 std::vector<Impl::Link*> est; for (auto* l : m->links) if (l->established) est.push_back(l);
                 w.U8(static_cast<std::uint8_t>((std::min)(est.size(), static_cast<size_t>(16))));
                 for (size_t i = 0; i < est.size() && i < 16; ++i) {
-                    w.U64(est[i]->id); w.U16(static_cast<std::uint16_t>((std::min)(est[i]->peer->roundTripTime, 65000u)));
-                    w.U16(static_cast<std::uint16_t>(10000.0f * static_cast<float>(est[i]->peer->packetLoss) / static_cast<float>(ENET_PEER_PACKET_LOSS_SCALE)));
+                    w.U64(est[i]->id); w.U16(static_cast<std::uint16_t>((std::min)(m->Rtt(est[i]), 65000.0f)));
+                    w.U16(static_cast<std::uint16_t>(100.0f * m->Loss(est[i])));
                     w.U8(m->SilentFor(est[i]) < kFresh ? 1 : 0);
                 }
                 m->SendMembers(w, false, 1);
@@ -790,9 +1044,37 @@ namespace SunEngine::Net {
             if (m->session && !m->Find(m->hostId)) m->Migrate();
         }
 
+        m->ServerTick();
+        // router da aprire: pacchetti da un byte verso chi sta per chiamarmi (ENet li ignora)
+        if (!m->punches.empty() && now - m->lastPunch > 0.25) {
+            m->lastPunch = now;
+            std::uint8_t one = 0; ENetBuffer buf; buf.data = &one; buf.dataLength = 1;
+            for (const auto& pu : m->punches) { ENetAddress to; to.host = ToEnet(pu.ip); to.port = pu.port; enet_socket_send(m->host->socket, &to, &buf, 1); }
+            m->punches.erase(std::remove_if(m->punches.begin(), m->punches.end(), [&](const Impl::Punch& pu) { return pu.until < now; }), m->punches.end());
+        }
+        // host durante la partita: se qualcuno ha una connessione nettamente migliore per tutti (per 6 s di fila), passa a lui
+        if (m->state == PartyState::InParty && m->session && m->hostId == m->selfId && m->members.size() > 1 && now - m->lastElect > 1.0) {
+            m->lastElect = now;
+            const float mine = m->Score(m->selfId);
+            PeerId best = 0; float bestScore = 1e9f;
+            for (const auto& mb : m->members) if (mb.id != m->selfId) { const float sc = m->Score(mb.id); if (sc < bestScore) { bestScore = sc; best = mb.id; } }
+            if (best && bestScore + (std::max)(15.0f, mine * 0.2f) < mine) {
+                if (m->betterSince <= 0.0) m->betterSince = now;
+                else if (now - m->betterSince >= 6.0) m->Handoff(best);
+            }
+            else m->betterSince = 0.0;
+        }
         m->Discovery();
         for (auto& lb : m->lobbies) lb.age += dt;
         m->lobbies.erase(std::remove_if(m->lobbies.begin(), m->lobbies.end(), [](const LobbyInfo& lb) { return lb.age > 3.5f; }), m->lobbies.end());
+        // elenco unico: rete locale prima (piu' vicina), poi il server d'incontro; mai la mia squadra
+        m->allLobbies.clear();
+        for (const auto& lb : m->lobbies) if (!(m->state == PartyState::InParty && lb.leaderId == m->leaderId)) m->allLobbies.push_back(lb);
+        for (const auto& lb : m->netLobbies) {
+            bool dup = lb.leaderId == m->leaderId && m->state == PartyState::InParty;
+            for (const auto& x : m->lobbies) if (x.leaderId == lb.leaderId) dup = true;
+            if (!dup) m->allLobbies.push_back(lb);
+        }
         enet_host_flush(m->host);
     }
 
@@ -818,8 +1100,12 @@ namespace SunEngine::Net {
         m->members = { me };
         m->addrs[m->selfId] = { 0, m->port, m->localIp, m->port };
         m->state = PartyState::InParty;
+        if (m->lobbyName.empty()) m->lobbyName = "Lobby di " + m->name;
+        // chi apre la lobby ne e' il primo host ("peer principale"); passa la mano se entra chi ha una connessione migliore
+        m->session = true; m->playing = false; m->hostId = m->selfId; m->epoch = 1; m->succession = { m->selfId };
+        m->lastPublish = -10.0;
         m->RefreshFlags();
-        m->Event("Squadra creata");
+        m->Event("Lobby aperta");
         return true;
     }
 
@@ -830,13 +1116,17 @@ namespace SunEngine::Net {
         t.erase(std::remove_if(t.begin(), t.end(), [](unsigned char c) { return std::isspace(c) != 0; }), t.end());
         // Codice a 6 cifre: la squadra si cerca in rete (locale o virtuale), poi ci si collega da soli
         if (t.size() == 6 && std::all_of(t.begin(), t.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
-            if (m->disc == ENET_SOCKET_NULL) { m->Event("Ricerca in rete non disponibile su questo computer"); return false; }
+            // si cerca insieme in rete locale e sul server d'incontro: vince chi risponde per primo
+            if (m->disc == ENET_SOCKET_NULL && !m->ServerUp()) { m->Event(m->serverAddr.empty() ? "Ricerca in rete non disponibile su questo computer" : "Server d'incontro non raggiungibile"); return false; }
             if (m->state != PartyState::Idle) Leave();
             m->now = NowSeconds();
-            m->lookupCode = static_cast<std::uint32_t>(std::atoi(t.c_str()));
+            const std::uint32_t code = static_cast<std::uint32_t>(std::atoi(t.c_str()));
+            m->lookupCode = m->disc != ENET_SOCKET_NULL ? code : 0;
             m->lookupUntil = m->now + 4.0; m->lastLookup = 0.0; m->ready = false;
+            m->joinViaServer = m->ServerUp(); m->joinLeader = 0; m->joinRelayAt = 1e18;
+            if (m->joinViaServer) { Writer w; w.U8(Wire::C_LookupCode); w.U32(code); m->SendServer(w); }
             m->state = PartyState::Joining; m->joinStarted = m->now + 4.0;
-            m->status = "Cerco la squadra " + t + "...";
+            m->status = "Cerco la lobby " + t + "...";
             return true;
         }
         if (DecodeCode(t, ip, port, key)) hasKey = true;
@@ -855,6 +1145,17 @@ namespace SunEngine::Net {
     }
 
     bool Party::Join(const LobbyInfo& lobby) {
+        if (lobby.online) {   // dall'elenco del server d'incontro: il server presenta me al capo e il capo a me
+            if (!m->host || !m->ServerUp()) { m->Event("Server d'incontro non raggiungibile"); return false; }
+            if (m->state != PartyState::Idle) Leave();
+            m->now = NowSeconds();
+            m->joinKey = 0; m->joinHasKey = false; m->ready = false; m->lookupCode = 0;
+            m->joinViaServer = true; m->joinLeader = 0; m->joinRelayAt = 1e18;
+            Writer w; w.U8(Wire::C_LookupLeader); w.U64(lobby.leaderId); m->SendServer(w);
+            m->state = PartyState::Joining; m->joinStarted = m->now;
+            m->status = "Collegamento alla lobby di " + lobby.leaderName + "...";
+            return true;
+        }
         auto it = m->lobbyAddrs.find(lobby.leaderId);
         if (it == m->lobbyAddrs.end()) return Join(lobby.address);
         if (!m->host) return false;
@@ -905,7 +1206,7 @@ namespace SunEngine::Net {
         if (m->state != PartyState::InParty) return {};
         std::uint32_t ip = 0; std::uint16_t port = m->port;
         if (m->IsLeader()) { if (!ParseIp(m->advertisedIp, ip)) ParseIp(LocalIp(), ip); }
-        else if (Impl::Link* l = m->LinkOf(m->leaderId)) { ip = FromEnet(l->peer->address.host); port = l->peer->address.port; }
+        else if (Impl::Link* l = m->LinkOf(m->leaderId)) { if (!m->Observed(l, ip, port)) return {}; }
         else return {};
         return EncodeCode(ip, port, m->key);
     }
@@ -942,33 +1243,53 @@ namespace SunEngine::Net {
         m->pendingUnit.erase(id);
     }
 
-    const std::vector<LobbyInfo>& Party::Lobbies() const { return m->lobbies; }
+    const std::vector<LobbyInfo>& Party::Lobbies() const { return m->allLobbies; }
+    void Party::SetLobbyName(const std::string& name) {
+        if (!m->IsLeader()) return;
+        std::string n = name.substr(0, 40);
+        if (n.empty() || n == m->lobbyName) return;
+        m->lobbyName = n; m->lastPublish = -10.0; m->BroadcastState();
+    }
+    const std::string& Party::LobbyName() const { return m->lobbyName; }
+    void Party::SetServer(const std::string& hostPort) {
+        std::string t = hostPort;
+        t.erase(std::remove_if(t.begin(), t.end(), [](unsigned char c) { return std::isspace(c) != 0; }), t.end());
+        if (t == m->serverAddr) return;
+        if (m->server) { enet_peer_disconnect_later(m->server, 0); m->server = nullptr; }
+        m->serverReady = false; m->serverAddr = t; m->serverRetry = 0.0; m->netLobbies.clear();
+        m->status = t.empty() ? "Server d'incontro: nessuno (solo rete locale)" : "Collegamento al server d'incontro...";
+    }
+    const std::string& Party::ServerAddress() const { return m->serverAddr; }
+    bool Party::ServerOnline() const { return m->ServerUp(); }
+    float Party::ServerRttMs() const { return m->ServerRtt(); }
+    void Party::RefreshServerList() { m->listUntil = m->now + 6.0; }
 
     bool Party::StartSession() {
         if (!m->IsLeader()) return false;
         m->RefreshFlags();
         const auto order = m->ComputeSuccession(0);   // il migliore davanti
         if (order.empty()) return false;
-        const std::uint32_t e = m->epoch + 1;
-        m->snapshot.clear(); m->snapshotTime = -1.0;
-        m->ApplyHost(order.front(), e, order, false);
-        Writer w; w.U8(MsgSessionStart); w.U32(e); w.U64(order.front());
-        w.U8(static_cast<std::uint8_t>((std::min)(order.size(), static_cast<size_t>(16))));
-        for (size_t i = 0; i < order.size() && i < 16; ++i) w.U64(order[i]);
-        m->SendMembers(w);
+        m->playing = true;
+        if (order.front() != m->hostId || !m->session) {   // all'avvio si sceglie subito il migliore, senza aspettare
+            const std::uint32_t e = m->epoch + 1;
+            m->ApplyHost(order.front(), e, order, false, "Connessione migliore, host della partita: ");
+            Writer w; w.U8(MsgSessionStart); w.U32(e); w.U64(order.front());
+            w.U8(static_cast<std::uint8_t>((std::min)(order.size(), static_cast<size_t>(16))));
+            for (size_t i = 0; i < order.size() && i < 16; ++i) w.U64(order[i]);
+            m->SendMembers(w);
+        }
         m->BroadcastState();
+        m->Event("Partita avviata");
         return true;
     }
 
     void Party::EndSession() {
-        if (!m->IsLeader() || !m->session) return;
-        m->session = false; m->hostId = 0; m->succession.clear();
-        Writer w; w.U8(MsgSessionEnd);
-        m->SendMembers(w);
+        if (!m->IsLeader() || !m->playing) return;
+        m->playing = false;   // l'host resta: la lobby continua
         m->BroadcastState();
         m->Event("Partita terminata");
-        if (onHostChanged) onHostChanged(0, false, false);
     }
+    bool Party::Playing() const { return m->playing; }
 
     bool Party::InSession() const { return m->session; }
     PeerId Party::HostId() const { return m->session ? m->hostId : 0; }
