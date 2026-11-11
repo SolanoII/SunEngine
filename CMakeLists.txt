@@ -91,6 +91,33 @@ FetchContent_Declare(miniaudio GIT_REPOSITORY https://github.com/mackron/miniaud
 FetchContent_MakeAvailable(miniaudio)
 
 # ==========================
+# ENet (UDP affidabile per squadra, lobby e peer to peer: Engine/Net)
+# Compilata da qui con i suoi sorgenti: il suo CMakeLists e' troppo vecchio per le versioni recenti di CMake.
+# ==========================
+FetchContent_Declare(enet GIT_REPOSITORY https://github.com/lsalzman/enet.git GIT_TAG v1.3.18)
+FetchContent_GetProperties(enet)
+if(NOT enet_POPULATED)
+    FetchContent_Populate(enet)
+    add_library(enet STATIC
+        ${enet_SOURCE_DIR}/callbacks.c
+        ${enet_SOURCE_DIR}/compress.c
+        ${enet_SOURCE_DIR}/host.c
+        ${enet_SOURCE_DIR}/list.c
+        ${enet_SOURCE_DIR}/packet.c
+        ${enet_SOURCE_DIR}/peer.c
+        ${enet_SOURCE_DIR}/protocol.c
+        ${enet_SOURCE_DIR}/unix.c
+        ${enet_SOURCE_DIR}/win32.c
+    )
+    target_include_directories(enet PUBLIC ${enet_SOURCE_DIR}/include)
+    if(WIN32)
+        target_link_libraries(enet PUBLIC ws2_32 winmm)
+    else()
+        target_compile_definitions(enet PRIVATE HAS_SOCKLEN_T=1)
+    endif()
+endif()
+
+# ==========================
 # STB (header-only: stb_image, stb_image_write)
 # ==========================
 FetchContent_Declare(
@@ -167,7 +194,8 @@ target_link_libraries(SunEngine PUBLIC
     glm::glm 
     EnTT::EnTT 
     Jolt 
-    nlohmann_json::nlohmann_json 
+    nlohmann_json::nlohmann_json
+    enet 
     imgui
     Detour 
     Recast 

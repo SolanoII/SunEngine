@@ -23,6 +23,7 @@
 #include "PlayerProfile.h"
 #include "GameFeel.h"
 #include "UiTheme.h"
+#include "Engine/Net/NetParty.h"
 #include "ResearchTree.h"
 #include "Engine/ECS/BlockModel.h"
 #include "Engine/ECS/RenderSystem.h"
@@ -485,6 +486,24 @@ namespace SunEngine {
             int lastMeleePhase = -1;
         };
         std::vector<ShowcaseActor> m_ShowcaseActors;
+        void SpawnShowcaseActor(ShowcaseActor& a, const std::string& id, const glm::vec3& pos, float facing, unsigned int seed);
+
+        // --- Squadra, lobby, peer to peer (GameLayerParty.cpp; la rete e' in Engine/Net/NetParty) ---
+        Net::Party m_Party;
+        struct PartyActor { Net::PeerId id = 0; std::string name; ShowcaseActor actor; };
+        std::vector<PartyActor> m_PartyActors;      // unita' dei compagni in piedi accanto alla mia nel garage
+        struct PartyToast { std::string text; float time = 0.0f; };
+        std::vector<PartyToast> m_PartyToasts;      // avvisi ("X e' entrato", "Nuovo host: Y")
+        bool m_PartyPanelOpen = false;
+        float m_PartyLinkClock = 0.0f;              // collegamento di prova: secondi contati dall'host
+        int m_PartyNewPrivacy = 2;                  // tipo della squadra che sto per creare (privata)
+        char m_PartyNameBuf[25] = "";
+        char m_PartyCodeBuf[64] = "";
+        void InitParty();
+        void UpdateParty(float realDeltaTime);
+        void ClearPartyActors();
+        void RenderPartyPanel();
+        void RenderPartyOverlay();
         std::string m_ShowcaseFocusUnit;            // vuoto = tutte le razze in fila; altrimenti anteprima di un'unita'
         std::string m_ShowcaseBuiltFor = "#";       // per cosa sono stati creati gli attori
         bool m_ShowcaseFromResearch = false;
@@ -605,6 +624,7 @@ namespace SunEngine {
 
         float m_GarageCameraAngle = 0.0f;
         float m_GarageCameraDistance = 3.2f;
+        float m_GarageCamDistSmooth = 3.2f;   // distanza attuale (si allarga coi compagni di squadra)
 
         std::vector<TrainedUnit> m_PlayerRoster;
         const int MAX_ROSTER_SIZE = 10;

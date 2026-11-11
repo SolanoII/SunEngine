@@ -64,6 +64,63 @@ namespace SunEngine {
         m_ParticleSystem.Clear();
     }
 
+    // Un personaggio da esposizione (vetrina, compagni di squadra nel garage): corpo animato, vestiti, arma
+    void GameLayer::SpawnShowcaseActor(ShowcaseActor& a, const std::string& id, const glm::vec3& pos, float facing, unsigned int seed) {
+        auto& reg = m_Scene.GetRegistry();
+        const auto* bp = BlueprintManager::Get().GetUnit(id);
+        a.unitId = id;
+        a.kind = BodyKindForUnit(id);
+        if (!AnimatedBodyReady(a.kind)) a.kind = AnimatedBodyKind::Human;
+        a.ctrl = std::make_unique<RifleAnimationController>();
+        a.ctrl->ShareClipsFrom(AnimatedBodyController(a.kind));
+        a.scale = (bp && bp->model_scale > 0.05f) ? bp->model_scale : 1.0f;
+        a.pos = pos;
+        a.facing = facing;
+        a.motion.seed = seed;
+
+        // Dotazione base: armi e vestiti
+        TrainedUnit tu;
+        tu.blueprintId = id;
+        tu.ApplyDefaultLoadout();
+        if (!bp || !bp->has_default_loadout) {   // unita' senza dotazione definita (es. ogryn): niente armi ne' armature prese a prestito
+            tu.primaryWeaponId.clear(); tu.secondaryWeaponId.clear(); tu.meleeWeaponId.clear();
+            for (auto& e : tu.equipmentSlots) e.clear();
+            tu.armorHeadId.clear(); tu.armorTorsoId.clear(); tu.armorLeftArmId.clear(); tu.armorRightArmId.clear();
+            tu.armorLeftLegId.clear(); tu.armorRightLegId.clear();
+        }
+        a.weaponId = !tu.primaryWeaponId.empty() ? tu.primaryWeaponId : tu.secondaryWeaponId;
+        a.meleeId = tu.meleeWeaponId;
+
+        a.visual = m_Scene.CreateEntity();
+        auto& vt = reg.emplace<TransformComponent>(a.visual);
+        vt.Position = a.pos;
+        vt.Rotation = glm::vec3(0.0f, a.facing + m_AnimatedYawOffset, 0.0f);
+        vt.AimYaw = a.facing;
+        vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale * AnimatedBodyModel(a.kind).unitScale);
+        reg.emplace<ColorComponent>(a.visual);
+        auto& sk = reg.emplace<SkinnedModelInstanceComponent>(a.visual);
+        sk.sourceModel = &AnimatedBodyModel(a.kind);
+        sk.boneMatrices = &a.ctrl->GetFinalBoneMatrices();
+        sk.albedo = glm::vec4(SkinFor(static_cast<int>(a.kind)), 1.0f);
+        // vestiti e armature: la stessa skin che avrebbe in partita
+        const entt::entity holder = m_Scene.CreateEntity();
+        ApplyArmorSkin(holder, tu);
+        if (const auto* skin = reg.try_get<SkinComponent>(holder)) {
+            for (const auto& d : skin->garments) {
+                GarmentDraw draw;
+                if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);
+            }
+        }
+        m_Scene.DestroyEntity(holder);
+
+        a.weapon = m_Scene.CreateEntity();
+        reg.emplace<TransformComponent>(a.weapon);
+        reg.emplace<MeshComponent>(a.weapon, 0u);
+        auto& wc = reg.emplace<ColorComponent>(a.weapon);
+        wc.Color = wc.BaseColor = glm::vec4(0.25f, 0.25f, 0.27f, 1.0f);
+        SetWeaponBlockModel(a.weapon, a.weaponId);
+    }
+
     void GameLayer::BuildShowcase() {
         ClearShowcase();
         auto& reg = m_Scene.GetRegistry();
@@ -88,61 +145,9 @@ namespace SunEngine {
         float x = -total * 0.5f;
 
         for (size_t i = 0; i < ids.size(); ++i) {
-            const std::string& id = ids[i];
-            const auto* bp = BlueprintManager::Get().GetUnit(id);
             ShowcaseActor a;
-            a.unitId = id;
-            a.kind = BodyKindForUnit(id);
-            if (!AnimatedBodyReady(a.kind)) a.kind = AnimatedBodyKind::Human;
-            a.ctrl = std::make_unique<RifleAnimationController>();
-            a.ctrl->ShareClipsFrom(AnimatedBodyController(a.kind));
-            a.scale = (bp && bp->model_scale > 0.05f) ? bp->model_scale : 1.0f;
-            a.pos = base + glm::vec3(x + widths[i] * 0.5f, 0.0f, 0.0f);
+            SpawnShowcaseActor(a, ids[i], base + glm::vec3(x + widths[i] * 0.5f, 0.0f, 0.0f), 180.0f, 977u * static_cast<unsigned int>(i + 1));   // guarda verso +Z, dove parte la camera
             x += widths[i];
-            a.facing = 180.0f;   // guarda verso +Z, dove parte la camera
-            a.motion.seed = 977u * static_cast<unsigned int>(i + 1);
-
-            // Dotazione base: armi e vestiti
-            TrainedUnit tu;
-            tu.blueprintId = id;
-            tu.ApplyDefaultLoadout();
-            if (!bp || !bp->has_default_loadout) {   // unita' senza dotazione definita (es. ogryn): niente armi ne' armature prese a prestito
-                tu.primaryWeaponId.clear(); tu.secondaryWeaponId.clear(); tu.meleeWeaponId.clear();
-                for (auto& e : tu.equipmentSlots) e.clear();
-                tu.armorHeadId.clear(); tu.armorTorsoId.clear(); tu.armorLeftArmId.clear(); tu.armorRightArmId.clear();
-                tu.armorLeftLegId.clear(); tu.armorRightLegId.clear();
-            }
-            a.weaponId = !tu.primaryWeaponId.empty() ? tu.primaryWeaponId : tu.secondaryWeaponId;
-            a.meleeId = tu.meleeWeaponId;
-
-            a.visual = m_Scene.CreateEntity();
-            auto& vt = reg.emplace<TransformComponent>(a.visual);
-            vt.Position = a.pos;
-            vt.Rotation = glm::vec3(0.0f, a.facing + m_AnimatedYawOffset, 0.0f);
-            vt.AimYaw = a.facing;
-            vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale * AnimatedBodyModel(a.kind).unitScale);
-            reg.emplace<ColorComponent>(a.visual);
-            auto& sk = reg.emplace<SkinnedModelInstanceComponent>(a.visual);
-            sk.sourceModel = &AnimatedBodyModel(a.kind);
-            sk.boneMatrices = &a.ctrl->GetFinalBoneMatrices();
-            sk.albedo = glm::vec4(SkinFor(static_cast<int>(a.kind)), 1.0f);
-            // vestiti e armature: la stessa skin che avrebbe in partita
-            const entt::entity holder = m_Scene.CreateEntity();
-            ApplyArmorSkin(holder, tu);
-            if (const auto* skin = reg.try_get<SkinComponent>(holder)) {
-                for (const auto& d : skin->garments) {
-                    GarmentDraw draw;
-                    if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);
-                }
-            }
-            m_Scene.DestroyEntity(holder);
-
-            a.weapon = m_Scene.CreateEntity();
-            reg.emplace<TransformComponent>(a.weapon);
-            reg.emplace<MeshComponent>(a.weapon, 0u);
-            auto& wc = reg.emplace<ColorComponent>(a.weapon);
-            wc.Color = wc.BaseColor = glm::vec4(0.25f, 0.25f, 0.27f, 1.0f);
-            SetWeaponBlockModel(a.weapon, a.weaponId);
             m_ShowcaseActors.push_back(std::move(a));
         }
         m_ShowcaseCenter = base;

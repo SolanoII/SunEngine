@@ -1710,6 +1710,7 @@ namespace SunEngine {
         m_VolumeMaster = m_Profile.volumeMaster;
         m_Feel.shakeScale = m_Profile.cameraShake;
         m_Feel.hitStopEnabled = m_Profile.hitStop;
+        InitParty();   // squadra e lobby: identita' in rete dal profilo, apertura della porta
         m_UseAnimatedPlayer = m_Profile.animatedPlayer;
         m_DeferredRenderer.SetSSAOEnabled(m_Profile.gfxSSAO);
         m_DeferredRenderer.SetFXAAEnabled(m_Profile.gfxFXAA);
@@ -4555,6 +4556,7 @@ namespace SunEngine {
                     const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(e);
                     return static_cast<int>(BodyKindForUnit(uid ? uid->id : std::string()));
                 });
+            UpdateParty(deltaTime);   // squadra e lobby: col tempo vero, anche nei menu
             if (inMatch && !m_IsPaused) deltaTime *= m_Feel.TimeScale();
         }
 
@@ -4656,9 +4658,17 @@ namespace SunEngine {
             if (m_GarageCameraAngle >= 360.0f) m_GarageCameraAngle -= 360.0f;
 
             glm::vec3 garageTargetPos = transform.Position + glm::vec3(0.0f, 0.9f, 0.0f);
+            // Compagni di squadra accanto: la telecamera si allarga per inquadrarli tutti
+            float garageDist = m_GarageCameraDistance;
+            if (!m_PartyActors.empty()) {
+                float spread = 0.0f;
+                for (const auto& pa : m_PartyActors) spread = std::max(spread, glm::length(glm::vec2(pa.actor.pos.x - transform.Position.x, pa.actor.pos.z - transform.Position.z)));
+                garageDist = std::max(m_GarageCameraDistance, 2.6f + spread * 1.35f);
+            }
+            m_GarageCamDistSmooth += (garageDist - m_GarageCamDistSmooth) * std::min(1.0f, deltaTime * 3.0f);
 
             m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
-            m_Camera.SetCameraOffsets(0.0f, 0.2f, m_GarageCameraDistance);
+            m_Camera.SetCameraOffsets(0.0f, 0.2f, m_GarageCamDistSmooth);
             m_Camera.SetTarget(garageTargetPos, m_GarageCameraAngle);
             m_Camera.SetPitch(-5.0f);
             m_Camera.Update(glm::vec3(0.0f), 1.0f);
@@ -5851,6 +5861,8 @@ namespace SunEngine {
                 RenderShowcaseUI();
             }
 
+            if (m_CurrentTab == MenuTab::StasisVault || m_CurrentTab == MenuTab::Deployment) RenderPartyPanel();
+            RenderPartyOverlay();
             RenderRecruitModal();
             RenderOptionsMenu();
             RenderCustomizeModal();

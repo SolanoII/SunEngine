@@ -31,6 +31,8 @@ namespace SunEngine {
         float volumeVoice = 0.8f;
         float volumeMusic = 0.8f;
         float volumeMaster = 1.0f;
+        std::uint64_t netId = 0;        // identificativo in rete (casuale, creato al primo avvio)
+        std::string netName;            // nome mostrato ai compagni di squadra
         float cameraShake = 1.0f;       // scossoni della telecamera (0 = spenti)
         bool  hitStop = true;           // fermo-immagine sui colpi di mischia
         bool  animatedPlayer = false;   // false = personaggio a cuboni, true = modello animato FBX
@@ -85,7 +87,8 @@ namespace SunEngine {
                               {"animatedPlayer", animatedPlayer},
                               {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere},
                               {"graphics", graphics}, {"gfxAutoDone", gfxAutoDone},
-                              {"cameraShake", cameraShake}, {"hitStop", hitStop} };
+                              {"cameraShake", cameraShake}, {"hitStop", hitStop},
+                              {"netId", std::to_string(netId)}, {"netName", netName} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
             // std::map per ottenere un ordine stabile (serve al confronto "e' cambiato qualcosa?")
@@ -128,6 +131,12 @@ namespace SunEngine {
                 p.gfxAutoDone = s.value("gfxAutoDone", false);
                 p.cameraShake = std::clamp(s.value("cameraShake", 1.0f), 0.0f, 1.5f);
                 p.hitStop = s.value("hitStop", true);
+                {   // l'identificativo e' salvato come testo: un numero a 64 bit non sopravvive in tutti i lettori JSON
+                    const std::string id = s.value("netId", std::string());
+                    p.netId = id.empty() ? 0 : std::strtoull(id.c_str(), nullptr, 10);
+                    p.netName = s.value("netName", std::string());
+                    if (p.netName.size() > 24) p.netName.resize(24);
+                }
             }
             if (j.contains("currency") && j["currency"].is_object()) {
                 p.energy = std::max<int64_t>(0, j["currency"].value("energy", 0));

@@ -132,9 +132,9 @@ namespace SunEngine {
                 if (glm::dot(fwd, fwd) > 1e-6f && dist > 0.3f) {
                     fwd = glm::normalize(fwd); to /= dist;
                     const glm::vec3 right(-fwd.z, 0.0f, fwd.x);
-                    const float near = (std::min)(1.0f, dist / 2.0f);   // addosso all'ascoltatore: al centro
-                    pan = std::clamp(glm::dot(to, right), -1.0f, 1.0f) * 0.85f * near;
-                    rear = 1.0f - 0.22f * (std::max)(0.0f, -glm::dot(to, fwd)) * near;
+                    const float closeness = (std::min)(1.0f, dist / 2.0f);   // addosso all'ascoltatore: al centro
+                    pan = std::clamp(glm::dot(to, right), -1.0f, 1.0f) * 0.85f * closeness;
+                    rear = 1.0f - 0.22f * (std::max)(0.0f, -glm::dot(to, fwd)) * closeness;
                 }
             }
             ma_sound_set_pan(&voice->sound, pan);
