@@ -231,6 +231,9 @@ namespace SunEngine {
         std::string name;
         int team = 0;
         bool human = false;
+        std::uint64_t owner = 0;                 // giocatore vero: il suo id in rete (0 = io, da solo)
+        bool local = false;                      // sono io (su questo computer)
+        int style = 0;                           // bot: schema della squadra (VsBotStyleName)
         std::vector<VsBotSlot> squad;
         int active = -1;                         // slot in campo, -1 = in attesa di rientrare
         float respawnTimer = 0.0f;
@@ -332,6 +335,14 @@ namespace SunEngine {
         void RenderVsBotDeathUI();                         // giocatore caduto: sceglie con quale unita' della squadra rientrare
         void RenderVsBotScoreboard();                      // TAB: giocatori, squadre alleate e caduti avversari
         void VsBotSpawnAi(VsBotPlayer& p, int slot, const glm::vec3& pos);
+        std::vector<VsBotPlayer> VsBotMakeRoster(int tierIdx, const std::vector<std::pair<std::uint64_t, std::string>>& humans);   // giocatori veri + bot misti
+        bool VsBotLaunch(int tierIdx, std::vector<VsBotPlayer> players);   // scena, la mia squadra, i bot (se li simulo io)
+        int VsBotMeIndex() const;                          // la mia riga nel roster (-1 = nessuna)
+        void VsBotFinish(int winnerTeam, int why);         // fine partita: vincitore (-1 pari) e motivo (0 eliminazione, 1 punti, 2 parita')
+        void VsBotApplySpawnZones();                       // muri invisibili delle basi
+        void VsBotSwitchTeam(int playerIdx);               // un giocatore vero passa all'altra squadra al posto di un bot
+        void VsBotPlaceMe(bool respawn);                   // mi mette al punto di schieramento della mia squadra
+        void RenderVsBotZones();                           // bordo delle basi a terra
         void VsBotRespawnHuman(int slot);
         glm::vec3 VsBotSpawnPoint(int team, int i, bool jitter) const;
         void UpdateVsBotWorld(float deltaTime);           // il mondo continua mentre sei a terra / osservi
@@ -523,7 +534,7 @@ namespace SunEngine {
             bool hasState = false, alive = false, aiming = false, crouch = false, sprint = false;
             glm::vec3 pos{ 0.0f };
             float yaw = 0.0f, aimYaw = 0.0f, aimPitch = 0.0f, health = 100.0f;
-            int slot = 0;
+            int slot = 0, team = 0;
             std::uint16_t seq = 0;
             std::uint8_t meleeSeq = 0;
             float hostSetHealth = -1.0f;            // host: salute messa sulla copia (cosi' si vedono i colpi dell'orda)
@@ -537,6 +548,8 @@ namespace SunEngine {
             float yaw = 0.0f, sinceSeen = 0.0f;
             std::uint8_t meleeSeq = 0;              // gesti di mischia: cresce a ogni attacco iniziato
             int lastPhase = 0; std::string lastNode;
+            std::uint8_t kind = 0, player = 0, slot = 0;   // 0 orco dell'ondata, 1 bot del Vs Bot (riga e unita' del roster)
+            bool aiming = false; int weaponSlot = 0;
         };
         struct NetMatchState {
             bool active = false;                    // sono in una partita in rete
@@ -553,7 +566,17 @@ namespace SunEngine {
             std::unordered_map<Net::PeerId, NetRemote> remotes;
             std::unordered_map<std::uint32_t, NetEnemyInfo> enemies;   // netId -> nemico
             std::vector<std::pair<std::uint32_t, float>> outDamage;    // copia: danni da mandare all'host
+            // Vs Bot in squadra
+            int vsTier = 0;
+            std::vector<std::uint8_t> vsRoster;     // roster deciso dal capo all'avvio (giocatori veri e bot con le loro squadre)
+            float rosterTimer = 0.0f, squadTimer = 0.0f;
+            std::string squadKey;                   // stato della mia squadra gia' mandato
+            std::uint32_t vsRosterMatch = 0;        // partita a cui appartiene vsRoster
         } m_Net;
+        void NetLeaderStartVsBot(int tierIdx);      // il capo avvia il Vs Bot per tutta la squadra
+        void NetVsBotTick(float realDt);            // roster (host) e la mia squadra (tutti)
+        void NetRequestTeamSwitch();
+        void NetDespawnEnemy(entt::entity e);       // host: un nemico sparisce senza morire (es. bot che cambia base)
         void InitNetMatch();
         void UpdateNetMatch(float realDt);          // ogni fotogramma, subito dopo la rete
         bool NetSquadMatchAvailable();              // in squadra con almeno un compagno collegato
@@ -792,6 +815,14 @@ namespace SunEngine {
 
         // Stato della partita Vs Bot
         bool m_VsBotActive = false;
+        int m_VsBotMyTeam = 0;                     // la mia squadra (0 o 1: si puo' cambiare durante il riscaldamento)
+        float m_VsBotWarmup = 0.0f;                // secondi all'inizio vero della partita
+        static constexpr float kVsBotWarmupTime = 20.0f;
+        struct VsBotZone { glm::vec2 min{ 0.0f }, max{ 0.0f }; bool valid = false; };
+        VsBotZone m_VsBotZones[2];                 // basi: la squadra avversaria non ci entra
+        int m_VsBotWinner = -2;                    // -2 in corso, -1 pari, 0/1 squadra vincitrice
+        int m_VsBotWhy = 0;
+        bool m_VsBotTWasDown = false;
         int m_VsBotTier = 0;
         float m_VsBotTime = 0.0f;
         const float m_VsBotTimeLimit = 600.0f;     // 10 minuti

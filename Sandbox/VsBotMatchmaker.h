@@ -3,6 +3,7 @@
 // Nelle code conta solo il costo delle unita' ("point_cost" dei blueprint), come il tier dei carri in WoT:
 // l'equipaggiamento non entra nel punteggio di battaglia.
 #include <algorithm>
+#include <cmath>
 #include <random>
 #include <string>
 #include <vector>
@@ -181,6 +182,90 @@ namespace SunEngine {
         };
         auto out = attempt(own);
         if (out.empty() && !strictFaction) out = attempt(all);
+        return out;
+    }
+
+    // Squadra mista di un giocatore IA: ogni bot pesca uno "stile" diverso, cosi' nella stessa parte convivono schemi
+    // diversi e le fazioni si mescolano (es. un gretchin e un aspirant; due gretchin e una guardia; un "grot spammer"
+    // con quattro gretchin). Sempre entro il cap della coda e il massimo per tipo; quel che avanza del cap va
+    // all'equipaggiamento (AddBotExtras).
+    //   0 misto       tutte le fazioni, scelta uniforme
+    //   1 orda        tante unita' economiche (peso 1/costo)
+    //   2 elite       poche unita' care (peso costo^1.5)
+    //   3 due fazioni due fazioni a caso
+    //   4 una fazione una fazione a caso
+    //   5 spammer     un tipo economico ripetuto fino al massimo, il resto a caso
+    inline const char* VsBotStyleName(int style) {
+        static const char* names[] = { "misto", "orda", "elite", "due fazioni", "una fazione", "spammer" };
+        return names[(style >= 0 && style < 6) ? style : 0];
+    }
+    inline std::vector<std::string> VsBotBuildMixedSquad(const std::vector<VsBotCandidate>& all, const VsBotQueueTier& tier,
+                                                         std::mt19937& rng, int* styleOut = nullptr) {
+        std::vector<std::string> factions;
+        for (const auto& c : all) if (std::find(factions.begin(), factions.end(), c.faction) == factions.end()) factions.push_back(c.faction);
+        std::shuffle(factions.begin(), factions.end(), rng);
+        auto pickUnits = [&](int style) -> std::vector<std::string> {
+            std::vector<VsBotCandidate> pool;
+            std::string spam;   // spammer: il tipo ripetuto
+            for (const auto& c : all) {
+                if (c.cost <= 0 || c.cost > tier.cap) continue;
+                if (style == 3 && factions.size() >= 2 && c.faction != factions[0] && c.faction != factions[1]) continue;
+                if (style == 4 && !factions.empty() && c.faction != factions[0]) continue;
+                pool.push_back(c);
+            }
+            if (pool.empty()) return {};
+            if (style == 5) {   // il piu' economico fra alcuni a caso, che ci stia almeno due volte
+                std::vector<const VsBotCandidate*> cheap;
+                for (const auto& c : pool) if (c.cost * 2 <= tier.cap) cheap.push_back(&c);
+                if (cheap.empty()) return {};
+                std::shuffle(cheap.begin(), cheap.end(), rng);
+                const VsBotCandidate* best = cheap[0];
+                for (size_t i = 1; i < cheap.size() && i < 3; ++i) if (cheap[i]->cost < best->cost) best = cheap[i];
+                spam = best->unitId;
+            }
+            const double expo = style == 1 ? -1.0 : (style == 2 ? 1.5 : 0.0);
+            std::vector<std::vector<std::string>> good;
+            std::vector<std::string> fallback; int fallbackSum = -1;
+            std::vector<int> count(pool.size());
+            for (int t = 0; t < 40; ++t) {
+                std::fill(count.begin(), count.end(), 0);
+                std::vector<std::string> pick;
+                int remaining = tier.cap;
+                if (!spam.empty()) {
+                    for (size_t i = 0; i < pool.size(); ++i) if (pool[i].unitId == spam) {
+                        const int n = std::min(std::max(1, pool[i].maxCount), 2 + static_cast<int>(rng() % 4));
+                        for (int k = 0; k < n && pool[i].cost <= remaining; ++k) { pick.push_back(spam); ++count[i]; remaining -= pool[i].cost; }
+                    }
+                }
+                for (;;) {
+                    std::vector<double> w(pool.size(), 0.0);
+                    double tot = 0.0;
+                    for (size_t i = 0; i < pool.size(); ++i) {
+                        if (pool[i].cost > remaining || count[i] >= std::max(1, pool[i].maxCount)) continue;
+                        w[i] = std::pow(static_cast<double>(pool[i].cost), expo);
+                        tot += w[i];
+                    }
+                    if (tot <= 0.0) break;
+                    // a volte un bot si ferma prima (squadre piccole ma con piu' equipaggiamento)
+                    if (!pick.empty() && (rng() % 100) < 12) break;
+                    double r = std::uniform_real_distribution<double>(0.0, tot)(rng);
+                    size_t c = 0;
+                    for (; c + 1 < pool.size(); ++c) { if (w[c] > 0.0 && r < w[c]) break; r -= w[c]; }
+                    while (w[c] <= 0.0 && c > 0) --c;
+                    pick.push_back(pool[c].unitId); ++count[c]; remaining -= pool[c].cost;
+                }
+                const int sum = tier.cap - remaining;
+                if (pick.empty() || sum <= tier.minExclusive) continue;
+                if (sum * 10 >= tier.cap * 6) good.push_back(pick);   // almeno il 60% del cap in unita'
+                if (sum > fallbackSum) { fallbackSum = sum; fallback = pick; }
+            }
+            if (!good.empty()) return good[rng() % good.size()];
+            return fallback;
+        };
+        int style = static_cast<int>(rng() % 6);
+        auto out = pickUnits(style);
+        if (out.empty()) { style = 0; out = pickUnits(0); }
+        if (styleOut) *styleOut = style;
         return out;
     }
 

@@ -510,7 +510,7 @@ namespace SunEngine {
 
     // Colpi sparati dal giocatore locale (le loro scie): la partita in rete li manda agli altri giocatori, che li
     // disegnano sull'unita' che lo rappresenta (solo l'effetto: il danno lo ha gia' deciso chi ha sparato)
-    struct NetShotEvent { TrailRequestComponent trail; bool first = false; };
+    struct NetShotEvent { TrailRequestComponent trail; bool first = false; std::uint32_t shooter = 0; };   // shooter = entita' (entt) che ha sparato
     inline std::vector<NetShotEvent>& NetShotQueue() { static std::vector<NetShotEvent> q; return q; }
 
     // Raggio del mirino (centro dello schermo) pubblicato ogni frame dalla telecamera di gioco. La telecamera

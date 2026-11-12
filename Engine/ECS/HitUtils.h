@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
 #include "Components.h"
@@ -85,6 +86,9 @@ namespace SunEngine {
     // Danni inflitti dal giocatore (anche col suo squig e i suoi esplosivi) dall'ultima lettura: GameLayer li
     // usa per caricare il buff di fazione (WAAAGH!) e poi azzera
     inline float& PlayerDamageDealtAccum() { static float v = 0.0f; return v; }
+    // Bersagli colpiti dal giocatore locale (partita in rete: l'host distingue i suoi colpi da quelli dei bot per dare
+    // il merito delle uccisioni). Lo svuota il gioco a ogni fotogramma.
+    inline std::vector<entt::entity>& PlayerHitLog() { static std::vector<entt::entity> v; return v; }
 
     inline void EmitHitFeedback(Scene& scene, entt::entity shooter, entt::entity target,
         const glm::vec3& hitPoint, HitboxLocation location, float healthBefore, bool graze = false) {
@@ -98,6 +102,7 @@ namespace SunEngine {
         const float dealt = (std::max)(0.0f, healthBefore - health->currentHealth);
         const bool killed = health->currentHealth <= 0.0f && healthBefore > 0.0f;
         if (dealt > 0.0f && !SameTeam(reg, shooter, target)) PlayerDamageDealtAccum() += dealt;
+        if (dealt > 0.0f && PlayerHitLog().size() < 512) PlayerHitLog().push_back(target);
 
         // Esperienza: danni a un nemico (una volta per nemico, lo controlla GameLayer) e colpo di grazia.
         // Non contano manichini e squig (si potrebbero "coltivare").

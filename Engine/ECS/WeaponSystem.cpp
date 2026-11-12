@@ -746,7 +746,10 @@ namespace SunEngine {
             default: break;
             }
             // partita in rete: la scia del mio colpo la vedono anche gli altri
-            if (scene.GetRegistry().all_of<PlayerTag>(shooter) && NetShotQueue().size() < 256) NetShotQueue().push_back({ bulletTrail, p == 0 });
+            // (anche i bot simulati qui, in rete hanno un numero: gli altri li vedono sparare)
+            if (NetShotQueue().size() < 512 && (scene.GetRegistry().all_of<PlayerTag>(shooter) ||
+                (scene.GetRegistry().all_of<NetEntityComponent>(shooter) && !scene.GetRegistry().all_of<NetGhostComponent>(shooter))))
+                NetShotQueue().push_back({ bulletTrail, p == 0, static_cast<std::uint32_t>(shooter) });
             if (bulletTrail.travelTime > 0.03f) { ps.timer = bulletTrail.travelTime; m_PendingShots.push_back(ps); }
             else ResolveShot(scene, ps);
         }

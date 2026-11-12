@@ -13,6 +13,7 @@
 #include "GameLayer.h"
 #include "Engine/Net/ServerProtocol.h"
 #include "Engine/ECS/VfxEvents.h"
+#include "Engine/ECS/HitUtils.h"
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <algorithm>
@@ -39,6 +40,11 @@ namespace SunEngine {
             NM_HitPlayer = 'H',   // host: l'orda ha colpito questo giocatore
             NM_Killed = 'K',      // host: questo nemico e' morto (e chi l'ha ucciso)
             NM_Shots = 'S',       // i miei colpi (solo l'effetto)
+            NM_BotShots = 'B',    // host: colpi dei bot (solo l'effetto)
+            NM_Squad = 'Q',       // Vs Bot: la mia squadra (unita', chi e' caduto, chi e' in campo)
+            NM_Roster = 'R',      // Vs Bot, host: squadre di tutti, bot, tempo, riscaldamento, fine partita
+            NM_TeamSwitch = 'T',  // Vs Bot, all'host: voglio passare all'altra squadra
+            NM_Despawn = 'X',     // host: questo nemico sparisce senza morire
         };
         constexpr std::uint8_t kSnapMagic = 0xA7;   // istantanea della partita (Party::PublishSnapshot)
         constexpr float kStateRate = 1.0f / 20.0f, kEnemyRate = 1.0f / 15.0f, kSnapRate = 1.5f, kUnitResend = 3.0f;
@@ -84,6 +90,45 @@ namespace SunEngine {
             Writer w; WriteUnit(w, u);
             return std::string(w.b.begin(), w.b.end());
         }
+
+        // Roster del Vs Bot deciso dal capo: chi gioca in quale squadra, i bot con le loro squadre (i giocatori veri
+        // portano la loro: arriva con NM_Squad)
+        void WriteRoster(Writer& w, int tier, const std::vector<VsBotPlayer>& players) {
+            w.U8(static_cast<std::uint8_t>(tier));
+            w.U8(static_cast<std::uint8_t>(std::min<size_t>(players.size(), 20)));
+            for (size_t i = 0; i < players.size() && i < 20; ++i) {
+                const auto& p = players[i];
+                w.U8(static_cast<std::uint8_t>(p.team)); w.U64(p.owner); w.U8(p.human ? 1 : 0); w.Str(p.name); w.U8(static_cast<std::uint8_t>(p.style));
+                const size_t n = p.human ? 0 : std::min<size_t>(p.squad.size(), 40);
+                w.U8(static_cast<std::uint8_t>(n));
+                for (size_t k = 0; k < n; ++k) { WriteUnit(w, p.squad[k].unit); w.U16(static_cast<std::uint16_t>(p.squad[k].points)); }
+            }
+        }
+        bool ReadRoster(const std::vector<std::uint8_t>& b, int& tier, std::vector<VsBotPlayer>& out) {
+            if (b.empty()) return false;
+            Reader r(b.data(), b.size());
+            tier = r.U8();
+            const int n = r.U8();
+            out.clear();
+            for (int i = 0; i < n && r.ok; ++i) {
+                VsBotPlayer p;
+                p.team = r.U8() == 1 ? 1 : 0; p.owner = r.U64(); p.human = r.U8() != 0; p.name = r.Str(); p.style = r.U8();
+                const int k = r.U8();
+                for (int j = 0; j < k && r.ok; ++j) {
+                    VsBotSlot s;
+                    if (!ReadUnit(r, s.unit)) return false;
+                    s.points = r.U16();
+                    p.squad.push_back(s);
+                }
+                out.push_back(p);
+            }
+            return r.ok && !out.empty() && tier >= 0 && tier <= 2;
+        }
+        void WriteSquad(Writer& w, const VsBotPlayer& p) {
+            const size_t n = std::min<size_t>(p.squad.size(), 40);
+            w.U8(static_cast<std::uint8_t>(p.active + 1)); w.U8(static_cast<std::uint8_t>(n));
+            for (size_t k = 0; k < n; ++k) { WriteUnit(w, p.squad[k].unit); w.U16(static_cast<std::uint16_t>(p.squad[k].points)); w.U8(static_cast<std::uint8_t>(p.squad[k].state)); }
+        }
     }
 
     // ------------------------------------------------------------------------------------------------
@@ -118,10 +163,36 @@ namespace SunEngine {
         NetEnterMatch(m_SelectedMapId, ev);
     }
 
+    // Il capo avvia il Vs Bot per tutti: i compagni (collegati) prendono il posto di altrettanti bot nella sua squadra
+    void GameLayer::NetLeaderStartVsBot(int tierIdx) {
+        if (!m_Party.IsLeader() || tierIdx < 0 || tierIdx > 2) return;
+        m_VsBotMessage.clear();
+        std::vector<std::pair<std::uint64_t, std::string>> humans{ { m_Party.SelfId(), m_Profile.netName } };
+        for (const auto& mb : m_Party.Members()) if (!mb.self && mb.linked) humans.push_back({ mb.id, mb.name });
+        auto players = VsBotMakeRoster(tierIdx, humans);
+        if (players.empty()) { m_VsBotMessage = "Impossibile formare le squadre per questa coda."; return; }
+        if (!m_Party.Playing()) m_Party.StartSession();
+        std::uint32_t id = 0;
+        { std::random_device rd; while (id == 0) id = rd(); }
+        m_Net.matchId = id;
+        Writer rw; WriteRoster(rw, tierIdx, players);
+        m_Net.vsRoster = rw.b; m_Net.vsRosterMatch = id; m_Net.vsTier = tierIdx;
+        Writer w; w.U8(NM_Start); w.U32(id); w.Str("vsbot_trincee"); w.U8(4);
+        w.b.insert(w.b.end(), rw.b.begin(), rw.b.end());
+        m_Party.SendToAll(w.b.data(), w.b.size(), true);
+        NetEnterMatch("vsbot_trincee", 4);
+    }
+
     // Partita gia' iniziata: mappa, modalita' e numero dall'ultima istantanea dell'host (o dall'avvio del capo)
     void GameLayer::NetJoinRunningMatch() {
         SnapInfo si;
-        if (ParseSnapshot(m_Party.Snapshot(), si)) { m_Net.matchId = si.matchId; NetEnterMatch(si.map, si.eventIdx); return; }
+        if (ParseSnapshot(m_Party.Snapshot(), si)) {
+            if (si.eventIdx == 4 && (m_Net.vsRoster.empty() || m_Net.vsRosterMatch != si.matchId)) {
+                m_PartyToasts.push_back({ "Il Vs Bot della squadra e' iniziato prima che entrassi in squadra: aspetta la prossima partita", 5.0f });
+                return;
+            }
+            m_Net.matchId = si.matchId; NetEnterMatch(si.map, si.eventIdx); return;
+        }
         if (m_Net.startEvent >= 0 && m_Net.matchId != 0) { NetEnterMatch(m_Net.startMap, m_Net.startEvent); return; }
         m_PartyToasts.push_back({ "La partita della squadra non e' ancora pronta: riprova fra un attimo", 4.0f });
     }
@@ -138,7 +209,7 @@ namespace SunEngine {
         if (m_SelectedSquadIndices.empty())
             m_SelectedSquadIndices.push_back(std::clamp(m_SelectedVaultIndex, 0, static_cast<int>(m_PlayerRoster.size()) - 1));
         m_SelectedMapId = mapId;
-        m_SelectedEventIndex = std::clamp(eventIdx, 0, 3);
+        m_SelectedEventIndex = std::clamp(eventIdx, 0, 4);
         m_ShowCustomizeModal = false;
         m_PartyPanelOpen = false;
         int slot = 0;
@@ -148,17 +219,32 @@ namespace SunEngine {
         const std::uint32_t matchId = m_Net.matchId;
         std::unordered_map<Net::PeerId, NetRemote> keep;
         for (auto& [id, r] : m_Net.remotes) { NetRemote k; k.id = r.id; k.name = r.name; keep[id] = k; }
+        std::vector<std::uint8_t> roster = std::move(m_Net.vsRoster);
+        const std::uint32_t rosterMatch = m_Net.vsRosterMatch;
         m_Net = NetMatchState();
         m_Net.remotes = std::move(keep);
+        m_Net.vsRoster = std::move(roster);
+        m_Net.vsRosterMatch = rosterMatch;
         m_Net.matchId = matchId;
         m_Net.active = true;
         m_Net.mapId = mapId;
         m_Net.eventIdx = m_SelectedEventIndex;
         NetShotQueue().clear();
 
-        StartDeployment(slot);
-        if (m_GameState != GameState::Gameplay) { m_Net.active = false; return; }
-        m_Scene.GetRegistry().emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 });   // niente fuoco amico fra compagni
+        if (m_SelectedEventIndex == 4) {   // Vs Bot: roster del capo, squadra mia
+            int tier = 0; std::vector<VsBotPlayer> players;
+            if (m_Net.vsRosterMatch != matchId || !ReadRoster(m_Net.vsRoster, tier, players) || !VsBotLaunch(tier, std::move(players))) {
+                m_Net.active = false;
+                m_PartyToasts.push_back({ "Non riesco a entrare nel Vs Bot della squadra", 5.0f });
+                return;
+            }
+            m_Net.vsTier = tier;
+        }
+        else {
+            StartDeployment(slot);
+            if (m_GameState != GameState::Gameplay) { m_Net.active = false; return; }
+            m_Scene.GetRegistry().emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 });   // niente fuoco amico fra compagni
+        }
         SUN_CORE_INFO("Partita in rete: mappa '{0}', modalita' {1}, posto {2}", mapId, m_SelectedEventIndex, slot);
     }
 
@@ -227,6 +313,7 @@ namespace SunEngine {
         // il capo ha chiuso la partita: tutti al garage
         if (!m_Party.Playing()) {
             m_PartyToasts.push_back({ "Il capo squadra ha chiuso la partita", 5.0f });
+            if (m_VsBotActive) { LeaveVsBotMatch(); return; }
             auto& reg = m_Scene.GetRegistry();
             std::vector<entt::entity> gone;
             for (auto e : reg.view<HealthComponent>(entt::exclude<PlayerTag>)) gone.push_back(e);
@@ -240,7 +327,7 @@ namespace SunEngine {
         }
 
         auto& reg = m_Scene.GetRegistry();
-        if (reg.valid(m_PlayerEntity) && !reg.all_of<TeamComponent>(m_PlayerEntity)) reg.emplace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 });
+        if (reg.valid(m_PlayerEntity) && !reg.all_of<TeamComponent>(m_PlayerEntity)) reg.emplace<TeamComponent>(m_PlayerEntity, TeamComponent{ m_VsBotActive ? m_VsBotMyTeam : 0 });
 
         // ruolo: host = simulo i nemici
         const bool host = m_Party.IsHost();
@@ -266,27 +353,44 @@ namespace SunEngine {
         }
 
         NetSendState(realDt);
-        if (m_Net.authority) NetHostTick(realDt); else NetGhostTick(realDt);
+        if (m_Net.authority) NetHostTick(realDt); else { NetGhostTick(realDt); PlayerHitLog().clear(); }
         NetUpdatePuppets(realDt);
+        if (m_VsBotActive) NetVsBotTick(realDt);
 
-        // i miei colpi: agli altri solo l'effetto (scia, lampo, suono)
+        // i miei colpi e quelli dei bot che simulo: agli altri solo l'effetto (scia, lampo, suono)
         auto& shots = NetShotQueue();
         if (!shots.empty()) {
-            size_t i = 0;
-            while (i < shots.size()) {
+            auto writeTrail = [](Writer& w, const NetShotEvent& s) {
+                const auto& t = s.trail;
+                WV(w, t.start); WV(w, t.end);
+                w.U8(static_cast<std::uint8_t>(std::clamp(t.color.r, 0.0f, 1.0f) * 255.0f)); w.U8(static_cast<std::uint8_t>(std::clamp(t.color.g, 0.0f, 1.0f) * 255.0f));
+                w.U8(static_cast<std::uint8_t>(std::clamp(t.color.b, 0.0f, 1.0f) * 255.0f)); w.U8(static_cast<std::uint8_t>(std::clamp(t.color.a, 0.0f, 1.0f) * 255.0f));
+                WF(w, t.travelTime); WF(w, t.totalLife); WF(w, t.projectileWidth); WF(w, t.impactScale);
+                w.U8(static_cast<std::uint8_t>(t.style)); w.U8(static_cast<std::uint8_t>(t.fx + 1));
+                w.U8(static_cast<std::uint8_t>((t.isBeam ? 1 : 0) | (t.hitSomething ? 2 : 0) | (t.hitUnit ? 4 : 0) | (s.first ? 8 : 0)));
+            };
+            std::vector<const NetShotEvent*> mine;
+            std::vector<std::pair<std::uint32_t, const NetShotEvent*>> bots;
+            for (const auto& sh : shots) {
+                const entt::entity e = static_cast<entt::entity>(sh.shooter);
+                if (e == m_PlayerEntity) { mine.push_back(&sh); continue; }
+                if (!m_Net.authority || !reg.valid(e)) continue;
+                const auto* ne = reg.try_get<NetEntityComponent>(e);
+                if (ne && ne->netId != 0) bots.push_back({ ne->netId, &sh });
+            }
+            for (size_t i = 0; i < mine.size();) {
                 Writer w; w.U8(NM_Shots); w.U32(m_Net.matchId);
-                const size_t n = std::min<size_t>(shots.size() - i, 24);
+                const size_t n = std::min<size_t>(mine.size() - i, 24);
                 w.U8(static_cast<std::uint8_t>(n));
-                for (size_t k = 0; k < n; ++k) {
-                    const auto& s = shots[i + k];
-                    const auto& t = s.trail;
-                    WV(w, t.start); WV(w, t.end);
-                    w.U8(static_cast<std::uint8_t>(std::clamp(t.color.r, 0.0f, 1.0f) * 255.0f)); w.U8(static_cast<std::uint8_t>(std::clamp(t.color.g, 0.0f, 1.0f) * 255.0f));
-                    w.U8(static_cast<std::uint8_t>(std::clamp(t.color.b, 0.0f, 1.0f) * 255.0f)); w.U8(static_cast<std::uint8_t>(std::clamp(t.color.a, 0.0f, 1.0f) * 255.0f));
-                    WF(w, t.travelTime); WF(w, t.totalLife); WF(w, t.projectileWidth); WF(w, t.impactScale);
-                    w.U8(static_cast<std::uint8_t>(t.style)); w.U8(static_cast<std::uint8_t>(t.fx + 1));
-                    w.U8(static_cast<std::uint8_t>((t.isBeam ? 1 : 0) | (t.hitSomething ? 2 : 0) | (t.hitUnit ? 4 : 0) | (s.first ? 8 : 0)));
-                }
+                for (size_t k = 0; k < n; ++k) writeTrail(w, *mine[i + k]);
+                m_Party.SendToAll(w.b.data(), w.b.size(), false);
+                i += n;
+            }
+            for (size_t i = 0; i < bots.size();) {
+                Writer w; w.U8(NM_BotShots); w.U32(m_Net.matchId);
+                const size_t n = std::min<size_t>(bots.size() - i, 24);
+                w.U8(static_cast<std::uint8_t>(n));
+                for (size_t k = 0; k < n; ++k) { w.U32(bots[i + k].first); writeTrail(w, *bots[i + k].second); }
                 m_Party.SendToAll(w.b.data(), w.b.size(), false);
                 i += n;
             }
@@ -348,6 +452,9 @@ namespace SunEngine {
         w.U8(melee ? static_cast<std::uint8_t>(melee->currentAttack) : 0);
         w.Str(melee ? melee->currentAttackNode : std::string());
         w.U32(hasUnit ? m_Net.unitVer : 0);
+        int team = 0;
+        if (const auto* tc = reg.try_get<TeamComponent>(m_PlayerEntity)) team = tc->team == 1 ? 1 : 0;
+        w.U8(static_cast<std::uint8_t>(team));
         m_Party.SendToAll(w.b.data(), w.b.size(), false);
     }
 
@@ -362,17 +469,39 @@ namespace SunEngine {
             for (auto e : fresh) {
                 const std::uint32_t id = ((m_Party.Epoch() & 0xFFFu) << 20) | (m_Net.nextNetId++ & 0xFFFFFu);
                 reg.emplace<NetEntityComponent>(e, NetEntityComponent{ id });
-                NetEnemyInfo info; info.e = e; info.lastHitBy = self; info.prevHp = reg.get<HealthComponent>(e).currentHealth;
+                NetEnemyInfo info; info.e = e; info.prevHp = reg.get<HealthComponent>(e).currentHealth;
                 m_Net.enemies[id] = info;
             }
+            // Vs Bot: i bot del roster (riga e unita', per ricrearli uguali). Gli altri (rinforzi del vox) restano solo qui.
+            if (m_VsBotActive) {
+                fresh.clear();
+                for (auto e : reg.view<BotBrainComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, NetEntityComponent, NetGhostComponent, NetRemotePlayerComponent>)) fresh.push_back(e);
+                for (auto e : fresh) {
+                    int pi = -1, si = -1;
+                    for (int i = 0; i < static_cast<int>(m_VsBotPlayers.size()) && pi < 0; ++i)
+                        for (int k = 0; k < static_cast<int>(m_VsBotPlayers[i].squad.size()); ++k) if (m_VsBotPlayers[i].squad[k].entity == e) { pi = i; si = k; break; }
+                    if (pi < 0) { reg.emplace<NetEntityComponent>(e, NetEntityComponent{ 0 }); continue; }   // non e' del roster
+                    const std::uint32_t id = ((m_Party.Epoch() & 0xFFFu) << 20) | (m_Net.nextNetId++ & 0xFFFFFu);
+                    reg.emplace<NetEntityComponent>(e, NetEntityComponent{ id });
+                    NetEnemyInfo info; info.e = e; info.prevHp = reg.get<HealthComponent>(e).currentHealth;
+                    info.kind = 1; info.player = static_cast<std::uint8_t>(pi); info.slot = static_cast<std::uint8_t>(si);
+                    m_Net.enemies[id] = info;
+                }
+            }
         }
-        // danni fatti da me (l'host) dall'ultimo fotogramma: il merito dell'uccisione e' mio; gesti di mischia
+        // chi ha colpito i nemici dall'ultimo fotogramma: io (i miei colpi sono nel registro) o un bot (nessun merito);
+        // i colpi dei compagni arrivano coi loro messaggi. Poi gesti di mischia e mira dei bot.
+        const auto& myHits = PlayerHitLog();
         for (auto it = m_Net.enemies.begin(); it != m_Net.enemies.end();) {
             NetEnemyInfo& en = it->second;
             if (!reg.valid(en.e) || reg.all_of<CorpseComponent>(en.e)) { it = m_Net.enemies.erase(it); continue; }
             const float hp = reg.get<HealthComponent>(en.e).currentHealth;
-            if (hp < en.prevHp - 0.01f) en.lastHitBy = self;
+            if (hp < en.prevHp - 0.01f) en.lastHitBy = std::find(myHits.begin(), myHits.end(), en.e) != myHits.end() ? self : 0;
             en.prevHp = hp;
+            if (en.kind == 1) {
+                if (const auto* brain = reg.try_get<BotBrainComponent>(en.e)) en.aiming = brain->isAiming;
+                if (const auto* inv = reg.try_get<InventoryComponent>(en.e)) en.weaponSlot = inv->currentSlot;
+            }
             if (const auto* melee = reg.try_get<MeleeStateComponent>(en.e)) {
                 const int ph = static_cast<int>(melee->currentPhase);
                 if (melee->currentPhase == MeleePhase::Windup && (en.lastPhase != ph || melee->currentAttackNode != en.lastNode)) ++en.meleeSeq;
@@ -405,6 +534,12 @@ namespace SunEngine {
                     w.U8(melee ? static_cast<std::uint8_t>(melee->currentPhase) : 0);
                     w.U8(melee ? static_cast<std::uint8_t>(melee->currentAttack) : 0);
                     w.Str(melee && melee->currentPhase != MeleePhase::None ? melee->currentAttackNode : std::string());
+                    w.U8(en.kind);
+                    if (en.kind == 1) {
+                        int team = 0;
+                        if (const auto* tc = reg.try_get<TeamComponent>(en.e)) team = tc->team == 1 ? 1 : 0;
+                        w.U8(en.player); w.U8(en.slot); w.U8(static_cast<std::uint8_t>((en.aiming ? 1 : 0) | (team ? 2 : 0))); w.U8(static_cast<std::uint8_t>(std::clamp(en.weaponSlot, 0, 6)));
+                    }
                 }
                 m_Party.SendToAll(w.b.data(), w.b.size(), false);
                 i += n;
@@ -420,6 +555,7 @@ namespace SunEngine {
             w.U8(waves ? 1 : 0); WF(w, timer); w.U16(static_cast<std::uint16_t>(count));
             m_Party.PublishSnapshot(w.b);
         }
+        PlayerHitLog().clear();
     }
 
     // Copie dei nemici: i miei danni all'host, movimento morbido verso l'ultima posizione ricevuta
@@ -446,6 +582,7 @@ namespace SunEngine {
             t.AimYaw = t.Rotation.y;
             ++it;
         }
+        for (auto& [id, r] : m_Net.remotes) NetFlushPuppetDamage(r);   // PvP: i miei colpi sulle copie degli avversari
         if (!m_Net.outDamage.empty()) {
             Writer w; w.U8(NM_Damage); w.U32(m_Net.matchId);
             const size_t n = std::min<size_t>(m_Net.outDamage.size(), 200);
@@ -484,6 +621,7 @@ namespace SunEngine {
             t.AimPitch = r.aimPitch;
             if (auto* brain = reg.try_get<BotBrainComponent>(r.puppet)) { brain->isAiming = r.aiming; brain->displayName = r.name; }
             if (auto* st = reg.try_get<UnitStatsComponent>(r.puppet)) st->sprinting = r.sprint;
+            if (auto* tc = reg.try_get<TeamComponent>(r.puppet); tc && tc->team != r.team) tc->team = r.team;   // ha cambiato squadra (Vs Bot)
             reg.get_or_emplace<CrouchComponent>(r.puppet).amount = r.crouch ? 1.0f : 0.0f;
             if (auto* inv = reg.try_get<InventoryComponent>(r.puppet); inv && inv->currentSlot != r.slot) {
                 inv->currentSlot = r.slot;
@@ -507,7 +645,7 @@ namespace SunEngine {
 
     entt::entity GameLayer::NetSpawnPuppet(NetRemote& r) {
         auto& reg = m_Scene.GetRegistry();
-        const entt::entity e = SpawnBot(r.unit, 0, r.pos, r.yaw, -1);
+        const entt::entity e = SpawnBot(r.unit, r.team, r.pos, r.yaw, -1);
         if (e == entt::null) return e;
         m_VsBotUnits.erase(e);   // non e' un bot del Vs Bot
         reg.emplace_or_replace<NetGhostComponent>(e);
@@ -547,8 +685,9 @@ namespace SunEngine {
                 horde->target = entt::null; horde->hasEverSeenPlayer = false;
             }
             en.prevHp = reg.get<HealthComponent>(en.e).currentHealth;
-            en.lastHitBy = self;
+            en.lastHitBy = 0;
         }
+        (void)self;
         m_Net.nextNetId = 1;
         SnapInfo si;
         if (ParseSnapshot(m_Party.Snapshot(), si) && si.matchId == m_Net.matchId && m_Party.SnapshotAge() >= 0.0f && m_Party.SnapshotAge() < 30.0f)
@@ -588,8 +727,10 @@ namespace SunEngine {
             Net::PeerId killer = m_Party.SelfId();
             if (it != m_Net.enemies.end()) {
                 const float hp = reg.get<HealthComponent>(e).currentHealth;
-                const bool hostHitNow = hp < it->second.prevHp - 0.01f;   // colpito da me in questo fotogramma
-                if (!hostHitNow && it->second.lastHitBy) killer = it->second.lastHitBy;
+                const bool hitNow = hp < it->second.prevHp - 0.01f;   // colpito qui in questo fotogramma: da me o da un bot
+                const auto& myHits = PlayerHitLog();
+                if (hitNow) killer = std::find(myHits.begin(), myHits.end(), e) != myHits.end() ? m_Party.SelfId() : 0;
+                else killer = it->second.lastHitBy;
             }
             Writer w; w.U8(NM_Killed); w.U32(m_Net.matchId); w.U32(netId); w.U64(killer);
             m_Party.SendToAll(w.b.data(), w.b.size(), true);
@@ -609,6 +750,7 @@ namespace SunEngine {
         if (type == NM_Start) {
             const std::uint32_t id = r.U32(); const std::string map = r.Str(); const int ev = r.U8();
             if (!r.ok || from != m_Party.LeaderId() || id == 0) return;
+            if (ev == 4) { m_Net.vsRoster.assign(r.p, r.p + r.n); m_Net.vsRosterMatch = id; }   // Vs Bot: il roster deciso dal capo
             m_Net.matchId = id; m_Net.startMap = map; m_Net.startEvent = ev; m_Net.startPending = true;
             return;
         }
@@ -638,8 +780,10 @@ namespace SunEngine {
             const std::uint8_t flags = r.U8(), slot = r.U8(), mseq = r.U8(), mattack = r.U8();
             const std::string node = r.Str();
             const std::uint32_t uver = r.U32();
+            const int team = r.U8() == 1 ? 1 : 0;
             if (!r.ok) break;
             NetRemote& rm = m_Net.remotes[from];
+            rm.team = team;
             rm.id = from;
             {   // vecchio (arrivato in ritardo)? Un salto molto indietro invece e' un rientro in partita: si riparte
                 const int diff = static_cast<std::int16_t>(static_cast<std::uint16_t>(seq - rm.seq));
@@ -652,7 +796,7 @@ namespace SunEngine {
             (void)maxHealth;
             if (rm.name.empty()) for (const auto& mb : m_Party.Members()) if (mb.id == from) rm.name = mb.name;
             if (reg.valid(rm.puppet) && !reg.all_of<CorpseComponent>(rm.puppet)) {
-                if (m_Net.authority) NetFlushPuppetDamage(rm);   // colpi dell'orda non ancora mandati
+                NetFlushPuppetDamage(rm);   // colpi (dell'orda, dei bot o miei in PvP) non ancora mandati
                 if (rm.alive) { reg.get<HealthComponent>(rm.puppet).currentHealth = health; rm.hostSetHealth = health; }
                 // gesto di mischia iniziato: lo rifa' la copia (solo il gesto)
                 if (mseq != rm.meleeSeq) {
@@ -679,11 +823,23 @@ namespace SunEngine {
                 const float hp = static_cast<float>(r.U16()) / 10.0f;
                 const std::uint8_t mseq = r.U8(), mphase = r.U8(), mattack = r.U8();
                 const std::string node = r.Str();
+                const std::uint8_t kind = r.U8();
+                std::uint8_t pi = 0, si = 0, bflags = 0, wslot = 0;
+                if (kind == 1) { pi = r.U8(); si = r.U8(); bflags = r.U8(); wslot = r.U8(); }
                 if (!r.ok) break;
                 auto it = m_Net.enemies.find(id);
                 if (it == m_Net.enemies.end()) {
                     if (hp <= 0.0f) continue;
-                    const entt::entity e = SpawnNetOrk(pos);
+                    entt::entity e = entt::null;
+                    if (kind == 1) {   // bot del Vs Bot: la stessa unita' del roster
+                        if (!m_VsBotActive || pi >= m_VsBotPlayers.size() || si >= m_VsBotPlayers[pi].squad.size()) continue;
+                        auto& bp = m_VsBotPlayers[pi];
+                        e = SpawnBot(bp.squad[si].unit, (bflags & 2) ? 1 : 0, pos, yaw, -1);
+                        if (e == entt::null) continue;
+                        if (auto* brain = reg.try_get<BotBrainComponent>(e)) brain->displayName = bp.name + " (" + bp.squad[si].unit.customName + ")";
+                        bp.squad[si].entity = e;
+                    }
+                    else e = SpawnNetOrk(pos);
                     if (e == entt::null) continue;
                     reg.emplace_or_replace<NetEntityComponent>(e, NetEntityComponent{ id });
                     reg.emplace_or_replace<NetGhostComponent>(e);
@@ -691,10 +847,20 @@ namespace SunEngine {
                     t.Position = pos; t.Rotation.y = yaw; t.AimYaw = yaw;
                     reg.get<HealthComponent>(e).currentHealth = hp;
                     NetEnemyInfo info; info.e = e; info.baseHp = hp; info.pos = pos; info.yaw = yaw; info.meleeSeq = mseq;
+                    info.kind = kind; info.player = pi; info.slot = si;
                     it = m_Net.enemies.emplace(id, info).first;
                 }
                 NetEnemyInfo& en = it->second;
                 if (!reg.valid(en.e) || reg.all_of<CorpseComponent>(en.e)) continue;
+                if (kind == 1) {   // mira, squadra e arma in mano del bot
+                    if (auto* brain = reg.try_get<BotBrainComponent>(en.e)) brain->isAiming = (bflags & 1) != 0;
+                    if (auto* tc = reg.try_get<TeamComponent>(en.e)) tc->team = (bflags & 2) ? 1 : 0;
+                    if (auto* inv = reg.try_get<InventoryComponent>(en.e); inv && inv->currentSlot != wslot) {
+                        inv->currentSlot = wslot;
+                        reg.get_or_emplace<WeaponBlueprintId>(en.e).id = inv->GetActiveWeaponId();
+                    }
+                    if (auto* ws = reg.try_get<WeaponStateComponent>(en.e); ws && ws->currentAmmo < 50) ws->currentAmmo = 999;
+                }
                 en.pos = pos; en.yaw = yaw; en.sinceSeen = 0.0f;
                 auto& h = reg.get<HealthComponent>(en.e);
                 // prima i miei colpi non ancora mandati (altrimenti la salute dell'host li cancellerebbe)
@@ -756,11 +922,18 @@ namespace SunEngine {
             if (killer == m_Party.SelfId()) AwardKill();
             break;
         }
-        case NM_Shots: {
-            auto it = m_Net.remotes.find(from);
-            const entt::entity shooter = it != m_Net.remotes.end() && reg.valid(it->second.puppet) ? it->second.puppet : entt::entity(entt::null);
+        case NM_Shots:
+        case NM_BotShots: {
+            // colpi di un compagno (la sua copia) o di un bot simulato dall'host: scia, lampo e suono, niente danno
+            entt::entity shooter = entt::null;
+            if (type == NM_Shots) { auto it = m_Net.remotes.find(from); if (it != m_Net.remotes.end() && reg.valid(it->second.puppet)) shooter = it->second.puppet; }
             const int n = r.U8();
             for (int i = 0; i < n; ++i) {
+                if (type == NM_BotShots) {
+                    const std::uint32_t bid = r.U32();
+                    auto it = m_Net.enemies.find(bid);
+                    shooter = (it != m_Net.enemies.end() && reg.valid(it->second.e)) ? it->second.e : entt::entity(entt::null);
+                }
                 TrailRequestComponent t;
                 t.start = RV(r); t.end = RV(r);
                 const float cr = r.U8() / 255.0f, cg = r.U8() / 255.0f, cb = r.U8() / 255.0f;
@@ -787,8 +960,116 @@ namespace SunEngine {
             }
             break;
         }
+        case NM_Squad: {   // Vs Bot: la squadra di un altro giocatore vero
+            if (!m_VsBotActive) break;
+            const int active = static_cast<int>(r.U8()) - 1; const int n = r.U8();
+            std::vector<VsBotSlot> squad;
+            for (int i = 0; i < n && r.ok; ++i) {
+                VsBotSlot sl;
+                if (!ReadUnit(r, sl.unit)) break;
+                sl.points = r.U16();
+                const int st = r.U8();
+                sl.state = st == 1 ? VsBotSlotState::InField : (st == 2 ? VsBotSlotState::Fallen : VsBotSlotState::Reserve);
+                squad.push_back(sl);
+            }
+            if (!r.ok) break;
+            for (auto& p : m_VsBotPlayers) if (p.human && !p.local && p.owner == from) { p.squad = std::move(squad); p.active = active < static_cast<int>(p.squad.size()) ? active : -1; break; }
+            break;
+        }
+        case NM_Roster: {   // Vs Bot, dall'host: squadre, bot, tempi, fine partita
+            if (!m_VsBotActive || m_Net.authority) break;
+            const float warm = RF(r), time = RF(r);
+            const int winner = static_cast<int>(r.U8()) - 2; const int why = r.U8();
+            const int n = r.U8();
+            for (int i = 0; i < n && r.ok; ++i) {
+                const int team = r.U8() == 1 ? 1 : 0; const int active = static_cast<int>(r.U8()) - 1; const float resp = RF(r);
+                const int k = r.U8();
+                std::vector<std::uint8_t> st;
+                for (int j = 0; j < k; ++j) st.push_back(r.U8());
+                if (!r.ok || i >= static_cast<int>(m_VsBotPlayers.size())) continue;
+                auto& p = m_VsBotPlayers[i];
+                p.team = team;
+                if (p.human) continue;   // giocatori veri: la squadra la mandano loro
+                p.active = active < static_cast<int>(p.squad.size()) ? active : -1;
+                p.respawnTimer = resp;
+                for (int j = 0; j < k && j < static_cast<int>(p.squad.size()); ++j)
+                    p.squad[j].state = st[j] == 1 ? VsBotSlotState::InField : (st[j] == 2 ? VsBotSlotState::Fallen : VsBotSlotState::Reserve);
+            }
+            if (!r.ok) break;
+            m_VsBotWarmup = warm;
+            m_VsBotTime = time;
+            if (winner >= -1 && m_VsBotResult == 0) VsBotFinish(winner, why);
+            break;
+        }
+        case NM_TeamSwitch: {   // all'host: un giocatore vero vuole passare all'altra squadra
+            if (!m_VsBotActive || !m_Net.authority) break;
+            for (int i = 0; i < static_cast<int>(m_VsBotPlayers.size()); ++i) if (m_VsBotPlayers[i].human && m_VsBotPlayers[i].owner == from) { VsBotSwitchTeam(i); break; }
+            break;
+        }
+        case NM_Despawn: {   // un nemico sparisce senza morire
+            if (m_Net.authority) break;
+            const std::uint32_t id = r.U32();
+            if (!r.ok) break;
+            auto it = m_Net.enemies.find(id);
+            if (it == m_Net.enemies.end()) break;
+            const entt::entity e = it->second.e;
+            for (auto& p : m_VsBotPlayers) for (auto& sl : p.squad) if (sl.entity == e) sl.entity = entt::null;
+            if (reg.valid(e) && !reg.all_of<CorpseComponent>(e)) { m_PhysicsSystem.DestroyJoltBody(m_Scene, e); m_Scene.DestroyEntity(e); }
+            m_Net.enemies.erase(it);
+            break;
+        }
         default: break;
         }
+    }
+
+    // Vs Bot in squadra: ognuno manda la sua squadra; l'host manda a tutti lo stato del roster (2 volte al secondo)
+    void GameLayer::NetVsBotTick(float realDt) {
+        const int me = VsBotMeIndex();
+        if (me >= 0) {
+            Writer w; w.U8(NM_Squad); w.U32(m_Net.matchId); WriteSquad(w, m_VsBotPlayers[me]);
+            const std::string key(w.b.begin(), w.b.end());
+            m_Net.squadTimer -= realDt;
+            if (key != m_Net.squadKey || m_Net.squadTimer <= 0.0f) {
+                m_Net.squadKey = key; m_Net.squadTimer = 3.0f;
+                m_Party.SendToAll(w.b.data(), w.b.size(), true);
+            }
+        }
+        if (!m_Net.authority) return;
+        m_Net.rosterTimer -= realDt;
+        if (m_Net.rosterTimer > 0.0f) return;
+        m_Net.rosterTimer = 0.5f;
+        Writer w; w.U8(NM_Roster); w.U32(m_Net.matchId);
+        WF(w, m_VsBotWarmup); WF(w, m_VsBotTime);
+        w.U8(static_cast<std::uint8_t>(m_VsBotResult != 0 ? m_VsBotWinner + 2 : 0)); w.U8(static_cast<std::uint8_t>(m_VsBotWhy));
+        w.U8(static_cast<std::uint8_t>(std::min<size_t>(m_VsBotPlayers.size(), 20)));
+        for (size_t i = 0; i < m_VsBotPlayers.size() && i < 20; ++i) {
+            const auto& p = m_VsBotPlayers[i];
+            w.U8(static_cast<std::uint8_t>(p.team)); w.U8(static_cast<std::uint8_t>(p.active + 1)); WF(w, p.respawnTimer);
+            const size_t n = p.human ? 0 : std::min<size_t>(p.squad.size(), 40);
+            w.U8(static_cast<std::uint8_t>(n));
+            for (size_t k = 0; k < n; ++k) w.U8(static_cast<std::uint8_t>(p.squad[k].state));
+        }
+        m_Party.SendToAll(w.b.data(), w.b.size(), true);
+    }
+
+    // [T] nel riscaldamento: chiede all'host di passare all'altra squadra (da soli lo si fa subito)
+    void GameLayer::NetRequestTeamSwitch() {
+        if (m_Net.active && !m_Net.authority) {
+            Writer w; w.U8(NM_TeamSwitch); w.U32(m_Net.matchId);
+            m_Party.SendToHost(w.b.data(), w.b.size(), true);
+            m_PartyToasts.push_back({ "Richiesta di cambio squadra inviata", 2.0f });
+        }
+        else VsBotSwitchTeam(VsBotMeIndex());
+    }
+
+    // Host: un nemico sparisce senza morire (le copie degli altri spariscono subito invece che dopo qualche secondo)
+    void GameLayer::NetDespawnEnemy(entt::entity e) {
+        if (!m_Net.active || !m_Net.authority) return;
+        const auto* ne = m_Scene.GetRegistry().try_get<NetEntityComponent>(e);
+        if (!ne || ne->netId == 0) return;
+        Writer w; w.U8(NM_Despawn); w.U32(m_Net.matchId); w.U32(ne->netId);
+        m_Party.SendToAll(w.b.data(), w.b.size(), true);
+        m_Net.enemies.erase(ne->netId);
     }
 
     // ------------------------------------------------------------------------------------------------
@@ -829,6 +1110,7 @@ namespace SunEngine {
         for (const auto& [id, r] : m_Net.remotes) {
             if (!reg.valid(r.puppet) || reg.all_of<CorpseComponent>(r.puppet)) continue;
             ++inField;
+            if (m_VsBotActive) continue;   // nel Vs Bot i nomi li mostra il suo HUD (alleati e avversari)
             float h = 2.2f;
             if (const auto* col = reg.try_get<ColliderComponent>(r.puppet)) h = std::max(1.0f, (col->localCenterOffset.y + col->halfExtents.y) * 1.08f + 0.25f);
             const glm::vec3 p3 = reg.get<TransformComponent>(r.puppet).Position + glm::vec3(0.0f, h, 0.0f);
@@ -851,10 +1133,11 @@ namespace SunEngine {
         std::string hostName = m_Party.IsHost() ? std::string("tu") : std::string("?");
         for (const auto& mb : m_Party.Members()) if (mb.id == m_Party.HostId() && !mb.self) hostName = mb.name;
         char line[160];
-        std::snprintf(line, sizeof(line), "SQUADRA IN CAMPO %d   |   NEMICI MOSSI DA: %s", inField, hostName.c_str());
+        std::snprintf(line, sizeof(line), m_VsBotActive ? "GIOCATORI VERI IN CAMPO %d   |   BOT MOSSI DA: %s" : "SQUADRA IN CAMPO %d   |   NEMICI MOSSI DA: %s", inField, hostName.c_str());
         ImDrawList* fg = ImGui::GetForegroundDrawList();
         const ImVec2 ts = ImGui::CalcTextSize(line);
-        const ImVec2 a(io.DisplaySize.x * 0.5f - ts.x * 0.5f - 12.0f, 10.0f), b(io.DisplaySize.x * 0.5f + ts.x * 0.5f + 12.0f, 14.0f + ts.y + 6.0f);
+        const float y0 = m_VsBotActive ? 46.0f : 10.0f;   // nel Vs Bot sotto la sua riga in alto
+        const ImVec2 a(io.DisplaySize.x * 0.5f - ts.x * 0.5f - 12.0f, y0), b(io.DisplaySize.x * 0.5f + ts.x * 0.5f + 12.0f, y0 + 4.0f + ts.y + 6.0f);
         Ui::ChamferRect(fg, a, b, 5.0f, IM_COL32(10, 10, 12, 170), Ui::U32(Ui::Col::Brass, 0.6f), 1.0f);
         fg->AddText(ImVec2(a.x + 12.0f, a.y + 5.0f), Ui::U32(Ui::Col::Bone, 0.9f), line);
     }

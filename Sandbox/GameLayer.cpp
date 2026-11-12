@@ -1211,7 +1211,7 @@ namespace SunEngine {
                 bot->weaponEntity = entt::null;
             }
             if (const auto* team = reg.try_get<TeamComponent>(entity)) {
-                countsAsKill = team->team != 0;
+                countsAsKill = team->team != m_VsBotMyTeam;
                 if (countsAsKill) ++m_VsBotEnemyKills;
             }
 
@@ -5046,7 +5046,7 @@ namespace SunEngine {
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
             UpdateSummons(deltaTime);
-            if (m_VsBotActive || HasSummons()) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
+            if ((m_VsBotActive || HasSummons()) && !(m_VsBotActive && m_VsBotWarmup > 0.0f)) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
             m_MeleeCombat.Update(m_Scene, deltaTime);
             // Compagni squig (seguono il padrone e attaccano quello a cui spara) e riparazione con la chiave inglese
             if (!m_SquigSkeletonLoaded) {   // un solo tentativo: se manca il file lo squig resta un cubo
@@ -5541,7 +5541,12 @@ namespace SunEngine {
         }
         else if (m_Net.active && (m_IsPaused || !isPlayerAlive)) {
             // Partita in rete: il mondo non si ferma mentre sei a terra o in pausa (gli altri continuano a giocare)
-            UpdateNetWorld(deltaTime);
+            if (m_IsPaused) if (auto* ws = m_Scene.GetRegistry().try_get<WeaponStateComponent>(m_PlayerEntity)) ws->fireCooldown = std::max(ws->fireCooldown, 0.15f);   // i clic sul menu non sparano
+            if (m_VsBotActive) {
+                UpdateVsBotWorld(deltaTime);
+                if (!isPlayerAlive && !m_IsPaused) UpdateVsBotSpectator();
+            }
+            else UpdateNetWorld(deltaTime);
         }
         else if (!m_IsPaused && !isPlayerAlive && m_VsBotActive) {
             // 5v5: la partita va avanti mentre scegli con chi rientrare (o osservi gli alleati)
@@ -5582,6 +5587,14 @@ namespace SunEngine {
         if (m_VsBotActive) {
             UpdateBotVisuals();
             UpdateVsBot(deltaTime);
+            VsBotApplySpawnZones();   // muri invisibili delle basi
+            if (m_VsBotWarmup > 0.0f) {
+                // riscaldamento: niente colpi; T = passa all'altra squadra al posto di un bot
+                if (auto* ws = m_Scene.GetRegistry().try_get<WeaponStateComponent>(m_PlayerEntity)) ws->fireCooldown = std::max(ws->fireCooldown, 0.15f);
+                const bool tDown = Input::IsKeyPressed(GLFW_KEY_T);
+                if (tDown && !m_VsBotTWasDown && !m_IsPaused) NetRequestTeamSwitch();
+                m_VsBotTWasDown = tDown;
+            }
         }
         else if (m_GameState == GameState::Gameplay && (HasSummons() || m_Net.active)) UpdateBotVisuals();   // rinforzi del vox in modalita' orda, compagni in rete
 
@@ -5964,6 +5977,7 @@ namespace SunEngine {
                 RenderAuspex();
                 RenderTurretHUD();
                 RenderNetMatchOverlay();
+                RenderPartyOverlay();   // avvisi della squadra anche in partita (cambio di squadra, nuovo host...)
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {
                     // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
@@ -7719,11 +7733,6 @@ namespace SunEngine {
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         if (m_SelectedEventIndex == 4) {
-            if (NetSquadMatchAvailable()) {
-                ImGui::TextColored(ImVec4(0.90f, 0.55f, 0.25f, 1.0f), "In squadra il Vs Bot si gioca ancora da soli:");
-                ImGui::TextWrapped("per giocare insieme scegli Difesa del Settore o Sandbox.");
-                ImGui::Spacing();
-            }
             RenderVsBotQueues();
             ImGui::End();
             return;
@@ -8250,6 +8259,24 @@ namespace SunEngine {
         ImGui::TextWrapped("5 contro 5: tu e 4 alleati IA contro 5 avversari IA. Ogni giocatore porta una squadra entro il cap "
             "della coda (unita' + equipaggiamento) e rientra con un'altra unita' quando quella in campo cade.");
         ImGui::Spacing();
+        // In squadra: la coda la sceglie il capo; i compagni prendono il posto di altrettanti bot
+        const bool squad = NetSquadMatchAvailable();
+        if (squad) {
+            ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "IN SQUADRA");
+            if (m_Party.Playing()) {
+                ImGui::TextWrapped("La squadra e' gia' in partita.");
+                if (Ui::PlainButton("ENTRA IN PARTITA CON LA SQUADRA", ImVec2(-1, 50))) NetJoinRunningMatch();
+                return;
+            }
+            if (!m_Party.IsLeader()) {
+                ImGui::TextWrapped("La coda la sceglie il capo squadra: entri in partita con lui, con le unita' scelte qui "
+                    "(quelle che stanno nel cap della coda). Nei 20 secondi prima dell'inizio puoi passare all'altra squadra con [T].");
+                return;
+            }
+            ImGui::TextWrapped("Avvii per tutta la squadra: i compagni prendono il posto di altrettanti bot dalla tua parte. "
+                "Nei 20 secondi prima dell'inizio ognuno puo' passare all'altra squadra con [T] (al posto di un bot): cosi' si prova il PvP.");
+            ImGui::Spacing();
+        }
 
         const std::string capProblem = SquadTypeCapProblem();
         if (!capProblem.empty()) ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "%s", capProblem.c_str());
@@ -8271,7 +8298,8 @@ namespace SunEngine {
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ok ? ImVec4(0.20f, 0.34f, 0.17f, 1.0f) : ImVec4(0.34f, 0.08f, 0.07f, 1.0f));
             ImGui::BeginDisabled(!ok);
             if (Ui::PlainButton(label, ImVec2(-1, 58))) {
-                StartVsBotMatch(i);
+                if (squad) NetLeaderStartVsBot(i);
+                else StartVsBotMatch(i);
             }
             ImGui::EndDisabled();
             ImGui::PopStyleColor(2);
@@ -8520,44 +8548,43 @@ namespace SunEngine {
         const int squadPoints = CalculateSquadPoints();
         const int squadSize = static_cast<int>(m_SelectedSquadIndices.size());
         if (!VsBotEligible(squadPoints, squadSize, tier) || !SquadTypeCapProblem().empty()) return false;
+        auto players = VsBotMakeRoster(tierIdx, { { 0, "Tu" } });
+        if (players.empty()) { m_VsBotMessage = "Impossibile formare una squadra avversaria per questa coda."; return false; }
+        return VsBotLaunch(tierIdx, std::move(players));
+    }
 
-        // Squadre: ogni giocatore IA (4 alleati + 5 avversari) porta quante piu' unita' possibile senza sforare
-        // il cap della coda. Alleati della fazione del capo squadra se possibile, avversari tutti di una fazione.
+    // Roster della partita: i giocatori veri (squadra 0, al posto di altrettanti bot) e i giocatori IA. Ogni bot pesca
+    // uno schema diverso e mescola le fazioni (VsBotBuildMixedSquad), entro il cap della coda; quel che avanza del cap
+    // va in equipaggiamento a caso (AddBotExtras, col suo costo). Le squadre dei giocatori veri le porta ognuno da se'.
+    std::vector<VsBotPlayer> GameLayer::VsBotMakeRoster(int tierIdx, const std::vector<std::pair<std::uint64_t, std::string>>& humans) {
+        const VsBotQueueTier& tier = kVsBotTiers[std::clamp(tierIdx, 0, 2)];
         std::vector<VsBotCandidate> all;
         // Costo di un candidato = unita' con la sua dotazione base (punti battaglia)
         for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id), bp.max_per_squad });
         std::sort(all.begin(), all.end(), [](const VsBotCandidate& a, const VsBotCandidate& b) { return a.unitId < b.unitId; });
         std::mt19937 rng(std::random_device{}());
-        const TrainedUnit& leader = m_PlayerRoster[m_SelectedSquadIndices[0]];
-        const std::string allyFaction = VsBotFactionOf(leader.blueprintId);
-        std::vector<std::string> factions;
-        for (const auto& c : all) if (std::find(factions.begin(), factions.end(), c.faction) == factions.end()) factions.push_back(c.faction);
-        std::shuffle(factions.begin(), factions.end(), rng);
-        std::string enemyFaction;
-        for (const auto& f : factions) if (!VsBotBuildSquad(all, f, tier, rng, true).empty()) { enemyFaction = f; break; }
-
         std::vector<VsBotPlayer> players;
         std::vector<std::string> usedNames;
-        {
-            VsBotPlayer me;
-            me.name = "Tu";
-            me.team = 0;
-            me.human = true;
-            for (int rosterIdx : m_SelectedSquadIndices) {
-                VsBotSlot s;
-                s.unit = m_PlayerRoster[rosterIdx];
-                s.rosterIdx = rosterIdx;
-                s.points = s.unit.CalculateBattlePoints();
-                me.squad.push_back(s);
-            }
-            players.push_back(me);
+        int humansIn = 0;
+        for (const auto& [id, name] : humans) {
+            if (humansIn >= kVsBotTeamSize) break;
+            VsBotPlayer h;
+            h.name = name; h.team = 0; h.human = true; h.owner = id;
+            players.push_back(h);
+            usedNames.push_back(name);
+            ++humansIn;
         }
-        auto makeAi = [&](int team, const std::string& faction) {
-            const auto ids = VsBotBuildSquad(all, faction, tier, rng, team == 1 ? !enemyFaction.empty() : false);
+        auto makeAi = [&](int team) {
+            int style = 0;
+            const auto ids = VsBotBuildMixedSquad(all, tier, rng, &style);
             if (ids.empty()) return;
             VsBotPlayer p;
             p.team = team;
-            p.name = VsBotRandomName(faction, usedNames, rng);
+            p.style = style;
+            // nome dalla fazione dell'unita' piu' cara della squadra
+            std::string lead = ids[0]; int leadCost = -1;
+            for (const auto& id : ids) for (const auto& c : all) if (c.unitId == id && c.cost > leadCost) { leadCost = c.cost; lead = id; }
+            p.name = VsBotRandomName(VsBotFactionOf(lead), usedNames, rng);
             std::unordered_map<std::string, int> counts;
             int sum = 0;
             for (const auto& id : ids) {
@@ -8566,18 +8593,68 @@ namespace SunEngine {
                 sum += s.unit.CalculateBattlePoints();
                 p.squad.push_back(s);
             }
-            // Oggetti extra a caso finche' il budget del giocatore lo permette (la squadra resta sotto il cap)
+            // Oggetti extra a caso finche' il budget del giocatore lo permette (la squadra resta sotto il cap):
+            // l'ordine delle unita' cambia ogni volta, cosi' non e' sempre la prima a prendersi il budget
             int budget = std::max(0, tier.cap - sum);
-            for (auto& s : p.squad) { AddBotExtras(s.unit, budget); s.points = s.unit.CalculateBattlePoints(); }
+            std::vector<size_t> order(p.squad.size());
+            for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+            std::shuffle(order.begin(), order.end(), rng);
+            for (size_t i : order) AddBotExtras(p.squad[i].unit, budget);
+            for (auto& s : p.squad) s.points = s.unit.CalculateBattlePoints();
+            std::shuffle(p.squad.begin(), p.squad.end(), rng);
             players.push_back(p);
         };
-        for (int i = 1; i < kVsBotTeamSize; ++i) makeAi(0, allyFaction);
-        for (int i = 0; i < kVsBotTeamSize; ++i) makeAi(1, enemyFaction.empty() ? factions[rng() % factions.size()] : enemyFaction);
+        for (int i = humansIn; i < kVsBotTeamSize; ++i) makeAi(0);
+        for (int i = 0; i < kVsBotTeamSize; ++i) makeAi(1);
         int enemyPlayers = 0;
         for (const auto& p : players) enemyPlayers += p.team == 1 ? 1 : 0;
-        if (enemyPlayers == 0) {
-            m_VsBotMessage = "Impossibile formare una squadra avversaria per questa coda.";
-            return false;
+        if (enemyPlayers == 0) return {};
+        for (const auto& p : players) if (!p.human) {
+            int pts = 0; std::string list;
+            for (const auto& s : p.squad) { pts += s.points; list += s.unit.blueprintId + " "; }
+            SUN_CORE_INFO("Vs Bot: {0} (squadra {1}, {2}) {3} pti: {4}", p.name, p.team, VsBotStyleName(p.style), pts, list);
+        }
+        return players;
+    }
+
+    int GameLayer::VsBotMeIndex() const {
+        for (int i = 0; i < static_cast<int>(m_VsBotPlayers.size()); ++i) if (m_VsBotPlayers[i].local) return i;
+        return -1;
+    }
+
+    // Avvio comune (da solo o in squadra): scena, mappa, basi, la mia squadra (quella dello schieramento, entro il cap
+    // della coda), i bot in campo se li simulo io. Poi 20 secondi di riscaldamento chiusi nelle basi.
+    bool GameLayer::VsBotLaunch(int tierIdx, std::vector<VsBotPlayer> players) {
+        const VsBotQueueTier& tier = kVsBotTiers[std::clamp(tierIdx, 0, 2)];
+        const std::uint64_t self = m_Party.SelfId();
+        int me = -1;
+        for (int i = 0; i < static_cast<int>(players.size()); ++i) {
+            auto& p = players[i];
+            p.local = p.human && me < 0 && (p.owner == 0 || p.owner == self);
+            if (p.local) me = i;
+        }
+        if (me < 0 || m_PlayerRoster.empty()) { m_VsBotMessage = "Non sei in questa partita."; return false; }
+        // La mia squadra: le unita' scelte, finche' stanno nel cap della coda (in squadra ognuno porta la sua)
+        {
+            auto& my = players[me];
+            my.squad.clear();
+            int sum = 0;
+            for (int idx : m_SelectedSquadIndices) {
+                if (idx < 0 || idx >= static_cast<int>(m_PlayerRoster.size())) continue;
+                const int pts = m_PlayerRoster[idx].CalculateBattlePoints();
+                if (sum + pts > tier.cap) continue;
+                VsBotSlot s; s.unit = m_PlayerRoster[idx]; s.rosterIdx = idx; s.points = pts;
+                my.squad.push_back(s); sum += pts;
+            }
+            if (my.squad.empty()) {   // nessuna sta nel cap: la piu' economica fra quelle scelte (o quella del garage)
+                int best = -1, bestPts = 1 << 30;
+                std::vector<int> cand = m_SelectedSquadIndices;
+                if (cand.empty()) cand.push_back(std::clamp(m_SelectedVaultIndex, 0, static_cast<int>(m_PlayerRoster.size()) - 1));
+                for (int idx : cand) if (idx >= 0 && idx < static_cast<int>(m_PlayerRoster.size())) { const int pts = m_PlayerRoster[idx].CalculateBattlePoints(); if (pts < bestPts) { bestPts = pts; best = idx; } }
+                if (best < 0) return false;
+                VsBotSlot s; s.unit = m_PlayerRoster[best]; s.rosterIdx = best; s.points = bestPts;
+                my.squad.push_back(s);
+            }
         }
 
         // Scena pulita e mappa 5v5
@@ -8595,11 +8672,22 @@ namespace SunEngine {
         m_BotAI.SetTeamBases(base0, base1);
         m_VsBotYaw[0] = glm::degrees(std::atan2(-(base1 - base0).x, -(base1 - base0).z));   // squadra 0 guarda verso i nemici
         m_VsBotYaw[1] = m_VsBotYaw[0] + 180.0f;
-        const float yaw0 = m_VsBotYaw[0];
+        // Basi: rettangolo attorno ai punti di schieramento, allargato verso l'esterno (muri invisibili per l'altra squadra)
+        for (int t = 0; t < 2; ++t) {
+            m_VsBotZones[t] = VsBotZone();
+            if (m_VsBotSpawns[t].empty()) continue;
+            glm::vec2 mn(1e9f), mx(-1e9f);
+            for (const auto& p : m_VsBotSpawns[t]) { mn = glm::min(mn, glm::vec2(p.x, p.z)); mx = glm::max(mx, glm::vec2(p.x, p.z)); }
+            m_VsBotZones[t].min = mn - glm::vec2(11.0f, 14.0f);
+            m_VsBotZones[t].max = mx + glm::vec2(11.0f, 14.0f);
+            m_VsBotZones[t].valid = true;
+        }
 
-        // Giocatore = prima unita' della sua squadra; le altre restano in riserva per i rientri
+        // Io = prima unita' della mia squadra; le altre restano in riserva per i rientri
+        auto& my = players[me];
+        m_VsBotMyTeam = my.team == 1 ? 1 : 0;
         m_ActiveSquad.clear();
-        for (int rosterIdx : m_SelectedSquadIndices) m_ActiveSquad.push_back(ActiveSquadMember{ rosterIdx, true, 100.0f });
+        for (const auto& s : my.squad) m_ActiveSquad.push_back(ActiveSquadMember{ s.rosterIdx, true, 100.0f });
         m_CurrentSquadMemberIdx = 0;
         m_KillCount = 0;
         ResetMatchXp();
@@ -8607,37 +8695,37 @@ namespace SunEngine {
         m_VsBotDeadTime = 0.0f;
         m_VsBotSpectate = 0;
         ClearPlayerDeathState();
-        ApplyUnitVisuals(leader);
+        ApplyUnitVisuals(my.squad[0].unit);
+        my.squad[0].state = VsBotSlotState::InField;
+        my.active = 0;
+        m_VsBotPlayers = std::move(players);
         auto& reg = m_Scene.GetRegistry();
-        reg.emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 });
-        if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
-            pt->Position = VsBotSpawnPoint(0, 0, false);
-            pt->AimYaw = yaw0; pt->Rotation.y = yaw0; pt->AimPitch = 0.0f;
-            m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, pt->Position);
-        }
+        reg.emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ m_VsBotMyTeam });
+        VsBotPlaceMe(false);
         if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = hp->maxHealth;
 
-        // Ogni giocatore IA schiera la prima unita' della sua squadra
-        m_VsBotPlayers = std::move(players);
-        m_VsBotPlayers[0].squad[0].state = VsBotSlotState::InField;
-        m_VsBotPlayers[0].active = 0;
-        int spawnIdx[2] = { 1, 0 };
-        int allyPts = 0, enemyPts = 0, allyUnits = 0, enemyUnits = 0;
-        for (auto& p : m_VsBotPlayers) {
-            (p.team == 0 ? allyPts : enemyPts) += p.TotalPoints();
-            (p.team == 0 ? allyUnits : enemyUnits) += static_cast<int>(p.squad.size());
-            if (p.human) continue;
-            VsBotSpawnAi(p, 0, VsBotSpawnPoint(p.team, spawnIdx[p.team]++, false));
+        // I giocatori IA schierano la prima unita' (solo chi simula i bot: in squadra l'host, gli altri ne vedono le copie)
+        if (NetIsAuthority()) {
+            int spawnIdx[2] = { 0, 0 };
+            for (const auto& p : m_VsBotPlayers) if (p.human) ++spawnIdx[p.team == 1 ? 1 : 0];
+            for (auto& p : m_VsBotPlayers) {
+                if (p.human) continue;
+                VsBotSpawnAi(p, 0, VsBotSpawnPoint(p.team, spawnIdx[p.team == 1 ? 1 : 0]++, false));
+            }
+            m_PhysicsSystem.RefreshBodies(m_Scene);
         }
-        m_PhysicsSystem.RefreshBodies(m_Scene);
-        SUN_CORE_INFO("Vs Bot {0}: alleati {1} pti in {2} unita', avversari {3} pti in {4} unita' ({5})",
-            tier.name, allyPts, allyUnits, enemyPts, enemyUnits, enemyFaction);
+        int pts[2] = { 0, 0 }, units[2] = { 0, 0 };
+        for (const auto& p : m_VsBotPlayers) { pts[p.team == 1 ? 1 : 0] += p.TotalPoints(); units[p.team == 1 ? 1 : 0] += static_cast<int>(p.squad.size()); }
+        SUN_CORE_INFO("Vs Bot {0}: squadra 0 {1} pti in {2} unita', squadra 1 {3} pti in {4} unita'", tier.name, pts[0], units[0], pts[1], units[1]);
 
         g_WaaaghActive = false;
         m_VsBotActive = true;
-        m_VsBotTier = tierIdx;
+        m_VsBotTier = std::clamp(tierIdx, 0, 2);
         m_VsBotTime = 0.0f;
+        m_VsBotWarmup = kVsBotWarmupTime;
         m_VsBotResult = 0;
+        m_VsBotWinner = -2;
+        m_VsBotWhy = 0;
         m_VsBotReward = 0;
         m_VsBotEnemyKills = 0;
         m_VsBotEndReason.clear();
@@ -8648,19 +8736,151 @@ namespace SunEngine {
         return true;
     }
 
+    // Mi mette al punto di schieramento della mia squadra (all'avvio il mio posto fra i compagni, ai rientri a caso)
+    void GameLayer::VsBotPlaceMe(bool respawn) {
+        auto& reg = m_Scene.GetRegistry();
+        const int team = m_VsBotMyTeam;
+        int idx = 0;
+        if (respawn) idx = Random::RangeInt(0, std::max(0, static_cast<int>(m_VsBotSpawns[team].size()) - 1));
+        else {
+            const int me = VsBotMeIndex();
+            for (int i = 0; i < me && i < static_cast<int>(m_VsBotPlayers.size()); ++i) if (m_VsBotPlayers[i].human && m_VsBotPlayers[i].team == team) ++idx;
+        }
+        if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
+            pt->Position = VsBotSpawnPoint(team, idx, respawn);
+            pt->AimYaw = m_VsBotYaw[team]; pt->Rotation.y = m_VsBotYaw[team]; pt->AimPitch = 0.0f;
+            m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, pt->Position);
+        }
+    }
+
+    // Fine partita dal punto di vista di chi guarda: vittoria se ha vinto la mia squadra
+    void GameLayer::VsBotFinish(int winnerTeam, int why) {
+        if (m_VsBotResult != 0) return;
+        m_VsBotWinner = winnerTeam;
+        m_VsBotWhy = why;
+        const bool won = winnerTeam == m_VsBotMyTeam;
+        if (winnerTeam < 0) EndVsBotMatch(3, why == 0 ? "Entrambe le parti sono state eliminate" : "Tempo scaduto: parita' di punti rimasti");
+        else if (why == 0) EndVsBotMatch(won ? 1 : 2, won ? "Tutte le squadre avversarie sono state eliminate" : "Tutte le squadre alleate sono state eliminate");
+        else EndVsBotMatch(won ? 1 : 2, won ? "Tempo scaduto: avete piu' punti rimasti" : "Tempo scaduto: gli avversari hanno piu' punti rimasti");
+    }
+
+    // Un giocatore vero passa all'altra squadra durante il riscaldamento: prende il posto di un bot di quella squadra,
+    // e il bot va nella squadra che lascia (le parti restano 5 contro 5). Lo decide chi simula i bot.
+    void GameLayer::VsBotSwitchTeam(int playerIdx) {
+        if (!m_VsBotActive || m_VsBotWarmup <= 0.0f || m_VsBotResult != 0) return;
+        if (playerIdx < 0 || playerIdx >= static_cast<int>(m_VsBotPlayers.size()) || !m_VsBotPlayers[playerIdx].human) return;
+        const int from = m_VsBotPlayers[playerIdx].team == 1 ? 1 : 0, to = 1 - from;
+        int b = -1;
+        for (int i = static_cast<int>(m_VsBotPlayers.size()) - 1; i >= 0; --i) if (!m_VsBotPlayers[i].human && m_VsBotPlayers[i].team == to) { b = i; break; }
+        if (b < 0) { m_PartyToasts.push_back({ "Nell'altra squadra non c'e' un bot da sostituire", 3.0f }); return; }
+        auto& bot = m_VsBotPlayers[b];
+        auto& reg = m_Scene.GetRegistry();
+        if (bot.active >= 0 && bot.active < static_cast<int>(bot.squad.size())) {   // la sua unita' in campo rientra dall'altra base
+            auto& s = bot.squad[bot.active];
+            if (reg.valid(s.entity)) {
+                NetDespawnEnemy(s.entity);
+                m_PhysicsSystem.DestroyJoltBody(m_Scene, s.entity);
+                m_Scene.DestroyEntity(s.entity);
+            }
+            m_VsBotUnits.erase(s.entity);
+            s.entity = entt::null;
+            s.state = VsBotSlotState::Reserve;
+            bot.active = -1;
+        }
+        bot.respawnTimer = 0.0f;
+        bot.team = from;
+        m_VsBotPlayers[playerIdx].team = to;
+        m_Net.rosterTimer = 0.0f;   // in squadra: tutti lo sanno subito
+        SUN_CORE_INFO("Vs Bot: {0} passa alla squadra {1} al posto di {2}", m_VsBotPlayers[playerIdx].name, to, bot.name);
+    }
+
+    // Basi: durante il riscaldamento ognuno resta nella sua; poi la squadra avversaria non puo' entrare nella base
+    // dell'altra (si esce dalla propria, non si entra in quella nemica). Le copie in rete le corregge il loro proprietario.
+    void GameLayer::VsBotApplySpawnZones() {
+        if (!m_VsBotActive || m_VsBotResult != 0) return;
+        auto& reg = m_Scene.GetRegistry();
+        const bool warm = m_VsBotWarmup > 0.0f;
+        auto view = reg.view<TeamComponent, TransformComponent>(entt::exclude<CorpseComponent, NetGhostComponent>);
+        for (auto e : view) {
+            const int team = view.get<TeamComponent>(e).team == 1 ? 1 : 0;
+            auto& t = view.get<TransformComponent>(e);
+            glm::vec2 p(t.Position.x, t.Position.z);
+            const glm::vec2 before = p;
+            if (warm) {
+                const VsBotZone& z = m_VsBotZones[team];
+                if (!z.valid) continue;
+                p = glm::clamp(p, z.min + glm::vec2(0.4f), z.max - glm::vec2(0.4f));
+            }
+            else {
+                const VsBotZone& z = m_VsBotZones[1 - team];
+                if (!z.valid || p.x <= z.min.x || p.x >= z.max.x || p.y <= z.min.y || p.y >= z.max.y) continue;
+                // fuori dal lato piu' vicino
+                const float dl = p.x - z.min.x, dr = z.max.x - p.x, db = p.y - z.min.y, df = z.max.y - p.y;
+                const float m = std::min(std::min(dl, dr), std::min(db, df));
+                if (m == dl) p.x = z.min.x - 0.05f; else if (m == dr) p.x = z.max.x + 0.05f;
+                else if (m == db) p.y = z.min.y - 0.05f; else p.y = z.max.y + 0.05f;
+            }
+            if (p == before) continue;
+            t.Position.x = p.x; t.Position.z = p.y;
+            if (e == m_PlayerEntity) m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, t.Position);
+        }
+    }
+
+    // Bordo delle basi disegnato a terra: la mia in azzurro, quella avversaria (vietata) in rosso
+    void GameLayer::RenderVsBotZones() {
+        if (!m_VsBotActive) return;
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        ImDrawList* dl = ImGui::GetBackgroundDrawList();
+        ImGuiIO& io = ImGui::GetIO();
+        for (int t = 0; t < 2; ++t) {
+            const VsBotZone& z = m_VsBotZones[t];
+            if (!z.valid) continue;
+            float y = 0.05f;
+            if (!m_VsBotSpawns[t].empty()) y = m_VsBotSpawns[t][0].y + 0.05f;
+            const bool mine = t == m_VsBotMyTeam;
+            const ImU32 col = mine ? IM_COL32(110, 210, 255, 150) : IM_COL32(255, 80, 60, 190);
+            const glm::vec2 c[4] = { z.min, glm::vec2(z.max.x, z.min.y), z.max, glm::vec2(z.min.x, z.max.y) };
+            for (int k = 0; k < 4; ++k) {
+                const glm::vec2 a = c[k], b = c[(k + 1) % 4];
+                const int steps = std::max(1, static_cast<int>(glm::length(b - a) / 1.5f));
+                for (int i = 0; i < steps; i += 2) {   // tratteggio
+                    const glm::vec2 p0 = glm::mix(a, b, static_cast<float>(i) / steps), p1 = glm::mix(a, b, static_cast<float>(i + 1) / steps);
+                    const glm::vec4 q0 = vp * glm::vec4(p0.x, y, p0.y, 1.0f), q1 = vp * glm::vec4(p1.x, y, p1.y, 1.0f);
+                    if (q0.w <= 0.1f || q1.w <= 0.1f) continue;
+                    const ImVec2 s0((q0.x / q0.w * 0.5f + 0.5f) * io.DisplaySize.x, (1.0f - (q0.y / q0.w * 0.5f + 0.5f)) * io.DisplaySize.y);
+                    const ImVec2 s1((q1.x / q1.w * 0.5f + 0.5f) * io.DisplaySize.x, (1.0f - (q1.y / q1.w * 0.5f + 0.5f)) * io.DisplaySize.y);
+                    dl->AddLine(s0, s1, col, mine ? 2.0f : 3.0f);
+                }
+            }
+        }
+    }
+
     // Rientri e fine partita. Ogni giocatore ha in campo una sola unita': quando cade, l'IA rientra dopo
     // kVsBotAiRespawn secondi con un'altra unita' della sua squadra, tu scegli dalla schermata di morte.
     // Una squadra e' eliminata quando nessun suo giocatore ha piu' unita' in campo o in riserva; allo scadere
     // vince chi ha piu' punti battaglia rimasti (in campo + in riserva).
     void GameLayer::UpdateVsBot(float deltaTime) {
-        if (!m_VsBotActive || m_VsBotResult != 0 || m_IsPaused) return;
-        m_VsBotTime += deltaTime;
+        if (!m_VsBotActive || m_VsBotResult != 0 || (m_IsPaused && !m_Net.active)) return;
+        const bool auth = NetIsAuthority();
+        if (m_VsBotWarmup > 0.0f) m_VsBotWarmup = std::max(0.0f, m_VsBotWarmup - deltaTime);
+        else m_VsBotTime += deltaTime;
         auto& reg = m_Scene.GetRegistry();
+        // la mia squadra e' cambiata (passaggio all'altra parte durante il riscaldamento): si rientra dall'altra base
+        const int me = VsBotMeIndex();
+        if (me >= 0 && (m_VsBotPlayers[me].team == 1 ? 1 : 0) != m_VsBotMyTeam) {
+            m_VsBotMyTeam = m_VsBotPlayers[me].team == 1 ? 1 : 0;
+            reg.emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ m_VsBotMyTeam });
+            const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
+            if (hp && hp->currentHealth > 0.0f && !reg.all_of<CorpseComponent>(m_PlayerEntity)) VsBotPlaceMe(true);
+            m_PartyToasts.push_back({ m_VsBotMyTeam == 0 ? "Ora giochi con la squadra della base nord" : "Ora giochi con la squadra della base sud", 4.0f });
+        }
         for (auto& p : m_VsBotPlayers) {
+            if (p.human && !p.local) continue;   // gli altri giocatori veri: lo stato lo mandano loro
+            if (!p.human && !auth) continue;     // i bot li muove chi li simula (l'host)
             if (p.active >= 0 && p.active < static_cast<int>(p.squad.size())) {
                 auto& s = p.squad[p.active];
                 bool dead;
-                if (p.human) {
+                if (p.local) {
                     const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
                     dead = !hp || hp->currentHealth <= 0.0f;
                 }
@@ -8673,7 +8893,7 @@ namespace SunEngine {
                     s.state = VsBotSlotState::Fallen;
                     s.entity = entt::null;
                     p.active = -1;
-                    p.respawnTimer = p.human ? kVsBotHumanRespawn : kVsBotAiRespawn;
+                    p.respawnTimer = p.local ? kVsBotHumanRespawn : kVsBotAiRespawn;
                 }
                 continue;
             }
@@ -8688,20 +8908,25 @@ namespace SunEngine {
             VsBotSpawnAi(p, pick, VsBotSpawnPoint(p.team, Random::RangeInt(0, std::max(0, nPts - 1)), true));
             m_PhysicsSystem.RefreshBodies(m_Scene);
         }
-        if (m_VsBotPlayers.empty() || !m_VsBotPlayers[0].human || m_VsBotPlayers[0].active < 0) m_VsBotDeadTime += deltaTime;
+        if (me < 0 || m_VsBotPlayers[me].active < 0) m_VsBotDeadTime += deltaTime;
 
+        // Fine partita: la decide chi simula i bot (in squadra la manda a tutti)
+        if (!auth || m_VsBotWarmup > 0.0f) return;
         int left[2] = { 0, 0 }, points[2] = { 0, 0 };
         for (const auto& p : m_VsBotPlayers) {
+            // un compagno che non si sente piu' (uscito, caduto) non conta: la sua squadra e' persa
+            if (p.human && !p.local && (!m_Net.active || m_Net.remotes.find(p.owner) == m_Net.remotes.end())) continue;
             const int team = p.team == 1 ? 1 : 0;
             left[team] += p.CountState(VsBotSlotState::InField) + p.CountState(VsBotSlotState::Reserve);
             points[team] += p.PointsState(VsBotSlotState::InField) + p.PointsState(VsBotSlotState::Reserve);
         }
-        if (left[1] == 0) EndVsBotMatch(1, "Tutte le squadre avversarie sono state eliminate");
-        else if (left[0] == 0) EndVsBotMatch(2, "Tutte le squadre alleate sono state eliminate");
+        if (left[0] == 0 && left[1] == 0) VsBotFinish(-1, 0);
+        else if (left[1] == 0) VsBotFinish(0, 0);
+        else if (left[0] == 0) VsBotFinish(1, 0);
         else if (m_VsBotTime >= m_VsBotTimeLimit) {
-            if (points[0] > points[1]) EndVsBotMatch(1, "Tempo scaduto: avete piu' punti rimasti");
-            else if (points[0] < points[1]) EndVsBotMatch(2, "Tempo scaduto: gli avversari hanno piu' punti rimasti");
-            else EndVsBotMatch(3, "Tempo scaduto: parita' di punti rimasti");
+            if (points[0] > points[1]) VsBotFinish(0, 1);
+            else if (points[0] < points[1]) VsBotFinish(1, 1);
+            else VsBotFinish(-1, 2);
         }
     }
 
@@ -8741,6 +8966,9 @@ namespace SunEngine {
         if (reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
         m_VsBotActive = false;
         m_VsBotResult = 0;
+        m_VsBotMyTeam = 0;
+        m_VsBotWarmup = 0.0f;
+        m_VsBotWinner = -2;
         m_IsPaused = false;
         m_PlayerDeathHandled = false;
         ClearPlayerDeathState();
@@ -8775,20 +9003,17 @@ namespace SunEngine {
 
     // Rientri: il giocatore sceglie un'unita' in riserva della sua squadra e riparte dal punto di schieramento.
     void GameLayer::VsBotRespawnHuman(int slot) {
-        if (m_VsBotPlayers.empty() || !m_VsBotPlayers[0].human) return;
-        auto& me = m_VsBotPlayers[0];
+        const int meIdx = VsBotMeIndex();
+        if (meIdx < 0) return;
+        auto& me = m_VsBotPlayers[meIdx];
         if (slot < 0 || slot >= static_cast<int>(me.squad.size()) || me.squad[slot].state != VsBotSlotState::Reserve || me.respawnTimer > 0.0f) return;
         auto& s = me.squad[slot];
         auto& reg = m_Scene.GetRegistry();
 
         ClearPlayerDeathState();   // via ragdoll e CorpseComponent
         ApplyUnitVisuals(s.unit);  // statistiche, armatura, armi, munizioni piene, vesti
-        reg.emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 });
-        if (auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) {
-            pt->Position = VsBotSpawnPoint(0, Random::RangeInt(0, std::max(0, static_cast<int>(m_VsBotSpawns[0].size()) - 1)), true);
-            pt->AimYaw = m_VsBotYaw[0]; pt->Rotation.y = m_VsBotYaw[0]; pt->AimPitch = 0.0f;
-            m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, pt->Position);
-        }
+        reg.emplace_or_replace<TeamComponent>(m_PlayerEntity, TeamComponent{ m_VsBotMyTeam });
+        VsBotPlaceMe(true);
         if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = hp->maxHealth;
         if (auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
             melee->currentPhase = MeleePhase::None; melee->currentAttack = MeleeAttackType::None;
@@ -8821,7 +9046,7 @@ namespace SunEngine {
         UpdateHitFeedback(deltaTime);
         m_WeightSystem.Update(m_Scene, deltaTime);
         m_HealthRegen.Update(m_Scene, deltaTime);
-        m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);
+        if (m_VsBotWarmup <= 0.0f) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
         m_MeleeCombat.Update(m_Scene, deltaTime);
         m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);
         UpdateSquigVisuals();
@@ -8841,7 +9066,7 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         std::vector<entt::entity> allies;
         auto view = reg.view<BotBrainComponent, TeamComponent, HealthComponent, TransformComponent>(entt::exclude<CorpseComponent>);
-        for (auto e : view) if (view.get<TeamComponent>(e).team == 0 && view.get<HealthComponent>(e).currentHealth > 0.0f) allies.push_back(e);
+        for (auto e : view) if (view.get<TeamComponent>(e).team == m_VsBotMyTeam && view.get<HealthComponent>(e).currentHealth > 0.0f) allies.push_back(e);
         if (allies.empty()) return;
         std::sort(allies.begin(), allies.end());
         const int n = static_cast<int>(allies.size());
@@ -8961,7 +9186,7 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         int allyLeft = 0, enemyFallen = 0;
         for (const auto& p : m_VsBotPlayers) {
-            if (p.team == 0) allyLeft += p.CountState(VsBotSlotState::InField) + p.CountState(VsBotSlotState::Reserve);
+            if (p.team == m_VsBotMyTeam) allyLeft += p.CountState(VsBotSlotState::InField) + p.CountState(VsBotSlotState::Reserve);
             else enemyFallen += p.CountState(VsBotSlotState::Fallen);
         }
 
@@ -8977,6 +9202,25 @@ namespace SunEngine {
         ImGui::SameLine(); ImGui::TextDisabled("   [TAB] squadre");
         ImGui::End();
 
+        RenderVsBotZones();
+        // Riscaldamento: conto alla rovescia grande e cambio di squadra
+        if (m_VsBotWarmup > 0.0f) {
+            ImDrawList* fg = ImGui::GetForegroundDrawList();
+            char big[64]; std::snprintf(big, sizeof(big), "LA BATTAGLIA INIZIA TRA %d", static_cast<int>(std::ceil(m_VsBotWarmup)));
+            ImFont* f = Ui::FontTitle();
+            const ImVec2 ts = f->CalcTextSizeA(f->FontSize, FLT_MAX, 0.0f, big);
+            const ImVec2 at(io.DisplaySize.x * 0.5f - ts.x * 0.5f, io.DisplaySize.y * 0.22f);
+            fg->AddText(f, f->FontSize, ImVec2(at.x + 2.0f, at.y + 2.0f), IM_COL32(0, 0, 0, 200), big);
+            fg->AddText(f, f->FontSize, at, Ui::U32(Ui::Col::Gold), big);
+            const char* help = m_VsBotMyTeam == 0 ? "Base nord. [T] passa all'altra squadra al posto di un bot (per giocare contro i compagni)"
+                                                  : "Base sud. [T] passa all'altra squadra al posto di un bot (per giocare contro i compagni)";
+            const ImVec2 hs = ImGui::CalcTextSize(help);
+            fg->AddText(ImVec2(io.DisplaySize.x * 0.5f - hs.x * 0.5f, at.y + ts.y + 10.0f), Ui::U32(Ui::Col::Bone, 0.95f), help);
+            const char* help2 = "Fino all'inizio si resta nella propria base; poi nessuno puo' entrare nella base avversaria.";
+            const ImVec2 h2 = ImGui::CalcTextSize(help2);
+            fg->AddText(ImVec2(io.DisplaySize.x * 0.5f - h2.x * 0.5f, at.y + ts.y + 32.0f), Ui::U32(Ui::Col::Ash, 0.95f), help2);
+        }
+
         const glm::mat4 vp = m_Camera.GetViewProjection();
         ImDrawList* dl = ImGui::GetForegroundDrawList();
         const glm::vec3 camPos = m_Camera.GetPosition();
@@ -8984,7 +9228,7 @@ namespace SunEngine {
         for (auto e : bots) {
             const auto& h = bots.get<HealthComponent>(e);
             if (h.currentHealth <= 0.0f) continue;
-            const bool ally = bots.get<TeamComponent>(e).team == 0;
+            const bool ally = bots.get<TeamComponent>(e).team == m_VsBotMyTeam;
             const auto& t = bots.get<TransformComponent>(e);
             if (glm::distance(camPos, t.Position) > (ally ? 120.0f : 80.0f)) continue;
             float topY = 2.0f;
@@ -9053,7 +9297,8 @@ namespace SunEngine {
         ImGui::SetNextWindowSize(ImVec2(420, 0));
         ImGui::Begin("UNITA' CADUTA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
         int chosen = -1;
-        const VsBotPlayer* me = (!m_VsBotPlayers.empty() && m_VsBotPlayers[0].human) ? &m_VsBotPlayers[0] : nullptr;
+        const int meIdx = VsBotMeIndex();
+        const VsBotPlayer* me = meIdx >= 0 ? &m_VsBotPlayers[meIdx] : nullptr;
         if (me && me->CountState(VsBotSlotState::Reserve) > 0) {
             if (me->respawnTimer > 0.0f) ImGui::TextColored(ImVec4(0.88f, 0.52f, 0.24f, 1.0f), "Rinforzi pronti tra %.0f s", std::ceil(me->respawnTimer));
             else ImGui::TextColored(ImVec4(0.50f, 0.74f, 0.44f, 1.0f), "Scegli l'unita' con cui rientrare:");
@@ -9109,7 +9354,7 @@ namespace SunEngine {
         ImGui::Separator();
 
         auto drawTeam = [&](int team) {
-            const bool ally = team == 0;
+            const bool ally = team == m_VsBotMyTeam;
             int unitsLeft = 0, fallen = 0;
             for (const auto& p : m_VsBotPlayers) if (p.team == team) {
                 unitsLeft += p.CountState(VsBotSlotState::InField) + p.CountState(VsBotSlotState::Reserve);
@@ -9156,9 +9401,9 @@ namespace SunEngine {
                 ImGui::Dummy(ImVec2(0.0f, h));
             }
         };
-        drawTeam(0);
+        drawTeam(m_VsBotMyTeam);
         ImGui::Spacing();
-        drawTeam(1);
+        drawTeam(1 - m_VsBotMyTeam);
         ImGui::Spacing(); ImGui::Separator();
         ImGui::TextDisabled("Icone: tondo = tiratore, rombo = mischia, quadrato = versatile.  Piena = in campo, sbiadita = riserva, X = caduta.");
         ImGui::End();
