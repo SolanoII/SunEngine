@@ -2,7 +2,7 @@
 // Squadra (party), lobby e collegamento peer to peer.
 //
 // La partita e' peer to peer: l'host e' sempre uno dei giocatori (UDP affidabile, libreria ENet). Per trovarsi via
-// internet senza aprire porte c'e' il server d'incontro (Tools/TrazynServer, vedi ServerProtocol.h): elenco delle
+// internet senza aprire porte c'e' il server d'incontro (Tools/SunCollectorServer, vedi ServerProtocol.h): elenco delle
 // lobby, codici a 6 cifre, apertura dei router e, se proprio non si aprono, ponte. Senza server funziona la rete locale.
 //   - SQUADRA: chi la crea ne e' il capo; gli altri entrano col codice a 6 cifre (o quello esteso), dall'elenco delle lobby in rete
 //     locale, o su approvazione del capo. Tutti sono collegati con tutti (maglia), non solo col capo: cosi' ognuno

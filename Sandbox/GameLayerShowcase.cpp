@@ -399,7 +399,7 @@ namespace SunEngine {
             }
             if (Ui::PlainButton("Tutte le razze", ImVec2(-1, 26))) { m_ShowcaseFocusUnit.clear(); m_ShowcaseFromResearch = false; }
         }
-        else ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Le razze di Project Trazyn");
+        else ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Le razze di Project SunCollector");
         ImGui::Separator();
         ImGui::TextDisabled("Animazione");
         for (int i = 0; i < static_cast<int>(ShowcaseAnim::Count); ++i) {

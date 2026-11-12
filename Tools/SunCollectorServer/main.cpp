@@ -1,5 +1,5 @@
-// Server d'incontro di Project Trazyn (vedi Engine/Net/ServerProtocol.h).
-// Uso:  TrazynServer [porta]      (porta UDP, predefinita 27640: e' l'unica da aprire, e solo qui)
+// Server d'incontro di Project SunCollector (vedi Engine/Net/ServerProtocol.h).
+// Uso:  SunCollectorServer [porta]      (porta UDP, predefinita 27640: e' l'unica da aprire, e solo qui)
 // Non salva niente su disco: se si riavvia, le lobby si ripubblicano da sole in pochi secondi.
 #ifndef NOMINMAX
 #define NOMINMAX

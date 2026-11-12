@@ -14,7 +14,7 @@
 namespace SunEngine {
 
     // Profilo locale del giocatore: impostazioni, valute, esperienza e roster.
-    // Salvato come JSON in %APPDATA%\ProjectTrazyn\profile.json (Linux/macOS: ~/.local/share/...),
+    // Salvato come JSON in %APPDATA%\ProjectSunCollector\profile.json (Linux/macOS: ~/.local/share/...),
     // cosi' sopravvive a una ricompilazione/pulizia della cartella di build.
     //
     // ATTENZIONE: e' un file locale, quindi modificabile dal giocatore. Va bene per energia, exp e
@@ -74,8 +74,16 @@ namespace SunEngine {
 #else
             if (const char* home = std::getenv("HOME")) base = std::string(home) + "/.local/share";
 #endif
-            std::filesystem::path dir = base.empty() ? std::filesystem::path("SaveData")
-                                                      : std::filesystem::path(base) / "ProjectTrazyn";
+            if (base.empty()) return std::filesystem::path("SaveData") / "profile.json";
+            const std::filesystem::path dir = std::filesystem::path(base) / "ProjectSunCollector";
+            // Il progetto si chiamava Project Trazyn: la prima volta copia il vecchio profilo nella cartella nuova,
+            // cosi' roster, valute e impostazioni non si perdono (la cartella vecchia resta come copia di sicurezza).
+            const std::filesystem::path oldFile = std::filesystem::path(base) / "ProjectTrazyn" / "profile.json";
+            std::error_code ec;
+            if (!std::filesystem::exists(dir / "profile.json", ec) && std::filesystem::exists(oldFile, ec)) {
+                std::filesystem::create_directories(dir, ec);
+                std::filesystem::copy_file(oldFile, dir / "profile.json", ec);
+            }
             return dir / "profile.json";
         }
 

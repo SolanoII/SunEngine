@@ -207,25 +207,25 @@ target_link_libraries(SunEngine PUBLIC
 # Gioco (Eseguibile)
 # ==========================
 file(GLOB_RECURSE SANDBOX_SOURCES CONFIGURE_DEPENDS "Sandbox/*.cpp" "Sandbox/*.h" "Sandbox/*.hpp")
-add_executable(ProjectTrazyn ${SANDBOX_SOURCES} "Engine/Renderer/PostFX/AutoExposure.h")
-target_link_libraries(ProjectTrazyn PRIVATE SunEngine)
+add_executable(ProjectSunCollector ${SANDBOX_SOURCES} "Engine/Renderer/PostFX/AutoExposure.h")
+target_link_libraries(ProjectSunCollector PRIVATE SunEngine)
 
 # ==========================
-# Server d'incontro (programma a parte: lobby via internet senza aprire porte, vedi Tools/TrazynServer)
+# Server d'incontro (programma a parte: lobby via internet senza aprire porte, vedi Tools/SunCollectorServer)
 # ==========================
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Tools/TrazynServer")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/Tools/SunCollectorServer")
 
 # ==========================
 # OPZIONI DI COMPILAZIONE MIRATE MSVC
 # ==========================
 if (MSVC)
     target_compile_options(SunEngine PRIVATE /utf-8 /bigobj /MP)
-    target_compile_options(ProjectTrazyn PRIVATE /utf-8 /bigobj /MP)
+    target_compile_options(ProjectSunCollector PRIVATE /utf-8 /bigobj /MP)
 endif()
 
-add_custom_command(TARGET ProjectTrazyn POST_BUILD
+add_custom_command(TARGET ProjectSunCollector POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${CMAKE_CURRENT_SOURCE_DIR}/Sandbox/GameData"
-    "$<TARGET_FILE_DIR:ProjectTrazyn>/GameData"
+    "$<TARGET_FILE_DIR:ProjectSunCollector>/GameData"
     COMMENT "Sincronizzazione automatica cartella GameData..."
 )

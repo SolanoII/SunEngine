@@ -225,7 +225,7 @@ namespace SunEngine::Net {
         }
         float ServerRtt() const { return server ? static_cast<float>(server->roundTripTime) : 0.0f; }
         // latenza e perdite di un collegamento (via ponte: io -> server -> lui)
-        float testExtraRtt = 0.0f;   // prova: latenza finta aggiunta alle mie misure (TRAZYN_NET_TEST_EXTRA_RTT)
+        float testExtraRtt = 0.0f;   // prova: latenza finta aggiunta alle mie misure (SUNCOLLECTOR_NET_TEST_EXTRA_RTT)
         float Rtt(const Link* l) const { return RttRaw(l) + testExtraRtt; }
         float RttRaw(const Link* l) const {
             if (l->relay) { auto it = theirServerRtt.find(l->id); return ServerRtt() + (it != theirServerRtt.end() ? it->second : ServerRtt()) + 5.0f; }
@@ -247,7 +247,7 @@ namespace SunEngine::Net {
             for (auto* l : links) if (l->established) Send(l, w, reliable, channel);
         }
 
-        bool forceRelay = false;   // prova: nessun collegamento diretto (variabile d'ambiente TRAZYN_NET_FORCE_RELAY=1)
+        bool forceRelay = false;   // prova: nessun collegamento diretto (variabile d'ambiente SUNCOLLECTOR_NET_FORCE_RELAY=1)
         Link* Connect(std::uint32_t ip, std::uint16_t prt, bool joinAttempt) {
             if (!host || forceRelay) return nullptr;
             ENetAddress a; a.host = ToEnet(ip); a.port = prt;
@@ -904,7 +904,7 @@ namespace SunEngine::Net {
         }
         if (!m->host) { if (--g_EnetUsers == 0) enet_deinitialize(); m->status = "Nessuna porta UDP libera per il gioco in rete"; return false; }
         // socket per trovare le lobby in rete locale (se non si apre, resta tutto il resto)
-        const char* noLan = std::getenv("TRAZYN_NET_NO_LAN");   // prova: solo server d'incontro
+        const char* noLan = std::getenv("SUNCOLLECTOR_NET_NO_LAN");   // prova: solo server d'incontro
         m->disc = (noLan && noLan[0] == '1') ? ENET_SOCKET_NULL : enet_socket_create(ENET_SOCKET_TYPE_DATAGRAM);
         if (m->disc != ENET_SOCKET_NULL) {
             enet_socket_set_option(m->disc, ENET_SOCKOPT_REUSEADDR, 1);
@@ -914,8 +914,8 @@ namespace SunEngine::Net {
             if (enet_socket_bind(m->disc, &a) < 0) { enet_socket_destroy(m->disc); m->disc = ENET_SOCKET_NULL; }
         }
         { std::uint32_t ip = 0; if (ParseIp(LocalIp(), ip) && !IsLoopback(ip)) m->localIp = ip; }
-        if (const char* fr = std::getenv("TRAZYN_NET_FORCE_RELAY")) m->forceRelay = fr[0] == '1';
-        if (const char* er = std::getenv("TRAZYN_NET_TEST_EXTRA_RTT")) m->testExtraRtt = static_cast<float>(std::atof(er));
+        if (const char* fr = std::getenv("SUNCOLLECTOR_NET_FORCE_RELAY")) m->forceRelay = fr[0] == '1';
+        if (const char* er = std::getenv("SUNCOLLECTOR_NET_TEST_EXTRA_RTT")) m->testExtraRtt = static_cast<float>(std::atof(er));
         m->state = PartyState::Idle;
         m->now = NowSeconds();
         return true;

@@ -1,5 +1,5 @@
 #pragma once
-// Protocollo fra il gioco e il server d'incontro (Tools/TrazynServer). Solo dichiarazioni: niente ENet, niente socket.
+// Protocollo fra il gioco e il server d'incontro (Tools/SunCollectorServer). Solo dichiarazioni: niente ENet, niente socket.
 //
 // Il server d'incontro NON fa girare la partita: e' un elenco telefonico con un centralino.
 //   - tiene l'elenco delle squadre/lobby pubblicate (schermata SERVER) e i loro codici a 6 cifre;

@@ -534,7 +534,7 @@ namespace SunEngine {
         Ui::Heading("SERVER D'INCONTRO", Ui::Col::Phosphor);
         ImGui::PushTextWrapPos(0.0f);
         ImGui::TextColored(Ui::Col::Ash, "Serve a trovarsi via internet senza aprire porte: elenco delle lobby, codici, apertura dei router "
-                           "(e ponte se non si aprono). La partita resta fra i giocatori. Lo fa girare TrazynServer su un computer sempre "
+                           "(e ponte se non si aprono). La partita resta fra i giocatori. Lo fa girare SunCollectorServer su un computer sempre "
                            "acceso: tutti devono usare lo stesso indirizzo.");
         ImGui::PopTextWrapPos();
         ImGui::SetNextItemWidth(rightW - 150.0f);

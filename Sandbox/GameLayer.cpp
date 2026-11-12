@@ -6145,7 +6145,7 @@ namespace SunEngine {
         Ui::EclipseSigil(dl, ImVec2(34.0f, 29.0f), 19.0f, Ui::U32(Ui::Col::Gold));
         {
             ImFont* ft = Ui::FontTitle(); ImFont* fs = Ui::FontSmall();
-            dl->AddText(ft, ft->FontSize * 0.80f, ImVec2(64.0f, 8.0f), Ui::U32(Ui::Col::Bone), "PROJECT TRAZYN");
+            dl->AddText(ft, ft->FontSize * 0.80f, ImVec2(64.0f, 8.0f), Ui::U32(Ui::Col::Bone), "PROJECT SUNCOLLECTOR");
             dl->AddText(fs, fs->FontSize, ImVec2(66.0f, 35.0f), Ui::U32(Ui::Col::Ash), "S U N   E N G I N E");
         }
 

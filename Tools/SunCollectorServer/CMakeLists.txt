@@ -1,10 +1,10 @@
-# Server d'incontro di Project Trazyn: elenco delle lobby, codici a 6 cifre, apertura dei router, ponte di riserva.
-# Si compila col resto del progetto (bersaglio TrazynServer) oppure da solo, per esempio su un server Linux:
-#   cmake -S Tools/TrazynServer -B build-server -DCMAKE_BUILD_TYPE=Release
+# Server d'incontro di Project SunCollector: elenco delle lobby, codici a 6 cifre, apertura dei router, ponte di riserva.
+# Si compila col resto del progetto (bersaglio SunCollectorServer) oppure da solo, per esempio su un server Linux:
+#   cmake -S Tools/SunCollectorServer -B build-server -DCMAKE_BUILD_TYPE=Release
 #   cmake --build build-server
-#   ./build-server/TrazynServer 27640
+#   ./build-server/SunCollectorServer 27640
 cmake_minimum_required(VERSION 3.16)
-project(TrazynServer CXX C)
+project(SunCollectorServer CXX C)
 
 if(NOT TARGET enet)
     include(FetchContent)
@@ -24,7 +24,7 @@ if(NOT TARGET enet)
     endif()
 endif()
 
-add_executable(TrazynServer main.cpp)
-target_compile_features(TrazynServer PRIVATE cxx_std_17)
-target_include_directories(TrazynServer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Net")
-target_link_libraries(TrazynServer PRIVATE enet)
+add_executable(SunCollectorServer main.cpp)
+target_compile_features(SunCollectorServer PRIVATE cxx_std_17)
+target_include_directories(SunCollectorServer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../Engine/Net")
+target_link_libraries(SunCollectorServer PRIVATE enet)
