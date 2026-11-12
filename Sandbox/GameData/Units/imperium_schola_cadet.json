@@ -1,6 +1,6 @@
 {
   "id": "imperium_schola_cadet",
-  "displayName": "Schola Progenium Cadet",
+  "displayName": "Elfs Cadet",
   "comment": "Cadetto della Schola Progenium. Dotazione base come il guardsman (armatura flak completa, lasgun o autogun, laspistol o autopistola, coltello, frag). Sbloccabili: armatura in carapace, hot-shot lasgun, hot-shot laspistol, cassa di munizioni.",
   "ai_role": "ranged",
   "skeleton": "imperium_guardsman_recruit",

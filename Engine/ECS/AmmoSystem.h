@@ -680,19 +680,19 @@ namespace SunEngine {
                 if (a.useTimer > 0.0f) return;
                 a.useTimer = 0.0f; a.useSlot = -1;
                 a.equipmentUses[slotIdx] = std::max(0, a.equipmentUses[slotIdx] - 1);
-                if (bp.summon_unit.empty()) { Feedback(a, "Nessuno risponde al vox"); return; }
+                if (bp.summon_unit.empty()) { Feedback(a, "Nessuno risponde al Communication Device"); return; }
                 auto& req = reg.get_or_emplace<SummonRequestComponent>(e);
                 req.pending.push_back({ bp.summon_unit, std::max(0.0f, bp.summon_delay) });
                 Feedback(a, "Rinforzi in arrivo tra " + std::to_string(static_cast<int>(std::lround(bp.summon_delay))) + " s");
                 return;
             }
             if (!pressed) return;
-            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Vox caster gia' usato"); return; }
+            if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Communication Device gia' usato"); return; }
             a.useDuration = std::max(0.1f, bp.equipment_use_time);
             a.useTimer = a.useDuration;
             a.useSlot = slot;
             a.useTarget = e;
-            Feedback(a, "Chiamata al vox...");
+            Feedback(a, "Chiamata col Communication Device...");
         }
 
         void DropFood(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx, const BlockModelLibrary* models) {

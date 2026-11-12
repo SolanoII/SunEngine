@@ -1,6 +1,6 @@
 {
   "id": "squig_biter",
-  "displayName": "Squig da Compagnia",
+  "displayName": "Grugn da Compagnia",
   "comment": "Compagno del gretchin: basta averlo in uno slot equipaggiamento, ti segue da solo. Quando spari (anche mancando) attacca il nemico piu' vicino alla tua linea di tiro e lo morde. Colpibile: 35 di salute, schiva il 30% dei colpi; se viene ucciso e' perso fino a fine partita.",
   "faction": "Orks",
   "allowed_units": [

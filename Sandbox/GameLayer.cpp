@@ -1180,7 +1180,7 @@ namespace SunEngine {
                 if (reg.valid(sq->owner)) {
                     if (auto* ammo = reg.try_get<AmmoComponent>(sq->owner)) {
                         if (sq->ownerSlot >= 4 && sq->ownerSlot <= 6) ammo->equipmentUses[sq->ownerSlot - 4] = 0;
-                        ammo->feedback = "Il tuo squig e' stato ucciso";
+                        ammo->feedback = "Il tuo grugn e' stato ucciso";
                         ammo->feedbackTimer = 2.5f;
                     }
                 }
@@ -1821,6 +1821,7 @@ namespace SunEngine {
         ApplyAudioVolumes();   // se l'audio e' gia' partito (ricarica del profilo)
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 4);
+        if (m_SelectedEventIndex == 1) m_SelectedEventIndex = 0;   // Recupero Dati non e' piu' selezionabile
     }
 
     void GameLayer::LoadRosterFromProfile() {
@@ -3498,8 +3499,8 @@ namespace SunEngine {
             return;
         }
         if (m_FactionBuffFaction != "orks") return;
-        // "Waaagh!": ogni carattere vale 50 punti e si accende di verde da sinistra a destra (anche a meta')
-        static const char* kLetters[7] = { "W", "a", "a", "a", "g", "h", "!" };
+        // "HUNGRY!" (ex "Waaagh!"): ogni carattere vale 50 punti e si accende di verde da sinistra a destra (anche a meta')
+        static const char* kLetters[7] = { "H", "U", "N", "G", "R", "Y", "!" };
         const float size = 34.0f;
         const bool active = m_WaaaghTimer > 0.0f;
         const float lit = active ? (m_WaaaghTimer / kWaaaghDuration) * kWaaaghMax : m_WaaaghPoints;   // attiva: si svuota
@@ -3521,14 +3522,14 @@ namespace SunEngine {
         }
         char info[96];
         const bool ready = !active && m_WaaaghPoints >= kWaaaghMax;
-        if (active) std::snprintf(info, sizeof(info), "WAAAGH!  %.0f s", std::ceil(m_WaaaghTimer));
+        if (active) std::snprintf(info, sizeof(info), "HUNGRY!  %.0f s", std::ceil(m_WaaaghTimer));
         else if (ready) std::snprintf(info, sizeof(info), "PRONTA: premi [V]");
         else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_WaaaghPoints, kWaaaghMax);
         dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), (active || ready) ? on : IM_COL32(200, 200, 200, 220), info);
         if (active) dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(170, 240, 170, 230),
             "+15% velocita'  +40% ricarica  +20% colpi in mischia  +15% danni in mischia");
         else if (m_FactionFightIdle > 5.0f && m_WaaaghPoints > 0.0f)
-            dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(255, 120, 80, 240), "Niente rissa: la WAAAGH! si sta spegnendo!");
+            dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(255, 120, 80, 240), "Niente rissa: la fame HUNGRY! si sta spegnendo!");
     }
 
     // Animazioni procedurali del modello animato (ProceduralPose.h): accovacciato (se mancano le clip),
@@ -3770,7 +3771,7 @@ namespace SunEngine {
                 if (type == "scrap_barricade" || type == "slit_wall") textRight(type == "slit_wall" ? "Costruzione muro... (resta fermo)" : "Costruzione barricata... (resta fermo)", baseSize, yellow);
                 else if (type == "turret") textRight("Montaggio... (resta fermo)", baseSize, yellow);
                 else if (type == "medkit") textRight("Medicazione...", baseSize, yellow);
-                else if (type == "vox_caster") textRight("Chiamata al vox...", baseSize, yellow);
+                else if (type == "vox_caster") textRight("Chiamata col Communication Device...", baseSize, yellow);
                 else textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
             }
             if (type == "ammo_box")
@@ -5983,7 +5984,7 @@ namespace SunEngine {
                     // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
                     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 20.0f, 20.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
                     ImGui::Begin("KillCounterOverlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
-                    ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "ORKI ELIMINATI: %d", m_KillCount);
+                    ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "VREPIGHS ELIMINATI: %d", m_KillCount);
                     ImGui::End();
                 }
             }
@@ -6932,21 +6933,23 @@ namespace SunEngine {
             if (m_RecruitStep == 0) {
                 Ui::Heading("FASE 1: SELEZIONA LA FAZIONE");
 
-                if (Ui::PlainButton("IMPERIUM OF MAN", ImVec2(280, 45))) {
+                if (Ui::PlainButton("KINGSHIP", ImVec2(280, 45))) {
                     m_SelectedFaction = "Imperium";
                     m_RecruitStep = 1;
                 }
-                if (Ui::PlainButton("SPACE MARINES", ImVec2(280, 45))) {
+                if (Ui::PlainButton("VANGUARD ARMORS", ImVec2(280, 45))) {
                     m_SelectedFaction = "SpaceMarines";
                     m_RecruitStep = 1;
                 }
-                if (Ui::PlainButton("ORKS", ImVec2(280, 45))) {
+                if (Ui::PlainButton("VREPIGHS", ImVec2(280, 45))) {
                     m_SelectedFaction = "Orks";
                     m_RecruitStep = 1;
                 }
             }
             else if (m_RecruitStep == 1) {
-                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "FASE 2: SELEZIONA TRUPPA (%s)", m_SelectedFaction.c_str());
+                // nome mostrato della fazione (l'id interno resta Imperium / SpaceMarines / Orks)
+                const char* factionLabel = m_SelectedFaction == "Imperium" ? "Kingship" : m_SelectedFaction == "SpaceMarines" ? "Vanguard Armors" : "Vrepighs";
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "FASE 2: SELEZIONA TRUPPA (%s)", factionLabel);
                 ImGui::Separator(); ImGui::Spacing();
 
                 auto recruitAction = [&](const std::string& bpId, const std::string& defaultName, const glm::vec4& defaultColor) {
@@ -6960,26 +6963,26 @@ namespace SunEngine {
                 };
 
                 if (m_SelectedFaction == "Imperium") {
-                    if (Ui::PlainButton("Recluta della Guardia (10 Pti)\n(Guardsman Recruit)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Recluta del Kingship (10 Pti)\n(Guardsman Recruit)", ImVec2(280, 50))) {
                         recruitAction("imperium_guardsman_recruit", "Recluta Vance", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
                     }
-                    if (Ui::PlainButton("Kasrkin (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
-                        recruitAction("imperium_kasrkin", "Kasrkin Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
+                    if (Ui::PlainButton("Elite Laboratores (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
+                        recruitAction("imperium_kasrkin", "Laboratore Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "SpaceMarines") {
-                    if (Ui::PlainButton("Neofita Astartes (40 Pti)\n(Neophyte)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Human Candidate (40 Pti)\n(Candidato)", ImVec2(280, 50))) {
                         recruitAction("spacemarines_neophyte", "Neofita Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
-                    if (Ui::PlainButton("Fratello di Battaglia (75 Pti)\n(Battle Brother)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Vanguard Defender (75 Pti)\n(Difensore)", ImVec2(280, 50))) {
                         recruitAction("spacemarines_battle_brother", "Fratello Titus", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "Orks") {
-                    if (Ui::PlainButton("Ork Boy (15 Pti)\n(Fante Orco)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Vrepigh (15 Pti)\n(Fante Vrepigh)", ImVec2(280, 50))) {
                         recruitAction("orks_boy", "Gor-Gath", glm::vec4(0.24f, 0.33f, 0.15f, 1.0f));
                     }
-                    if (Ui::PlainButton("Ork Nob (50 Pti)\n(Capoclan Orco)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Vrepigh Capozanna (50 Pti)\n(Capoclan Vrepigh)", ImVec2(280, 50))) {
                         recruitAction("orks_nob", "Uzgrak", glm::vec4(0.17f, 0.25f, 0.11f, 1.0f));
                     }
                 }
@@ -7198,7 +7201,7 @@ namespace SunEngine {
                     ImGui::Spacing();
                     ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Scatola di munizioni in mano: click sinistro rifornisce te,");
                     ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "click destro un compagno entro la portata.");
-                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Squig: basta averlo in uno slot, ti segue da solo.");
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Grugn: basta averlo in uno slot, ti segue da solo.");
                 }
                 // Esito dell'ultimo acquisto di un oggetto ricercato
                 if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
@@ -7607,14 +7610,15 @@ namespace SunEngine {
         ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "2. MODALITA' DI GIOCO");
 
         const char* events[] = {
-            "Difesa del Settore (Ondata Orki)",
-            "Recupero Dati (Tyranidi)",
+            "Difesa della pietra (ondata Vrepighs)",
+            "Recupero Dati (Tyranidi)",   // nascosta per ora: non compare nella lista
             "Incursione Profonda",
             "SANDBOX (Esplorazione Libera)",
             "VS BOT (5 contro 5)"
         };
 
         for (int i = 0; i < 5; ++i) {
+            if (i == 1) continue;   // Recupero Dati: tolta dalla lista per ora
             bool isSelected = (m_SelectedEventIndex == i);
             if (isSelected) ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.88f, 0.52f, 0.24f, 1.0f));
 
@@ -7851,7 +7855,7 @@ namespace SunEngine {
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
             ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "PUNTEGGIO FINALE:");
-            ImGui::Text("Orki Eliminati: %d", m_KillCount);
+            ImGui::Text("Vrepighs Eliminati: %d", m_KillCount);
             ImGui::Spacing();
             RenderMatchRecap();
 
@@ -7884,7 +7888,7 @@ namespace SunEngine {
 
         ImGui::Begin("CADUTO IN BATTAGLIA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
         ImGui::TextColored(ImVec4(0.88f, 0.52f, 0.24f, 1.0f), "UNITA' SOPRAVVISSUTE:");
-        ImGui::Text("Orki eliminati finora: %d", m_KillCount);
+        ImGui::Text("Vrepighs eliminati finora: %d", m_KillCount);
         ImGui::Text("Seleziona quale membro far scendere sul campo:");
         ImGui::Separator(); ImGui::Spacing();
 
@@ -8035,7 +8039,7 @@ namespace SunEngine {
             hint("Spente: niente ombre per nessuno (il gioco va piu' veloce).");
             ImGui::BeginDisabled(!q.sunShadows);
             ImGui::Checkbox("Ombre dei personaggi", &q.characterShadows);
-            hint("Corpi, vestiti, armature e squig proiettano l'ombra che segue l'animazione.");
+            hint("Corpi, vestiti, armature e grugn proiettano l'ombra che segue l'animazione.");
             const char* filters[] = { "Netto", "Morbido", "Molto morbido" };
             ImGui::Combo("Bordo delle ombre", &q.shadowFilter, filters, 3);
             {
@@ -8227,7 +8231,7 @@ namespace SunEngine {
                     ImGui::DragFloat3("Spostamento (dx,su,indietro) m", &m_WeaponModelGripOffset.x, 0.002f, -0.5f, 0.5f, "%.3f");
                     ImGui::DragFloat3("Correzione rotazione (gradi)", &m_WeaponModelRotation.x, 0.5f, -180.0f, 180.0f, "%.1f");
                     ImGui::Separator();
-                    ImGui::TextDisabled("Arma degli orchi (choppa):");
+                    ImGui::TextDisabled("Arma dei Vrepighs (choppa):");
                     ImGui::DragFloat3("Pugno sul braccio (m, dal fondo)", &m_OrkWeaponHoldOffset.x, 0.01f, -1.0f, 1.0f, "%.2f");
                     ImGui::DragFloat3("Rotazione lama (gradi)", &m_OrkWeaponModelRotation.x, 1.0f, -180.0f, 180.0f, "%.0f");
                     ImGui::EndChild();

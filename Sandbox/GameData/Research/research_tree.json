@@ -3,7 +3,7 @@
   "factions": [
     {
       "id": "imperium",
-      "name": "GUARDIA IMPERIALE",
+      "name": "KINGSHIP",
       "accent": [
         0.85,
         0.65,
@@ -31,7 +31,7 @@
         {
           "id": "ig_whiteshield",
           "unit": "imperium_whiteshield",
-          "name": "Whiteshields",
+          "name": "Meatshields",
           "tier": 2,
           "col": 1,
           "row": 2.5,
@@ -85,7 +85,7 @@
         {
           "id": "ig_ogryn",
           "unit": "imperium_ogryn",
-          "name": "Ogryn",
+          "name": "Ogre Slave",
           "tier": 5,
           "col": 4,
           "row": 0,
@@ -139,7 +139,7 @@
         {
           "id": "ig_kasrkin",
           "unit": "imperium_kasrkin",
-          "name": "Kasrkin",
+          "name": "Elite Laboratores",
           "tier": 5,
           "col": 4,
           "row": 2,
@@ -272,7 +272,7 @@
         {
           "id": "ig_schola_cadet",
           "unit": "imperium_schola_cadet",
-          "name": "Schola Progenium Cadet",
+          "name": "Elfs Cadet",
           "tier": 3,
           "col": 2,
           "row": 4,
@@ -533,7 +533,7 @@
         {
           "id": "ig_guardsman_item_vox",
           "item": "guardsman_vox_caster",
-          "name": "Vox Caster",
+          "name": "Communication Device",
           "tier": 3,
           "col": 3,
           "row": 17,
@@ -628,7 +628,7 @@
     },
     {
       "id": "spacemarines",
-      "name": "SPACE MARINES",
+      "name": "VANGUARD ARMORS",
       "accent": [
         0.25,
         0.55,
@@ -638,7 +638,7 @@
         {
           "id": "sm_aspirant",
           "unit": "spacemarines_neophyte",
-          "name": "Aspirant",
+          "name": "Human Candidate",
           "tier": 1,
           "col": 0,
           "row": 1.5,
@@ -659,7 +659,7 @@
         {
           "id": "sm_scout",
           "unit": "spacemarines_scout",
-          "name": "Scout Squad",
+          "name": "Vanguard Explorer",
           "tier": 2,
           "col": 1,
           "row": 1.5,
@@ -677,7 +677,7 @@
         {
           "id": "sm_firstborn",
           "unit": "spacemarines_battle_brother",
-          "name": "Firstborn",
+          "name": "Vanguard Defender",
           "tier": 3,
           "col": 2,
           "row": 1.5,
@@ -932,7 +932,7 @@
         {
           "id": "sm_aggressors",
           "unit": "spacemarines_gravis",
-          "name": "Aggressors",
+          "name": "Vestments Heavy mode",
           "tier": 7,
           "col": 6,
           "row": 2,
@@ -971,7 +971,7 @@
         {
           "id": "sm_infiltrators",
           "unit": "spacemarines_phobos",
-          "name": "Infiltrators",
+          "name": "Vestments Recon mode",
           "tier": 4,
           "col": 3,
           "row": 3,
@@ -1175,7 +1175,7 @@
     },
     {
       "id": "orks",
-      "name": "ORKS",
+      "name": "VREPIGHS",
       "accent": [
         0.25,
         0.75,
@@ -1185,7 +1185,7 @@
         {
           "id": "ork_gretchin",
           "unit": "orks_gretchin",
-          "name": "Gretchin",
+          "name": "Pighcib",
           "tier": 1,
           "col": 0,
           "row": 2.5,
@@ -1203,7 +1203,7 @@
         {
           "id": "ork_yoof",
           "unit": "orks_yoof",
-          "name": "Yoofs",
+          "name": "Vrepigh newborn",
           "tier": 2,
           "col": 1,
           "row": 2.5,
@@ -1221,7 +1221,7 @@
         {
           "id": "ork_slugga",
           "unit": "orks_boy",
-          "name": "Slugga Boyz",
+          "name": "Vrepigh",
           "tier": 3,
           "col": 2,
           "row": 0,
@@ -1239,7 +1239,7 @@
         {
           "id": "ork_shoota",
           "unit": "orks_shoota_boy",
-          "name": "Shoota Boyz",
+          "name": "Vrepigh Sparammazza",
           "tier": 3,
           "col": 2,
           "row": 2,
@@ -1257,7 +1257,7 @@
         {
           "id": "ork_loota",
           "unit": "orks_loota",
-          "name": "Lootas",
+          "name": "Vrepigh Razzialoot",
           "tier": 3,
           "col": 2,
           "row": 4.5,
@@ -1369,7 +1369,7 @@
         {
           "id": "ork_nobz",
           "unit": "orks_nob",
-          "name": "Nobz",
+          "name": "Vrepigh Capozanna",
           "tier": 6,
           "col": 5,
           "row": 1,
@@ -1551,7 +1551,7 @@
         {
           "id": "ork_item_squig",
           "item": "squig_biter",
-          "name": "Squig da Compagnia",
+          "name": "Grugn da Compagnia",
           "tier": 1,
           "col": 1,
           "row": 5,
@@ -1568,7 +1568,7 @@
         {
           "id": "ork_item_squig_bomb",
           "item": "squig_bomb",
-          "name": "Squig Esplosivo",
+          "name": "Grugn Esplosivo",
           "tier": 1,
           "col": 2,
           "row": 5,

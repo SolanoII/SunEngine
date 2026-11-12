@@ -331,7 +331,7 @@ namespace SunEngine {
                                                 sq.owner, Explosives::TeamOf(reg, sq.owner), bp.structure_damage_multiplier);
             if (auto* ammo = reg.try_get<AmmoComponent>(sq.owner)) {
                 ammo->equipmentUses[sq.ownerSlot - 4] = 0;   // uno solo per partita
-                ammo->feedback = "Squig esplosivo: BOOM! (" + std::to_string(hit) + " colpiti)";
+                ammo->feedback = "Grugn esplosivo: BOOM! (" + std::to_string(hit) + " colpiti)";
                 ammo->feedbackTimer = 2.5f;
             }
             SUN_CORE_INFO("Squig esplosivo detonato: {0} nemici nel raggio", hit);
