@@ -159,6 +159,8 @@ namespace SunEngine {
     void MeleeCombatSystem::CheckMeleeHits(Scene& scene, entt::entity attacker, UnitStatsComponent& atkStats, MeleeStateComponent& atkMelee, TransformComponent& atkTrans) {
         if (atkMelee.hasHitInThisAttack) return;
         auto& reg = scene.GetRegistry();
+        // Copia di un'unita' simulata altrove (partita in rete): il gesto si vede, il colpo lo decide chi la simula
+        if (reg.all_of<NetGhostComponent>(attacker)) { atkMelee.hasHitInThisAttack = true; return; }
 
         const auto* weaponBP = DamageResolver::ResolveMeleeWeapon(reg, attacker);
         const float reach = (weaponBP && weaponBP->melee_reach > 0.3f) ? weaponBP->melee_reach : 1.85f;

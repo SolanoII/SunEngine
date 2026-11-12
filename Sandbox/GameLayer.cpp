@@ -719,7 +719,7 @@ namespace SunEngine {
         }
     }
 
-    static void SpawnOrkBoy(Scene& scene, const glm::vec3& spawnPos) {
+    static entt::entity SpawnOrkBoy(Scene& scene, const glm::vec3& spawnPos) {
         auto enemyEntity = scene.CreateEntity();
         auto& enemyTransform = scene.GetRegistry().emplace<TransformComponent>(enemyEntity);
 
@@ -775,6 +775,7 @@ namespace SunEngine {
             skelComp.scale = 1.0f;
             skelComp.blockFlashTimers.assign(skelComp.data.blocks.size(), 0.0f);
         }
+        return enemyEntity;
     }
 
     // Scheletro a cubi (hitbox) di un'unita': quello indicato nel blueprint ("skeleton", es. lo yoof usa
@@ -1165,6 +1166,7 @@ namespace SunEngine {
             );
             for (auto entity : view) {
                 if (view.get<HealthComponent>(entity).currentHealth <= 0.0f) {
+                    if (NetDeathBlocked(entity)) continue;   // copia in rete: muore quando lo dice chi la simula
                     dead.push_back(entity);
                 }
             }
@@ -1213,6 +1215,9 @@ namespace SunEngine {
                 if (countsAsKill) ++m_VsBotEnemyKills;
             }
 
+            // Partita in rete: l'host avvisa tutti (e dice chi l'ha ucciso), le copie si tolgono dagli elenchi
+            const bool awardHere = NetOnUnitKilled(entity);
+
             glm::vec3 deathImpulse(0.0f, 1.5f, -3.5f);
             m_PhysicsSystem.KillUnit(m_Scene, entity, deathImpulse);
 
@@ -1226,17 +1231,51 @@ namespace SunEngine {
                 // FIX #4/#19: la kill si conta QUI, nell'unico punto in cui un'unita' non-player muore
                 // (la view esclude PlayerTag). Niente piu' scansione per-frame dei cadaveri ne'
                 // ProcessedCorpseTag: il cadavere del player non puo' piu' essere contato per errore.
-                AwardKill();
+                if (awardHere) AwardKill();
             }
             else {
                 // Nessuno scheletro -> KillUnit non puo' creare il ragdoll e l'unita' resterebbe
                 // "morta ma viva" (rientrerebbe in questa lista ogni frame). La rimuovo.
                 m_PhysicsSystem.DestroyJoltBody(m_Scene, entity);
                 m_Scene.DestroyEntity(entity);
-                AwardKill();
+                if (awardHere) AwardKill();
             }
         }
     }
+
+    // Ondate dell'orda (Difesa del Settore): ogni 10 s un gruppo che raddoppia, attorno al giocatore. In una partita in
+    // rete le genera solo chi simula i nemici (l'host); gli altri ricevono le copie.
+    void GameLayer::UpdateWaaaghWaves(float deltaTime, const glm::vec3& center) {
+        if (!g_WaaaghActive || !NetIsAuthority()) return;
+        g_WaaaghTimer += deltaTime;
+        if (g_WaaaghTimer < 10.0f) return;
+        g_WaaaghTimer = 0.0f;
+
+        auto livingEnemyView = m_Scene.GetRegistry().view<HealthComponent>(
+            entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent, SquigComponent, NetRemotePlayerComponent>
+        );
+        size_t activeEnemyCount = static_cast<size_t>(std::distance(livingEnemyView.begin(), livingEnemyView.end()));
+        constexpr size_t MAX_ACTIVE_ENEMIES = 60;
+
+        if (activeEnemyCount < MAX_ACTIVE_ENEMIES) {
+            const float minSpawnDistance = 20.0f;
+            const float maxSpawnDistance = 60.0f;
+            int spawnAmount = std::min(g_WaaaghSpawnCount, static_cast<int>(MAX_ACTIVE_ENEMIES - activeEnemyCount));
+            for (int i = 0; i < spawnAmount; ++i) {
+                float angle = Random::Range(0.0f, 6.28318530718f);
+                float distance = Random::Range(minSpawnDistance, maxSpawnDistance);
+                glm::vec3 spawnPos = center + glm::vec3(std::cos(angle) * distance, 0.0f, std::sin(angle) * distance);
+                SpawnOrkBoy(m_Scene, spawnPos);
+            }
+        }
+        g_WaaaghSpawnCount = std::min(g_WaaaghSpawnCount * 2, 12);
+    }
+
+    // Partita in rete: le copie degli orchi simulati dall'host (stessa unita' dell'ondata)
+    entt::entity GameLayer::SpawnNetOrk(const glm::vec3& pos) { return SpawnOrkBoy(m_Scene, pos); }
+
+    void GameLayer::GetWaveState(bool& active, float& timer, int& count) const { active = g_WaaaghActive; timer = g_WaaaghTimer; count = g_WaaaghSpawnCount; }
+    void GameLayer::SetWaveState(bool active, float timer, int count) { g_WaaaghActive = active; g_WaaaghTimer = timer; g_WaaaghSpawnCount = std::clamp(count, 1, 12); }
 
     // FIX #4: pulisce lo stato "morto" del player (ragdoll Jolt + CorpseComponent).
     // Prima lo faceva solo il pulsante SCHIERA del respawn: tornando al garage a squadra distrutta
@@ -4579,6 +4618,7 @@ namespace SunEngine {
         UpdateWindowSize();
         // Entrata o uscita da una partita: si riparte puliti
         if (m_GameState != m_PrevGameState) {
+            if (m_PrevGameState == GameState::Gameplay && m_Net.active) NetLeaveMatch();   // uscito dalla partita in rete (qualunque strada)
             if (m_PrevGameState == GameState::Gameplay || m_GameState == GameState::Gameplay) ResetMatchState(m_PrevGameState == GameState::Gameplay);
             m_PrevGameState = m_GameState;
         }
@@ -5492,41 +5532,16 @@ namespace SunEngine {
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
 
             if (g_WaaaghActive) {
-                g_WaaaghTimer += deltaTime;
-
-                if (g_WaaaghTimer >= 10.0f) {
-                    g_WaaaghTimer = 0.0f;
-
-                    auto livingEnemyView = m_Scene.GetRegistry().view<HealthComponent>(
-                        entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent, SquigComponent>
-                    );
-                    size_t activeEnemyCount = static_cast<size_t>(std::distance(livingEnemyView.begin(), livingEnemyView.end()));
-                    constexpr size_t MAX_ACTIVE_ENEMIES = 60;
-
-                    if (activeEnemyCount < MAX_ACTIVE_ENEMIES) {
-
-                        const float minSpawnDistance = 20.0f;
-                        const float maxSpawnDistance = 60.0f;
-
-                        int spawnAmount = std::min(g_WaaaghSpawnCount, static_cast<int>(MAX_ACTIVE_ENEMIES - activeEnemyCount));
-
-                        for (int i = 0; i < spawnAmount; ++i) {
-                            float angle = Random::Range(0.0f, 6.28318530718f);
-                            float distance = Random::Range(minSpawnDistance, maxSpawnDistance);
-
-                            glm::vec3 spawnPos = transform.Position + glm::vec3(std::cos(angle) * distance, 0.0f, std::sin(angle) * distance);
-                            SpawnOrkBoy(m_Scene, spawnPos);
-                        }
-                    }
-
-                    g_WaaaghSpawnCount = std::min(g_WaaaghSpawnCount * 2, 12);
-                }
-
+                UpdateWaaaghWaves(deltaTime, transform.Position);
                 UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
             }
 
             AnimateUnits(deltaTime, transform.Position, true);
             ActionPose::ApplyCubes(m_Scene, m_PlayerEntity);   // pose delle azioni sugli scheletri a blocchi (bot e hitbox)
+        }
+        else if (m_Net.active && (m_IsPaused || !isPlayerAlive)) {
+            // Partita in rete: il mondo non si ferma mentre sei a terra o in pausa (gli altri continuano a giocare)
+            UpdateNetWorld(deltaTime);
         }
         else if (!m_IsPaused && !isPlayerAlive && m_VsBotActive) {
             // 5v5: la partita va avanti mentre scegli con chi rientrare (o osservi gli alleati)
@@ -5542,8 +5557,8 @@ namespace SunEngine {
             UpdateHitFeedback(deltaTime);
             UpdateTrainingDummies(deltaTime);
         }
-        // FIX #16: le particelle non avanzano in pausa
-        if (!m_IsPaused) {
+        // FIX #16: le particelle non avanzano in pausa (in rete si': la partita continua)
+        if (!m_IsPaused || m_Net.active) {
             m_ParticleSystem.Update(m_Scene, deltaTime);
         }
 
@@ -5561,14 +5576,14 @@ namespace SunEngine {
         }
 
         SyncWeaponAttachment();
-        UpdateUnitAnimations(m_IsPaused ? 0.0f : deltaTime);   // corpi animati di bot, orda e manichini
+        UpdateUnitAnimations(m_IsPaused && !m_Net.active ? 0.0f : deltaTime);   // corpi animati di bot, orda e manichini
         SyncCloakVisuals();
         if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // WAAAGH! (anche mentre sei a terra: il contatore resta)
         if (m_VsBotActive) {
             UpdateBotVisuals();
             UpdateVsBot(deltaTime);
         }
-        else if (m_GameState == GameState::Gameplay && HasSummons()) UpdateBotVisuals();   // rinforzi del vox in modalita' orda
+        else if (m_GameState == GameState::Gameplay && (HasSummons() || m_Net.active)) UpdateBotVisuals();   // rinforzi del vox in modalita' orda, compagni in rete
 
         auto orkWeaponView = m_Scene.GetRegistry().view<HordeAgentComponent, TransformComponent, SkeletonComponent>();
         for (auto orkEnt : orkWeaponView) {
@@ -5948,6 +5963,7 @@ namespace SunEngine {
                 RenderOrdersRadial();
                 RenderAuspex();
                 RenderTurretHUD();
+                RenderNetMatchOverlay();
                 if (m_VsBotActive) RenderVsBotHUD();
                 else {
                     // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
@@ -7703,6 +7719,11 @@ namespace SunEngine {
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
         if (m_SelectedEventIndex == 4) {
+            if (NetSquadMatchAvailable()) {
+                ImGui::TextColored(ImVec4(0.90f, 0.55f, 0.25f, 1.0f), "In squadra il Vs Bot si gioca ancora da soli:");
+                ImGui::TextWrapped("per giocare insieme scegli Difesa del Settore o Sandbox.");
+                ImGui::Spacing();
+            }
             RenderVsBotQueues();
             ImGui::End();
             return;
@@ -7710,63 +7731,93 @@ namespace SunEngine {
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.90f, 0.30f, 0.17f, 1.0f));
-        if (Ui::PlainButton("AVVIA SIMULAZIONE", ImVec2(-1, 65))) {
+        // In squadra (con almeno un compagno) la partita e' per tutti: la avvia il capo, gli altri entrano con lui.
+        // Il Vs Bot in squadra non c'e' ancora (si gioca da soli: vedi il pannello delle code).
+        const bool squadMatch = NetSquadMatchAvailable();
+        if (squadMatch && m_Party.Playing()) {   // partita gia' in corso (anche per il capo): si entra in quella
+            if (Ui::PlainButton("ENTRA IN PARTITA CON LA SQUADRA", ImVec2(-1, 65))) NetJoinRunningMatch();
+        }
+        else if (squadMatch && !m_Party.IsLeader()) {   // la avvia il capo: si entra con lui
+            ImGui::PopStyleColor(2);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.20f, 0.20f, 0.6f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.20f, 0.20f, 0.6f));
+            Ui::PlainButton("LA AVVIA IL CAPO SQUADRA", ImVec2(-1, 65));
+            ImGui::TextWrapped("Scegli la tua squadra qui sopra: quando il capo avvia, entri in partita con lui con queste unita'.");
+        }
+        else if (Ui::PlainButton(squadMatch ? "AVVIA PER TUTTA LA SQUADRA" : "AVVIA SIMULAZIONE", ImVec2(-1, 65))) {
             if (!m_SelectedSquadIndices.empty()) {
-
-                auto view = m_Scene.GetRegistry().view<ColliderComponent>(entt::exclude<PlayerTag>);
-                for (auto e : view) {
-                    m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
-                    m_Scene.DestroyEntity(e);
-                }
-
-                ReloadMap(m_SelectedMapId);
-
-                m_ActiveSquad.clear();
-                for (int rosterIdx : m_SelectedSquadIndices) {
-                    ActiveSquadMember member;
-                    member.rosterIndex = rosterIdx;
-                    member.isAlive = true;
-                    m_ActiveSquad.push_back(member);
-                }
-
-                m_CurrentSquadMemberIdx = 0;
-                m_KillCount = 0;
-                ResetMatchXp();
-                m_PlayerDeathHandled = false;
-                ClearPlayerDeathState();   // FIX #4: rete di sicurezza, il player parte sempre "vivo" pulito
-                ApplyUnitVisuals(m_PlayerRoster[m_ActiveSquad[0].rosterIndex]);
-
-                if (m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
-                    auto& playerTrans = m_Scene.GetRegistry().get<TransformComponent>(m_PlayerEntity);
-                    if (!m_CurrentMapData.playerSpawnPoints.empty()) {
-                        playerTrans.Position = m_CurrentMapData.playerSpawnPoints[0];
-                        m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, playerTrans.Position);
-                    }
-                }
-
-                if (auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity)) {
-                    hp->currentHealth = hp->maxHealth;
-                }
-                m_IsPaused = false;
-
-                if (m_SelectedEventIndex == 0) {
-                    g_WaaaghActive = true;
-                    g_WaaaghTimer = 9.0f;
-                    g_WaaaghSpawnCount = 1;
-                    PlayStartWaaagh(m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
-                }
-                else {
-                    g_WaaaghActive = false;
-                }
-
-                ResetFactionBuff();
-                m_GameState = GameState::Gameplay;
-                if (window) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                if (squadMatch) NetLeaderStartMatch();
+                else StartDeployment(0);
             }
+        }
+        if (squadMatch) {
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "PARTITA IN SQUADRA");
+            ImGui::TextWrapped("Mappa e modalita' le sceglie il capo. Ognuno porta la sua squadra e i suoi rientri; "
+                "i nemici li muove l'host (chi ha la connessione migliore) e passano a un altro se esce.");
         }
         ImGui::PopStyleColor(2);
 
         ImGui::End();
+    }
+
+    // Ingresso in partita con la squadra scelta, sulla mappa e nella modalita' selezionate (da solo o in squadra:
+    // spawnSlot = mio posto fra i compagni, per non comparire uno sopra l'altro)
+    void GameLayer::StartDeployment(int spawnSlot) {
+        if (m_SelectedSquadIndices.empty()) return;
+
+        auto view = m_Scene.GetRegistry().view<ColliderComponent>(entt::exclude<PlayerTag>);
+        for (auto e : view) {
+            m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
+            m_Scene.DestroyEntity(e);
+        }
+
+        ReloadMap(m_SelectedMapId);
+
+        m_ActiveSquad.clear();
+        for (int rosterIdx : m_SelectedSquadIndices) {
+            ActiveSquadMember member;
+            member.rosterIndex = rosterIdx;
+            member.isAlive = true;
+            m_ActiveSquad.push_back(member);
+        }
+
+        m_CurrentSquadMemberIdx = 0;
+        m_KillCount = 0;
+        ResetMatchXp();
+        m_PlayerDeathHandled = false;
+        ClearPlayerDeathState();   // FIX #4: rete di sicurezza, il player parte sempre "vivo" pulito
+        ApplyUnitVisuals(m_PlayerRoster[m_ActiveSquad[0].rosterIndex]);
+
+        if (m_Scene.GetRegistry().all_of<TransformComponent>(m_PlayerEntity)) {
+            auto& playerTrans = m_Scene.GetRegistry().get<TransformComponent>(m_PlayerEntity);
+            if (!m_CurrentMapData.playerSpawnPoints.empty()) {
+                // in squadra ognuno ha il suo punto (se i punti finiscono, un passo di lato)
+                const int n = static_cast<int>(m_CurrentMapData.playerSpawnPoints.size());
+                const int k = std::max(0, spawnSlot);
+                playerTrans.Position = m_CurrentMapData.playerSpawnPoints[k % n] + glm::vec3(1.6f * static_cast<float>(k / n), 0.0f, 0.0f);
+                m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, playerTrans.Position);
+            }
+        }
+
+        if (auto* hp = m_Scene.GetRegistry().try_get<HealthComponent>(m_PlayerEntity)) {
+            hp->currentHealth = hp->maxHealth;
+        }
+        m_IsPaused = false;
+
+        if (m_SelectedEventIndex == 0) {
+            g_WaaaghActive = true;
+            g_WaaaghTimer = 9.0f;
+            g_WaaaghSpawnCount = 1;
+            PlayStartWaaagh(m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
+        }
+        else {
+            g_WaaaghActive = false;
+        }
+
+        ResetFactionBuff();
+        m_GameState = GameState::Gameplay;
+        if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
     void GameLayer::RenderRespawnUI() {

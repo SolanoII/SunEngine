@@ -18,7 +18,7 @@
 namespace SunEngine::Net {
 
     namespace {
-        const std::uint32_t kProto = 0x53554E33u;        // "SUN3": versione del protocollo
+        const std::uint32_t kProto = 0x53554E34u;        // "SUN4": versione del protocollo (partita in rete)
         const std::uint16_t kDiscoveryPort = 27649;
         const std::uint32_t kDiscoveryMagic = 0x53554E4Cu;   // "SUNL": annuncio di una lobby visibile
         const std::uint32_t kQueryMagic = 0x53554E51u;       // "SUNQ": chi ha la squadra con questo codice a 6 cifre?
@@ -176,6 +176,8 @@ namespace SunEngine::Net {
         Addr joinAddr; bool joinViaServer = false; double joinRelayAt = 0.0;
         double lastDirectRetry = 0.0;
         double betterSince = 0.0, lastElect = 0.0;
+        std::vector<PeerId> candidates;          // chi e' dentro la partita (dal gioco); vuoto = nessuna preferenza
+        bool Candidate(PeerId id) const { return candidates.empty() || std::find(candidates.begin(), candidates.end(), id) != candidates.end(); }
         double leaderMissingSince = 0.0;           // host migliore di me da quando (passaggio del ruolo)
         std::unordered_map<PeerId, std::unordered_map<PeerId, Report>> matrix;   // chi -> verso chi
         std::unordered_map<PeerId, double> suspectSince;
@@ -355,7 +357,8 @@ namespace SunEngine::Net {
         }
         std::vector<PeerId> ComputeSuccession(PeerId first) {
             std::vector<std::pair<float, PeerId>> v;
-            for (const auto& mb : members) if (mb.id != first) v.push_back({ Score(mb.id), mb.id });
+            // durante la partita chi e' dentro viene prima di chi e' rimasto nel garage
+            for (const auto& mb : members) if (mb.id != first) v.push_back({ Score(mb.id) + (playing && !Candidate(mb.id) ? 100000.0f : 0.0f), mb.id });
             std::sort(v.begin(), v.end());
             std::vector<PeerId> out;
             if (first) out.push_back(first);
@@ -1057,8 +1060,10 @@ namespace SunEngine::Net {
             m->lastElect = now;
             const float mine = m->Score(m->selfId);
             PeerId best = 0; float bestScore = 1e9f;
-            for (const auto& mb : m->members) if (mb.id != m->selfId) { const float sc = m->Score(mb.id); if (sc < bestScore) { bestScore = sc; best = mb.id; } }
-            if (best && bestScore + (std::max)(15.0f, mine * 0.2f) < mine) {
+            const bool useCand = m->playing && !m->candidates.empty();
+            for (const auto& mb : m->members) if (mb.id != m->selfId && (!useCand || m->Candidate(mb.id))) { const float sc = m->Score(mb.id); if (sc < bestScore) { bestScore = sc; best = mb.id; } }
+            if (useCand && !m->Candidate(m->selfId) && best) m->Handoff(best);   // sono uscito dalla partita: la regge chi e' dentro
+            else if (best && bestScore + (std::max)(15.0f, mine * 0.2f) < mine) {
                 if (m->betterSince <= 0.0) m->betterSince = now;
                 else if (now - m->betterSince >= 6.0) m->Handoff(best);
             }
@@ -1296,6 +1301,7 @@ namespace SunEngine::Net {
     bool Party::IsHost() const { return m->session && m->hostId == m->selfId; }
     std::uint32_t Party::Epoch() const { return m->epoch; }
     const std::vector<PeerId>& Party::Succession() const { return m->succession; }
+    void Party::SetHostCandidates(const std::vector<PeerId>& inMatch) { m->candidates = inMatch; }
 
     void Party::PublishSnapshot(const std::vector<std::uint8_t>& bytes) {
         if (!IsHost() || bytes.size() > kMaxSnapshot) return;

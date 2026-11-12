@@ -45,6 +45,9 @@ namespace SunEngine {
         bool hasEverSeenPlayer = false;   // <-- AGGIUNGI QUESTA RIGA
         float losCheckTimer = 0.0f;
         float losCheckInterval = 0.30f;
+
+        // Giocatore inseguito (partita in rete: il piu' vicino fra quelli in campo, con un po' di fedelta')
+        entt::entity target = entt::null;
     };
 
     enum class SurfaceType {
@@ -505,6 +508,11 @@ namespace SunEngine {
         float impactScale = 1.0f;      // es. raggio dell'esplosione del razzo
     };
 
+    // Colpi sparati dal giocatore locale (le loro scie): la partita in rete li manda agli altri giocatori, che li
+    // disegnano sull'unita' che lo rappresenta (solo l'effetto: il danno lo ha gia' deciso chi ha sparato)
+    struct NetShotEvent { TrailRequestComponent trail; bool first = false; };
+    inline std::vector<NetShotEvent>& NetShotQueue() { static std::vector<NetShotEvent> q; return q; }
+
     // Raggio del mirino (centro dello schermo) pubblicato ogni frame dalla telecamera di gioco. La telecamera
     // sta sopra la spalla destra: i colpi del giocatore convergono sul punto inquadrato dal mirino invece di
     // partire paralleli alla vista dalla canna (che li faceva finire a sinistra del mirino).
@@ -825,6 +833,15 @@ namespace SunEngine {
         const auto* tb = reg.try_get<TeamComponent>(b);
         return ta && tb && ta->team == tb->team;
     }
+
+    // --- Partita in rete (Sandbox/GameLayerNetMatch.cpp) ---
+    // Entita' che esiste uguale per tutti i giocatori, con lo stesso numero (es. un orco dell'ondata)
+    struct NetEntityComponent { std::uint32_t netId = 0; };
+    // Copia di un'entita' simulata da un altro computer (l'host per i nemici, il proprietario per i giocatori):
+    // qui niente IA e niente danni inflitti; muore solo quando lo dice chi la simula (killConfirmed).
+    struct NetGhostComponent { bool killConfirmed = false; };
+    // Unita' di un altro giocatore: per l'orda e' un bersaglio come il giocatore locale
+    struct NetRemotePlayerComponent { std::uint64_t owner = 0; };
 
     // Grilletto per le unita' non controllate dal giocatore: lo imposta l'IA, lo legge WeaponSystem al posto
     // del mouse e del tasto R.

@@ -10,37 +10,71 @@
 namespace SunEngine {
 
     void HordeAISystem::Update(Scene& scene, NavMeshQuery& navQuery, float deltaTime) {
-        entt::entity playerEnt = entt::null;
-        glm::vec3 playerPos(0.0f);
-        glm::vec3 playerVelocity(0.0f);
+        auto& reg = scene.GetRegistry();
 
-        auto playerView = scene.GetRegistry().view<PlayerTag, TransformComponent>();
-        for (auto p : playerView) {
-            playerEnt = p;
-            playerPos = playerView.get<TransformComponent>(p).Position;
-
-            if (scene.GetRegistry().all_of<RigidBodyComponent>(p)) {
-                playerVelocity = scene.GetRegistry().get<RigidBodyComponent>(p).velocity;
-            }
-            break;
+        // Bersagli dell'orda: il giocatore locale e, in una partita in rete, le unita' degli altri giocatori
+        // (sull'host sono copie, ma per l'orda valgono come il giocatore: chi le colpisce colpisce lui).
+        struct Target { entt::entity e = entt::null; glm::vec3 pos{ 0.0f }; glm::vec3 vel{ 0.0f }; bool slots[4] = { false, false, false, false }; int attackers = 0; };
+        std::vector<Target> targets;
+        auto alive = [&](entt::entity e) {
+            if (reg.any_of<CorpseComponent>(e)) return false;
+            const auto* h = reg.try_get<HealthComponent>(e);
+            return !h || h->currentHealth > 0.0f;
+        };
+        for (auto p : reg.view<PlayerTag, TransformComponent>()) {
+            if (!targets.empty()) break;   // un solo giocatore locale
+            Target t; t.e = p; t.pos = reg.get<TransformComponent>(p).Position;
+            if (const auto* rb = reg.try_get<RigidBodyComponent>(p)) t.vel = rb->velocity;
+            // il giocatore locale resta il bersaglio anche a terra se e' l'unico (come prima): niente ricerca a vuoto
+            targets.push_back(t);
         }
+        if (targets.empty()) return;
+        if (!alive(targets[0].e)) targets.clear();
+        for (auto r : reg.view<NetRemotePlayerComponent, TransformComponent>()) {
+            if (!alive(r)) continue;
+            Target t; t.e = r; t.pos = reg.get<TransformComponent>(r).Position;
+            targets.push_back(t);
+        }
+        if (targets.empty()) {   // tutti a terra: come prima, si segue il giocatore locale
+            for (auto p : reg.view<PlayerTag, TransformComponent>()) { Target t; t.e = p; t.pos = reg.get<TransformComponent>(p).Position; targets.push_back(t); break; }
+        }
+        auto indexOf = [&](entt::entity e) { for (size_t i = 0; i < targets.size(); ++i) if (targets[i].e == e) return static_cast<int>(i); return -1; };
 
-        if (playerEnt == entt::null) return;
-
-        bool activeSlots[4] = { false, false, false, false };
-        int activeAttackersCount = 0;
-
-        auto hordeView = scene.GetRegistry().view<HordeAgentComponent, TransformComponent, HealthComponent>(
-            entt::exclude<PlayerTag, CorpseComponent>
+        auto hordeView = reg.view<HordeAgentComponent, TransformComponent, HealthComponent>(
+            entt::exclude<PlayerTag, CorpseComponent, NetGhostComponent>
         );
+
+        // Bersaglio di ogni orco: il piu' vicino, ma resta sul suo finche' un altro non e' nettamente piu' vicino
+        for (auto ork : hordeView) {
+            auto& horde = hordeView.get<HordeAgentComponent>(ork);
+            const glm::vec3 p = hordeView.get<TransformComponent>(ork).Position;
+            int best = 0; float bestD = 1e9f;
+            for (size_t i = 0; i < targets.size(); ++i) { const float d = glm::distance(p, targets[i].pos); if (d < bestD) { bestD = d; best = static_cast<int>(i); } }
+            const int cur = indexOf(horde.target);
+            if (cur >= 0 && cur != best && glm::distance(p, targets[cur].pos) < bestD + 4.0f) best = cur;
+            if (horde.target != targets[best].e) {
+                // cambio di bersaglio: si ricomincia dall'attesa attorno al nuovo
+                if (horde.target != entt::null && (horde.state == HordeState::Approaching || horde.state == HordeState::Attacking)) {
+                    horde.state = HordeState::Waiting;
+                    horde.currentPath.clear();
+                }
+                horde.assignedSlotIndex = -1;
+                horde.hasEverSeenPlayer = false;
+                horde.hasLOS = false;
+                horde.losCheckTimer = 0.0f;
+                horde.target = targets[best].e;
+            }
+        }
 
         for (auto ork : hordeView) {
             auto& horde = hordeView.get<HordeAgentComponent>(ork);
+            const int ti = indexOf(horde.target);
+            if (ti < 0) continue;
             if (horde.state == HordeState::Approaching || horde.state == HordeState::Attacking) {
                 if (horde.assignedSlotIndex >= 0 && horde.assignedSlotIndex < 4) {
-                    activeSlots[horde.assignedSlotIndex] = true;
+                    targets[ti].slots[horde.assignedSlotIndex] = true;
                 }
-                activeAttackersCount++;
+                targets[ti].attackers++;
             }
         }
 
@@ -51,7 +85,14 @@ namespace SunEngine {
         for (auto ork : hordeView) {
             auto& horde = hordeView.get<HordeAgentComponent>(ork);
             auto& trans = hordeView.get<TransformComponent>(ork);
-            auto& melee = scene.GetRegistry().get_or_emplace<MeleeStateComponent>(ork);
+            auto& melee = reg.get_or_emplace<MeleeStateComponent>(ork);
+            const int ti = indexOf(horde.target);
+            if (ti < 0) { orkIndex++; continue; }
+            Target& tgt = targets[ti];
+            bool* activeSlots = tgt.slots;
+            int& activeAttackersCount = tgt.attackers;
+            const glm::vec3 playerPos = tgt.pos;
+            const glm::vec3 playerVelocity = tgt.vel;
 
             float distToPlayer = glm::distance(trans.Position, playerPos);
 
@@ -82,7 +123,7 @@ namespace SunEngine {
                 : (horde.hasEverSeenPlayer ? horde.lastKnownPlayerPos : playerPos);
 
             // Se non ha LOS e non ha mai visto il player, non deve caricare:
-            // resta in cerchio (Waiting) finche' non acquisisce visibilità.
+            // resta in cerchio (Waiting) finche' non acquisisce visibilita'.
             if (!horde.hasLOS && !horde.hasEverSeenPlayer) {
                 if (horde.state == HordeState::Approaching || horde.state == HordeState::Attacking) {
                     horde.state = HordeState::Waiting;

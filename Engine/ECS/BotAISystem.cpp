@@ -201,7 +201,7 @@ namespace SunEngine {
 
     void BotAISystem::Update(Scene& scene, NavMeshQuery& navQuery, float deltaTime) {
         auto& reg = scene.GetRegistry();
-        auto view = reg.view<BotBrainComponent, TransformComponent, HealthComponent, TeamComponent>(entt::exclude<CorpseComponent>);
+        auto view = reg.view<BotBrainComponent, TransformComponent, HealthComponent, TeamComponent>(entt::exclude<CorpseComponent, NetGhostComponent>);   // le copie dei giocatori in rete non pensano
         for (auto self : view) {
             auto& brain = view.get<BotBrainComponent>(self);
             auto& health = view.get<HealthComponent>(self);

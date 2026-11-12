@@ -38,6 +38,7 @@ namespace SunEngine {
         m_Party.onHostChanged = [](Net::PeerId host, bool iAmHost, bool migrated) {
             if (host) SUN_CORE_INFO("Squadra: host della partita {0}{1}", iAmHost ? "(io)" : "(un compagno)", migrated ? " dopo una migrazione" : "");
         };
+        InitNetMatch();   // messaggi della partita vera (GameLayerNetMatch.cpp)
     }
 
     void GameLayer::ClearPartyActors() {
@@ -51,20 +52,7 @@ namespace SunEngine {
 
     void GameLayer::UpdateParty(float realDt) {
         m_Party.Update(realDt);
-        // Collegamento di prova: l'host conta i secondi e li pubblica come "istantanea della partita"; chi subentra
-        // dopo una caduta riparte dall'ultimo valore ricevuto (la partita vera usera' lo stesso meccanismo)
-        if (m_Party.IsHost()) {
-            m_PartyLinkClock += realDt;
-            if (m_PartyLinkClock >= 1.0f) {
-                m_PartyLinkClock = 0.0f;
-                std::uint32_t seconds = 0;
-                const auto& snap = m_Party.Snapshot();
-                if (snap.size() == 4) seconds = static_cast<std::uint32_t>(snap[0]) | (static_cast<std::uint32_t>(snap[1]) << 8) | (static_cast<std::uint32_t>(snap[2]) << 16) | (static_cast<std::uint32_t>(snap[3]) << 24);
-                ++seconds;
-                m_Party.PublishSnapshot({ static_cast<std::uint8_t>(seconds), static_cast<std::uint8_t>(seconds >> 8), static_cast<std::uint8_t>(seconds >> 16), static_cast<std::uint8_t>(seconds >> 24) });
-            }
-        }
-        else m_PartyLinkClock = 0.0f;
+        UpdateNetMatch(realDt);   // partita in rete: stati, nemici, danni, ingresso e uscita
         // la mia unita' del garage: i compagni la vedono accanto alla loro
         if (m_SelectedVaultIndex >= 0 && m_SelectedVaultIndex < static_cast<int>(m_PlayerRoster.size()))
             m_Party.SetUnit(m_PlayerRoster[m_SelectedVaultIndex].blueprintId);
@@ -357,25 +345,21 @@ namespace SunEngine {
                 for (const auto& mb : members) if (mb.id == id) order += (order.empty() ? "" : ", ") + mb.name;
             }
             ImGui::TextColored(Ui::Col::Ash, "Host:"); ImGui::SameLine(); ImGui::TextColored(Ui::Col::Phosphor, "%s%s", hostName.c_str(), m_Party.IsHost() ? "  (tu)" : "");
-            {   // tempo di collegamento contato dall'host: continua anche dopo un cambio di host
-                const auto& snap = m_Party.Snapshot();
-                if (snap.size() == 4) {
-                    const unsigned sec = static_cast<unsigned>(snap[0]) | (static_cast<unsigned>(snap[1]) << 8) | (static_cast<unsigned>(snap[2]) << 16) | (static_cast<unsigned>(snap[3]) << 24);
-                    ImGui::SameLine(0.0f, 24.0f);
-                    ImGui::TextColored(Ui::Col::Ash, "Collegati da"); ImGui::SameLine();
-                    ImGui::TextColored(Ui::Col::Bone, "%u:%02u", sec / 60u, sec % 60u);
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Lo conta l'host. Se l'host esce o cade, il successivo riparte da qui:\nprova a chiudere il gioco dell'host durante il collegamento.");
-                }
-            }
             if (!order.empty()) { ImGui::TextColored(Ui::Col::Ash, "Se cade subentra, in ordine:"); ImGui::SameLine(); ImGui::TextColored(Ui::Col::Bone, "%s", order.c_str()); }
             ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + fullW);
-            ImGui::TextColored(Ui::Col::Ash, "L'host e' chi ha aperto la lobby; se entra qualcuno con una connessione nettamente migliore per tutti, "
-                               "il ruolo passa a lui da solo. Se l'host esce o cade, subentra il successivo. La partita giocata insieme "
-                               "arriva col prossimo aggiornamento: per ora si prova il collegamento.");
+            ImGui::TextColored(Ui::Col::Ash, "L'host muove i nemici: e' chi ha la connessione migliore fra quelli in partita, e se esce o cade "
+                               "subentra il successivo. Ognuno porta la sua squadra e i suoi rientri. La partita la avvia il capo "
+                               "dalla schermata SCHIERAMENTO (Difesa del Settore o Sandbox).");
             ImGui::PopTextWrapPos();
-            if (leader) {
-                if (!m_Party.Playing()) { if (Ui::Button("AVVIA (PROVA)", ImVec2(200.0f, 34.0f), Ui::Btn::Normal, members.size() > 1)) m_Party.StartSession(); }
-                else if (Ui::PlainButton("TORNA IN LOBBY", ImVec2(200.0f, 0.0f))) m_Party.EndSession();
+            if (m_Party.Playing()) {
+                if (!m_Net.active && Ui::Button("ENTRA IN PARTITA", ImVec2(200.0f, 34.0f), Ui::Btn::Primary)) NetJoinRunningMatch();
+                if (leader) {
+                    if (!m_Net.active) ImGui::SameLine();
+                    if (Ui::PlainButton("TERMINA LA PARTITA PER TUTTI", ImVec2(260.0f, 0.0f))) m_Party.EndSession();
+                }
+            }
+            else if (leader && members.size() > 1) {
+                if (Ui::Button("VAI ALLO SCHIERAMENTO", ImVec2(220.0f, 34.0f), Ui::Btn::Primary)) { m_CurrentTab = MenuTab::Deployment; m_PartyPanelOpen = false; }
             }
         }
 

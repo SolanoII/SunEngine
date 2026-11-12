@@ -496,7 +496,6 @@ namespace SunEngine {
         struct PartyToast { std::string text; float time = 0.0f; };
         std::vector<PartyToast> m_PartyToasts;      // avvisi ("X e' entrato", "Nuovo host: Y")
         bool m_PartyPanelOpen = false;
-        float m_PartyLinkClock = 0.0f;              // collegamento di prova: secondi contati dall'host
         int m_PartyNewPrivacy = 2;                  // tipo della squadra che sto per creare (privata)
         char m_PartyNameBuf[25] = "";
         char m_PartyCodeBuf[64] = "";
@@ -509,6 +508,79 @@ namespace SunEngine {
         char m_ServerAddrBuf[96] = "";
         char m_LobbyNameBuf[41] = "";
         bool m_ServerShowFull = true;               // elenco: anche le lobby piene / in partita
+
+        // --- Partita in rete (GameLayerNetMatch.cpp): la partita vera giocata con la squadra ---
+        // Ognuno muove la sua unita' e decide i danni dei suoi colpi; l'host (chi ha la connessione migliore fra
+        // quelli in partita) muove i nemici e le loro ondate, e passa il ruolo se esce o cade.
+        struct NetRemote {
+            Net::PeerId id = 0;
+            std::string name;
+            TrainedUnit unit;                       // la sua unita' in campo (per ricrearla uguale)
+            bool hasUnit = false;
+            std::uint32_t unitVer = 0, puppetVer = 0, stateUnitVer = 0;
+            entt::entity puppet = entt::null;       // la sua copia qui
+            float sinceHeard = 99.0f;               // secondi dall'ultimo stato ricevuto
+            bool hasState = false, alive = false, aiming = false, crouch = false, sprint = false;
+            glm::vec3 pos{ 0.0f };
+            float yaw = 0.0f, aimYaw = 0.0f, aimPitch = 0.0f, health = 100.0f;
+            int slot = 0;
+            std::uint16_t seq = 0;
+            std::uint8_t meleeSeq = 0;
+            float hostSetHealth = -1.0f;            // host: salute messa sulla copia (cosi' si vedono i colpi dell'orda)
+        };
+        struct NetEnemyInfo {                       // nemico in rete (dalla parte dell'host o della copia)
+            entt::entity e = entt::null;
+            Net::PeerId lastHitBy = 0;              // host: chi l'ha colpito per ultimo (per il merito dell'uccisione)
+            float prevHp = 0.0f;                    // host: salute a inizio fotogramma, dopo i danni arrivati dagli altri
+            float baseHp = 0.0f;                    // copia: salute dopo l'ultimo invio dei miei danni
+            glm::vec3 pos{ 0.0f };                  // copia: posizione ricevuta (ci si va in modo morbido)
+            float yaw = 0.0f, sinceSeen = 0.0f;
+            std::uint8_t meleeSeq = 0;              // gesti di mischia: cresce a ogni attacco iniziato
+            int lastPhase = 0; std::string lastNode;
+        };
+        struct NetMatchState {
+            bool active = false;                    // sono in una partita in rete
+            bool authority = false;                 // simulo io i nemici (host)
+            std::uint32_t matchId = 0;              // numero della partita (lo sceglie il capo all'avvio)
+            std::unordered_map<Net::PeerId, float> heard;   // compagni che mandano il loro stato (= sono in partita): secondi dall'ultimo
+            std::string mapId; int eventIdx = 0;
+            std::string startMap; int startEvent = -1; bool startPending = false;   // avvio ricevuto dal capo
+            float stateTimer = 0.0f, enemyTimer = 0.0f, snapTimer = 0.0f, unitTimer = 0.0f, candTimer = 0.0f;
+            std::uint32_t nextNetId = 1, unitVer = 0;
+            std::string unitKey;
+            std::uint16_t seq = 0;
+            std::uint8_t meleeSeq = 0; int lastMeleePhase = 0; std::string lastMeleeNode;
+            std::unordered_map<Net::PeerId, NetRemote> remotes;
+            std::unordered_map<std::uint32_t, NetEnemyInfo> enemies;   // netId -> nemico
+            std::vector<std::pair<std::uint32_t, float>> outDamage;    // copia: danni da mandare all'host
+        } m_Net;
+        void InitNetMatch();
+        void UpdateNetMatch(float realDt);          // ogni fotogramma, subito dopo la rete
+        bool NetSquadMatchAvailable();              // in squadra con almeno un compagno collegato
+        void NetLeaderStartMatch();                 // il capo avvia per tutti
+        void NetJoinRunningMatch();                 // entra nella partita gia' iniziata della squadra
+        void NetEnterMatch(const std::string& mapId, int eventIdx);
+        void NetLeaveMatch();
+        bool NetIsAuthority() const;                // simulo io i nemici (da solo: sempre)
+        bool NetDeathBlocked(entt::entity e) const; // copia che non deve ancora morire
+        bool NetOnUnitKilled(entt::entity e);       // morte di un'unita': true = l'uccisione conta per me qui
+        void UpdateNetWorld(float deltaTime);       // il mondo va avanti mentre sono a terra o in pausa
+        void NetOnData(Net::PeerId from, const std::uint8_t* data, std::size_t size);
+        void NetPromote();                          // divento host: le copie dei nemici diventano vere
+        void NetDemote();                           // non sono piu' host: i miei nemici diventano copie
+        void NetUpdatePuppets(float realDt);
+        void NetSendState(float realDt);
+        void NetHostTick(float realDt);
+        void NetGhostTick(float realDt);
+        entt::entity NetSpawnPuppet(NetRemote& r);
+        void NetDestroyPuppet(NetRemote& r);
+        void NetFlushPuppetDamage(NetRemote& r);
+        void RenderNetMatchOverlay();               // nomi dei compagni sopra le loro unita' in partita
+        void StartDeployment(int spawnSlot);        // ingresso in partita (GameLayer.cpp)
+        void UpdateWaaaghWaves(float deltaTime, const glm::vec3& center);
+        void GetWaveState(bool& active, float& timer, int& count) const;
+        void SetWaveState(bool active, float timer, int count);
+        entt::entity SpawnNetOrk(const glm::vec3& pos);
         std::string m_ShowcaseFocusUnit;            // vuoto = tutte le razze in fila; altrimenti anteprima di un'unita'
         std::string m_ShowcaseBuiltFor = "#";       // per cosa sono stati creati gli attori
         bool m_ShowcaseFromResearch = false;

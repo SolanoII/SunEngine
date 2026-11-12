@@ -745,6 +745,8 @@ namespace SunEngine {
             case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
             default: break;
             }
+            // partita in rete: la scia del mio colpo la vedono anche gli altri
+            if (scene.GetRegistry().all_of<PlayerTag>(shooter) && NetShotQueue().size() < 256) NetShotQueue().push_back({ bulletTrail, p == 0 });
             if (bulletTrail.travelTime > 0.03f) { ps.timer = bulletTrail.travelTime; m_PendingShots.push_back(ps); }
             else ResolveShot(scene, ps);
         }

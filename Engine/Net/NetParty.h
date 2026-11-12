@@ -132,6 +132,10 @@ namespace SunEngine::Net {
         void PublishSnapshot(const std::vector<std::uint8_t>& bytes);
         const std::vector<std::uint8_t>& Snapshot() const;
         float SnapshotAge() const;                            // secondi dall'ultima istantanea ricevuta
+        // Chi e' davvero dentro la partita (lo sa il gioco: chi manda il suo stato). Se l'elenco non e' vuoto l'host
+        // deve essere uno di loro: fuori partita passa subito il ruolo al migliore di loro, e la successione li mette
+        // davanti a chi e' rimasto nel garage. Vuoto = come prima (contano solo le connessioni).
+        void SetHostCandidates(const std::vector<PeerId>& inMatch);
         // Dati di gioco: verso l'host o verso tutti. reliable = arriva di sicuro e in ordine (piu' lento)
         void SendToHost(const std::uint8_t* data, std::size_t size, bool reliable);
         void SendToAll(const std::uint8_t* data, std::size_t size, bool reliable);
