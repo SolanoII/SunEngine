@@ -1,6 +1,6 @@
 {
   "id": "spacemarines_phobos",
-  "displayName": "Vestments Recon mode",
+  "displayName": "Vestment da Ricognizione",
   "ai_role": "ranged",
   "skeleton": "spacemarines_battle_brother",
   "animated_body": "astartes",

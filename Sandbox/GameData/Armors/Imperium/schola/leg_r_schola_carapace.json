@@ -1,6 +1,6 @@
 {
   "id": "leg_r_schola_carapace",
-  "displayName": "Gambale in Carapace (dx)",
+  "displayName": "Gambale Rigido (dx)",
   "comment": "Sbloccabile della Schola Progenium: armatura in carapace, molto piu' resistente della flak del guardsman.",
   "location": "RightLeg",
   "faction": "Imperium",

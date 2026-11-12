@@ -1,6 +1,6 @@
 {
   "id": "firstborn_knife",
-  "displayName": "Coltello da Combattimento Astartes",
+  "displayName": "Coltello da Combattimento Vanguardio",
   "faction": "SpaceMarines",
   "is_melee": true,
   "hand_type": "OneHanded",

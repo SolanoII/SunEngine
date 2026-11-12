@@ -1,6 +1,6 @@
 {
   "id": "leg_l_shoota_plate",
-  "displayName": "Gambale da Shoota (sx)",
+  "displayName": "Gambale da Tiratore (sx)",
   "comment": "Sbloccabile dello shoota boy: cosciale e ginocchiera di piastra.",
   "allowed_units": [
     "orks_shoota_boy"

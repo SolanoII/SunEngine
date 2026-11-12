@@ -1,6 +1,6 @@
 {
   "id": "yoof_dagger",
-  "displayName": "Pugnale da Yoof",
+  "displayName": "Pugnale da Giovane Vrepigh",
   "comment": "Dotazione base dello yoof: come il coltello del gretchin ma a misura di yoof. Meno danno di un coltello vero (18 contro 22), +5% velocita' a chi lo tiene in mano, x2 danno alle spalle.",
   "faction": "Orks",
   "allowed_units": [

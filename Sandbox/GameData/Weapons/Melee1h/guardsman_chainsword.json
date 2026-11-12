@@ -1,6 +1,6 @@
 {
   "id": "guardsman_chainsword",
-  "displayName": "Spada a Catena Cadiana",
+  "displayName": "Spada a Denti Meccanici del Presidio",
   "faction": "Imperium",
   "is_melee": true,
   "hand_type": "OneHanded",

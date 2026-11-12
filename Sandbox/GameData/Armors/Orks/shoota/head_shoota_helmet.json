@@ -1,6 +1,6 @@
 {
   "id": "head_shoota_helmet",
-  "displayName": "Elmo da Shoota",
+  "displayName": "Elmo da Tiratore",
   "comment": "Sbloccabile dello shoota boy: elmo di ferro con corna. Finche' regge annulla il bonus del colpo in testa.",
   "allowed_units": [
     "orks_shoota_boy"

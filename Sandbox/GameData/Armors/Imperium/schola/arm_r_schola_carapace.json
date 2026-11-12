@@ -1,6 +1,6 @@
 {
   "id": "arm_r_schola_carapace",
-  "displayName": "Spallaccio in Carapace (dx)",
+  "displayName": "Spallaccio Rigido (dx)",
   "comment": "Sbloccabile della Schola Progenium: armatura in carapace, molto piu' resistente della flak del guardsman.",
   "location": "RightArm",
   "faction": "Imperium",

@@ -1,6 +1,6 @@
 {
   "id": "loota_deffgun_bash",
-  "displayName": "Botta col Deffgun",
+  "displayName": "Colpo di Fucile a Fascio",
   "comment": "Mischia di riserva del loota (che non puo' equipaggiare armi da mischia): colpi dati col deffgun. Non si equipaggia (allowed_units non contiene nessuna unita').",
   "faction": "Orks",
   "allowed_units": [

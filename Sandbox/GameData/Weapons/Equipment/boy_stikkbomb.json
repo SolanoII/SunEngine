@@ -1,6 +1,6 @@
 {
   "id": "boy_stikkbomb",
-  "displayName": "Stikkbomb",
+  "displayName": "Granata a Chiodi",
   "comment": "Dotazione base dell'ork boy: granata a manico, come quelle della prima guerra mondiale. In mano (tasto 4), click sinistro la lancia verso il mirino: scoppia appena tocca qualcosa (terreno, muro o un nemico). 130 danni al centro, 4 metri di raggio. 1 per partita.",
   "faction": "Orks",
   "allowed_units": [

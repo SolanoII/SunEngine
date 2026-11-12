@@ -1,6 +1,6 @@
 {
   "id": "whiteshield_lascannon",
-  "displayName": "Lascannon",
+  "displayName": "Cannone a Impulsi Pesante",
   "faction": "Imperium",
   "allowed_units": [
     "imperium_whiteshield"

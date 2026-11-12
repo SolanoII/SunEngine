@@ -1,6 +1,6 @@
 {
   "id": "guardsman_knife",
-  "displayName": "Coltello Cadiano",
+  "displayName": "Coltello del Presidio",
   "faction": "Imperium",
   "is_melee": true,
   "hand_type": "OneHanded",

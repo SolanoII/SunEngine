@@ -1,6 +1,6 @@
 {
   "id": "scout_knife",
-  "displayName": "Coltello da Combattimento Astartes",
+  "displayName": "Lama da Combattimento Vanguardia",
   "faction": "SpaceMarines",
   "is_melee": true,
   "hand_type": "OneHanded",

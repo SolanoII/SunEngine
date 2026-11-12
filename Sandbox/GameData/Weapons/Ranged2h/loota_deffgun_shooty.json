@@ -1,6 +1,6 @@
 {
   "id": "loota_deffgun_shooty",
-  "displayName": "Shooty Deffgun",
+  "displayName": "Fucile a Raffica Pesante",
   "comment": "Dotazione base del loota: arma enorme da spalla montata sul braccio destro, tante canne e tanti proiettili. 40 colpi, 120 di riserva.",
   "faction": "Orks",
   "allowed_units": [

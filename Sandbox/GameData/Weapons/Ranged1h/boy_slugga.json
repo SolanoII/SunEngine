@@ -1,6 +1,6 @@
 {
   "id": "boy_slugga",
-  "displayName": "Slugga",
+  "displayName": "Pistola Rozza",
   "comment": "Dotazione base dell'ork boy: pistola a proiettili da 7 colpi, 21 di riserva.",
   "allowed_units": [
     "orks_boy"

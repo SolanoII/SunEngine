@@ -1,6 +1,6 @@
 {
   "id": "torso_shoota_plate",
-  "displayName": "Pettorale da Shoota",
+  "displayName": "Pettorale da Tiratore",
   "comment": "Dotazione base dello shoota boy: pettorale di lamiera con cinghie.",
   "allowed_units": [
     "orks_shoota_boy"

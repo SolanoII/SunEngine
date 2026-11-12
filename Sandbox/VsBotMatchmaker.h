@@ -271,12 +271,12 @@ namespace SunEngine {
 
     // Nomi dei giocatori IA, per fazione (senza ripetizioni nella stessa partita).
     inline std::string VsBotRandomName(const std::string& faction, std::vector<std::string>& used, std::mt19937& rng) {
-        static const std::vector<std::string> orks = { "Zogrot", "Krugdakka", "Urgnash", "Skabblog", "Morgrim", "Drakka",
-            "Nazgrub", "Grimtoof", "Uzbad", "Wazzgob", "Snagrik", "Bogrukk" };
+        static const std::vector<std::string> orks = { "Grunf", "Zannor", "Brakk", "Murgan", "Ruggzanna", "Krungh",
+            "Vrokk", "Mazzuco", "Dorgun", "Skarn", "Bogrim", "Tusk" };
         static const std::vector<std::string> imperium = { "Sgt. Varro", "Cpl. Hessin", "Kael", "Ostrava", "Brandt", "Mirelle",
             "Taveck", "Ilsen", "Corvin", "Lt. Drusa", "Okonkwo", "Reiss" };
-        static const std::vector<std::string> marines = { "Fratello Aurex", "Fratello Taddeus", "Fratello Lucan", "Fratello Varn",
-            "Fratello Castor", "Fratello Severin", "Fratello Ignus", "Fratello Halvar", "Fratello Remus", "Fratello Cassian" };
+        static const std::vector<std::string> marines = { "Aurelian", "Cassar", "Valerius", "Severan", "Marcell",
+            "Dorian", "Lucent", "Hadrian", "Corvin", "Octavian" };
         const auto& list = faction == "orks" ? orks : (faction == "spacemarines" ? marines : imperium);
         std::vector<std::string> free;
         for (const auto& n : list) if (std::find(used.begin(), used.end(), n) == used.end()) free.push_back(n);

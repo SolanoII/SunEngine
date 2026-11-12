@@ -1,6 +1,6 @@
 {
   "id": "imperium_whiteshield",
-  "displayName": "Meatshields",
+  "displayName": "Recluta di Leva",
   "ai_role": "ranged",
   "skeleton": "imperium_guardsman_recruit",
   "animated_body": "human",

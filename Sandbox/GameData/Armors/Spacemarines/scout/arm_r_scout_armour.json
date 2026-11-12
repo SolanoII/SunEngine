@@ -1,6 +1,6 @@
 {
   "id": "arm_r_scout_armour",
-  "displayName": "Spallaccio da Scout (dx)",
+  "displayName": "Spallaccio da Esploratore Vanguardio (dx)",
   "comment": "Dotazione base dello scout: spallaccio e parabraccio in carapace.",
   "location": "RightArm",
   "faction": "SpaceMarines",

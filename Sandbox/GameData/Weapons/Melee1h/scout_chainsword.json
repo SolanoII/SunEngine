@@ -1,6 +1,6 @@
 {
   "id": "scout_chainsword",
-  "displayName": "Spada a Catena",
+  "displayName": "Spada a Denti Meccanici da Esploratore",
   "faction": "SpaceMarines",
   "is_melee": true,
   "hand_type": "OneHanded",

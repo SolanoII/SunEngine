@@ -1,6 +1,6 @@
 {
   "id": "shoota_choppa",
-  "displayName": "Choppa",
+  "displayName": "Mannaia da Guerra",
   "comment": "Dotazione base dello shoota boy: la choppa degli orki.",
   "allowed_units": [
     "orks_shoota_boy"

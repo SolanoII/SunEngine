@@ -1,6 +1,6 @@
 {
   "id": "spacemarines_scout",
-  "displayName": "Vanguard Explorer",
+  "displayName": "Esploratore Vanguardio",
   "ai_role": "ranged",
   "skeleton": "spacemarines_neophyte",
   "animated_body": "neophyte",

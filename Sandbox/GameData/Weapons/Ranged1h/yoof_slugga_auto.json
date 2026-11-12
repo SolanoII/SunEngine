@@ -1,6 +1,6 @@
 {
   "id": "yoof_slugga_auto",
-  "displayName": "Slugga Automatica",
+  "displayName": "Pistola Automatica Rozza",
   "comment": "Sbloccabile dello yoof: slugga a raffica continua da 10 colpi, 30 di riserva. Si ricerca sotto lo Yoof e si compra per unita'.",
   "faction": "Orks",
   "allowed_units": [

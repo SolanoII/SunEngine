@@ -1,6 +1,6 @@
 {
   "id": "grav_gun",
-  "displayName": "Heavy Grav-Gun",
+  "displayName": "Cannone Gravitazionale",
   "faction": "SpaceMarines",
   "slot_type": "primary",
   "hand_type": "TwoHanded",

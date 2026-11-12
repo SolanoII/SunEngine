@@ -1,6 +1,6 @@
 {
   "id": "arm_r_shoota_plate",
-  "displayName": "Spallaccio da Shoota (dx)",
+  "displayName": "Spallaccio da Tiratore (dx)",
   "comment": "Sbloccabile dello shoota boy: spallaccio e bracciale di piastra.",
   "allowed_units": [
     "orks_shoota_boy"

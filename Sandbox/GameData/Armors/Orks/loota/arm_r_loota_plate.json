@@ -1,6 +1,6 @@
 {
   "id": "arm_r_loota_plate",
-  "displayName": "Piastra del Deffgun (dx)",
+  "displayName": "Piastra del Fucile Pesante (dx)",
   "comment": "Dotazione base del loota: piastra sul braccio destro, quello coperto dal deffgun. E' l'unico braccio che il loota puo' corazzare.",
   "location": "RightArm",
   "faction": "Orks",

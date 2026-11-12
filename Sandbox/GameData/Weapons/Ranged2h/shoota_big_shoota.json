@@ -1,6 +1,6 @@
 {
   "id": "shoota_big_shoota",
-  "displayName": "Big Shoota",
+  "displayName": "Mitragliatore Pesante Rinforzato",
   "comment": "Sbloccabile dello shoota boy: mitragliatrice a due mani, 36 colpi a caricatore e 108 di riserva.",
   "allowed_units": [
     "orks_shoota_boy"

@@ -1,6 +1,6 @@
 {
   "id": "imperium_guardsman_recruit",
-  "displayName": "Guardsman",
+  "displayName": "Fante del Regno",
   "ai_role": "ranged",
   "point_cost": 10,
   "animated_body": "human",

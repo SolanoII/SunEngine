@@ -1,6 +1,6 @@
 {
   "id": "imperium_conscript",
-  "displayName": "Conscript",
+  "displayName": "Recluta",
   "ai_role": "ranged",
   "skeleton": "imperium_guardsman_recruit",
   "animated_body": "human",

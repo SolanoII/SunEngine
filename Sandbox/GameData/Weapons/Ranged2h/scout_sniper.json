@@ -1,6 +1,6 @@
 {
   "id": "scout_sniper",
-  "displayName": "Fucile di Precisione da Scout",
+  "displayName": "Fucile di Precisione da Esploratore",
   "faction": "SpaceMarines",
   "slot_type": "primary",
   "hand_type": "TwoHanded",

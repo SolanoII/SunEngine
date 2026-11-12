@@ -1,6 +1,6 @@
 {
   "id": "grot_knife_small",
-  "displayName": "Coltello da Grot",
+  "displayName": "Lama da Pighcib",
   "comment": "Dotazione base del gretchin: lama piccola, meno danno di un coltello normale. Passive: +5% velocita' a chi la tiene in mano, x2 danno alle spalle (gioco stealth).",
   "faction": "Orks",
   "allowed_units": [

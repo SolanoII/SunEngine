@@ -1,6 +1,6 @@
 {
   "id": "standard_eviscerator_2h",
-  "displayName": "Eviscerator Standard 2H",
+  "displayName": "Lama Triturante a Due Mani",
   "faction": "Imperium",
   "unit_restriction": "imperium_kasrkin",
   "is_melee": true,

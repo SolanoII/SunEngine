@@ -1,6 +1,6 @@
 {
   "id": "conscript_knife",
-  "displayName": "Coltello da Coscritto",
+  "displayName": "Coltello da Recluta",
   "faction": "Imperium",
   "is_melee": true,
   "hand_type": "OneHanded",

@@ -1,6 +1,6 @@
 {
   "id": "scout_boltgun",
-  "displayName": "Boltgun da Scout",
+  "displayName": "Fucile da Esploratore a Proiettili",
   "faction": "SpaceMarines",
   "slot_type": "primary",
   "hand_type": "TwoHanded",

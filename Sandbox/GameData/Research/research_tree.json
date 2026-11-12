@@ -13,7 +13,7 @@
         {
           "id": "ig_conscript",
           "unit": "imperium_conscript",
-          "name": "Conscripts",
+          "name": "Reclute",
           "tier": 1,
           "col": 0,
           "row": 2.5,
@@ -31,7 +31,7 @@
         {
           "id": "ig_whiteshield",
           "unit": "imperium_whiteshield",
-          "name": "Meatshields",
+          "name": "Reclute di Leva",
           "tier": 2,
           "col": 1,
           "row": 2.5,
@@ -49,7 +49,7 @@
         {
           "id": "ig_guardsman",
           "unit": "imperium_guardsman_recruit",
-          "name": "Guardsman",
+          "name": "Fanti del Regno",
           "tier": 3,
           "col": 2,
           "row": 1,
@@ -67,7 +67,7 @@
         {
           "id": "ig_special_weapon_team",
           "unit": "imperium_special_weapon_team",
-          "name": "Special Weapon Team",
+          "name": "Squadra delle Armi Speciali",
           "tier": 4,
           "col": 3,
           "row": 1,
@@ -85,7 +85,7 @@
         {
           "id": "ig_ogryn",
           "unit": "imperium_ogryn",
-          "name": "Ogre Slave",
+          "name": "Ogre da Guerra",
           "tier": 5,
           "col": 4,
           "row": 0,
@@ -103,7 +103,7 @@
         {
           "id": "ig_bone_ead",
           "unit": "imperium_bone_ead",
-          "name": "Bone 'ead",
+          "name": "Capo Ogre",
           "tier": 6,
           "col": 5,
           "row": 0,
@@ -121,7 +121,7 @@
         {
           "id": "ig_bullgryn",
           "unit": "imperium_bullgryn",
-          "name": "Bullgryn",
+          "name": "Ogre Corazzati",
           "tier": 7,
           "col": 6,
           "row": 0,
@@ -139,7 +139,7 @@
         {
           "id": "ig_kasrkin",
           "unit": "imperium_kasrkin",
-          "name": "Elite Laboratores",
+          "name": "Guardia Scelta",
           "tier": 5,
           "col": 4,
           "row": 2,
@@ -160,7 +160,7 @@
         {
           "id": "ig_captain",
           "unit": "imperium_captain",
-          "name": "Captain",
+          "name": "Capitano del Regno",
           "tier": 6,
           "col": 5,
           "row": 2,
@@ -178,7 +178,7 @@
         {
           "id": "ig_colonel",
           "unit": "imperium_colonel",
-          "name": "Colonnello",
+          "name": "Comandante di Legione",
           "tier": 7,
           "col": 6,
           "row": 2,
@@ -196,7 +196,7 @@
         {
           "id": "ig_lord_general",
           "unit": "imperium_lord_general",
-          "name": "Lord General",
+          "name": "Gran Stratega",
           "tier": 8,
           "col": 7,
           "row": 2,
@@ -214,7 +214,7 @@
         {
           "id": "ig_commissar_cadet",
           "unit": "imperium_commissar_cadet",
-          "name": "Commissar Cadet",
+          "name": "Allievo Prefetto",
           "tier": 6,
           "col": 5,
           "row": 3,
@@ -236,7 +236,7 @@
         {
           "id": "ig_commissar",
           "unit": "imperium_commissar",
-          "name": "Commissar",
+          "name": "Prefetto Militare",
           "tier": 7,
           "col": 6,
           "row": 3,
@@ -254,7 +254,7 @@
         {
           "id": "ig_lord_commissar",
           "unit": "imperium_lord_commissar",
-          "name": "Lord Commissar",
+          "name": "Alto Prefetto",
           "tier": 8,
           "col": 7,
           "row": 3,
@@ -272,7 +272,7 @@
         {
           "id": "ig_schola_cadet",
           "unit": "imperium_schola_cadet",
-          "name": "Elfs Cadet",
+          "name": "Cadetti del Collegio",
           "tier": 3,
           "col": 2,
           "row": 4,
@@ -290,7 +290,7 @@
         {
           "id": "ig_tempestus_scion",
           "unit": "imperium_tempestus_scion",
-          "name": "Tempestus Scions",
+          "name": "Guardie Scelte",
           "tier": 4,
           "col": 3,
           "row": 4,
@@ -308,7 +308,7 @@
         {
           "id": "ig_tempestus_specialist",
           "unit": "imperium_tempestus_specialist",
-          "name": "Tempestus Specialist",
+          "name": "Specialista delle Guardie Scelte",
           "tier": 5,
           "col": 4,
           "row": 4,
@@ -326,7 +326,7 @@
         {
           "id": "ig_tempestor",
           "unit": "imperium_tempestor",
-          "name": "Tempestor",
+          "name": "Capitano delle Guardie Scelte",
           "tier": 6,
           "col": 5,
           "row": 4,
@@ -344,7 +344,7 @@
         {
           "id": "ig_tempestor_prime",
           "unit": "imperium_tempestor_prime",
-          "name": "Tempestor Prime",
+          "name": "Primo Capitano delle Guardie Scelte",
           "tier": 7,
           "col": 6,
           "row": 4,
@@ -405,7 +405,7 @@
         },
         {
           "id": "ig_whiteshield_item_chainsword",
-          "name": "Spada a Catena",
+          "name": "Spada a Denti Meccanici da Recluta",
           "tier": 2,
           "col": 2,
           "row": 6,
@@ -444,7 +444,7 @@
         },
         {
           "id": "ig_whiteshield_item_lascannon",
-          "name": "Lascannon",
+          "name": "Cannone a Impulsi Pesante",
           "tier": 2,
           "col": 2,
           "row": 8,
@@ -467,7 +467,7 @@
         {
           "id": "ig_guardsman_item_chainsword",
           "item": "guardsman_chainsword",
-          "name": "Spada a Catena",
+          "name": "Spada a Denti Meccanici da Fante",
           "tier": 3,
           "col": 3,
           "row": 11,
@@ -511,7 +511,7 @@
         {
           "id": "ig_guardsman_item_melta",
           "item": "guardsman_melta",
-          "name": "Fucile Melta",
+          "name": "Fucile a Fusione",
           "tier": 3,
           "col": 3,
           "row": 15,
@@ -522,7 +522,7 @@
         {
           "id": "ig_guardsman_item_long_las",
           "item": "guardsman_long_las",
-          "name": "Long-Las",
+          "name": "Fucile di Precisione a Impulsi",
           "tier": 3,
           "col": 3,
           "row": 16,
@@ -544,7 +544,7 @@
         {
           "id": "ig_schola_item_hotshot_lasgun",
           "item": "schola_hotshot_lasgun",
-          "name": "Hot-shot Lasgun",
+          "name": "Fucile a Impulsi ad Alta Potenza",
           "tier": 3,
           "col": 3,
           "row": 20,
@@ -555,7 +555,7 @@
         {
           "id": "ig_schola_item_hotshot_laspistol",
           "item": "schola_hotshot_laspistol",
-          "name": "Hot-shot Laspistol",
+          "name": "Pistola a Impulsi ad Alta Potenza",
           "tier": 3,
           "col": 3,
           "row": 21,
@@ -577,7 +577,7 @@
         {
           "id": "ig_schola_item_carapace_torso",
           "item": "torso_schola_carapace",
-          "name": "Corazza in Carapace",
+          "name": "Corazza Rigida",
           "tier": 3,
           "col": 3,
           "row": 23,
@@ -588,7 +588,7 @@
         {
           "id": "ig_schola_item_carapace_head",
           "item": "head_schola_carapace",
-          "name": "Elmo in Carapace",
+          "name": "Elmo Rigido",
           "tier": 3,
           "col": 3,
           "row": 24,
@@ -602,7 +602,7 @@
             "arm_l_schola_carapace",
             "arm_r_schola_carapace"
           ],
-          "name": "Spallacci in Carapace",
+          "name": "Spallacci Rigidi",
           "tier": 3,
           "col": 3,
           "row": 25,
@@ -616,7 +616,7 @@
             "leg_l_schola_carapace",
             "leg_r_schola_carapace"
           ],
-          "name": "Gambali in Carapace",
+          "name": "Gambali Rigidi",
           "tier": 3,
           "col": 3,
           "row": 26,
@@ -677,7 +677,7 @@
         {
           "id": "sm_firstborn",
           "unit": "spacemarines_battle_brother",
-          "name": "Vanguard Defender",
+          "name": "Difensori Vanguardii",
           "tier": 3,
           "col": 2,
           "row": 1.5,
@@ -698,7 +698,7 @@
         {
           "id": "sm_intercessors",
           "unit": "spacemarines_intercessor",
-          "name": "Intercessors",
+          "name": "Guardie di Linea",
           "tier": 4,
           "col": 3,
           "row": 0,
@@ -716,7 +716,7 @@
         {
           "id": "sm_sternguard",
           "unit": "spacemarines_sternguard",
-          "name": "Sternguard Veterans",
+          "name": "Veterani della Guardia",
           "tier": 5,
           "col": 4,
           "row": 0,
@@ -734,7 +734,7 @@
         {
           "id": "sm_terminators",
           "unit": "spacemarines_terminator",
-          "name": "Terminators",
+          "name": "Guardie Corazzate",
           "tier": 6,
           "col": 5,
           "row": 0,
@@ -752,7 +752,7 @@
         {
           "id": "sm_terminator_assault",
           "unit": "spacemarines_terminator_assault",
-          "name": "Terminator Assault Squad",
+          "name": "Squadra d'Assalto Corazzata",
           "tier": 7,
           "col": 6,
           "row": 0,
@@ -770,7 +770,7 @@
         {
           "id": "sm_captain_terminator",
           "unit": "spacemarines_captain_terminator",
-          "name": "Captain in Terminator Armour",
+          "name": "Capitano in Armatura d'Urto",
           "tier": 8,
           "col": 7,
           "row": 0,
@@ -788,7 +788,7 @@
         {
           "id": "sm_assault_intercessors",
           "unit": "spacemarines_assault_intercessor",
-          "name": "Assault Intercessors",
+          "name": "Guardie d'Assalto",
           "tier": 4,
           "col": 3,
           "row": 1,
@@ -806,7 +806,7 @@
         {
           "id": "sm_jump_intercessors",
           "unit": "spacemarines_jump_intercessor",
-          "name": "Jump Pack Intercessors",
+          "name": "Guardie d'Assalto Aviotrasportate",
           "tier": 5,
           "col": 4,
           "row": 1,
@@ -824,7 +824,7 @@
         {
           "id": "sm_vanguard",
           "unit": "spacemarines_vanguard_veteran",
-          "name": "Vanguard Veterans",
+          "name": "Veterani dell'Avanguardia",
           "tier": 6,
           "col": 5,
           "row": 1,
@@ -842,7 +842,7 @@
         {
           "id": "sm_bladeguard",
           "unit": "spacemarines_bladeguard_veteran",
-          "name": "Bladeguard Veterans",
+          "name": "Guardie della Lama",
           "tier": 7,
           "col": 6,
           "row": 1,
@@ -860,7 +860,7 @@
         {
           "id": "sm_captain",
           "unit": "spacemarines_captain",
-          "name": "Captain",
+          "name": "Capitano Vanguardio",
           "tier": 8,
           "col": 7,
           "row": 1,
@@ -878,7 +878,7 @@
         {
           "id": "sm_devastators",
           "unit": "spacemarines_devastator",
-          "name": "Devastator Squad",
+          "name": "Squadra di Supporto Pesante",
           "tier": 4,
           "col": 3,
           "row": 2,
@@ -896,7 +896,7 @@
         {
           "id": "sm_hellblasters",
           "unit": "spacemarines_hellblaster",
-          "name": "Hellblasters",
+          "name": "Inceneritori",
           "tier": 5,
           "col": 4,
           "row": 2,
@@ -914,7 +914,7 @@
         {
           "id": "sm_eradicators",
           "unit": "spacemarines_eradicator",
-          "name": "Eradicators",
+          "name": "Demolitori",
           "tier": 6,
           "col": 5,
           "row": 2,
@@ -932,7 +932,7 @@
         {
           "id": "sm_aggressors",
           "unit": "spacemarines_gravis",
-          "name": "Vestments Heavy mode",
+          "name": "Vestment Pesanti",
           "tier": 7,
           "col": 6,
           "row": 2,
@@ -953,7 +953,7 @@
         {
           "id": "sm_captain_gravis",
           "unit": "spacemarines_captain_gravis",
-          "name": "Captain in Gravis Armour",
+          "name": "Capitano in Corazza Pesante",
           "tier": 8,
           "col": 7,
           "row": 2,
@@ -971,7 +971,7 @@
         {
           "id": "sm_infiltrators",
           "unit": "spacemarines_phobos",
-          "name": "Vestments Recon mode",
+          "name": "Vestment da Ricognizione",
           "tier": 4,
           "col": 3,
           "row": 3,
@@ -992,7 +992,7 @@
         {
           "id": "sm_incursors",
           "unit": "spacemarines_incursor",
-          "name": "Incursors",
+          "name": "Avanguardisti",
           "tier": 5,
           "col": 4,
           "row": 3,
@@ -1010,7 +1010,7 @@
         {
           "id": "sm_reivers",
           "unit": "spacemarines_reiver",
-          "name": "Reivers",
+          "name": "Incursori d'Urto",
           "tier": 6,
           "col": 5,
           "row": 3,
@@ -1028,7 +1028,7 @@
         {
           "id": "sm_eliminators",
           "unit": "spacemarines_eliminator",
-          "name": "Eliminators",
+          "name": "Tiratori Scelti",
           "tier": 7,
           "col": 6,
           "row": 3,
@@ -1046,7 +1046,7 @@
         {
           "id": "sm_captain_phobos",
           "unit": "spacemarines_captain_phobos",
-          "name": "Captain in Phobos Armour",
+          "name": "Capitano Esploratore",
           "tier": 8,
           "col": 7,
           "row": 3,
@@ -1075,7 +1075,7 @@
         {
           "id": "sm_aspirant_item_laspistol",
           "item": "aspirant_laspistol",
-          "name": "Laspistol",
+          "name": "Pistola a Impulsi",
           "tier": 1,
           "col": 2,
           "row": 10,
@@ -1086,7 +1086,7 @@
         {
           "id": "sm_aspirant_item_chainsword",
           "item": "aspirant_chainsword",
-          "name": "Spada a Catena da Space Marine",
+          "name": "Spada a Denti Meccanici",
           "tier": 1,
           "col": 3,
           "row": 10,
@@ -1108,7 +1108,7 @@
         {
           "id": "sm_scout_item_heavy_bolter",
           "item": "scout_heavy_bolter",
-          "name": "Heavy Bolter",
+          "name": "Mitragliatrice a Proiettili Pesanti",
           "tier": 2,
           "col": 2,
           "row": 13,
@@ -1141,7 +1141,7 @@
         {
           "id": "sm_firstborn_item_heavy_bolter",
           "item": "firstborn_heavy_bolter",
-          "name": "Heavy Bolter",
+          "name": "Mitragliatrice a Proiettili Pesanti Rinforzata",
           "tier": 3,
           "col": 3,
           "row": 20,
@@ -1152,7 +1152,7 @@
         {
           "id": "sm_firstborn_item_krak",
           "item": "firstborn_krak",
-          "name": "Granata Krak",
+          "name": "Granata Perforante",
           "tier": 3,
           "col": 3,
           "row": 21,
@@ -1163,7 +1163,7 @@
         {
           "id": "sm_firstborn_item_insignia",
           "item": "firstborn_insignia",
-          "name": "Insegna Imperiale",
+          "name": "Stendardo di Casata",
           "tier": 3,
           "col": 3,
           "row": 22,
@@ -1203,7 +1203,7 @@
         {
           "id": "ork_yoof",
           "unit": "orks_yoof",
-          "name": "Vrepigh newborn",
+          "name": "Giovani Vrepigh",
           "tier": 2,
           "col": 1,
           "row": 2.5,
@@ -1221,7 +1221,7 @@
         {
           "id": "ork_slugga",
           "unit": "orks_boy",
-          "name": "Vrepigh",
+          "name": "Vrepigh Zannuti",
           "tier": 3,
           "col": 2,
           "row": 0,
@@ -1257,7 +1257,7 @@
         {
           "id": "ork_loota",
           "unit": "orks_loota",
-          "name": "Vrepigh Razzialoot",
+          "name": "Vrepigh Razziatori",
           "tier": 3,
           "col": 2,
           "row": 4.5,
@@ -1275,7 +1275,7 @@
         {
           "id": "ork_stormboyz",
           "unit": "orks_stormboy",
-          "name": "Stormboyz",
+          "name": "Saltazanne",
           "tier": 4,
           "col": 3,
           "row": 0,
@@ -1293,7 +1293,7 @@
         {
           "id": "ork_ard_boyz",
           "unit": "orks_ard_boy",
-          "name": "'Ard Boyz",
+          "name": "Vrepigh Corazzati",
           "tier": 5,
           "col": 4,
           "row": 0,
@@ -1311,7 +1311,7 @@
         {
           "id": "ork_kommandos",
           "unit": "orks_kommando",
-          "name": "Kommandos",
+          "name": "Ombrazanne",
           "tier": 4,
           "col": 3,
           "row": 2,
@@ -1329,7 +1329,7 @@
         {
           "id": "ork_tankbustas",
           "unit": "orks_tankbusta",
-          "name": "Tankbustas",
+          "name": "Spaccacorazze",
           "tier": 4,
           "col": 3,
           "row": 3,
@@ -1347,7 +1347,7 @@
         {
           "id": "ork_flash_gitz",
           "unit": "orks_flash_git",
-          "name": "Flash Gitz",
+          "name": "Sfondatasche",
           "tier": 5,
           "col": 4,
           "row": 2,
@@ -1369,7 +1369,7 @@
         {
           "id": "ork_nobz",
           "unit": "orks_nob",
-          "name": "Vrepigh Capozanna",
+          "name": "Vrepigh Capozanne",
           "tier": 6,
           "col": 5,
           "row": 1,
@@ -1391,7 +1391,7 @@
         {
           "id": "ork_meganobz",
           "unit": "orks_meganob",
-          "name": "Meganobz",
+          "name": "Capozanne Corazzati",
           "tier": 7,
           "col": 6,
           "row": 1,
@@ -1409,7 +1409,7 @@
         {
           "id": "ork_warboss",
           "unit": "orks_warboss",
-          "name": "Warboss",
+          "name": "Gran Capo",
           "tier": 8,
           "col": 7,
           "row": 1,
@@ -1427,7 +1427,7 @@
         {
           "id": "ork_spanner",
           "unit": "orks_spanner",
-          "name": "Spanner",
+          "name": "Aggiustatore",
           "tier": 4,
           "col": 3,
           "row": 4.5,
@@ -1445,7 +1445,7 @@
         {
           "id": "ork_mek_boy",
           "unit": "orks_mek_boy",
-          "name": "Mek Boy",
+          "name": "Ferraro",
           "tier": 5,
           "col": 4,
           "row": 4.5,
@@ -1463,7 +1463,7 @@
         {
           "id": "ork_big_mek",
           "unit": "orks_big_mek",
-          "name": "Big Mek",
+          "name": "Gran Ferraro",
           "tier": 6,
           "col": 5,
           "row": 4.5,
@@ -1481,7 +1481,7 @@
         {
           "id": "ork_big_mek_boss",
           "unit": "orks_big_mek_boss",
-          "name": "Big Mek Boss",
+          "name": "Gran Ferraro Capozanna",
           "tier": 7,
           "col": 6,
           "row": 4.5,
@@ -1499,7 +1499,7 @@
         {
           "id": "ork_big_mek_boss_mega",
           "unit": "orks_big_mek_boss_mega",
-          "name": "Big Mek Boss in Mega Armor",
+          "name": "Gran Ferraro in Corazza Pesante",
           "tier": 8,
           "col": 7,
           "row": 4.5,
@@ -1534,7 +1534,7 @@
         {
           "id": "ork_item_trombone",
           "item": "grot_trombone",
-          "name": "Trombone",
+          "name": "Archibugio a Canna Larga",
           "tier": 1,
           "col": 1,
           "row": 4,
@@ -1602,7 +1602,7 @@
         {
           "id": "ork_yoof_item_slugga_auto",
           "item": "yoof_slugga_auto",
-          "name": "Slugga Automatica",
+          "name": "Pistola Automatica Rozza",
           "tier": 2,
           "col": 2,
           "row": 3,
@@ -1619,7 +1619,7 @@
         {
           "id": "ork_yoof_item_choppa",
           "item": "yoof_choppa",
-          "name": "Choppa",
+          "name": "Mannaia",
           "tier": 2,
           "col": 2,
           "row": 4,
@@ -1653,7 +1653,7 @@
         {
           "id": "ork_yoof_item_scrap_torso",
           "item": "torso_yoof_scrap",
-          "name": "Corazza di Scrap",
+          "name": "Corazza di Rottami",
           "tier": 2,
           "col": 2,
           "row": 7,
@@ -1673,7 +1673,7 @@
             "arm_l_yoof_scrap",
             "arm_r_yoof_scrap"
           ],
-          "name": "Spallacci di Scrap",
+          "name": "Spallacci di Rottami",
           "tier": 2,
           "col": 3,
           "row": 7,
@@ -1693,7 +1693,7 @@
             "leg_l_yoof_scrap",
             "leg_r_yoof_scrap"
           ],
-          "name": "Gambali di Scrap",
+          "name": "Gambali di Rottami",
           "tier": 2,
           "col": 4,
           "row": 7,
@@ -1710,7 +1710,7 @@
         {
           "id": "ork_boy_item_big_choppa",
           "item": "boy_big_choppa",
-          "name": "Big Choppa",
+          "name": "Mannaia Pesante",
           "tier": 3,
           "col": 3,
           "row": 0,
@@ -1727,7 +1727,7 @@
         {
           "id": "ork_boy_item_big_shoota",
           "item": "boy_big_shoota",
-          "name": "Big Shoota",
+          "name": "Mitragliatore Pesante",
           "tier": 3,
           "col": 3,
           "row": 1,
@@ -1764,7 +1764,7 @@
             "arm_l_boy_plate",
             "arm_r_boy_plate"
           ],
-          "name": "Spallacci da Boy",
+          "name": "Spallacci da Vrepigh",
           "tier": 3,
           "col": 3,
           "row": 3,
@@ -1784,7 +1784,7 @@
             "leg_l_boy_plate",
             "leg_r_boy_plate"
           ],
-          "name": "Gambali da Boy",
+          "name": "Gambali da Vrepigh",
           "tier": 3,
           "col": 4,
           "row": 3,
@@ -1801,7 +1801,7 @@
         {
           "id": "ork_boy_item_helmet",
           "item": "head_boy_helmet",
-          "name": "Elmo da Boy",
+          "name": "Elmo da Vrepigh",
           "tier": 3,
           "col": 5,
           "row": 3,
@@ -1835,7 +1835,7 @@
         {
           "id": "ork_shoota_item_big_shoota",
           "item": "shoota_big_shoota",
-          "name": "Big Shoota",
+          "name": "Mitragliatore Pesante Rinforzato",
           "tier": 3,
           "col": 3,
           "row": 4,
@@ -1852,7 +1852,7 @@
         {
           "id": "ork_shoota_item_rokkit",
           "item": "shoota_rokkit",
-          "name": "Rokkit Launcha",
+          "name": "Lanciarazzi",
           "tier": 3,
           "col": 3,
           "row": 5,
@@ -1889,7 +1889,7 @@
             "arm_l_shoota_plate",
             "arm_r_shoota_plate"
           ],
-          "name": "Spallacci da Shoota",
+          "name": "Spallacci da Tiratore",
           "tier": 3,
           "col": 4,
           "row": 6,
@@ -1909,7 +1909,7 @@
             "leg_l_shoota_plate",
             "leg_r_shoota_plate"
           ],
-          "name": "Gambali da Shoota",
+          "name": "Gambali da Tiratore",
           "tier": 3,
           "col": 5,
           "row": 6,
@@ -1926,7 +1926,7 @@
         {
           "id": "ork_shoota_item_helmet",
           "item": "head_shoota_helmet",
-          "name": "Elmo da Shoota",
+          "name": "Elmo da Tiratore",
           "tier": 3,
           "col": 6,
           "row": 6,
@@ -1960,7 +1960,7 @@
         {
           "id": "ork_loota_item_beamy",
           "item": "loota_deffgun_beamy",
-          "name": "Beamy Deffgun",
+          "name": "Fucile a Fascio",
           "tier": 3,
           "col": 3,
           "row": 8,
@@ -1977,7 +1977,7 @@
         {
           "id": "ork_loota_item_plasma",
           "item": "loota_deffgun_plasma",
-          "name": "Plasma Deffgun",
+          "name": "Fucile a Scarica",
           "tier": 3,
           "col": 3,
           "row": 9,
@@ -1994,7 +1994,7 @@
         {
           "id": "ork_loota_item_helmet",
           "item": "head_loota_helmet",
-          "name": "Elmetto da Loota",
+          "name": "Elmetto da Razziatore",
           "tier": 3,
           "col": 3,
           "row": 10,

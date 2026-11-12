@@ -28,8 +28,8 @@ namespace SunEngine {
             case RaceMotionKind::Ork: return { "Vrepigh", "Gobbo e spavaldo: spalle avanti, braccia larghe, rolla e torce il busto a ogni passo, urla in carica", "Mascella (ringhio, urlo)" };
             case RaceMotionKind::Gretchin: return { "Pighcib", "Furtivo e nervoso: accucciato, passi corti e rapidi, scatti della testa, si guarda le spalle", "Orecchie (sbattono a molla), mascella (chiacchiera)" };
             case RaceMotionKind::Astartes: return { "Vanguard Armor", "Eretto, petto in fuori, passo pesante con affondo a ogni appoggio, immobile quando mira", "Spallacci montati sul busto" };
-            case RaceMotionKind::Neophyte: return { "Explorer / Candidate", "Agile e attento: chino in avanti, passo rapido e leggero, si guarda attorno spesso", "-" };
-            case RaceMotionKind::Ogryn: return { "Ogre Slave", "Montagna lenta: braccia larghe, gambe divaricate, ondeggia pesante, testa inclinata", "Mascella (bocca socchiusa), pancia (ballonzola)" };
+            case RaceMotionKind::Neophyte: return { "Esploratore / Candidato", "Agile e attento: chino in avanti, passo rapido e leggero, si guarda attorno spesso", "-" };
+            case RaceMotionKind::Ogryn: return { "Ogre da Guerra", "Montagna lenta: braccia larghe, gambe divaricate, ondeggia pesante, testa inclinata", "Mascella (bocca socchiusa), pancia (ballonzola)" };
             default: return { "Umano", "Soldato addestrato: dritto, passo regolare, si guarda attorno con calma", "-" };
             }
         }

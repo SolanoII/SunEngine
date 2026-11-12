@@ -3031,7 +3031,7 @@ namespace SunEngine {
     //   Take Cover         -15% danni subiti, immune agli stordimenti per i primi 3 secondi
     //   MOVE MOVE MOVE!    +20% velocita', immune ai rallentamenti
     //   Fix Bayonets!      +15% danni in mischia, +20% recupero della stamina
-    static const char* kOrderNames[4] = { "Take AIM!", "Take Cover", "MOVE MOVE MOVE!", "Fix Bayonets!" };
+    static const char* kOrderNames[4] = { "Ordine: Mirare", "Take Cover", "MOVE MOVE MOVE!", "Ordine: Fissare le Baionette" };
     static const char* kOrderEffects[4] = { "+30% cadenza   -30% dispersione", "-15% danni subiti   immune agli stordimenti (3 s)",
                                             "+20% velocita'   immune ai rallentamenti", "+15% danni in mischia   +20% recupero stamina" };
 
@@ -6963,18 +6963,18 @@ namespace SunEngine {
                 };
 
                 if (m_SelectedFaction == "Imperium") {
-                    if (Ui::PlainButton("Recluta del Kingship (10 Pti)\n(Guardsman Recruit)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Fante del Regno (10 Pti)\n(Recluta)", ImVec2(280, 50))) {
                         recruitAction("imperium_guardsman_recruit", "Recluta Vance", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
                     }
-                    if (Ui::PlainButton("Elite Laboratores (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
-                        recruitAction("imperium_kasrkin", "Laboratore Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
+                    if (Ui::PlainButton("Kingsman Scelto (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
+                        recruitAction("imperium_kasrkin", "Kingsman Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "SpaceMarines") {
-                    if (Ui::PlainButton("Human Candidate (40 Pti)\n(Candidato)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Candidato Umano (40 Pti)\n(Candidato)", ImVec2(280, 50))) {
                         recruitAction("spacemarines_neophyte", "Neofita Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
-                    if (Ui::PlainButton("Vanguard Defender (75 Pti)\n(Difensore)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Difensore Vanguardio (75 Pti)\n(Difensore)", ImVec2(280, 50))) {
                         recruitAction("spacemarines_battle_brother", "Fratello Titus", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
@@ -8231,7 +8231,7 @@ namespace SunEngine {
                     ImGui::DragFloat3("Spostamento (dx,su,indietro) m", &m_WeaponModelGripOffset.x, 0.002f, -0.5f, 0.5f, "%.3f");
                     ImGui::DragFloat3("Correzione rotazione (gradi)", &m_WeaponModelRotation.x, 0.5f, -180.0f, 180.0f, "%.1f");
                     ImGui::Separator();
-                    ImGui::TextDisabled("Arma dei Vrepighs (choppa):");
+                    ImGui::TextDisabled("Arma dei Vrepighs (mannaia):");
                     ImGui::DragFloat3("Pugno sul braccio (m, dal fondo)", &m_OrkWeaponHoldOffset.x, 0.01f, -1.0f, 1.0f, "%.2f");
                     ImGui::DragFloat3("Rotazione lama (gradi)", &m_OrkWeaponModelRotation.x, 1.0f, -180.0f, 180.0f, "%.0f");
                     ImGui::EndChild();
