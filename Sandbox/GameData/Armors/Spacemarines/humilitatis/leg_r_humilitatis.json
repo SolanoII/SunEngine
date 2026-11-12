@@ -1,0 +1,207 @@
+{
+  "id": "leg_r_humilitatis",
+  "displayName": "Gambale (dx) dell'Ordo Domus Humilitatis",
+  "comment": "Livrea di Konrad von Eber e dei suoi fratelli d'arme in 'Primo Incontro': avorio sporco con placche scure. Solo per la PVE-STORY (nessuna unita' la puo' comprare o indossare nel garage).",
+  "location": "RightLeg",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "story_konrad"
+  ],
+  "armor_rating": 15,
+  "coverage": 0.8,
+  "max_durability": 180.0,
+  "weight": 0.0,
+  "point_cost": 2,
+  "skin_parts": [
+    {
+      "block": "Leg_R",
+      "offset": [
+        0,
+        0.18,
+        0
+      ],
+      "size": [
+        0.4,
+        0.4,
+        0.4
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Leg_R",
+      "offset": [
+        0,
+        -0.02,
+        -0.2
+      ],
+      "size": [
+        0.22,
+        0.16,
+        0.06
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.85
+    },
+    {
+      "block": "Leg_R",
+      "offset": [
+        0,
+        -0.26,
+        0
+      ],
+      "size": [
+        0.39,
+        0.34,
+        0.39
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Leg_R",
+      "offset": [
+        0,
+        -0.42,
+        -0.04
+      ],
+      "size": [
+        0.4,
+        0.1,
+        0.48
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.5
+    }
+  ],
+  "garments": [
+    {
+      "id": "fb_cuisse_r",
+      "bones": [
+        "RightUpLeg"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.28,
+        0.52
+      ],
+      "inflate": 0.026,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "side": -1
+    },
+    {
+      "id": "fb_knee_r",
+      "bones": [
+        "RightLeg",
+        "RightUpLeg"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.24,
+        0.32
+      ],
+      "inflate": 0.05,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "side": -1,
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.2,
+      "plate_cells": 2,
+      "plate_step": 0.005
+    },
+    {
+      "id": "fb_greave_r",
+      "bones": [
+        "RightLeg"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.06,
+        0.3
+      ],
+      "inflate": 0.032,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "side": -1,
+      "plate_cells": 3,
+      "plate_step": 0.004
+    },
+    {
+      "id": "fb_boot_r",
+      "bones": [
+        "RightFoot",
+        "RightToeBase"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.0,
+        0.09
+      ],
+      "inflate": 0.02,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "side": -1
+    }
+  ]
+}

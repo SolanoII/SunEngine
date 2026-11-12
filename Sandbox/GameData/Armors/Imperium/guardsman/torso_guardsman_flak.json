@@ -47,9 +47,9 @@
         0.04
       ],
       "color": [
-        0.27,
-        0.3,
-        0.2,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -68,9 +68,9 @@
         0.04
       ],
       "color": [
-        0.27,
-        0.3,
-        0.2,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -89,9 +89,9 @@
         0.3
       ],
       "color": [
-        0.27,
-        0.3,
-        0.2,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -110,9 +110,9 @@
         0.3
       ],
       "color": [
-        0.27,
-        0.3,
-        0.2,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -131,9 +131,9 @@
         0.04
       ],
       "color": [
-        0.27,
-        0.3,
-        0.2,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -163,7 +163,7 @@
       "inflate": 0.0065,
       "noise": 0.3,
       "noise_scale": 12,
-      "texture": "Textures/Garments/guard_fatigues.png",
+      "texture": "Textures/Garments/militia_fatigues.png",
       "tex_tiles": 6,
       "roughness": 0.9
     },
@@ -184,14 +184,14 @@
       "inflate": 0.0149,
       "plate_cells": 4,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.6,
       "metallic": 0.25,
       "color": [
-        0.82,
-        0.88,
-        0.72,
+        0.86,
+        0.86,
+        0.86,
         1
       ]
     }

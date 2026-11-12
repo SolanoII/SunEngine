@@ -37,8 +37,8 @@ namespace SunEngine {
         // Colore della pelle per corpo (indice di GameLayer::AnimatedBodyKind: 0 umano, 1 ork, 2 ogryn, 3 aspirante, 4 astartes, 5 gretchin)
         glm::vec3 SkinFor(int kind) {
             switch (kind) {
-            case 1: return { 0.24f, 0.33f, 0.15f };
-            case 5: return { 0.34f, 0.40f, 0.21f };
+            case 1: return { 0.27f, 0.22f, 0.29f };   // Vrepigh: grigio-viola
+            case 5: return { 0.40f, 0.37f, 0.39f };   // Pighcib: grigio
             case 2: return { 0.74f, 0.58f, 0.48f };
             default: return { 0.78f, 0.6f, 0.5f };
             }

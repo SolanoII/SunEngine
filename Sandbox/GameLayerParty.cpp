@@ -349,7 +349,7 @@ namespace SunEngine {
             ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + fullW);
             ImGui::TextColored(Ui::Col::Ash, "L'host muove i nemici: e' chi ha la connessione migliore fra quelli in partita, e se esce o cade "
                                "subentra il successivo. Ognuno porta la sua squadra e i suoi rientri. La partita la avvia il capo "
-                               "dalla schermata SCHIERAMENTO (Difesa del Settore o Sandbox).");
+                               "dalla schermata SCHIERAMENTO (Sandbox o VS BOT).");
             ImGui::PopTextWrapPos();
             if (m_Party.Playing()) {
                 if (!m_Net.active && Ui::Button("ENTRA IN PARTITA", ImVec2(200.0f, 34.0f), Ui::Btn::Primary)) NetJoinRunningMatch();

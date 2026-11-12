@@ -1,160 +1,4250 @@
 {
   "id": "warzone_sector4",
-  "name": "Settore 4 - Complesso Militare Solemnace",
+  "name": "Vespera IV - Terza Serra",
+  "comment": "Pianeta agricolo di Vespera IV, Terza Serra: la mappa di 'Primo Incontro'. Nord (-z): relitto della piattaforma orbitale, le tre serre e i campi da cui arrivano i Vrepighs. Sud (+z): la linea della milizia sulla strada di servizio, i magazzini, la cappella di Solano. L'id resta warzone_sector4 per i profili salvati.",
   "terrain": {
-    "size": [ 250.0, 1.0, 250.0 ],
-    "color": [ 0.20, 0.18, 0.16, 1.0 ]
+    "size": [
+      250.0,
+      1.0,
+      250.0
+    ],
+    "color": [
+      0.21,
+      0.18,
+      0.14,
+      1.0
+    ]
   },
   "player_spawn_points": [
-    [ 0.0, 0.5, 80.0 ],
-    [ -5.0, 0.5, 82.0 ],
-    [ 5.0, 0.5, 82.0 ]
+    [
+      0.0,
+      0.5,
+      64.0
+    ],
+    [
+      -5.0,
+      0.5,
+      66.0
+    ],
+    [
+      5.0,
+      0.5,
+      66.0
+    ]
   ],
   "enemy_spawn_points": [
-    [ 0.0, 0.5, -80.0 ],
-    [ 40.0, 0.5, -50.0 ],
-    [ -40.0, 0.5, -50.0 ],
-    [ 60.0, 0.5, 0.0 ],
-    [ -60.0, 0.5, 0.0 ]
+    [
+      0.0,
+      0.5,
+      -90.0
+    ],
+    [
+      -42.0,
+      0.5,
+      -80.0
+    ],
+    [
+      42.0,
+      0.5,
+      -80.0
+    ],
+    [
+      -60.0,
+      0.5,
+      -20.0
+    ],
+    [
+      60.0,
+      0.5,
+      -20.0
+    ]
   ],
   "structures": [
     {
+      "type": "block",
+      "position": [
+        -75,
+        0,
+        -10
+      ],
+      "scale": [
+        3,
+        9,
+        220
+      ],
+      "color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        75,
+        0,
+        -10
+      ],
+      "scale": [
+        3,
+        9,
+        220
+      ],
+      "color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        0,
+        -118
+      ],
+      "scale": [
+        150,
+        7,
+        3
+      ],
+      "color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        0,
+        112
+      ],
+      "scale": [
+        150,
+        7,
+        3
+      ],
+      "color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -38,
+        0,
+        -108
+      ],
+      "scale": [
+        26,
+        11,
+        10
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -38,
+        11,
+        -106
+      ],
+      "scale": [
+        14,
+        4,
+        6
+      ],
+      "color": [
+        0.26,
+        0.16,
+        0.1,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        6,
+        0,
+        -111
+      ],
+      "scale": [
+        18,
+        7,
+        8
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        30,
+        0,
+        -106
+      ],
+      "scale": [
+        12,
+        15,
+        9
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        30,
+        15,
+        -106
+      ],
+      "scale": [
+        5,
+        3,
+        5
+      ],
+      "color": [
+        0.26,
+        0.16,
+        0.1,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        52,
+        0,
+        -102
+      ],
+      "scale": [
+        10,
+        4,
+        14
+      ],
+      "color": [
+        0.26,
+        0.16,
+        0.1,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -77.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -77.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -77.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -71.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -71.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -71.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -65.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -65.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -65.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -59.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -59.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -59.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -53.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -53.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -53.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -47.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -47.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -47.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -41.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -41.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -41.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        0,
+        -35.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        0,
+        -35.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.0,
+        -35.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.0,
+        5.7,
+        -55
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        44
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35.0,
+        5.7,
+        -55
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        44
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.3,
+        -71.5
+      ],
+      "scale": [
+        14,
+        0.12,
+        10.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -45.5,
+        0,
+        -60.5
+      ],
+      "scale": [
+        6.3,
+        0.25,
+        8.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.3,
+        -49.5
+      ],
+      "scale": [
+        14,
+        0.12,
+        10.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42,
+        6.3,
+        -38.5
+      ],
+      "scale": [
+        14,
+        0.12,
+        10.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -45.5,
+        0,
+        -55
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        40
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -42.0,
+        0,
+        -55
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        40
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -38.5,
+        0,
+        -55
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        40
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -84.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -84.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -84.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -78.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -78.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -78.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -72.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -72.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -72.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -66.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -66.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -66.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -60.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -60.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -60.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -54.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -54.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -54.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -48.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -48.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -48.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -42.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -42.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -42.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        0,
+        -36.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        0,
+        -36.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.0,
+        -36.0
+      ],
+      "scale": [
+        16.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.0,
+        5.7,
+        -60
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        48
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.0,
+        5.7,
+        -60
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        48
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.3,
+        -78.0
+      ],
+      "scale": [
+        16,
+        0.12,
+        11.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        6.3,
+        -66.0
+      ],
+      "scale": [
+        16,
+        0.12,
+        11.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -4.0,
+        0,
+        -54.0
+      ],
+      "scale": [
+        7.2,
+        0.25,
+        9.6
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -4.0,
+        0,
+        -42.0
+      ],
+      "scale": [
+        7.2,
+        0.25,
+        9.6
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -4.0,
+        0,
+        -60
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        44
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        0.0,
+        0,
+        -60
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        44
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        4.0,
+        0,
+        -60
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        44
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -77.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -77.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -77.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -71.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -71.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -71.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -65.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -65.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -65.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -59.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -59.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -59.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -53.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -53.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -53.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -47.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -47.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -47.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -41.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -41.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -41.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        0,
+        -35.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        0,
+        -35.0
+      ],
+      "scale": [
+        0.35,
+        6.0,
+        0.35
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.0,
+        -35.0
+      ],
+      "scale": [
+        14.4,
+        0.3,
+        0.3
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.0,
+        5.7,
+        -55
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        44
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        49.0,
+        5.7,
+        -55
+      ],
+      "scale": [
+        0.3,
+        0.3,
+        44
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        38.5,
+        0,
+        -71.5
+      ],
+      "scale": [
+        6.3,
+        0.25,
+        8.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.3,
+        -60.5
+      ],
+      "scale": [
+        14,
+        0.12,
+        10.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.3,
+        -49.5
+      ],
+      "scale": [
+        14,
+        0.12,
+        10.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        42,
+        6.3,
+        -38.5
+      ],
+      "scale": [
+        14,
+        0.12,
+        10.8
+      ],
+      "color": [
+        0.46,
+        0.5,
+        0.52,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        38.5,
+        0,
+        -55
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        40
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        42.0,
+        0,
+        -55
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        40
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        45.5,
+        0,
+        -55
+      ],
+      "scale": [
+        1.1,
+        0.9,
+        40
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -22,
+        0,
+        -40
+      ],
+      "scale": [
+        4.5,
+        4.5,
+        4.5
+      ],
+      "color": [
+        0.26,
+        0.16,
+        0.1,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -22,
+        4.5,
+        -40
+      ],
+      "scale": [
+        1.0,
+        1.5,
+        1.0
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        22,
+        0,
+        -40
+      ],
+      "scale": [
+        4.5,
+        4.5,
+        4.5
+      ],
+      "color": [
+        0.26,
+        0.16,
+        0.1,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        22,
+        4.5,
+        -40
+      ],
+      "scale": [
+        1.0,
+        1.5,
+        1.0
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        0,
+        2.6,
+        -31
+      ],
+      "scale": [
+        44,
+        0.5,
+        0.5
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -21,
+        0,
+        -31
+      ],
+      "scale": [
+        0.4,
+        2.6,
+        0.4
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        21,
+        0,
+        -31
+      ],
+      "scale": [
+        0.4,
+        2.6,
+        0.4
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -10,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -15,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -20,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -25,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -30,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -35,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        10,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        15,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        20,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        25,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        30,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.34,
+        0.3,
+        0.14,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        35,
+        0,
+        8
+      ],
+      "scale": [
+        1.4,
+        0.8,
+        32
+      ],
+      "color": [
+        0.46,
+        0.4,
+        0.18,
+        1.0
+      ],
+      "material": "foliage"
+    },
+    {
+      "type": "block",
+      "position": [
+        -14,
+        0,
+        -14
+      ],
+      "scale": [
+        1.0,
+        0.6,
+        0.8
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        9,
+        0,
+        -18
+      ],
+      "scale": [
+        1.0,
+        0.6,
+        0.8
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        30,
+        0,
+        -12
+      ],
+      "scale": [
+        1.0,
+        0.6,
+        0.8
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -33,
+        0,
+        -20
+      ],
+      "scale": [
+        1.0,
+        0.6,
+        0.8
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -30,
+        0,
+        45
+      ],
+      "scale": [
+        4.2,
+        1.8,
+        2.4
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -31.2,
+        0,
+        45
+      ],
+      "scale": [
+        1.6,
+        2.6,
+        2.0
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -31.5,
+        0,
+        43.4
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        0.6
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.09,
+        1.0
+      ],
+      "material": "rubble"
+    },
+    {
+      "type": "block",
+      "position": [
+        -28.5,
+        0,
+        43.4
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        0.6
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.09,
+        1.0
+      ],
+      "material": "rubble"
+    },
+    {
+      "type": "block",
+      "position": [
+        26,
+        0,
+        44
+      ],
+      "scale": [
+        4.2,
+        1.8,
+        2.4
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        27.2,
+        0,
+        44
+      ],
+      "scale": [
+        1.6,
+        2.6,
+        2.0
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        24.5,
+        0,
+        42.4
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        0.6
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.09,
+        1.0
+      ],
+      "material": "rubble"
+    },
+    {
+      "type": "block",
+      "position": [
+        27.5,
+        0,
+        42.4
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        0.6
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.09,
+        1.0
+      ],
+      "material": "rubble"
+    },
+    {
+      "type": "block",
+      "position": [
+        -6,
+        0,
+        46
+      ],
+      "scale": [
+        7.0,
+        2.6,
+        3.2
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -8.4,
+        2.6,
+        46
+      ],
+      "scale": [
+        2.0,
+        1.6,
+        2.6
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -2.0,
+        0,
+        46
+      ],
+      "scale": [
+        1.2,
+        1.4,
+        4.2
+      ],
+      "color": [
+        0.26,
+        0.16,
+        0.1,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -58.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -55.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -52.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -49.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -46.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -43.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -40.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -37.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -20.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -17.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -14.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        5.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        11.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        14.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        17.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        35.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        38.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        41.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        44.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        47.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        50.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        53.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        56.5,
+        0,
+        48
+      ],
+      "scale": [
+        2.8,
+        1.1,
+        1.2
+      ],
+      "color": [
+        0.5,
+        0.44,
+        0.32,
+        1.0
+      ],
+      "material": "sandbags"
+    },
+    {
+      "type": "block",
+      "position": [
+        -46,
+        0,
+        51
+      ],
+      "scale": [
+        3,
+        1.2,
+        3
+      ],
+      "color": [
+        0.36,
+        0.35,
+        0.33,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        -46,
+        1.2,
+        51
+      ],
+      "scale": [
+        1.2,
+        0.9,
+        1.6
+      ],
+      "color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        46,
+        0,
+        51
+      ],
+      "scale": [
+        3,
+        1.2,
+        3
+      ],
+      "color": [
+        0.36,
+        0.35,
+        0.33,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        46,
+        1.2,
+        51
+      ],
+      "scale": [
+        1.2,
+        0.9,
+        1.6
+      ],
+      "color": [
+        0.22,
+        0.23,
+        0.24,
+        1.0
+      ],
+      "material": "metal"
+    },
+    {
+      "type": "block",
+      "position": [
+        -40,
+        0,
+        54
+      ],
+      "scale": [
+        40,
+        0.9,
+        2.2
+      ],
+      "color": [
+        0.3,
+        0.24,
+        0.17,
+        1.0
+      ],
+      "material": "earthworks"
+    },
+    {
+      "type": "block",
+      "position": [
+        38,
+        0,
+        54
+      ],
+      "scale": [
+        44,
+        0.9,
+        2.2
+      ],
+      "color": [
+        0.3,
+        0.24,
+        0.17,
+        1.0
+      ],
+      "material": "earthworks"
+    },
+    {
       "type": "building",
-      "position": [ 0.0, 0.0, 0.0 ],
-      "width": 35.0,
-      "depth": 25.0,
-      "floor_height": 5.0,
-      "color": [ 0.35, 0.36, 0.38, 1.0 ],
+      "position": [
+        -40,
+        0.0,
+        86
+      ],
+      "width": 30,
+      "depth": 18,
+      "floor_height": 6.0,
+      "color": [
+        0.33,
+        0.33,
+        0.32,
+        1.0
+      ],
       "has_ramp": true,
-      "ramp_start": [ 0.0, -0.6, 25.0 ],
-      "ramp_end": [ 0.0, 5.0, 12.5 ],
-      "ramp_width": 8.0
+      "ramp_start": [
+        -64.0,
+        -0.6,
+        86.0
+      ],
+      "ramp_end": [
+        -55.0,
+        6.0,
+        86.0
+      ],
+      "ramp_width": 5.0
+    },
+    {
+      "type": "block",
+      "position": [
+        2,
+        0,
+        98.25
+      ],
+      "scale": [
+        16.5,
+        5,
+        0.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        -6.25,
+        0,
+        92
+      ],
+      "scale": [
+        0.5,
+        5,
+        12.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        10.25,
+        0,
+        92
+      ],
+      "scale": [
+        0.5,
+        5,
+        12.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        -3,
+        0,
+        85.75
+      ],
+      "scale": [
+        7,
+        5,
+        0.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        7,
+        0,
+        85.75
+      ],
+      "scale": [
+        7,
+        5,
+        0.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        2,
+        3.6,
+        85.75
+      ],
+      "scale": [
+        3,
+        1.4,
+        0.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        -4.25,
+        0,
+        82.75
+      ],
+      "scale": [
+        0.5,
+        5,
+        6
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        8.25,
+        0,
+        82.75
+      ],
+      "scale": [
+        0.5,
+        5,
+        6
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        2,
+        0,
+        79.75
+      ],
+      "scale": [
+        13,
+        5,
+        0.5
+      ],
+      "color": [
+        0.31,
+        0.31,
+        0.3,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        -2,
+        0,
+        93
+      ],
+      "scale": [
+        0.8,
+        5,
+        0.8
+      ],
+      "color": [
+        0.36,
+        0.35,
+        0.33,
+        1.0
+      ],
+      "material": "concrete"
+    },
+    {
+      "type": "block",
+      "position": [
+        6,
+        0,
+        95
+      ],
+      "scale": [
+        1.3,
+        1.1,
+        1.3
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
+    },
+    {
+      "type": "block",
+      "position": [
+        7.4,
+        0,
+        95.2
+      ],
+      "scale": [
+        1.3,
+        1.1,
+        1.3
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
+    },
+    {
+      "type": "block",
+      "position": [
+        -4.5,
+        0,
+        89
+      ],
+      "scale": [
+        1.3,
+        1.1,
+        1.3
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
+    },
+    {
+      "type": "block",
+      "position": [
+        5,
+        0,
+        89.5
+      ],
+      "scale": [
+        1.3,
+        1.1,
+        1.3
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
     },
     {
       "type": "building",
-      "position": [ 45.0, 0.0, -20.0 ],
-      "width": 18.0,
-      "depth": 18.0,
-      "floor_height": 3.5,
-      "color": [ 0.40, 0.42, 0.45, 1.0 ],
-      "has_ramp": true,
-      "ramp_start": [ 30.0, -0.5, -20.0 ],
-      "ramp_end": [ 36.0, 3.5, -20.0 ],
-      "ramp_width": 4.0
-    },
-    {
-      "type": "building",
-      "position": [ -45.0, 0.0, -20.0 ],
-      "width": 18.0,
-      "depth": 18.0,
-      "floor_height": 3.5,
-      "color": [ 0.40, 0.42, 0.45, 1.0 ],
-      "has_ramp": true,
-      "ramp_start": [ -30.0, -0.5, -20.0 ],
-      "ramp_end": [ -36.0, 3.5, -20.0 ],
-      "ramp_width": 4.0
+      "position": [
+        40,
+        0.0,
+        86
+      ],
+      "width": 12,
+      "depth": 14,
+      "floor_height": 5.5,
+      "color": [
+        0.38,
+        0.36,
+        0.33,
+        1.0
+      ]
     },
     {
       "type": "block",
-      "position": [ 0.0, 4.0, -100.0 ],
-      "scale": [ 150.0, 8.0, 4.0 ],
-      "color": [ 0.25, 0.26, 0.28, 1.0 ]
+      "position": [
+        40,
+        0,
+        82
+      ],
+      "scale": [
+        2.0,
+        1.0,
+        2.0
+      ],
+      "color": [
+        0.36,
+        0.35,
+        0.33,
+        1.0
+      ],
+      "material": "concrete"
     },
     {
       "type": "block",
-      "position": [ -75.0, 4.0, -50.0 ],
-      "scale": [ 4.0, 8.0, 100.0 ],
-      "color": [ 0.25, 0.26, 0.28, 1.0 ]
+      "position": [
+        40,
+        1.0,
+        82
+      ],
+      "scale": [
+        1.0,
+        2.4,
+        0.8
+      ],
+      "color": [
+        0.1,
+        0.1,
+        0.11,
+        1.0
+      ],
+      "material": "none"
     },
     {
       "type": "block",
-      "position": [ 75.0, 4.0, -50.0 ],
-      "scale": [ 4.0, 8.0, 100.0 ],
-      "color": [ 0.25, 0.26, 0.28, 1.0 ]
+      "position": [
+        40,
+        3.4,
+        82
+      ],
+      "scale": [
+        0.6,
+        0.5,
+        0.6
+      ],
+      "color": [
+        0.62,
+        0.58,
+        0.52,
+        1.0
+      ],
+      "material": "none"
     },
     {
       "type": "block",
-      "position": [ -20.0, 1.0, 40.0 ],
-      "scale": [ 12.0, 2.0, 2.0 ],
-      "color": [ 0.30, 0.32, 0.30, 1.0 ]
+      "position": [
+        39.68,
+        3.9,
+        82
+      ],
+      "scale": [
+        0.14,
+        0.5,
+        0.14
+      ],
+      "color": [
+        0.42,
+        0.2,
+        0.52,
+        1.0
+      ],
+      "material": "none"
     },
     {
       "type": "block",
-      "position": [ 20.0, 1.0, 40.0 ],
-      "scale": [ 12.0, 2.0, 2.0 ],
-      "color": [ 0.30, 0.32, 0.30, 1.0 ]
+      "position": [
+        40.32,
+        3.9,
+        82
+      ],
+      "scale": [
+        0.14,
+        0.4,
+        0.14
+      ],
+      "color": [
+        0.42,
+        0.2,
+        0.52,
+        1.0
+      ],
+      "material": "none"
     },
     {
       "type": "block",
-      "position": [ 0.0, 1.0, 30.0 ],
-      "scale": [ 8.0, 2.0, 2.0 ],
-      "color": [ 0.40, 0.35, 0.30, 1.0 ]
+      "position": [
+        40,
+        3.9,
+        81.7
+      ],
+      "scale": [
+        0.14,
+        0.6,
+        0.14
+      ],
+      "color": [
+        0.42,
+        0.2,
+        0.52,
+        1.0
+      ],
+      "material": "none"
     },
     {
       "type": "block",
-      "position": [ -35.0, 1.25, 15.0 ],
-      "scale": [ 4.0, 2.5, 4.0 ],
-      "color": [ 0.50, 0.45, 0.40, 1.0 ]
+      "position": [
+        40,
+        3.9,
+        82.3
+      ],
+      "scale": [
+        0.14,
+        0.35,
+        0.14
+      ],
+      "color": [
+        0.42,
+        0.2,
+        0.52,
+        1.0
+      ],
+      "material": "none"
     },
     {
       "type": "block",
-      "position": [ 35.0, 1.25, 15.0 ],
-      "scale": [ 4.0, 2.5, 4.0 ],
-      "color": [ 0.50, 0.45, 0.40, 1.0 ]
+      "position": [
+        -22,
+        0,
+        72
+      ],
+      "scale": [
+        1.8,
+        1.6,
+        1.8
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
     },
     {
       "type": "block",
-      "position": [ -15.0, 4.0, -10.0 ],
-      "scale": [ 3.0, 8.0, 3.0 ],
-      "color": [ 0.2, 0.2, 0.2, 1.0 ]
+      "position": [
+        -18,
+        0,
+        74
+      ],
+      "scale": [
+        1.8,
+        1.6,
+        1.8
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
     },
     {
       "type": "block",
-      "position": [ 15.0, 4.0, -10.0 ],
-      "scale": [ 3.0, 8.0, 3.0 ],
-      "color": [ 0.2, 0.2, 0.2, 1.0 ]
+      "position": [
+        16,
+        0,
+        74
+      ],
+      "scale": [
+        1.8,
+        1.6,
+        1.8
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
     },
     {
       "type": "block",
-      "position": [ -30.0, 1.5, -40.0 ],
-      "scale": [ 15.0, 3.0, 2.0 ],
-      "color": [ 0.45, 0.48, 0.50, 1.0 ]
+      "position": [
+        20,
+        0,
+        71
+      ],
+      "scale": [
+        1.8,
+        1.6,
+        1.8
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
     },
     {
       "type": "block",
-      "position": [ 30.0, 1.5, -40.0 ],
-      "scale": [ 15.0, 3.0, 2.0 ],
-      "color": [ 0.45, 0.48, 0.50, 1.0 ]
+      "position": [
+        -56,
+        0,
+        70
+      ],
+      "scale": [
+        1.8,
+        1.6,
+        1.8
+      ],
+      "color": [
+        0.2,
+        0.14,
+        0.09,
+        1.0
+      ],
+      "material": "wood"
     },
     {
       "type": "block",
-      "position": [ 0.0, 1.5, -60.0 ],
-      "scale": [ 20.0, 3.0, 2.0 ],
-      "color": [ 0.35, 0.32, 0.30, 1.0 ]
+      "position": [
+        12,
+        0,
+        66
+      ],
+      "scale": [
+        4.2,
+        1.8,
+        2.4
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
     },
     {
       "type": "block",
-      "position": [ -10.0, 1.0, 50.0 ],
-      "scale": [ 3.0, 2.0, 3.0 ],
-      "color": [ 0.6, 0.3, 0.1, 1.0 ]
+      "position": [
+        10.8,
+        0,
+        66
+      ],
+      "scale": [
+        1.6,
+        2.6,
+        2.0
+      ],
+      "color": [
+        0.52,
+        0.42,
+        0.14,
+        1.0
+      ],
+      "material": "metal"
     },
     {
       "type": "block",
-      "position": [ 12.0, 1.0, 48.0 ],
-      "scale": [ 4.0, 2.0, 2.0 ],
-      "color": [ 0.6, 0.3, 0.1, 1.0 ]
+      "position": [
+        10.5,
+        0,
+        64.4
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        0.6
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.09,
+        1.0
+      ],
+      "material": "rubble"
     },
     {
       "type": "block",
-      "position": [ -25.0, 2.0, -5.0 ],
-      "scale": [ 2.0, 4.0, 10.0 ],
-      "color": [ 0.3, 0.3, 0.35, 1.0 ]
+      "position": [
+        13.5,
+        0,
+        64.4
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        0.6
+      ],
+      "color": [
+        0.09,
+        0.09,
+        0.09,
+        1.0
+      ],
+      "material": "rubble"
     },
     {
       "type": "block",
-      "position": [ 25.0, 2.0, -5.0 ],
-      "scale": [ 2.0, 4.0, 10.0 ],
-      "color": [ 0.3, 0.3, 0.35, 1.0 ]
+      "position": [
+        0,
+        0,
+        106
+      ],
+      "scale": [
+        110,
+        1.2,
+        1.2
+      ],
+      "color": [
+        0.3,
+        0.31,
+        0.32,
+        1.0
+      ],
+      "material": "metal"
     }
   ]
 }

@@ -71,7 +71,8 @@ namespace SunEngine {
         Research,   // albero di ricerca delle unita'
         Shop,       // negozio (Pietra Nera): per ora WIP
         Showcase,   // vetrina: razze affiancate (o un'unita' dall'albero di ricerca) con le loro animazioni
-        Servers     // lobby aperte in rete locale e sul server d'incontro, apertura della propria
+        Servers,    // lobby aperte in rete locale e sul server d'incontro, apertura della propria
+        Story       // PVE-STORY: le storie del mondo da rigiocare, fuori dal sistema delle squadre
     };
 
     enum class EditorGizmoMode {
@@ -216,6 +217,22 @@ namespace SunEngine {
         int rosterIndex = -1;
         bool isAlive = true;
         float currentHealth = 100.0f;
+    };
+
+    // PVE-STORY: un capitolo di una storia, giocato con un personaggio fisso (non con le unita' del garage).
+    // Primo Incontro: 0 = Martus Kell (fuga da A a B), 1 = sergente Ordan (stanza chiusa, ondate fino alla fine),
+    // 2 = Konrad von Eber (ondate, dopo 5 minuti arriva il capo).
+    struct StoryState {
+        bool active = false;
+        int chapter = 0;
+        int result = 0;                      // 0 in corso, 1 obiettivo raggiunto, 2 caduto, 3 fine della linea (Ordan)
+        float time = 0.0f;                   // secondi dall'inizio del capitolo
+        float spawnTimer = 0.0f;
+        int waveSize = 1;
+        int kills0 = 0;                      // uccisioni all'inizio (m_KillCount)
+        entt::entity boss = entt::null;
+        bool bossSpawned = false, bossDown = false;
+        bool newRecord = false;
     };
 
     // 5v5: ogni giocatore (tu o un'IA) porta la sua squadra; quando l'unita' in campo cade rientra con un'altra.
@@ -604,6 +621,20 @@ namespace SunEngine {
         void GetWaveState(bool& active, float& timer, int& count) const;
         void SetWaveState(bool active, float timer, int count);
         entt::entity SpawnNetOrk(const glm::vec3& pos);
+        // PVE-STORY (GameLayerStory.cpp)
+        StoryState m_Story;
+        std::vector<TrainedUnit> m_StoryBackupRoster;   // il garage, messo da parte durante il capitolo
+        std::vector<int> m_StoryBackupSquad;
+        std::string m_StoryBackupMap;
+        int m_StoryBackupEvent = 3;
+        void RenderStoryUI();                       // scheda PVE-STORY del menu
+        void StartStoryChapter(int chapter);
+        void UpdateStory(float deltaTime, const glm::vec3& playerPos);
+        void RenderStoryHUD();
+        void RenderStoryEnd();
+        void StoryOnPlayerDeath();
+        void StoryLeaveToMenu();
+        void EndStory();                            // rimette a posto il garage (all'uscita, per qualunque strada)
         std::string m_ShowcaseFocusUnit;            // vuoto = tutte le razze in fila; altrimenti anteprima di un'unita'
         std::string m_ShowcaseBuiltFor = "#";       // per cosa sono stati creati gli attori
         bool m_ShowcaseFromResearch = false;
@@ -745,7 +776,7 @@ namespace SunEngine {
         // Punti battaglia della squadra = somma dei costi delle UNITA' (l'equipaggiamento non conta, come il tier
         // dei carri in WoT). Massimo 5 unita' e 300 punti, cioe' il cap della coda piu' alta della modalita' Vs Bot.
         const int MAX_SQUAD_POINTS = 300;
-        int m_SelectedEventIndex = 0;
+        int m_SelectedEventIndex = 3;   // Sandbox: la sopravvivenza ora e' nella PVE-STORY
         std::string m_SelectedMapId = "warzone_sector4";
 
         std::vector<ActiveSquadMember> m_ActiveSquad;

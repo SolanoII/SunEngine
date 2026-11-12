@@ -719,6 +719,20 @@ namespace SunEngine {
         }
     }
 
+    // Carnagione dei Vrepighs, come in "Primo Incontro": dal grigio sporco al viola scurissimo (prima erano verdi).
+    // I Pighcib sono un grigio piu' chiaro. Indici: 0 grigio sporco ... 5 viola quasi nero.
+    static const glm::vec3 kVrepighSkin[6] = { { 0.36f, 0.34f, 0.35f }, { 0.31f, 0.28f, 0.32f }, { 0.27f, 0.22f, 0.29f },
+                                               { 0.22f, 0.17f, 0.25f }, { 0.17f, 0.12f, 0.20f }, { 0.12f, 0.08f, 0.15f } };
+    static const glm::vec3 kPighcibSkin{ 0.40f, 0.37f, 0.39f };
+    // Profili salvati con le vecchie tinte verdi degli orki: si passa alla tinta nuova piu' vicina per tono
+    static glm::vec4 MigrateGreenSkin(const glm::vec4& c, bool pighcib) {
+        if (!(c.g > c.r + 0.04f && c.g > c.b + 0.04f)) return c;   // non e' una delle tinte verdi di prima
+        if (pighcib) return glm::vec4(kPighcibSkin, c.a);
+        const float lum = 0.3f * c.r + 0.59f * c.g + 0.11f * c.b;   // verdi chiari -> grigio, scuri -> viola scuro
+        const int idx = std::clamp(static_cast<int>((0.36f - lum) / 0.03f), 0, 5);
+        return glm::vec4(kVrepighSkin[idx], c.a);
+    }
+
     static entt::entity SpawnOrkBoy(Scene& scene, const glm::vec3& spawnPos) {
         auto enemyEntity = scene.CreateEntity();
         auto& enemyTransform = scene.GetRegistry().emplace<TransformComponent>(enemyEntity);
@@ -737,7 +751,7 @@ namespace SunEngine {
         scene.GetRegistry().emplace<RigidBodyComponent>(enemyEntity, glm::vec3(0.0f), 0.0f, false);
 
         auto& enemyColor = scene.GetRegistry().emplace<ColorComponent>(enemyEntity);
-        enemyColor.Color = glm::vec4(0.24f, 0.33f, 0.15f, 1.0f);
+        enemyColor.Color = glm::vec4(kVrepighSkin[Random::RangeInt(0, 4)], 1.0f);   // ogni Vrepigh dell'orda con la sua carnagione
         enemyColor.BaseColor = enemyColor.Color;
 
         auto& enemyStats = scene.GetRegistry().emplace<UnitStatsComponent>(enemyEntity);
@@ -878,8 +892,8 @@ namespace SunEngine {
         else if (newUnitId == "imperium_kasrkin") unitColor = glm::vec4(0.35f, 0.25f, 0.18f, 1.0f);
         else if (newUnitId == "spacemarines_neophyte") unitColor = glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
         else if (newUnitId == "spacemarines_battle_brother") unitColor = glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
-        else if (newUnitId == "orks_boy") unitColor = glm::vec4(0.24f, 0.33f, 0.15f, 1.0f);
-        else if (newUnitId == "orks_nob") unitColor = glm::vec4(0.17f, 0.25f, 0.11f, 1.0f);
+        else if (newUnitId == "orks_boy") unitColor = glm::vec4(kVrepighSkin[2], 1.0f);
+        else if (newUnitId == "orks_nob") unitColor = glm::vec4(kVrepighSkin[4], 1.0f);
 
         auto& colorComp = scene.GetRegistry().emplace_or_replace<ColorComponent>(playerEntity);
         colorComp.Color = unitColor;
@@ -1821,7 +1835,7 @@ namespace SunEngine {
         ApplyAudioVolumes();   // se l'audio e' gia' partito (ricarica del profilo)
         if (!m_Profile.selectedMapId.empty()) m_SelectedMapId = m_Profile.selectedMapId;
         m_SelectedEventIndex = std::clamp(m_Profile.selectedEventIndex, 0, 4);
-        if (m_SelectedEventIndex == 1) m_SelectedEventIndex = 0;   // Recupero Dati non e' piu' selezionabile
+        if (m_SelectedEventIndex <= 1) m_SelectedEventIndex = 3;   // sopravvivenza (ora nella PVE-STORY) e Recupero Dati: si passa al Sandbox
     }
 
     void GameLayer::LoadRosterFromProfile() {
@@ -1845,6 +1859,8 @@ namespace SunEngine {
                     t.armorColor = glm::vec4(u["armorColor"][0].get<float>(), u["armorColor"][1].get<float>(),
                                              u["armorColor"][2].get<float>(), u["armorColor"][3].get<float>());
                 }
+                if (t.blueprintId.rfind("orks_", 0) == 0)   // Vrepighs e Pighcib non piu' verdi
+                    t.armorColor = MigrateGreenSkin(t.armorColor, t.blueprintId == "orks_gretchin");
                 t.facePreset = u.value("facePreset", 0);
                 // Armi non piu' presenti nei blueprint (es. "laspistol_m-g", mai esistita): torno al default
                 auto weaponOr = [&](const char* key, const std::string& def) {
@@ -1911,12 +1927,14 @@ namespace SunEngine {
         m_Profile.gfxAtmosphere = m_DeferredRenderer.GetAtmosphere().enabled;
         m_Profile.graphics = GraphicsToJson(m_DeferredRenderer);
         m_Profile.gfxAutoDone = true;
-        m_Profile.squadIndices = m_SelectedSquadIndices;
-        m_Profile.selectedMapId = m_SelectedMapId;
-        m_Profile.selectedEventIndex = m_SelectedEventIndex;
+        // durante un capitolo della PVE-STORY il roster e' quello del personaggio: si salva il garage messo da parte
+        const bool inStory = m_Story.active;
+        m_Profile.squadIndices = inStory ? m_StoryBackupSquad : m_SelectedSquadIndices;
+        m_Profile.selectedMapId = inStory ? m_StoryBackupMap : m_SelectedMapId;
+        m_Profile.selectedEventIndex = inStory ? m_StoryBackupEvent : m_SelectedEventIndex;
 
         m_Profile.roster = nlohmann::json::array();
-        for (const auto& t : m_PlayerRoster) {
+        for (const auto& t : (inStory ? m_StoryBackupRoster : m_PlayerRoster)) {
             nlohmann::json u;
             u["name"] = t.customName;
             u["blueprintId"] = t.blueprintId;
@@ -2050,10 +2068,10 @@ namespace SunEngine {
         if (unitId == "imperium_ogryn") return glm::vec4(0.60f, 0.45f, 0.30f, 1.0f);
         if (unitId == "spacemarines_neophyte") return glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
         if (unitId == "spacemarines_battle_brother") return glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
-        if (unitId == "orks_boy") return glm::vec4(0.24f, 0.33f, 0.15f, 1.0f);
-        if (unitId == "orks_nob") return glm::vec4(0.17f, 0.25f, 0.11f, 1.0f);
-        if (unitId == "orks_yoof") return glm::vec4(0.30f, 0.38f, 0.19f, 1.0f);
-        if (unitId == "orks_gretchin") return glm::vec4(0.34f, 0.40f, 0.21f, 1.0f);
+        if (unitId == "orks_boy") return glm::vec4(kVrepighSkin[2], 1.0f);
+        if (unitId == "orks_nob") return glm::vec4(kVrepighSkin[4], 1.0f);
+        if (unitId == "orks_yoof") return glm::vec4(kVrepighSkin[1], 1.0f);
+        if (unitId == "orks_gretchin") return glm::vec4(kPighcibSkin, 1.0f);
         return glm::vec4(0.75f, 0.75f, 0.78f, 1.0f);
     }
 
@@ -4621,6 +4639,7 @@ namespace SunEngine {
         if (m_GameState != m_PrevGameState) {
             if (m_PrevGameState == GameState::Gameplay && m_Net.active) NetLeaveMatch();   // uscito dalla partita in rete (qualunque strada)
             if (m_PrevGameState == GameState::Gameplay || m_GameState == GameState::Gameplay) ResetMatchState(m_PrevGameState == GameState::Gameplay);
+            if (m_GameState == GameState::MainMenu && m_Story.active) EndStory();   // fuori da un capitolo della PVE-STORY: torna il garage
             m_PrevGameState = m_GameState;
         }
 
@@ -4634,7 +4653,7 @@ namespace SunEngine {
         static bool escPressedLastFrame = false;
         bool escPressed = Input::IsKeyPressed(GLFW_KEY_ESCAPE);
         if (escPressed && !escPressedLastFrame) {
-            if (m_GameState == GameState::Gameplay && !(m_VsBotActive && m_VsBotResult != 0)) {
+            if (m_GameState == GameState::Gameplay && !(m_VsBotActive && m_VsBotResult != 0) && !(m_Story.active && m_Story.result != 0)) {
                 m_IsPaused = !m_IsPaused;
                 if (window) {
                     glfwSetInputMode(window, GLFW_CURSOR, m_IsPaused ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
@@ -4800,6 +4819,7 @@ namespace SunEngine {
 
             m_PlayerDeathHandled = true;
             m_VsBotDeadTime = 0.0f;
+            if (m_Story.active) StoryOnPlayerDeath();   // PVE-STORY: un solo personaggio, niente rientri
         }
 
         bool isAiming = false;
@@ -5536,6 +5556,10 @@ namespace SunEngine {
                 UpdateWaaaghWaves(deltaTime, transform.Position);
                 UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
             }
+            else if (m_Story.active && m_Story.result == 0) {   // PVE-STORY: ondate, obiettivi e capo del capitolo
+                UpdateStory(deltaTime, transform.Position);
+                UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
+            }
 
             AnimateUnits(deltaTime, transform.Position, true);
             ActionPose::ApplyCubes(m_Scene, m_PlayerEntity);   // pose delle azioni sugli scheletri a blocchi (bot e hitbox)
@@ -5950,6 +5974,9 @@ namespace SunEngine {
             else if (m_CurrentTab == MenuTab::Showcase) {
                 RenderShowcaseUI();
             }
+            else if (m_CurrentTab == MenuTab::Story) {
+                RenderStoryUI();
+            }
 
             if (m_CurrentTab == MenuTab::StasisVault || m_CurrentTab == MenuTab::Deployment) RenderPartyPanel();
             RenderPartyOverlay();
@@ -5980,6 +6007,7 @@ namespace SunEngine {
                 RenderNetMatchOverlay();
                 RenderPartyOverlay();   // avvisi della squadra anche in partita (cambio di squadra, nuovo host...)
                 if (m_VsBotActive) RenderVsBotHUD();
+                else if (m_Story.active) RenderStoryHUD();
                 else {
                     // Uccisioni dell'orda in alto a destra (in alto a sinistra ci sono salute, stamina e buff)
                     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 20.0f, 20.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
@@ -5993,6 +6021,9 @@ namespace SunEngine {
 
             if (m_VsBotActive && m_VsBotResult != 0) {
                 RenderVsBotResults();
+            }
+            else if (m_Story.active && m_Story.result != 0) {
+                RenderStoryEnd();
             }
             else if (isPlayerDead && m_VsBotActive) {
                 RenderVsBotDeathUI();
@@ -6155,6 +6186,7 @@ namespace SunEngine {
         const Nav navs[] = {
             { "GARAGE", inMenu && m_CurrentTab == MenuTab::StasisVault, Ui::Col::Gold },
             { "SCHIERAMENTO", inMenu && m_CurrentTab == MenuTab::Deployment, Ui::Col::Gold },
+            { "PVE-STORY", inMenu && m_CurrentTab == MenuTab::Story, Ui::Col::Amethyst },
             { "SERVER", inMenu && m_CurrentTab == MenuTab::Servers, Ui::Col::Phosphor },
             { "RICERCA", inMenu && m_CurrentTab == MenuTab::Research, Ui::Col::Gold },
             { "NEGOZIO", inMenu && m_CurrentTab == MenuTab::Shop, Ui::Col::Amethyst },
@@ -6182,6 +6214,10 @@ namespace SunEngine {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Servers;
             m_Party.RefreshServerList();
+        }
+        if (nav == "PVE-STORY") {   // le storie si giocano con i loro personaggi, non con la squadra del garage
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Story;
         }
         clickedNav = nav == "GARAGE" ? 0 : nav == "SCHIERAMENTO" ? 1 : nav == "RICERCA" ? 2 : nav == "NEGOZIO" ? 3 : nav == "VETRINA" ? 4 : nav == "EDITOR" ? 5 : nav == "OPZIONI" ? 6 : -1;
 
@@ -6303,7 +6339,7 @@ namespace SunEngine {
         if (m_PlayerRoster.empty()) {
             m_PlayerRoster.push_back(TrainedUnit{ "Coscritto", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
             m_PlayerRoster.push_back(TrainedUnit{ "Neofita Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
-            m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(0.34f, 0.40f, 0.21f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(kPighcibSkin, 1.0f) });
             for (auto& u : m_PlayerRoster) u.ApplyDefaultLoadout();
         }
         m_SelectedVaultIndex = 0;
@@ -6980,10 +7016,10 @@ namespace SunEngine {
                 }
                 else if (m_SelectedFaction == "Orks") {
                     if (Ui::PlainButton("Vrepigh (15 Pti)\n(Fante Vrepigh)", ImVec2(280, 50))) {
-                        recruitAction("orks_boy", "Gor-Gath", glm::vec4(0.24f, 0.33f, 0.15f, 1.0f));
+                        recruitAction("orks_boy", "Gor-Gath", glm::vec4(kVrepighSkin[2], 1.0f));
                     }
                     if (Ui::PlainButton("Vrepigh Capozanna (50 Pti)\n(Capoclan Vrepigh)", ImVec2(280, 50))) {
-                        recruitAction("orks_nob", "Uzgrak", glm::vec4(0.17f, 0.25f, 0.11f, 1.0f));
+                        recruitAction("orks_nob", "Uzgrak", glm::vec4(kVrepighSkin[4], 1.0f));
                     }
                 }
 
@@ -7051,10 +7087,12 @@ namespace SunEngine {
 
                 ImGui::Spacing(); ImGui::Spacing();
                 ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "CARNAGIONE");
-                // tinte tipiche della razza (orki e grot verdi, ogryn e umani dal pallido allo scuro)
+                // tinte tipiche della razza (Vrepighs dal grigio sporco al viola scurissimo, Pighcib grigi,
+                // ogryn e umani dal pallido allo scuro)
                 std::vector<glm::vec3> tones;
                 const std::string lb = bodyLabel;
-                if (lb == "ork" || lb == "gretchin") tones = { { 0.24f, 0.33f, 0.15f }, { 0.17f, 0.25f, 0.11f }, { 0.30f, 0.38f, 0.19f }, { 0.20f, 0.24f, 0.13f }, { 0.34f, 0.40f, 0.21f }, { 0.26f, 0.30f, 0.20f } };   // oliva e verdi spenti
+                if (lb == "ork") tones.assign(std::begin(kVrepighSkin), std::end(kVrepighSkin));
+                else if (lb == "gretchin") tones = { kPighcibSkin, { 0.44f, 0.41f, 0.43f }, kVrepighSkin[0], kVrepighSkin[1], { 0.34f, 0.30f, 0.33f }, kVrepighSkin[2] };
                 else tones = { { 0.86f, 0.68f, 0.58f }, { 0.80f, 0.62f, 0.52f }, { 0.70f, 0.52f, 0.40f }, { 0.56f, 0.40f, 0.30f }, { 0.42f, 0.29f, 0.21f }, { 0.30f, 0.20f, 0.15f } };
                 for (size_t i = 0; i < tones.size(); ++i) {
                     if (i > 0) ImGui::SameLine();
@@ -7577,7 +7615,7 @@ namespace SunEngine {
 
         // id del file mappa (non cambiarli: il profilo salva l'id) e nome mostrato
         const char* defaultMaps[] = { "warzone_sector4", "vaulting_test" };
-        const char* defaultMapLabels[] = { "Settore 4 - Complesso Militare", "Testing Lobby (vault + campo da tiro)" };
+        const char* defaultMapLabels[] = { "Vespera IV - Terza Serra", "Testing Lobby (vault + campo da tiro)" };
         static int selectedMapComboIdx = -1;
         if (selectedMapComboIdx < 0) {   // prima apertura: allinea alla mappa salvata nel profilo
             selectedMapComboIdx = 0;
@@ -7619,6 +7657,7 @@ namespace SunEngine {
 
         for (int i = 0; i < 5; ++i) {
             if (i == 1) continue;   // Recupero Dati: tolta dalla lista per ora
+            if (i == 0) continue;   // la sopravvivenza ora e' nella PVE-STORY (Primo Incontro), fuori dalle squadre
             bool isSelected = (m_SelectedEventIndex == i);
             if (isSelected) ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.88f, 0.52f, 0.24f, 1.0f));
 

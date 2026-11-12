@@ -26,9 +26,9 @@
         0.2
       ],
       "color": [
-        0.3,
-        0.33,
-        0.21,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -47,9 +47,9 @@
         0.19
       ],
       "color": [
-        0.3,
-        0.33,
-        0.21,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -76,7 +76,7 @@
       "inflate": 0.012,
       "plate_cells": 5,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.6,
       "metallic": 0.25
@@ -92,7 +92,7 @@
         0.86
       ],
       "inflate": 0.01,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 5,
       "roughness": 0.6,
       "metallic": 0.25

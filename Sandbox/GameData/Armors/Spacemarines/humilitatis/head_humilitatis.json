@@ -1,0 +1,179 @@
+{
+  "id": "head_humilitatis",
+  "displayName": "Elmo dell'Ordo Domus Humilitatis",
+  "comment": "Livrea di Konrad von Eber e dei suoi fratelli d'arme in 'Primo Incontro': avorio sporco con placche scure. Solo per la PVE-STORY (nessuna unita' la puo' comprare o indossare nel garage).",
+  "location": "Head",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "story_konrad"
+  ],
+  "armor_rating": 20,
+  "coverage": 0.8,
+  "max_durability": 180.0,
+  "weight": 0.0,
+  "point_cost": 3,
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.0,
+        0
+      ],
+      "size": [
+        0.37,
+        0.37,
+        0.37
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        -0.09,
+        -0.19
+      ],
+      "size": [
+        0.17,
+        0.11,
+        0.04
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.6
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.04,
+        -0.188
+      ],
+      "size": [
+        0.2,
+        0.018,
+        0.02
+      ],
+      "color": [
+        0.84,
+        0.82,
+        0.94,
+        1
+      ],
+      "roughness": 0.1,
+      "metallic": 0.2
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.115,
+        -0.19
+      ],
+      "size": [
+        0.024,
+        0.085,
+        0.016
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.13,
+        -0.19
+      ],
+      "size": [
+        0.07,
+        0.022,
+        0.016
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    }
+  ],
+  "blocks_headshot_bonus": true,
+  "garments": [
+    {
+      "id": "fb_helmet",
+      "bones": [
+        "Head",
+        "HeadTop_End",
+        "Neck"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.85,
+        1.0
+      ],
+      "inflate": 0.025,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "noise": 0.05
+    },
+    {
+      "id": "fb_helmet_grille",
+      "bones": [
+        "Head"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.855,
+        0.89
+      ],
+      "inflate": 0.03,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.5,
+      "metallic": 0.6,
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.55,
+      "max_abs_x": 0.025
+    }
+  ]
+}

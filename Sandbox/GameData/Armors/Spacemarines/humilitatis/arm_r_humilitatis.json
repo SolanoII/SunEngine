@@ -1,0 +1,219 @@
+{
+  "id": "arm_r_humilitatis",
+  "displayName": "Spallaccio (dx) dell'Ordo Domus Humilitatis",
+  "comment": "Livrea di Konrad von Eber e dei suoi fratelli d'arme in 'Primo Incontro': avorio sporco con placche scure. Solo per la PVE-STORY (nessuna unita' la puo' comprare o indossare nel garage).",
+  "location": "RightArm",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "story_konrad"
+  ],
+  "armor_rating": 14,
+  "coverage": 0.75,
+  "max_durability": 170.0,
+  "weight": 0.0,
+  "point_cost": 2,
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.05,
+        0.36,
+        0
+      ],
+      "size": [
+        0.52,
+        0.24,
+        0.52
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0.05,
+        0.25,
+        0
+      ],
+      "size": [
+        0.54,
+        0.04,
+        0.54
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.85
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        -0.3,
+        0
+      ],
+      "size": [
+        0.38,
+        0.26,
+        0.38
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        -0.45,
+        0
+      ],
+      "size": [
+        0.4,
+        0.06,
+        0.4
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.5
+    }
+  ],
+  "garments": [
+    {
+      "id": "fb_pauldron_r",
+      "bones": [
+        "RightShoulder",
+        "RightArm",
+        "Spine2"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.72,
+        0.9
+      ],
+      "inflate": 0.06,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "side": -1,
+      "min_abs_x": 0.075,
+      "max_abs_x": 0.2,
+      "noise": 0.1,
+      "plate_cells": 2,
+      "plate_step": 0.006
+    },
+    {
+      "id": "fb_rerebrace_r",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.7,
+        0.9
+      ],
+      "inflate": 0.024,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "side": -1
+    },
+    {
+      "id": "fb_vambrace_r",
+      "bones": [
+        "RightForeArm"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.7,
+        0.9
+      ],
+      "inflate": 0.028,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "side": -1,
+      "plate_cells": 3,
+      "plate_step": 0.003
+    },
+    {
+      "id": "fb_gauntlet_r",
+      "bones": [
+        "RightHand",
+        "RightHandThumb1",
+        "RightHandThumb2",
+        "RightHandThumb3",
+        "RightHandIndex1",
+        "RightHandIndex2",
+        "RightHandIndex3",
+        "RightHandMiddle1",
+        "RightHandMiddle2",
+        "RightHandMiddle3",
+        "RightHandRing1",
+        "RightHandRing2",
+        "RightHandRing3",
+        "RightHandPinky1",
+        "RightHandPinky2",
+        "RightHandPinky3"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.7,
+        0.9
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.6,
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "side": -1
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "id": "torso_humilitatis",
+  "displayName": "Corazza dell'Ordo Domus Humilitatis",
+  "comment": "Livrea di Konrad von Eber e dei suoi fratelli d'arme in 'Primo Incontro': avorio sporco con placche scure. Solo per la PVE-STORY (nessuna unita' la puo' comprare o indossare nel garage).",
+  "location": "Torso",
+  "faction": "SpaceMarines",
+  "allowed_units": [
+    "story_konrad"
+  ],
+  "armor_rating": 28,
+  "coverage": 0.95,
+  "max_durability": 360.0,
+  "weight": 0.0,
+  "point_cost": 6,
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.06,
+        -0.275
+      ],
+      "size": [
+        0.7,
+        0.62,
+        0.04
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.06,
+        0.275
+      ],
+      "size": [
+        0.7,
+        0.62,
+        0.04
+      ],
+      "color": [
+        0.7,
+        0.67,
+        0.58,
+        1
+      ],
+      "roughness": 0.4,
+      "metallic": 0.55
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.25,
+        -0.3
+      ],
+      "size": [
+        0.12,
+        0.12,
+        0.03
+      ],
+      "color": [
+        0.82,
+        0.42,
+        0.9,
+        1
+      ],
+      "roughness": 0.12,
+      "metallic": 0.0
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        -0.38,
+        0
+      ],
+      "size": [
+        0.82,
+        0.12,
+        0.56
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.5
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.46,
+        0
+      ],
+      "size": [
+        0.4,
+        0.06,
+        0.4
+      ],
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ],
+      "roughness": 0.5,
+      "metallic": 0.5
+    }
+  ],
+  "garments": [
+    {
+      "id": "fb_undersuit",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "Neck",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftArm",
+        "RightArm",
+        "LeftForeArm",
+        "RightForeArm",
+        "LeftUpLeg",
+        "RightUpLeg",
+        "LeftLeg",
+        "RightLeg"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.04,
+        0.87
+      ],
+      "inflate": 0.004,
+      "texture": "Textures/Garments/guard_fatigues.png",
+      "tex_tiles": 9,
+      "roughness": 0.85,
+      "metallic": 0.05,
+      "color": [
+        0.2,
+        0.19,
+        0.18,
+        1
+      ]
+    },
+    {
+      "id": "fb_cuirass",
+      "bones": [
+        "Spine1",
+        "Spine2"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.6,
+        0.83
+      ],
+      "inflate": 0.03,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "plate_cells": 4,
+      "plate_step": 0.004,
+      "noise": 0.15,
+      "noise_scale": 10
+    },
+    {
+      "id": "fb_abdomen",
+      "bones": [
+        "Spine",
+        "Hips"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.5,
+        0.62
+      ],
+      "inflate": 0.022,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "plate_cells": 7,
+      "plate_step": 0.003
+    },
+    {
+      "id": "fb_backpack",
+      "bones": [
+        "Spine1",
+        "Spine2"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.6,
+        0.82
+      ],
+      "inflate": 0.075,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ],
+      "facing": [
+        0,
+        0,
+        -1
+      ],
+      "facing_min": 0.35,
+      "max_abs_x": 0.09,
+      "plate_cells": 2,
+      "plate_step": 0.01
+    },
+    {
+      "id": "fb_gorget",
+      "bones": [
+        "Neck",
+        "Spine2"
+      ],
+      "min_weight": 0.35,
+      "height_range": [
+        0.81,
+        0.87
+      ],
+      "inflate": 0.035,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "roughness": 0.38,
+      "metallic": 0.55,
+      "color": [
+        0.92,
+        0.88,
+        0.78,
+        1
+      ]
+    }
+  ]
+}

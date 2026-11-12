@@ -56,6 +56,7 @@ namespace SunEngine {
         std::unordered_map<std::string, int64_t> studyPoints;
         std::set<std::string> researchedNodes;   // id dei nodi dell'albero di ricerca gia' sbloccati
         std::unordered_map<std::string, int64_t> weaponExp;   // id blueprint arma -> exp
+        nlohmann::json story = nlohmann::json::object();      // PVE-STORY: capitoli finiti e record (li legge il GameLayer)
 
         // --- Selezioni del garage ---
         std::vector<int> squadIndices;
@@ -116,6 +117,7 @@ namespace SunEngine {
             j["garage"] = { {"squadIndices", squadIndices}, {"selectedMapId", selectedMapId},
                             {"selectedEventIndex", selectedEventIndex} };
             j["roster"] = roster;
+            j["story"] = story;
             return j;
         }
 
@@ -170,6 +172,7 @@ namespace SunEngine {
                 }
             }
             if (j.contains("shop") && j["shop"].is_object()) p.vip = j["shop"].value("vip", false);
+            if (j.contains("story") && j["story"].is_object()) p.story = j["story"];
             // Profilo salvato prima della scala x1000: energia e punti studio passano alle migliaia
             if (j.value("version", 1) < 2) {
                 p.energy *= 1000;

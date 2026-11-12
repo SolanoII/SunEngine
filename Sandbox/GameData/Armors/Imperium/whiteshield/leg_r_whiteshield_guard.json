@@ -34,9 +34,9 @@
         0.03
       ],
       "color": [
-        0.3,
-        0.33,
-        0.21,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -55,9 +55,9 @@
         0.04
       ],
       "color": [
-        0.3,
-        0.33,
-        0.21,
+        0.36,
+        0.36,
+        0.35,
         1
       ],
       "roughness": 0.6,
@@ -81,7 +81,7 @@
       "inflate": 0.0045,
       "noise": 0.3,
       "noise_scale": 12,
-      "texture": "Textures/Garments/guard_fatigues.png",
+      "texture": "Textures/Garments/militia_fatigues.png",
       "tex_tiles": 6,
       "color": [
         0.9,
@@ -106,7 +106,7 @@
       ],
       "side": -1,
       "inflate": 0.006,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 6,
       "color": [
         0.42,
@@ -138,7 +138,7 @@
       "inflate": 0.012,
       "plate_cells": 5,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.6,
       "metallic": 0.25

@@ -668,9 +668,9 @@
           "purchase_cost": 85000,
           "default_name": "Scout Ilex",
           "color": [
-            0.45,
+            0.78,
+            0.62,
             0.52,
-            0.4,
             1
           ]
         },
@@ -686,9 +686,9 @@
           "purchase_cost": 165000,
           "default_name": "Fratello Titus",
           "color": [
-            0.05,
-            0.25,
-            0.75,
+            0.5,
+            0.5,
+            0.52,
             1
           ],
           "renamed_from": [
@@ -707,9 +707,9 @@
           "purchase_cost": 200000,
           "default_name": "Fratello Cassian",
           "color": [
-            0.2,
-            0.3,
-            0.7,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -725,9 +725,9 @@
           "purchase_cost": 240000,
           "default_name": "Veterano Adrax",
           "color": [
-            0.15,
-            0.22,
-            0.55,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -743,9 +743,9 @@
           "purchase_cost": 280000,
           "default_name": "Fratello Gideon",
           "color": [
-            0.55,
             0.5,
-            0.35,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -762,8 +762,8 @@
           "default_name": "Fratello Kaelen",
           "color": [
             0.5,
-            0.45,
-            0.3,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -779,9 +779,9 @@
           "purchase_cost": 400000,
           "default_name": "Capitano Severus",
           "color": [
-            0.75,
-            0.62,
-            0.25,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -797,9 +797,9 @@
           "purchase_cost": 200000,
           "default_name": "Fratello Damon",
           "color": [
-            0.3,
-            0.35,
-            0.7,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -815,9 +815,9 @@
           "purchase_cost": 240000,
           "default_name": "Fratello Icaro",
           "color": [
-            0.35,
-            0.4,
-            0.75,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -833,9 +833,9 @@
           "purchase_cost": 280000,
           "default_name": "Veterano Lysander",
           "color": [
-            0.25,
-            0.3,
-            0.6,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -851,9 +851,9 @@
           "purchase_cost": 330000,
           "default_name": "Veterano Aurelio",
           "color": [
-            0.6,
-            0.55,
-            0.4,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -869,9 +869,9 @@
           "purchase_cost": 400000,
           "default_name": "Capitano Varro",
           "color": [
-            0.7,
-            0.6,
-            0.25,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -887,9 +887,9 @@
           "purchase_cost": 200000,
           "default_name": "Fratello Brutus",
           "color": [
-            0.25,
-            0.28,
-            0.55,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -905,9 +905,9 @@
           "purchase_cost": 240000,
           "default_name": "Fratello Plinio",
           "color": [
-            0.2,
-            0.35,
-            0.6,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -923,9 +923,9 @@
           "purchase_cost": 280000,
           "default_name": "Fratello Vulkar",
           "color": [
-            0.3,
-            0.25,
             0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -941,9 +941,9 @@
           "purchase_cost": 330000,
           "default_name": "Fratello Garran",
           "color": [
-            0.05,
-            0.18,
-            0.6,
+            0.5,
+            0.5,
+            0.52,
             1
           ],
           "renamed_from": [
@@ -962,9 +962,9 @@
           "purchase_cost": 400000,
           "default_name": "Capitano Tyberos",
           "color": [
-            0.72,
-            0.58,
-            0.22,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -980,9 +980,9 @@
           "purchase_cost": 200000,
           "default_name": "Fratello Vael",
           "color": [
-            0.1,
-            0.22,
-            0.55,
+            0.5,
+            0.5,
+            0.52,
             1
           ],
           "renamed_from": [
@@ -1001,9 +1001,9 @@
           "purchase_cost": 240000,
           "default_name": "Fratello Nyx",
           "color": [
-            0.25,
-            0.3,
-            0.32,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -1019,9 +1019,9 @@
           "purchase_cost": 280000,
           "default_name": "Fratello Mortis",
           "color": [
-            0.15,
-            0.15,
-            0.18,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -1037,9 +1037,9 @@
           "purchase_cost": 330000,
           "default_name": "Fratello Silas",
           "color": [
-            0.22,
-            0.26,
-            0.24,
+            0.5,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -1055,9 +1055,9 @@
           "purchase_cost": 400000,
           "default_name": "Capitano Shrike",
           "color": [
-            0.6,
             0.5,
-            0.25,
+            0.5,
+            0.52,
             1
           ]
         },
@@ -1194,9 +1194,9 @@
           "purchase_cost": 15000,
           "default_name": "Snik",
           "color": [
-            0.3,
-            0.55,
-            0.25,
+            0.4,
+            0.37,
+            0.39,
             1
           ]
         },
@@ -1212,9 +1212,9 @@
           "purchase_cost": 35000,
           "default_name": "Grotz",
           "color": [
-            0.2,
-            0.6,
-            0.2,
+            0.31,
+            0.28,
+            0.32,
             1
           ]
         },
@@ -1230,9 +1230,9 @@
           "purchase_cost": 55000,
           "default_name": "Gor-Gath",
           "color": [
-            0.15,
-            0.6,
-            0.15,
+            0.27,
+            0.22,
+            0.29,
             1
           ]
         },
@@ -1248,9 +1248,9 @@
           "purchase_cost": 50000,
           "default_name": "Zogga",
           "color": [
-            0.18,
-            0.55,
-            0.18,
+            0.22,
+            0.17,
+            0.25,
             1
           ]
         },
@@ -1266,9 +1266,9 @@
           "purchase_cost": 60000,
           "default_name": "Mekk",
           "color": [
-            0.12,
-            0.45,
-            0.12,
+            0.22,
+            0.17,
+            0.25,
             1
           ]
         },
@@ -1284,9 +1284,9 @@
           "purchase_cost": 70000,
           "default_name": "Zoomgit",
           "color": [
-            0.4,
-            0.5,
-            0.25,
+            0.27,
+            0.22,
+            0.29,
             1
           ]
         },
@@ -1302,9 +1302,9 @@
           "purchase_cost": 90000,
           "default_name": "Grukk 'Ard",
           "color": [
-            0.3,
-            0.42,
             0.22,
+            0.17,
+            0.25,
             1
           ]
         },
@@ -1320,9 +1320,9 @@
           "purchase_cost": 70000,
           "default_name": "Snikrot il Giovane",
           "color": [
-            0.3,
-            0.4,
-            0.3,
+            0.31,
+            0.28,
+            0.32,
             1
           ]
         },
@@ -1338,9 +1338,9 @@
           "purchase_cost": 70000,
           "default_name": "Boomgut",
           "color": [
-            0.5,
-            0.42,
-            0.2,
+            0.27,
+            0.22,
+            0.29,
             1
           ]
         },
@@ -1378,9 +1378,9 @@
           "purchase_cost": 120000,
           "default_name": "Uzgrak",
           "color": [
-            0.08,
-            0.4,
-            0.08,
+            0.17,
+            0.12,
+            0.2,
             1
           ],
           "requires_mastered": [
@@ -1400,9 +1400,9 @@
           "purchase_cost": 160000,
           "default_name": "Gorbag Mega",
           "color": [
-            0.25,
-            0.25,
-            0.28,
+            0.17,
+            0.12,
+            0.2,
             1
           ]
         },
@@ -1418,9 +1418,9 @@
           "purchase_cost": 220000,
           "default_name": "Kapo Grozzak",
           "color": [
-            0.1,
-            0.3,
+            0.12,
             0.08,
+            0.15,
             1
           ]
         },
@@ -1436,9 +1436,9 @@
           "purchase_cost": 70000,
           "default_name": "Klankit",
           "color": [
-            0.5,
-            0.45,
-            0.3,
+            0.31,
+            0.28,
+            0.32,
             1
           ]
         },
@@ -1454,9 +1454,9 @@
           "purchase_cost": 90000,
           "default_name": "Mek Zogwort",
           "color": [
-            0.55,
-            0.42,
+            0.27,
             0.22,
+            0.29,
             1
           ]
         },
@@ -1472,9 +1472,9 @@
           "purchase_cost": 120000,
           "default_name": "Big Mek Gazbag",
           "color": [
-            0.6,
-            0.4,
-            0.18,
+            0.22,
+            0.17,
+            0.25,
             1
           ]
         },
@@ -1490,9 +1490,9 @@
           "purchase_cost": 160000,
           "default_name": "Boss Gork-Spanna",
           "color": [
-            0.55,
-            0.35,
-            0.15,
+            0.17,
+            0.12,
+            0.2,
             1
           ]
         },
@@ -1508,8 +1508,8 @@
           "purchase_cost": 220000,
           "default_name": "Boss Ferrocrank",
           "color": [
-            0.4,
-            0.3,
+            0.12,
+            0.08,
             0.15,
             1
           ]
