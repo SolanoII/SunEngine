@@ -149,7 +149,7 @@ Ordan consultò il terminale.
 Mi guardò.
 «Kell, se vedo un altro uomo chiedere dei Bellatores, gli sparo personalmente.»
 Non risposi.
-Il nostro signore era il barone di Vespera. Avevo visto il suo stemma sui documenti di arruolamento: una corona d'argento sopra tre spighe nere.
+Il capo del nostro signore era il barone di Vespera. Avevo visto il suo stemma sui documenti di arruolamento: una corona d'argento sopra tre spighe nere.
 Non sapevo dove fosse.
 Non sapevo se fosse vivo.
 Non sapevo nemmeno se fosse ancora sul pianeta.
@@ -189,7 +189,7 @@ Il Vrepigh grande emise un suono che non avevo mai sentito. Una specie di canto 
 Gli altri risposero.
 E ci vennero addosso.
 
-VI. Il livello quattro
+VI. Il livello tre
 Riuscimmo a chiudere la porta di sicurezza.
 Perdemmo altri due uomini.
 Ordan era ormai incapace di usare il braccio sinistro. Teren aveva una ferita alla gamba e io avevo perso il caricatore di riserva.
@@ -305,7 +305,7 @@ Me ne accorsi quando la prima figura avanzò.
 Le placche non si muovevano come quelle di una corazza comune. Seguivano il corpo con una precisione inquietante, scorrendo l'una sull'altra senza lasciare aperture visibili. In alcuni punti, sottili condotti entravano direttamente sotto le protezioni e scomparivano nella struttura dell'armatura.
 Non riuscivo a capire dove finisse l'uomo e dove cominciasse la macchina.
 Il loro passo era pesante, ma non goffo. Ogni movimento produceva un suono diverso: un lieve sibilo, un serraggio metallico, un impulso profondo proveniente dal torace. Quando uno di loro ruotò il capo, la visiera seguì il movimento con uno scatto quasi impercettibile.
-Il nucleo viola al centro del petto non sembrava una batteria inserita in un alloggiamento.
+Il nucleo bianco al centro del petto non sembrava una batteria inserita in un alloggiamento.
 Sembrava qualcosa di vivo, imprigionato dietro il metallo.
 La luce attraversava le fessure della corazza e si rifletteva sul vapore. Per un momento illuminò il volto di Lena, che aveva smesso di piangere.
 Avevo sentito parlare dei Vestments per tutta la vita. Avevo visto le loro statue, le loro immagini, i loro simboli sulle bandiere e sulle pareti delle cappelle.
@@ -760,8 +760,26 @@ Il cavaliere annuì.
 «Allora morirà qui.»
 
 XX. Tre cavalieri
-Non vidi come Konrad lo uccise.
-Vidi soltanto il momento in cui il Vrepigh cadde.
+Konrad non lo aspettò.
+Camminò verso di lui. Non corse. Passò accanto a Dietrich senza guardarlo, e Dietrich abbassò lo scudo e si fece da parte.
+Il capo smise di cantare.
+Era alto quasi il doppio del cavaliere. Per un momento si osservarono, e mi sembrò che la creatura stesse facendo quello che avevo fatto io nel condotto: cercare di capire che cosa avesse davanti.
+Poi colpì.
+Il braccio scese dall’alto come una trave. Konrad si spostò di mezzo passo e il pugno sfondò il pavimento dove un istante prima c’era lui. La lama scura salì lungo l’avambraccio della creatura e lo aprì fino al gomito.
+Il Vrepigh non gridò.
+Con l’altra mano afferrò il cavaliere per la spalla e lo sollevò da terra.
+Sentii le piastre cedere. Lo stesso rumore che avevo sentito quando avevano preso Ordan.
+Qualcuno accanto a me alzò il fucile. Dietrich gli abbassò la canna con due dita.
+«No.»
+La luce nel petto di Konrad si spense.
+Questa volta non pensai che fosse caduto. Avevo già visto cosa veniva dopo.
+Tornò bianca, e più forte di quanto l’avessi mai vista. Attraversò la corazza incrinata, scese lungo il braccio e raggiunse la spada. Konrad non cercò di liberarsi. Piantò la lama sotto la mandibola della creatura, dove finivano le placche e cominciava la collana, e spinse.
+Il capo lo lasciò.
+Fece due passi indietro. Portò la mano alla gola, alle pietre viola, come se volesse assicurarsi che fossero ancora lì. Aprì la bocca per cantare e non uscì niente.
+Konrad era in ginocchio. Si rialzò lentamente, appoggiandosi alla spada come un vecchio al bastone.
+Poi la sollevò un’ultima volta.
+Non ci fu nessun grido di vittoria.
+Soltanto il colpo.
 Il suo corpo colpì il pavimento e la collana di frammenti viola si spezzò.
 Le pietre rotolarono tra i detriti.
 Per qualche istante, nessuno si mosse.
@@ -835,6 +853,9 @@ La luce della stella filtrava attraverso le nubi e i vetri spezzati.
 I Vrepighs si erano ritirati verso le zone industriali del pianeta. Non sapevamo se sarebbero tornati.
 Non sapevamo nemmeno se la flotta del Kingship fosse ancora in grado di combattere.
 Adelheid stava medicando un soldato.
+Lena era seduta accanto a lei, su una cassa di munizioni vuota. Aveva ancora il pupazzo. Gli mancava un braccio.
+Quando mi vide alzò la mano, come si saluta qualcuno che si conosce da sempre.
+Era la prima cosa di quella giornata che non mi fece paura.
 Dietrich era seduto sopra una cassa, mentre alcuni tecnici cercavano di riparare la sua armatura.
 Konrad osservava l'orizzonte.
 Mi avvicinai.
@@ -887,7 +908,7 @@ Lo guardai.
 «Quando?»
 «Prima di arrivare qui.»
 Non disse altro.
-Capì.
+Capii.
 Rimasi in silenzio.
 Poi Teren tirò fuori un piccolo pezzo di metallo.
 Era il distintivo del sergente Ordan.
@@ -907,7 +928,21 @@ Adelheid guardò il distintivo.
 «Allora scrivete il suo nome.»
 «Lo faremo.»
 La donna abbassò il capo.
+Teren non la lasciò andare.
+«Mia sorella lavorava alla germinazione. Elin. Ha sedici anni.»
+Adelheid si fermò.
+«Ho guardato tra i superstiti», continuò lui. «Tutti. Due volte.»
+Tirò fuori dalla tasca un tesserino di servizio. Era piegato a metà e una delle due facce era scura.
+«Questo era vicino alle vasche. Solo questo.»
+Nessuno di noi disse quello che pensavamo. Avevamo visto tutti che cosa facevano i Vrepighs con quelli che trovavano.
+Adelheid guardò il tesserino a lungo. Più a lungo di quanto avesse guardato il distintivo di Ordan.
+«Non era tra i morti che ho contato», disse.
+«E allora dov’è?»
+La visiera non si mosse.
+«Scrivete soltanto i nomi di chi avete visto cadere.»
 Poi si allontanò.
+Teren rimase con il tesserino in mano. Quella notte non scrisse il nome di sua sorella.
+Non lo scrissi nemmeno io.
 
 XXIII. L'Ordine
 Il giorno seguente ricevemmo la notizia.
@@ -923,6 +958,9 @@ Li vidi partire dalla zona di atterraggio.
 Konrad portava di nuovo il casco.
 Adelheid aveva il mantello chiuso.
 Dietrich aveva una nuova protezione sul braccio.
+Due tecnici caricarono sulla navetta una lettiga chiusa. Non portava lo stemma del barone, né quello della milizia. Soltanto una croce semplice.
+Pensai che fosse uno dei loro.
+Non avevo visto cadere nessuno dei loro.
 Tre figure in armatura, diverse da tutto ciò che avevo conosciuto.
 Non sembravano uomini.
 Non sembravano dèi.
@@ -953,6 +991,7 @@ Guardai la statua.
 Pensai a Ordan.
 A Teren.
 A Lena.
+A Elin, che non aveva un corpo da seppellire.
 Ai morti della Terza Serra.
 Pensai ai tre cavalieri dell'Ordo Domus Humilitatis.
 E per la prima volta mi domandai cosa significasse davvero seguire Solano.
