@@ -102,6 +102,10 @@ namespace SunEngine {
         float bellyAngle = 0.0f, bellyVel = 0.0f;
         float pauldron = 0.0f, pauldronVel = 0.0f;
         float jawOpen = 0.0f, chatterTimer = 0.0f, chatterTarget = 0.0f;
+        // inerzia del corpo: velocita' lisciata nel riferimento del corpo, piegamenti a molla
+        float velFwd = 0.0f, velSide = 0.0f;
+        float leanFwd = 0.0f, leanFwdVel = 0.0f, leanSide = 0.0f, leanSideVel = 0.0f;
+        float turnLean = 0.0f, aimPitch = 0.0f;
         unsigned int seed = 1u;
         float Rand() { seed = seed * 1664525u + 1013904223u; return static_cast<float>((seed >> 8) & 0xffff) / 65535.0f; }
     };
@@ -114,6 +118,9 @@ namespace SunEngine {
         bool aiming = false, sprinting = false, crouching = false;
         bool roar = false;           // urlo: carica, WAAAGH!, colpo pesante
         float yaw = 0.0f;            // orientamento del corpo (gradi): la testa reagisce alle girate (molle)
+        float velFwd = 0.0f, velSide = 0.0f;   // velocita' nel riferimento del corpo (m/s; lato + = destra)
+        float aimPitch = 0.0f;       // dove mira in altezza (gradi, + = in alto): il busto accompagna l'arma
+        bool inertia = false;        // true = applica l'inerzia del corpo (chi chiama ha riempito velFwd / velSide)
     };
 
     namespace RaceMotionDetail {
@@ -221,6 +228,37 @@ namespace SunEngine {
         while (dyaw < -180.0f) dyaw += 360.0f;
         s.lastHeadYaw = in.yaw;
         const float yawVel = dt > 0.0f ? dyaw / dt : 0.0f;
+
+        // --- inerzia: un corpo ha peso. Si piega in avanti quando parte, si raddrizza indietro quando frena (con
+        // un piccolo assestamento, e' una molla), si inclina di lato negli scarti e dentro le curve correndo, e il
+        // busto accompagna l'arma quando mira in alto o in basso invece di restare dritto come un palo.
+        if (in.inertia && dt > 1e-5f) {
+            const float k = std::min(1.0f, dt * 12.0f);
+            const float prevF = s.velFwd, prevS = s.velSide;
+            s.velFwd += (in.velFwd - s.velFwd) * k;
+            s.velSide += (in.velSide - s.velSide) * k;
+            const float accF = std::clamp((s.velFwd - prevF) / dt, -14.0f, 14.0f);
+            const float accS = std::clamp((s.velSide - prevS) / dt, -14.0f, 14.0f);
+            const float run = std::clamp(s.velFwd / 6.0f, -0.3f, 1.0f);
+            Spring(s.leanFwd, s.leanFwdVel, accF * 0.9f + run * 4.0f, 70.0f, 11.0f, dt);
+            Spring(s.leanSide, s.leanSideVel, accS * 0.8f + s.velSide * 1.2f, 70.0f, 11.0f, dt);
+            s.leanFwd = std::clamp(s.leanFwd, -8.0f, 11.0f);
+            s.leanSide = std::clamp(s.leanSide, -8.0f, 8.0f);
+            approach(s.turnLean, std::clamp(yawVel * std::max(0.0f, s.velFwd) * 0.006f, -7.0f, 7.0f), 6.0f);
+            approach(s.aimPitch, in.aimPitch, 10.0f);
+            const float hold = in.crouching ? 0.5f : 1.0f;
+            pose.Rotate("Spine", Rx(s.leanFwd * 0.5f * hold) * Rz((s.leanSide * 0.5f - s.turnLean * 0.6f) * hold));
+            pose.Rotate("Spine1", Rx(s.leanFwd * 0.3f * hold) * Rz((s.leanSide * 0.3f - s.turnLean * 0.4f) * hold));
+            pose.Rotate("Head", Rx(-s.leanFwd * 0.5f * hold) * Rz(-(s.leanSide * 0.5f - s.turnLean * 0.6f) * hold));   // lo sguardo resta dritto
+            pose.hipsOffset.y -= std::fabs(s.leanFwd) * 0.0012f * in.legLen;      // chi si piega si abbassa un filo
+            // busto dietro la mira: meta' dell'alzo sulle vertebre, un po' sul collo
+            const float ap = std::clamp(s.aimPitch, -60.0f, 60.0f) * (0.35f + 0.25f * s.aimBlend);
+            pose.Rotate("Spine", Rx(-ap * 0.25f));
+            pose.Rotate("Spine1", Rx(-ap * 0.35f));
+            pose.Rotate("Spine2", Rx(-ap * 0.40f));
+            pose.Rotate("Neck", Rx(-s.aimPitch * 0.15f));
+            pose.Rotate("Head", Rx(-s.aimPitch * 0.20f));
+        }
         const float headYawVel = yawVel + (s.lookTargetYaw - s.lookYaw) * p.lookSpeed * lookK;
 
         // --- ossa in piu' ---

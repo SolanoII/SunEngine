@@ -26,6 +26,7 @@
 #include "Engine/Net/NetParty.h"
 #include "ResearchTree.h"
 #include "Engine/ECS/BlockModel.h"
+#include "Engine/ECS/WeaponHold.h"
 #include "Engine/ECS/RenderSystem.h"
 #include "Engine/ECS/WeaponSystem.h"
 #include "Engine/ECS/AmmoSystem.h"
@@ -476,6 +477,13 @@ namespace SunEngine {
             int lastAmmo = -1;
             bool bindPose = false;                 // manichini del campo da tiro: posa in T come le hitbox
             bool poseFresh = false;                // posa ricostruita in questo frame: l'IK delle mani va ancora aggiunta
+            // Leggi dell'impugnatura (WeaponHold.h): stato dell'arma in mano e comandi dell'ultimo fotogramma
+            WeaponHoldState hold;
+            bool holdAiming = false, holdSprinting = false, holdShot = false;
+            float holdSpeed = 0.0f, holdDt = 0.0f;
+            glm::vec3 smoothVel{ 0.0f };           // velocita' lisciata: niente scatti fra una clip e l'altra
+            bool moving = false;
+            int moveDir = 0;                       // 0 avanti, 1 indietro, 2 destra, 3 sinistra
             std::vector<entt::entity> skinParts;   // pezzi della skin agganciati alle ossa
         };
         std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
@@ -500,6 +508,10 @@ namespace SunEngine {
         struct RaceMotionSlot { RaceMotionState state; glm::vec3 lastPos{ 0.0f }; bool has = false; };
         std::unordered_map<entt::entity, RaceMotionSlot> m_RaceMotion;
         bool m_PlayerAimingNow = false;
+        // Leggi dell'impugnatura per il giocatore: una memoria per mano e i comandi dell'ultimo fotogramma
+        WeaponHoldState m_HoldRight, m_HoldLeft;
+        RifleAnimInput m_HoldInput;
+        float m_HoldDt = 0.0f;
 
         // --- Vetrina (GameLayerShowcase.cpp) ---
         enum class ShowcaseAnim { Idle = 0, Aim, Walk, Run, Fire, MeleeNormal, MeleeLow, MeleeHeavy, Parry, Stunned, Roar, Count };
@@ -662,6 +674,12 @@ namespace SunEngine {
         void BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime);
         void RenderHitboxOverlay();                        // campo da tiro: hitbox trasparenti sopra il corpo 3D
         bool PlaceBotWeaponOnHand(entt::entity bot, TransformComponent& weaponTransform, const BlockModel* model);
+        // Leggi dell'impugnatura (WeaponHold.h) sul corpo animato: posa l'arma rispetto alle spalle. basis = rotazione.
+        bool SolveHoldOnBody(RifleAnimationController& ctrl, const TransformComponent& visualT, float bodyYawDeg,
+            const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis);
+        static WeaponHoldKind HoldKindOf(const WeaponBlueprint* bp, const BlockModel& model, bool otherHandBusy);
+        // Bocca della canna nel mondo -> MuzzleComponent dell'unita': il colpo parte da li' (WeaponSystem)
+        void PublishMuzzle(entt::entity unit, const TransformComponent& weaponTransform, const BlockModel* model, bool leftHand = false);
         // IK delle braccia: porta i palmi sulle impugnature dell'arma (punti nel mondo, nullptr = mano libera)
         void ApplyHandIK(RifleAnimationController& ctrl, ProceduralPose& pose, const TransformComponent& visualT,
             const glm::vec3* gripRightWorld, const glm::vec3* gripLeftWorld);
@@ -669,7 +687,8 @@ namespace SunEngine {
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
         RifleAnimationController& AnimatedBodyController(AnimatedBodyKind kind);
         RifleAnimationController& ActiveAnimController();   // controller del modello animato in uso
-        bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model = nullptr);
+        bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model = nullptr,
+            const WeaponBlueprint* bp = nullptr, bool otherHandBusy = false);
 
         // --- Modelli a blocchi delle armi (GameData/BlockModels/<id arma>.json) ---
         void LoadBlockModels();

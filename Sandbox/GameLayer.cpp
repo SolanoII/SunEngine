@@ -2490,15 +2490,24 @@ namespace SunEngine {
                 if (inst.hasLast) v = (t.Position - inst.lastPos) / deltaTime;
                 inst.lastPos = t.Position; inst.hasLast = true;
                 v.y = 0.0f;
-                float speed = glm::length(v);
-                if (speed > 15.0f) speed = 0.0f, v = glm::vec3(0.0f);   // teletrasporto (rientro): niente corsa
+                if (glm::length(v) > 15.0f) { v = glm::vec3(0.0f); inst.smoothVel = glm::vec3(0.0f); }   // teletrasporto (rientro): niente corsa
+                // Velocita' lisciata: la spinta di un compagno o un passo di lato dell'IA non fanno cambiare clip
+                inst.smoothVel += (v - inst.smoothVel) * std::min(1.0f, deltaTime * 9.0f);
+                v = inst.smoothVel;
+                const float speed = glm::length(v);
                 const float yr = glm::radians(t.Rotation.y);
                 const glm::vec3 fwd(-std::sin(yr), 0.0f, -std::cos(yr)), right(std::cos(yr), 0.0f, -std::sin(yr));
                 const float f = glm::dot(v, fwd), sd = glm::dot(v, right);
-                in.isMoving = speed > 0.35f;
+                // Isteresi: parte sopra 0,45 m/s, si ferma sotto 0,2; la direzione cambia solo se l'altra prevale del 30%
+                inst.moving = inst.moving ? speed > 0.2f : speed > 0.45f;
+                in.isMoving = inst.moving;
                 if (in.isMoving) {
-                    if (std::abs(f) >= std::abs(sd)) { in.forward = f > 0.0f; in.backward = f < 0.0f; }
-                    else { in.right = sd > 0.0f; in.left = sd < 0.0f; }
+                    const bool alongNow = inst.moveDir < 2;
+                    const bool along = alongNow ? std::abs(f) * 1.3f >= std::abs(sd) : std::abs(f) > std::abs(sd) * 1.3f;
+                    if (along) inst.moveDir = (inst.moveDir == 1 ? f < 0.15f : f < -0.15f) ? 1 : 0;
+                    else inst.moveDir = (inst.moveDir == 3 ? sd < 0.15f : sd < -0.15f) ? 3 : 2;
+                    in.forward = inst.moveDir == 0; in.backward = inst.moveDir == 1;
+                    in.right = inst.moveDir == 2; in.left = inst.moveDir == 3;
                 }
                 if (const auto* st = reg.try_get<UnitStatsComponent>(e)) in.sprinting = st->sprinting || speed > std::max(1.0f, st->baseSpeed) * 1.25f;
                 in.groundSpeed = speed;
@@ -2508,6 +2517,12 @@ namespace SunEngine {
                     in.firing = in.shotFired;
                     inst.lastAmmo = ws->currentAmmo;
                 }
+                // Leggi dell'impugnatura: stato per l'arma in mano (PlaceBotWeaponOnHand)
+                inst.holdAiming = in.aiming || in.firing;
+                inst.holdSprinting = in.sprinting && in.isMoving;
+                inst.holdShot = inst.holdShot || in.shotFired;
+                inst.holdSpeed = in.isMoving ? speed : 0.0f;
+                inst.holdDt = deltaTime;
                 if (const auto* cr = reg.try_get<CrouchComponent>(e)) in.crouching = cr->amount > 0.5f;
                 inst.poseTime += deltaTime;
                 BuildUnitPose(e, inst.pose, *inst.ctrl, inst.poseTime, inst.climb, deltaTime);
@@ -2577,20 +2592,42 @@ namespace SunEngine {
         aimRot = glm::rotate(aimRot, glm::radians(t.AimPitch * m_WeaponPitchFactor), glm::vec3(1.0f, 0.0f, 0.0f));
         const glm::vec3 aimDir = glm::normalize(glm::vec3(aimRot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
         glm::vec3 anchorWorld = handR, anchorLocal(0.0f);
-        if (model && model->hasGripRight) anchorLocal = model->gripRight;
-        if (model && model->hasGripRight && model->hasGripLeft && inst.ctrl->GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
-            anchorWorld = (handR + glm::vec3((vt.GetTransform() * boneL)[3])) * 0.5f;
-            anchorLocal = (model->gripRight + model->gripLeft) * 0.5f;
-        }
-        const glm::vec3 zAxis = -aimDir;
-        glm::vec3 xAxis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), zAxis);
-        if (glm::length(xAxis) < 1e-3f) xAxis = glm::vec3(1.0f, 0.0f, 0.0f);
-        xAxis = glm::normalize(xAxis);
-        const glm::vec3 yAxis = glm::cross(zAxis, xAxis);
         glm::mat4 basis(1.0f);
-        basis[0] = glm::vec4(xAxis, 0.0f); basis[1] = glm::vec4(yAxis, 0.0f); basis[2] = glm::vec4(zAxis, 0.0f);
-        if (!model) anchorLocal = glm::vec3(0.0f, 0.0f, 0.30f);   // cubo: impugnato a un'estremita'
-        wt.Position = anchorWorld - glm::vec3(basis * glm::vec4(anchorLocal, 0.0f));
+        bool held = false;
+        WeaponHoldKind holdKind = WeaponHoldKind::Rifle;
+        if (model && model->hasGripRight) {
+            // Leggi dell'impugnatura (WeaponHold.h): calcio alla spalla, pronto basso, corsa, arma bianca sull'avambraccio
+            std::string weaponId;
+            if (const auto* wid = reg.try_get<WeaponBlueprintId>(bot)) weaponId = wid->id;
+            const WeaponBlueprint* bp = weaponId.empty() ? nullptr : BlueprintManager::Get().GetWeapon(weaponId);
+            if (!bp) bp = BlueprintManager::Get().GetWeapon(model->id);
+            WeaponHoldInput in;
+            in.kind = holdKind = HoldKindOf(bp, *model, false);
+            in.aimDir = aimDir;
+            const auto* ms = reg.try_get<MeleeStateComponent>(bot);
+            in.aiming = inst.holdAiming && !(ms && ms->currentPhase != MeleePhase::None);
+            in.sprinting = inst.holdSprinting;
+            in.shot = inst.holdShot;
+            in.speed = inst.holdSpeed;
+            in.dt = inst.poseFresh ? inst.holdDt : 0.0f;
+            held = SolveHoldOnBody(*inst.ctrl, vt, t.Rotation.y, *model, in, inst.hold, wt, basis);
+            inst.holdShot = false;
+        }
+        if (!held) {
+            if (model && model->hasGripRight) anchorLocal = model->gripRight;
+            if (model && model->hasGripRight && model->hasGripLeft && inst.ctrl->GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
+                anchorWorld = (handR + glm::vec3((vt.GetTransform() * boneL)[3])) * 0.5f;
+                anchorLocal = (model->gripRight + model->gripLeft) * 0.5f;
+            }
+            const glm::vec3 zAxis = -aimDir;
+            glm::vec3 xAxis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), zAxis);
+            if (glm::length(xAxis) < 1e-3f) xAxis = glm::vec3(1.0f, 0.0f, 0.0f);
+            xAxis = glm::normalize(xAxis);
+            const glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+            basis[0] = glm::vec4(xAxis, 0.0f); basis[1] = glm::vec4(yAxis, 0.0f); basis[2] = glm::vec4(zAxis, 0.0f);
+            if (!model) anchorLocal = glm::vec3(0.0f, 0.0f, 0.30f);   // cubo: impugnato a un'estremita'
+            wt.Position = anchorWorld - glm::vec3(basis * glm::vec4(anchorLocal, 0.0f));
+        }
         float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
         glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);
         wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
@@ -2598,9 +2635,16 @@ namespace SunEngine {
         if (inst.poseFresh && model && model->hasGripRight) {
             const glm::vec3 gR = wt.Position + glm::vec3(basis * glm::vec4(model->gripRight, 0.0f));
             const glm::vec3 gL = wt.Position + glm::vec3(basis * glm::vec4(model->gripLeft, 0.0f));
-            ApplyHandIK(*inst.ctrl, inst.pose, vt, &gR, model->hasGripLeft ? &gL : nullptr);
+            const bool leftOn = model->hasGripLeft && (!held || holdKind == WeaponHoldKind::Rifle);   // a una mano e armi bianche: sinistra libera
+            ApplyHandIK(*inst.ctrl, inst.pose, vt, &gR, leftOn ? &gL : nullptr);
         }
         inst.poseFresh = false;
+        // Il colpo parte dalla bocca della canna, anche per i bot
+        {
+            TransformComponent probe = wt;
+            probe.Scale = glm::vec3(1.0f);
+            PublishMuzzle(bot, probe, model);
+        }
         return true;
     }
 
@@ -2623,9 +2667,15 @@ namespace SunEngine {
             // Palmo stimato: un terzo di avambraccio oltre il polso (come in PoseLib::ArmIK)
             const glm::vec3 palmWorld = glm::vec3(toWorld * glm::vec4(H + (H - E) * 0.3f, 1.0f));
             const float d = glm::distance(palmWorld, gripWorld);
-            const float w = 1.0f - std::clamp((d - 0.22f) / 0.15f, 0.0f, 1.0f);
+            // L'arma segue le leggi dell'impugnatura (spalla, pronto basso, corsa): sta anche a mezzo metro da dove
+            // la clip tiene le mani. Solo una mano lontana piu' di un braccio sta facendo altro (lancio, oggetti).
+            const float scale = glm::length(glm::vec3(toWorld[1]));
+            const float reach = (glm::length(E - S) + glm::length(H - E)) * scale;
+            const float w = 1.0f - std::clamp((d - reach * 1.05f) / (reach * 0.45f), 0.0f, 1.0f);
             if (w <= 0.0f) return;
-            PoseLib::ArmIK(pose, side, S, E, H, glm::vec3(toMesh * glm::vec4(gripWorld, 1.0f)), w);
+            // Gomito in basso e un po' in fuori (X della mesh = sinistra del personaggio): niente gomiti alti da pollo
+            const glm::vec3 pole(side == "Right" ? -0.45f : 0.45f, -1.0f, -0.25f);
+            PoseLib::ArmIK(pose, side, S, E, H, glm::vec3(toMesh * glm::vec4(gripWorld, 1.0f)), w, &pole);
             changed = true;
         };
         if (gripRightWorld) arm("Right", *gripRightWorld);
@@ -3586,7 +3636,13 @@ namespace SunEngine {
         if (slot.has && deltaTime > 0.0f) {
             glm::vec3 d = t.Position - slot.lastPos; d.y = 0.0f;
             in.speed = glm::length(d) / deltaTime;
-            if (in.speed > 15.0f) in.speed = 0.0f;   // teletrasporto / rientro
+            if (in.speed > 15.0f) { in.speed = 0.0f; d = glm::vec3(0.0f); }   // teletrasporto / rientro
+            // inerzia del corpo: velocita' nel riferimento del corpo e alzo della mira (RaceMotion.h)
+            const float yr = glm::radians(t.Rotation.y);
+            in.velFwd = glm::dot(d, glm::vec3(-std::sin(yr), 0.0f, -std::cos(yr))) / deltaTime;
+            in.velSide = glm::dot(d, glm::vec3(std::cos(yr), 0.0f, -std::sin(yr))) / deltaTime;
+            in.aimPitch = t.AimPitch;
+            in.inertia = m_GameState == GameState::Gameplay;
         }
         slot.lastPos = t.Position; slot.has = true;
         in.legLen = legLen;
@@ -4209,6 +4265,8 @@ namespace SunEngine {
         const AnimatedBodyKind kind = CurrentAnimatedBodyKind();
         const bool modelReady = AnimatedBodyReady(kind);
         RifleAnimationController& controller = AnimatedBodyController(kind);
+        m_HoldInput = input;   // leggi dell'impugnatura: mira, corsa, colpo e velocita' di questo fotogramma
+        m_HoldDt = deltaTime;
         if (modelReady) {
             BuildPlayerPose(deltaTime, controller);   // azioni senza clip, sopra la clip in corso
             controller.SetProceduralPose(&m_PlayerPose);
@@ -4340,7 +4398,48 @@ namespace SunEngine {
     // Posiziona un'arma (cubo) sulla mano destra/sinistra del modello animato. Posizione = osso della
     // mano + offset (destra/su/avanti rispetto al corpo); orientamento = direzione del corpo con
     // inclinazione di mira, oppure quello della mano (m_WeaponFollowsHand). Tutto tarabile dalle Opzioni.
-    bool GameLayer::PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model) {
+    // Corpo di chi impugna (spalle, gomito, mano nel mondo) dalle ossa del fotogramma, poi le leggi di WeaponHold.h
+    bool GameLayer::SolveHoldOnBody(RifleAnimationController& ctrl, const TransformComponent& visualT, float bodyYawDeg,
+        const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis) {
+        const char* strong = in.leftHand ? "Left" : "Right";
+        const char* other = in.leftHand ? "Right" : "Left";
+        glm::mat4 tS(1.0f), tO(1.0f), tE(1.0f), tH(1.0f);
+        const std::string pre = "mixamorig1:";
+        if (!ctrl.GetBoneModelTransform(pre + strong + "Arm", tS) || !ctrl.GetBoneModelTransform(pre + other + "Arm", tO) ||
+            !ctrl.GetBoneModelTransform(pre + strong + "ForeArm", tE) || !ctrl.GetBoneModelTransform(pre + strong + "Hand", tH)) return false;
+        const glm::mat4 toWorld = visualT.GetTransform();
+        WeaponHoldBody body;
+        body.shoulder = glm::vec3((toWorld * tS)[3]);
+        body.otherShoulder = glm::vec3((toWorld * tO)[3]);
+        body.elbow = glm::vec3((toWorld * tE)[3]);
+        body.hand = glm::vec3((toWorld * tH)[3]);
+        body.armLen = glm::distance(body.shoulder, body.elbow) + glm::distance(body.elbow, body.hand);
+        const float yr = glm::radians(bodyYawDeg);
+        body.fwd = glm::vec3(-std::sin(yr), 0.0f, -std::cos(yr));
+        const WeaponHoldResult r = SolveWeaponHold(state, body, WeaponGripsOf(model), in);
+        basis = r.basis;
+        weaponTransform.Position = r.position;
+        return true;
+    }
+
+    WeaponHoldKind GameLayer::HoldKindOf(const WeaponBlueprint* bp, const BlockModel& model, bool otherHandBusy) {
+        if (bp && bp->is_melee) return WeaponHoldKind::Melee;
+        if (model.hasGripLeft && !otherHandBusy && !(bp && bp->hand_type == HandType::OneHanded)) return WeaponHoldKind::Rifle;
+        return WeaponHoldKind::Pistol;
+    }
+
+    void GameLayer::PublishMuzzle(entt::entity unit, const TransformComponent& weaponTransform, const BlockModel* model, bool leftHand) {
+        auto& reg = m_Scene.GetRegistry();
+        if (!reg.valid(unit)) return;
+        if (!model || !model->hasMuzzle) { if (reg.all_of<MuzzleComponent>(unit)) reg.remove<MuzzleComponent>(unit); return; }
+        auto& mz = reg.get_or_emplace<MuzzleComponent>(unit);
+        const glm::vec3 p = glm::vec3(weaponTransform.GetTransform() * glm::vec4(model->muzzle, 1.0f));
+        if (leftHand) { mz.left = p; mz.hasLeft = true; }
+        else { mz.right = p; mz.hasRight = true; }
+    }
+
+    bool GameLayer::PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model,
+        const WeaponBlueprint* bp, bool otherHandBusy) {
         auto& reg = m_Scene.GetRegistry();
         glm::mat4 bone(1.0f);
         const char* boneName = leftHand ? "mixamorig1:LeftHand" : "mixamorig1:RightHand";
@@ -4359,48 +4458,38 @@ namespace SunEngine {
         // Modello a blocchi con impugnatura: l'arma si orienta lungo la linea mano destra -> mano sinistra
         // (impugnatura e guardamano), cosi' "sta in braccio" al soldato com'e' nell'animazione. Se il
         // modello non ha l'appoggio sinistro, o l'arma e' a una mano, segue il corpo (direzione + mira).
-        if (model && model->hasGripRight) {
+        // Equipaggiamento (auspex, medikit, cassa...): resta nella mano, come prima.
+        const bool equipment = bp && !bp->equipment_type.empty();
+        if (model && model->hasGripRight && !equipment) {
             // Direzione di mira = la stessa che WeaponSystem usa per il colpo (AimYaw / AimPitch)
             glm::mat4 aimRot = glm::rotate(glm::mat4(1.0f), glm::radians(pt->AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
             aimRot = glm::rotate(aimRot, glm::radians(pt->AimPitch * m_WeaponPitchFactor), glm::vec3(1.0f, 0.0f, 0.0f));
-            const glm::vec3 aimDir = glm::normalize(glm::vec3(aimRot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
 
-            // L'arma e' DRITTA lungo la mira (prima seguiva la linea mano dx -> mano sx, che nelle clip
-            // Mixamo e' inclinata di ~25 gradi verso il centro: per questo il fucile risultava storto).
-            // Per le armi a due mani il punto medio delle due prese cade tra le due mani.
-            glm::vec3 anchorWorld = handPos;
-            glm::vec3 anchorLocal = model->gripRight;
-            glm::vec3 barrelDir = aimDir;
-            glm::mat4 boneL(1.0f);
-            if (!leftHand && model->hasGripLeft && ActiveAnimController().GetBoneModelTransform("mixamorig1:LeftHand", boneL)) {
-                const glm::vec3 leftPos = glm::vec3((vt->GetTransform() * boneL)[3]);
-                const glm::vec3 handLine = leftPos - handPos;
-                if (glm::length(handLine) > 1e-4f && m_WeaponHandAlign > 0.0f) {
-                    barrelDir = glm::normalize(glm::mix(aimDir, glm::normalize(handLine), m_WeaponHandAlign));
-                }
-                anchorWorld = (handPos + leftPos) * 0.5f;
-                anchorLocal = (model->gripRight + model->gripLeft) * 0.5f;
-            }
-
-            // Base ortonormale: il modello ha la canna verso -Z, +Y alto, +X destra
-            const glm::vec3 zAxis = -barrelDir;
-            glm::vec3 xAxis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), zAxis);
-            if (glm::length(xAxis) < 1e-3f) xAxis = right;
-            xAxis = glm::normalize(xAxis);
-            const glm::vec3 yAxis = glm::cross(zAxis, xAxis);
-
+            // Leggi dell'impugnatura (WeaponHold.h): l'arma nasce dalle spalle e dallo stato del soldato (mira,
+            // pronto basso, corsa), non piu' dal punto fra le due mani della clip. Le mani la raggiungono con l'IK.
+            WeaponHoldInput in;
+            in.kind = HoldKindOf(bp, *model, otherHandBusy);
+            in.aimDir = glm::normalize(glm::vec3(aimRot * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+            const bool meleeBusy = [&] {
+                const auto* ms = reg.try_get<MeleeStateComponent>(m_PlayerEntity);
+                return ms && ms->currentPhase != MeleePhase::None;
+            }();
+            in.aiming = (m_HoldInput.aiming || m_HoldInput.firing || m_PlayerAimingNow) && !meleeBusy;
+            in.sprinting = m_HoldInput.sprinting && m_HoldInput.isMoving;
+            in.shot = m_HoldInput.shotFired && !leftHand;
+            in.leftHand = leftHand;
+            in.speed = m_HoldInput.isMoving ? std::max(0.0f, m_HoldInput.groundSpeed) : 0.0f;
+            in.dt = m_HoldDt;
             glm::mat4 basis(1.0f);
-            basis[0] = glm::vec4(xAxis, 0.0f);
-            basis[1] = glm::vec4(yAxis, 0.0f);
-            basis[2] = glm::vec4(zAxis, 0.0f);
-            basis = basis * glm::eulerAngleYXZ(glm::radians(m_WeaponModelRotation.y),
-                glm::radians(m_WeaponModelRotation.x), glm::radians(m_WeaponModelRotation.z));
-
-            weaponTransform.Position = anchorWorld - glm::vec3(basis * glm::vec4(anchorLocal + m_WeaponModelGripOffset, 0.0f));
-            float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
-            glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);   // stesso ordine di TransformComponent::GetTransform
-            weaponTransform.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
-            return true;
+            if (SolveHoldOnBody(ActiveAnimController(), *vt, pt->Rotation.y, *model, in, leftHand ? m_HoldLeft : m_HoldRight, weaponTransform, basis)) {
+                basis = basis * glm::eulerAngleYXZ(glm::radians(m_WeaponModelRotation.y),
+                    glm::radians(m_WeaponModelRotation.x), glm::radians(m_WeaponModelRotation.z));
+                weaponTransform.Position -= glm::vec3(basis * glm::vec4(m_WeaponModelGripOffset, 0.0f));
+                float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
+                glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);   // stesso ordine di TransformComponent::GetTransform
+                weaponTransform.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+                return true;
+            }
         }
 
         glm::vec3 off = m_HandWeaponOffset;
@@ -4494,7 +4583,7 @@ namespace SunEngine {
                 if (wBPR) {
                     // Modello animato: arma sull'osso della mano destra (i cubi del corpo restano hitbox)
                     const BlockModel* rightModel = m_BlockModels.Find(rightWeaponId);
-                    const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR, rightModel);
+                    const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR, rightModel, wBPR, !leftWeaponId.empty());
                     if (placedOnHand && rightModel && rightModel->hasGripRight) {
                         ikGripR = weaponPoint(wTransR, rightModel->gripRight); ikR = true;
                         if (rightModel->hasGripLeft && leftWeaponId.empty()) { ikGripL = weaponPoint(wTransR, rightModel->gripLeft); ikL = true; }
@@ -4553,7 +4642,7 @@ namespace SunEngine {
                 const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
                 if (wBPL) {
                     const BlockModel* leftModel = m_BlockModels.Find(leftWeaponId);
-                    const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL, leftModel);
+                    const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL, leftModel, wBPL, true);
                     if (placedOnHandL && leftModel && leftModel->hasGripRight) { ikGripL = weaponPoint(wTransL, leftModel->gripRight); ikL = true; }
                     if (placedOnHandL) {
                         glm::vec3 scale = wBPL->weapon_scale;
@@ -9355,6 +9444,7 @@ namespace SunEngine {
             float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
             glm::extractEulerAngleYXZ(weaponRot, yaw, pitch, roll);
             wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+            if (model) { TransformComponent probe = wt; probe.Scale = glm::vec3(1.0f); PublishMuzzle(e, probe, model); }   // colpo dalla bocca della canna
         }
     }
 

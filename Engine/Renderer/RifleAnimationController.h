@@ -106,11 +106,24 @@ namespace SunEngine {
                 desired = RifleAnimState::Firing;   // lascia finire il rinculo in corso
             }
 
+            // Una clip appena partita resta almeno un quarto di secondo: un comando che balla (avanti / di lato /
+            // avanti) non fa piu' sfarfallare il corpo fra tre pose. Fuoco e salti passano subito.
+            m_StateAge += deltaTime;
+            const bool urgent = restartFiring || desired == RifleAnimState::Firing
+                || desired == RifleAnimState::JumpForward || desired == RifleAnimState::JumpBackward
+                || m_CurrentState == RifleAnimState::Firing;
+            if (desired != m_CurrentState && !urgent && m_StateAge < 0.25f) desired = m_CurrentState;
+
             if (desired != m_CurrentState || restartFiring) {
                 auto it = Clips().find(desired);
                 if (it != Clips().end()) {
-                    // crossfade breve: niente "scatti" tra una clip e l'altra
-                    float blend = (desired == RifleAnimState::Firing) ? 0.04f : 0.18f;
+                    // Dissolvenza: corta per il rinculo, morbida fra un'andatura e l'altra, un po' piu' lunga per
+                    // partire e fermarsi (il peso del corpo non cambia verso in un decimo di secondo)
+                    const bool toIdle = desired == RifleAnimState::AimIdle || desired == RifleAnimState::CrouchIdle;
+                    const bool fromIdle = m_CurrentState == RifleAnimState::AimIdle || m_CurrentState == RifleAnimState::CrouchIdle;
+                    float blend = (desired == RifleAnimState::Firing) ? 0.04f : ((toIdle || fromIdle) ? 0.30f : 0.26f);
+                    if (m_CurrentState == RifleAnimState::Firing) blend = 0.16f;
+                    m_StateAge = 0.0f;
                     const bool loop = !(desired == RifleAnimState::Firing
                         || desired == RifleAnimState::JumpForward || desired == RifleAnimState::JumpBackward);
                     m_Animator.PlayAnimation(&it->second, blend, loop);
@@ -224,5 +237,6 @@ namespace SunEngine {
         float m_MinRate = 0.7f;
         float m_MaxRate = 1.8f;
         float m_StyleRate = 1.0f;
+        float m_StateAge = 1.0f;      // secondi dalla partenza della clip in corso
     };
 }
