@@ -19,10 +19,66 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+extern std::string FindValidDir(const std::string& targetDirName);
 
 namespace SunEngine {
 
     namespace {
+        // ---- Racconto completo da leggere nel gioco: GameData/Stories/<id>.txt (UTF-8) ----
+        // Le prime righe fino al primo capitolo sono l'intestazione (titolo, anno, luogo). Un capitolo comincia con
+        // una riga "numero romano, punto, titolo" (es. "XII. La porta"); ogni altra riga e' un paragrafo.
+        struct StoryText {
+            struct Chapter { std::string title; std::vector<std::string> paragraphs; };
+            std::vector<std::string> header;
+            std::vector<Chapter> chapters;
+            bool loaded = false;
+        };
+        StoryText s_PrimoIncontro;
+        bool s_Reading = false;          // scheda PVE-STORY: false = capitoli giocabili, true = racconto
+        int s_ReadChapter = -1;          // -1 = riprendi da dove si era arrivati (profilo)
+        bool s_ReadScrollTop = false;
+
+        bool IsChapterHeading(const std::string& line) {
+            size_t i = 0;
+            while (i < line.size() && std::string("IVXLC").find(line[i]) != std::string::npos) ++i;
+            return i > 0 && i + 1 < line.size() && line[i] == '.' && line[i + 1] == ' ';
+        }
+
+        // Il carattere dell'interfaccia ha le lettere accentate e le virgolette basse, non quelle tipografiche
+        void PlainPunctuation(std::string& s) {
+            static const char* k[][2] = { { "\xE2\x80\x99", "'" }, { "\xE2\x80\x98", "'" }, { "\xE2\x80\x9C", "\"" }, { "\xE2\x80\x9D", "\"" },
+                                          { "\xE2\x80\x94", "-" }, { "\xE2\x80\x93", "-" }, { "\xE2\x80\xA6", "..." }, { "\xC2\xA0", " " } };
+            for (const auto& r : k) {
+                const std::string from = r[0];
+                for (size_t p = s.find(from); p != std::string::npos; p = s.find(from, p)) s.replace(p, from.size(), r[1]);
+            }
+        }
+
+        void LoadStoryText(StoryText& st, const char* file) {
+            if (st.loaded) return;
+            st.loaded = true;
+            std::ifstream in(FindValidDir("Stories") + file, std::ios::binary);
+            if (!in) { SUN_CORE_WARN("PVE-STORY: racconto non trovato ({0})", file); return; }
+            std::stringstream buf; buf << in.rdbuf();
+            std::string text = buf.str();
+            if (text.size() >= 3 && text.compare(0, 3, "\xEF\xBB\xBF") == 0) text.erase(0, 3);
+            PlainPunctuation(text);
+            std::istringstream lines(text);
+            std::string line;
+            while (std::getline(lines, line)) {
+                while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) line.pop_back();
+                if (line.empty()) continue;
+                if (IsChapterHeading(line)) { st.chapters.push_back({ line, {} }); continue; }
+                if (st.chapters.empty()) st.header.push_back(line);
+                else st.chapters.back().paragraphs.push_back(line);
+            }
+        }
+
         constexpr const char* kStoryMap = "warzone_sector4";   // Vespera IV - Terza Serra
         constexpr float kKonradBossTime = 300.0f;               // 5 minuti
 
@@ -130,13 +186,25 @@ namespace SunEngine {
         ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.88f, 0.52f, 0.24f, 0.55f));
         ImGui::Selectable("I. Primo Incontro", true);
         ImGui::PopStyleColor();
+        // la storia si gioca (capitoli) oppure si legge (racconto completo)
+        ImGui::Indent(12.0f);
+        if (ImGui::Selectable("Gioca i capitoli", !s_Reading)) s_Reading = false;
+        if (ImGui::Selectable("Leggi il racconto", s_Reading)) { s_Reading = true; s_ReadScrollTop = true; }
+        ImGui::Unindent(12.0f);
         ImGui::Spacing();
         ImGui::TextColored(Ui::Col::Ash, "Altre storie: in arrivo.");
         ImGui::Spacing(); Ui::Divider(); ImGui::Spacing();
         ImGui::TextWrapped("Qui si rivivono le storie del mondo di The Sun's Darkest Hours. Ogni capitolo si gioca "
-                           "con il personaggio della storia, non con la squadra del garage.");
+                           "con il personaggio della storia, non con la squadra del garage; il racconto completo si "
+                           "legge qui, e il segno resta dove sei arrivato.");
         ImGui::EndChild();
         ImGui::SameLine();
+
+        if (s_Reading) {
+            RenderStoryReader();
+            ImGui::End();
+            return;
+        }
 
         ImGui::BeginChild("##storia", ImVec2(0.0f, 0.0f), false);
         Ui::Title("PRIMO INCONTRO");
@@ -186,6 +254,93 @@ namespace SunEngine {
         ImGui::End();
 
         if (start >= 0) StartStoryChapter(start);
+    }
+
+    // Galleria: il racconto completo da leggere. A sinistra l'indice dei capitoli, a destra la pagina (colonna
+    // stretta, corpo grande). L'ultimo capitolo aperto resta nel profilo (story.read_primo_incontro).
+    void GameLayer::RenderStoryReader() {
+        StoryText& tx = s_PrimoIncontro;
+        LoadStoryText(tx, "primo_incontro.txt");
+        ImGui::BeginChild("##racconto", ImVec2(0.0f, 0.0f), false);
+        if (tx.chapters.empty()) {
+            Ui::Title("PRIMO INCONTRO");
+            ImGui::TextColored(Ui::Col::Ash, "Il racconto non e' stato trovato (GameData/Stories/primo_incontro.txt).");
+            ImGui::EndChild();
+            return;
+        }
+        const int count = static_cast<int>(tx.chapters.size());
+        if (s_ReadChapter < 0) s_ReadChapter = m_Profile.story.is_object() ? m_Profile.story.value("read_primo_incontro", 0) : 0;
+        s_ReadChapter = std::clamp(s_ReadChapter, 0, count - 1);
+        int go = s_ReadChapter;
+
+        // indice
+        ImGui::BeginChild("##indice", ImVec2(250.0f, 0.0f), true);
+        Ui::Heading("CAPITOLI");
+        for (int i = 0; i < count; ++i) {
+            ImGui::PushID(i);
+            if (ImGui::Selectable(tx.chapters[i].title.c_str(), i == s_ReadChapter)) go = i;
+            ImGui::PopID();
+        }
+        ImGui::EndChild();
+        ImGui::SameLine();
+
+        // pagina
+        ImGui::BeginChild("##pagina", ImVec2(0.0f, 0.0f), true);
+        if (s_ReadScrollTop) { ImGui::SetScrollY(0.0f); s_ReadScrollTop = false; }
+        const float avail = ImGui::GetContentRegionAvail().x;
+        const float colW = std::min(680.0f, avail - 24.0f);
+        const float left = std::max(12.0f, (avail - colW) * 0.5f);
+        const auto& ch = tx.chapters[s_ReadChapter];
+        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+        if (s_ReadChapter == 0) {   // frontespizio: titolo, anno, luogo
+            for (size_t i = 0; i < tx.header.size(); ++i) {
+                ImGui::SetCursorPosX(left);
+                if (i == 0) Ui::TextIn(Ui::FontTitle(), Ui::Col::Gold, tx.header[i].c_str());
+                else ImGui::TextColored(Ui::Col::Brass, "%s", tx.header[i].c_str());
+            }
+            ImGui::Dummy(ImVec2(0.0f, 14.0f));
+        }
+        ImGui::SetCursorPosX(left);
+        Ui::TextIn(Ui::FontHeading(), Ui::Col::Gold, ch.title.c_str());
+        ImGui::Dummy(ImVec2(0.0f, 8.0f));
+        ImGui::PushFont(Ui::FontRead());
+        ImGui::PushStyleColor(ImGuiCol_Text, Ui::Col::Bone);
+        for (const auto& par : ch.paragraphs) {
+            ImGui::SetCursorPosX(left);
+            ImGui::PushTextWrapPos(left + colW);
+            ImGui::TextUnformatted(par.c_str(), par.c_str() + par.size());
+            ImGui::PopTextWrapPos();
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
+        }
+        ImGui::PopStyleColor();
+        ImGui::PopFont();
+        ImGui::Dummy(ImVec2(0.0f, 14.0f));
+        ImGui::SetCursorPosX(left);
+        ImGui::BeginDisabled(s_ReadChapter == 0);
+        if (Ui::PlainButton("< Capitolo precedente", ImVec2(colW * 0.5f - 6.0f, 38.0f))) go = s_ReadChapter - 1;
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (s_ReadChapter + 1 < count) {
+            if (Ui::Button("Capitolo successivo >", ImVec2(colW * 0.5f - 6.0f, 38.0f), Ui::Btn::Primary)) go = s_ReadChapter + 1;
+        }
+        else {
+            ImGui::BeginDisabled();
+            Ui::PlainButton("Fine del racconto", ImVec2(colW * 0.5f - 6.0f, 38.0f));
+            ImGui::EndDisabled();
+        }
+        ImGui::SetCursorPosX(left);
+        ImGui::TextColored(Ui::Col::Ash, "Capitolo %d di %d", s_ReadChapter + 1, count);
+        ImGui::Dummy(ImVec2(0.0f, 16.0f));
+        ImGui::EndChild();
+        ImGui::EndChild();
+
+        if (go != s_ReadChapter) {
+            s_ReadChapter = std::clamp(go, 0, count - 1);
+            s_ReadScrollTop = true;
+            if (!m_Profile.story.is_object()) m_Profile.story = nlohmann::json::object();
+            m_Profile.story["read_primo_incontro"] = s_ReadChapter;   // il segno resta nel profilo
+            SaveProfileIfChanged();
+        }
     }
 
     // ---------------------------------------------------------------------------------------------------------

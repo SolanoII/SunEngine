@@ -35,6 +35,7 @@ namespace SunEngine::Ui {
 
     ImFont* FontBody();      // testo
     ImFont* FontSmall();     // note, etichette
+    ImFont* FontRead();      // lettura dei racconti (corpo piu' grande)
     ImFont* FontStrong();    // numeri e voci in evidenza
     ImFont* FontHeading();   // intestazioni (capitali romane)
     ImFont* FontTitle();     // titoli grandi

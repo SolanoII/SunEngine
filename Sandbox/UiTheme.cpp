@@ -10,6 +10,7 @@ namespace SunEngine::Ui {
 
     namespace {
         ImFont* s_Body = nullptr; ImFont* s_Small = nullptr; ImFont* s_Strong = nullptr; ImFont* s_Heading = nullptr; ImFont* s_Title = nullptr;
+    ImFont* s_Read = nullptr;
         const float kPi = 3.14159265f;
         ImVec4 Mix(const ImVec4& a, const ImVec4& b, float t) { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t); }
         ImVec4 Dim(const ImVec4& c, float k) { return ImVec4(c.x * k, c.y * k, c.z * k, c.w); }
@@ -26,6 +27,7 @@ namespace SunEngine::Ui {
     ImU32 U32(const ImVec4& c, float alpha) { return ImGui::ColorConvertFloat4ToU32(ImVec4(c.x, c.y, c.z, c.w * alpha)); }
     ImFont* FontBody() { return s_Body ? s_Body : ImGui::GetFont(); }
     ImFont* FontSmall() { return s_Small ? s_Small : FontBody(); }
+    ImFont* FontRead() { return s_Read ? s_Read : FontBody(); }
     ImFont* FontStrong() { return s_Strong ? s_Strong : FontBody(); }
     ImFont* FontHeading() { return s_Heading ? s_Heading : FontBody(); }
     ImFont* FontTitle() { return s_Title ? s_Title : FontHeading(); }
@@ -49,6 +51,8 @@ namespace SunEngine::Ui {
         s_Body = load("Rajdhani-SemiBold.ttf", 16.0f);       // il primo caricato e' quello di tutta l'interfaccia
         if (!s_Body) io.Fonts->AddFontDefault();
         s_Small = load("Rajdhani-SemiBold.ttf", 14.0f);
+        s_Read = load("Rajdhani-Medium.ttf", 20.0f);
+        if (!s_Read) s_Read = load("Rajdhani-SemiBold.ttf", 20.0f);
         s_Strong = load("Rajdhani-Bold.ttf", 22.0f);
         s_Heading = load("Cinzel.ttf", 18.0f);
         s_Title = load("CinzelDecorative-Bold.ttf", 28.0f);
