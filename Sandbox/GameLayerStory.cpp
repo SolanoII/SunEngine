@@ -30,11 +30,13 @@ namespace SunEngine {
 
     namespace {
         // ---- Racconto completo da leggere nel gioco: GameData/Stories/<id>.txt (UTF-8) ----
-        // Le prime righe fino al primo capitolo sono l'intestazione (titolo, anno, luogo). Un capitolo comincia con
+        // Le prime righe fino al primo capitolo sono l'intestazione: nome della serie, una riga "_", poi titolo, anno
+        // e luogo (senza "_" la prima riga e' il titolo). Un capitolo comincia con
         // una riga "numero romano, punto, titolo" (es. "XII. La porta"); ogni altra riga e' un paragrafo.
         struct StoryText {
             struct Chapter { std::string title; std::vector<std::string> paragraphs; };
             std::vector<std::string> header;
+            size_t seriesLines = 0;          // righe dell'intestazione prima del separatore "_": il nome della serie
             std::vector<Chapter> chapters;
             bool loaded = false;
         };
@@ -73,6 +75,7 @@ namespace SunEngine {
             while (std::getline(lines, line)) {
                 while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) line.pop_back();
                 if (line.empty()) continue;
+                if (st.chapters.empty() && line.find_first_not_of("_-") == std::string::npos) { st.seriesLines = st.header.size(); continue; }
                 if (IsChapterHeading(line)) { st.chapters.push_back({ line, {} }); continue; }
                 if (st.chapters.empty()) st.header.push_back(line);
                 else st.chapters.back().paragraphs.push_back(line);
@@ -295,7 +298,8 @@ namespace SunEngine {
         if (s_ReadChapter == 0) {   // frontespizio: titolo, anno, luogo
             for (size_t i = 0; i < tx.header.size(); ++i) {
                 ImGui::SetCursorPosX(left);
-                if (i == 0) Ui::TextIn(Ui::FontTitle(), Ui::Col::Gold, tx.header[i].c_str());
+                if (i < tx.seriesLines) Ui::TextIn(Ui::FontHeading(), Ui::Col::Brass, tx.header[i].c_str());
+                else if (i == tx.seriesLines) Ui::TextIn(Ui::FontTitle(), Ui::Col::Gold, tx.header[i].c_str());
                 else ImGui::TextColored(Ui::Col::Brass, "%s", tx.header[i].c_str());
             }
             ImGui::Dummy(ImVec2(0.0f, 14.0f));
