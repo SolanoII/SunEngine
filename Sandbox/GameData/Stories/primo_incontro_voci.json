@@ -1,0 +1,89 @@
+{
+  "_nota": "Voci dei capitoli giocabili di Primo Incontro: il personaggio parla in prima persona. 'prologo' prima di entrare in campo, 'voci' durante la partita (ognuna una volta sola), 'vittoria' e 'caduta' alla fine. 'racconto' = capitoli del racconto che offrono 'Gioca questo momento'; 'leggi' = capitolo aperto da 'Leggi cosa è successo'.",
+  "capitoli": [
+    {
+      "racconto": [3],
+      "leggi": 3,
+      "prologo": [
+        "Mi chiamo Martus Kell. Ho ventitré anni e fino a ieri raccoglievo cereali.",
+        "La barricata ha ceduto. Il sergente urla di arretrare.",
+        "Il fucile mi trema in mano. Non ho mai desiderato così tanto non saperlo usare.",
+        "Il magazzino nord. Devo solo arrivare al magazzino nord."
+      ],
+      "voci": {
+        "inizio": ["«Kell! Apri gli occhi!»", "Corri. Non voltarti."],
+        "prima_uccisione": ["È caduto. Non pensavo che potessero cadere."],
+        "ferito": ["Respira. Respira."],
+        "grave": ["Non qui. Non in mezzo al grano."],
+        "meta": ["Mi sono voltato una volta sola.", "Non stanno conquistando niente. Stanno mangiando."],
+        "vicino": ["La porta del magazzino. C'è qualcuno là dentro. Ci deve essere qualcuno."]
+      },
+      "vittoria": [
+        "Dentro c'erano ventitré persone.",
+        "«Siamo del Kingship», dissi.",
+        "Non sapevo perché. Forse avevo bisogno di ricordarlo a me stesso."
+      ],
+      "caduta": [
+        "Il cielo sopra la serra era rosso.",
+        "Pensai a mio padre, alle pompe, al raccolto che nessuno avrebbe più raccolto."
+      ]
+    },
+    {
+      "racconto": [6, 8],
+      "leggi": 8,
+      "prologo": [
+        "Quarantadue ragazzi. Contadini. Il più giovane aveva quindici anni.",
+        "Ne ho portati sette fino a questa stanza.",
+        "Il braccio sinistro non risponde più. È solo una scheggia, ho detto. Non mi hanno creduto.",
+        "Dietro di me c'è un condotto pieno di bambini. Davanti a me c'è una porta.",
+        "Qualcuno deve chiuderla."
+      ],
+      "voci": {
+        "inizio": ["«Avete portato i rinforzi?»", "Siamo noi i rinforzi."],
+        "prima_uccisione": ["Uno. A Kell serve più tempo di così."],
+        "tiene_1": ["Seguite i segnali gialli, ragazzi. Non voltatevi."],
+        "uccisioni_10": ["Dieci. Ho smesso di contare i miei uomini. Questi posso contarli."],
+        "tiene_2": ["Ogni minuto che resto in piedi è un pezzo di condotto in più per loro."],
+        "ferito": ["Dovremmo anche avere una flotta orbitale. Non sempre si ottiene ciò che si vuole."],
+        "grave": ["Il caricatore è quasi vuoto. Va bene così. Non serviva che bastasse."]
+      },
+      "vittoria": [],
+      "caduta": [
+        "Mi ha sollevato da terra. Ho sentito le piastre piegarsi.",
+        "Nel condotto non si sente più nessuno. Sono passati.",
+        "Qualcuno doveva chiudere quella porta."
+      ]
+    },
+    {
+      "racconto": [19, 20],
+      "leggi": 20,
+      "prologo": [
+        "Non abbiamo ricevuto ordini dal comando.",
+        "Non ne servono, per proteggere chi non può combattere.",
+        "Una cinquantina nei campi. Almeno quattro di quelli grandi. E uno che canta.",
+        "Il nucleo batte piano contro il petto. Chiede sempre qualcosa in cambio.",
+        "Non è un onore. È un dovere."
+      ],
+      "voci": {
+        "inizio": ["«Allora non possiamo lasciare che raggiungano i rifugi.»"],
+        "prima_uccisione": ["Nessun movimento sprecato. Ogni colpo è uno in meno per chi sta dietro di me."],
+        "minuto_1": ["Dietro questa linea ci sono nove soldati e ventitré civili. Li ho contati."],
+        "minuto_3": ["Portano frammenti di Vanguardio nella carne. Non è un'incursione casuale."],
+        "ferito": ["La corazza si è incrinata. La luce si abbassa. Poi torna."],
+        "grave": ["Il nucleo dà quello che gli chiedo. E si prende il resto."],
+        "capo": ["Lo sento prima di vederlo. Il canto.", "Quello è il loro capo. Allora morirà qui."],
+        "capo_meta": ["Mi osserva. Cerca di capire che cosa ha davanti.", "Anch'io."]
+      },
+      "vittoria": [
+        "La collana si è spezzata. Le pietre rotolano fra i detriti.",
+        "Nessun grido di vittoria. Soltanto il colpo.",
+        "Avete fatto il vostro dovere. Ora portate a casa i vostri morti."
+      ],
+      "caduta": [
+        "La luce nel petto si spegne.",
+        "Questa volta non torna.",
+        "Che qualcun altro tenga la linea."
+      ]
+    }
+  ]
+}

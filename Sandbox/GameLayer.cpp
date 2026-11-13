@@ -4745,7 +4745,7 @@ namespace SunEngine {
         static bool escPressedLastFrame = false;
         bool escPressed = Input::IsKeyPressed(GLFW_KEY_ESCAPE);
         if (escPressed && !escPressedLastFrame) {
-            if (m_GameState == GameState::Gameplay && !(m_VsBotActive && m_VsBotResult != 0) && !(m_Story.active && m_Story.result != 0)) {
+            if (m_GameState == GameState::Gameplay && !(m_VsBotActive && m_VsBotResult != 0) && !(m_Story.active && (m_Story.result != 0 || StoryIntroActive()))) {
                 m_IsPaused = !m_IsPaused;
                 if (window) {
                     glfwSetInputMode(window, GLFW_CURSOR, m_IsPaused ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
@@ -6115,6 +6115,9 @@ namespace SunEngine {
             }
             else if (m_Story.active && m_Story.result != 0) {
                 RenderStoryEnd();
+            }
+            else if (m_Story.active && StoryIntroActive()) {
+                RenderStoryIntro();
             }
             else if (isPlayerDead && m_VsBotActive) {
                 RenderVsBotDeathUI();

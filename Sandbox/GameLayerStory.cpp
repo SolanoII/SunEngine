@@ -19,10 +19,15 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cfloat>
 #include <fstream>
+#include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
+#include "Engine/Core/Input.h"
 
 extern std::string FindValidDir(const std::string& targetDirName);
 
@@ -44,6 +49,90 @@ namespace SunEngine {
         bool s_Reading = false;          // scheda PVE-STORY: false = capitoli giocabili, true = racconto
         int s_ReadChapter = -1;          // -1 = riprendi da dove si era arrivati (profilo)
         bool s_ReadScrollTop = false;
+
+        // ---- Voci dei capitoli giocabili: GameData/Stories/primo_incontro_voci.json ----
+        // Il personaggio parla in prima persona: un prologo prima di entrare in campo, battute legate a quello che
+        // succede in partita (ognuna una volta), e le ultime righe alla vittoria o alla caduta. Lo stesso file lega
+        // racconto e partite: da quali capitoli del racconto si gioca il momento, e quale si apre a fine partita.
+        struct ChapterVoice {
+            std::vector<std::string> prologue, win, fall;
+            std::map<std::string, std::vector<std::string>> lines;
+            std::vector<int> playFrom;   // capitoli del racconto (numerati da 1) con "Gioca questo momento"
+            int readAfter = 0;           // capitolo del racconto (da 1) per "Leggi cosa e' successo"
+        };
+        ChapterVoice s_Voices[3];
+        bool s_VoicesLoaded = false;
+        struct Subtitle { std::string text; float total = 0.0f, left = 0.0f; };
+        std::vector<Subtitle> s_Subtitles;         // battute in coda (in basso, una alla volta)
+        std::set<std::string> s_VoiceFired;        // battute gia' dette in questo capitolo
+        float s_IntroTime = -1.0f, s_IntroTotal = 0.0f;   // prologo: secondi trascorsi (-1 = nessuno)
+        float s_OutroTime = -1.0f, s_OutroTotal = 0.0f;   // ultime righe prima della schermata di fine
+        bool s_SkipWasDown = true;
+
+        void PlainPunctuation(std::string& s);
+        void LoadVoices() {
+            if (s_VoicesLoaded) return;
+            s_VoicesLoaded = true;
+            std::ifstream in(FindValidDir("Stories") + "primo_incontro_voci.json", std::ios::binary);
+            if (!in) { SUN_CORE_WARN("PVE-STORY: voci dei capitoli non trovate (primo_incontro_voci.json)"); return; }
+            try {
+                const nlohmann::json j = nlohmann::json::parse(in);
+                auto list = [](const nlohmann::json& a) {
+                    std::vector<std::string> out;
+                    if (a.is_array()) for (const auto& v : a) if (v.is_string()) { out.push_back(v.get<std::string>()); PlainPunctuation(out.back()); }
+                    return out;
+                };
+                const auto& chapters = j.at("capitoli");
+                for (size_t i = 0; i < chapters.size() && i < 3; ++i) {
+                    const auto& c = chapters[i];
+                    ChapterVoice& v = s_Voices[i];
+                    v.prologue = list(c.value("prologo", nlohmann::json::array()));
+                    v.win = list(c.value("vittoria", nlohmann::json::array()));
+                    v.fall = list(c.value("caduta", nlohmann::json::array()));
+                    if (c.contains("voci") && c["voci"].is_object())
+                        for (auto it = c["voci"].begin(); it != c["voci"].end(); ++it) v.lines[it.key()] = list(it.value());
+                    if (c.contains("racconto") && c["racconto"].is_array())
+                        for (const auto& n : c["racconto"]) if (n.is_number_integer()) v.playFrom.push_back(n.get<int>());
+                    v.readAfter = c.value("leggi", 0);
+                }
+            }
+            catch (const std::exception& ex) { SUN_CORE_WARN("PVE-STORY: voci dei capitoli non valide: {0}", ex.what()); }
+        }
+        // Tempo di lettura di una riga: un po' di base piu' qualcosa per ogni carattere
+        float ReadTime(const std::string& s) { return 2.0f + 0.055f * static_cast<float>(s.size()); }
+        // Righe una dopo l'altra, centrate, su fondo scuro: ognuna entra quando la precedente e' stata letta
+        void DrawLines(const std::vector<std::string>& lines, float time, float alpha, const char* header) {
+            ImGuiIO& io = ImGui::GetIO();
+            ImDrawList* dl = ImGui::GetForegroundDrawList();
+            ImFont* font = Ui::FontRead();
+            const float size = font->FontSize * 1.25f;
+            const float wrap = std::min(820.0f, io.DisplaySize.x - 120.0f);
+            float y = io.DisplaySize.y * 0.30f;
+            if (header && header[0]) {
+                ImFont* hf = Ui::FontHeading();
+                const ImVec2 hs = hf->CalcTextSizeA(hf->FontSize * 1.2f, FLT_MAX, 0.0f, header);
+                dl->AddText(hf, hf->FontSize * 1.2f, ImVec2((io.DisplaySize.x - hs.x) * 0.5f, y - 54.0f), Ui::U32(Ui::Col::Gold, alpha), header);
+            }
+            float start = 0.6f;
+            for (const auto& line : lines) {
+                const float a = std::clamp((time - start) / 0.8f, 0.0f, 1.0f) * alpha;
+                const ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, wrap, line.c_str());
+                if (a > 0.0f) dl->AddText(font, size, ImVec2((io.DisplaySize.x - std::min(ts.x, wrap)) * 0.5f, y), Ui::U32(Ui::Col::Bone, a), line.c_str(), nullptr, wrap);
+                y += ts.y + 16.0f;
+                start += ReadTime(line) * 0.75f;
+            }
+        }
+        float LinesTotal(const std::vector<std::string>& lines) {
+            float t = 0.6f;
+            for (const auto& l : lines) t += ReadTime(l) * 0.75f;
+            return t + 2.2f;
+        }
+        bool SkipPressed() {   // SPAZIO o INVIO, sul fronte di salita
+            const bool down = Input::IsKeyPressed(GLFW_KEY_SPACE) || Input::IsKeyPressed(GLFW_KEY_ENTER);
+            const bool pressed = down && !s_SkipWasDown;
+            s_SkipWasDown = down;
+            return pressed;
+        }
 
         bool IsChapterHeading(const std::string& line) {
             size_t i = 0;
@@ -334,9 +423,23 @@ namespace SunEngine {
         }
         ImGui::SetCursorPosX(left);
         ImGui::TextColored(Ui::Col::Ash, "Capitolo %d di %d", s_ReadChapter + 1, count);
+        // Racconto e partita legati: questo capitolo si puo' rivivere con il suo personaggio
+        LoadVoices();
+        int play = -1;
+        for (int g = 0; g < 3; ++g)
+            for (int n : s_Voices[g].playFrom) if (n == s_ReadChapter + 1) play = g;
+        int startPlay = -1;
+        if (play >= 0) {
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::SetCursorPosX(left);
+            ImGui::TextColored(Ui::Col::Brass, "Questo momento si puo' rivivere: %s.", kChapters[play].name);
+            ImGui::SetCursorPosX(left);
+            if (Ui::Button("GIOCA QUESTO MOMENTO", ImVec2(colW, 42.0f), Ui::Btn::Primary)) startPlay = play;
+        }
         ImGui::Dummy(ImVec2(0.0f, 16.0f));
         ImGui::EndChild();
         ImGui::EndChild();
+        if (startPlay >= 0) { StartStoryChapter(startPlay); return; }
 
         if (go != s_ReadChapter) {
             s_ReadChapter = std::clamp(go, 0, count - 1);
@@ -379,6 +482,18 @@ namespace SunEngine {
         m_Story.spawnTimer = chapter == 1 ? 6.0f : 4.0f;   // un attimo per guardarsi intorno
         m_Story.waveSize = chapter == 0 ? 2 : 1;
         m_PartyToasts.push_back({ std::string(kChapters[chapter].name) + ": " + kChapters[chapter].objective, 6.0f });
+        // Voce del personaggio: prologo sullo schermo scuro (la partita aspetta), poi le battute in campo
+        LoadVoices();
+        s_Subtitles.clear();
+        s_VoiceFired.clear();
+        s_OutroTime = -1.0f;
+        s_SkipWasDown = true;
+        if (!s_Voices[chapter].prologue.empty()) {
+            s_IntroTime = 0.0f;
+            s_IntroTotal = LinesTotal(s_Voices[chapter].prologue);
+            m_IsPaused = true;
+        }
+        else s_IntroTime = -1.0f;
         SUN_CORE_INFO("PVE-STORY: Primo Incontro, capitolo {0} ({1})", chapter + 1, kChapters[chapter].name);
     }
 
@@ -418,6 +533,38 @@ namespace SunEngine {
             if (chapter == 0) m_Story.waveSize = std::min(m_Story.waveSize + 1, 6);
             else if (chapter == 1) m_Story.waveSize = std::min(m_Story.waveSize + 1, 10);
             else m_Story.waveSize = std::min(m_Story.waveSize * 2, 8);
+        }
+
+        // battute del personaggio legate a quello che succede (ognuna una volta sola)
+        {
+            const int kills = m_KillCount - m_Story.kills0;
+            StoryVoice("inizio");
+            if (kills >= 1) StoryVoice("prima_uccisione");
+            if (kills >= 10) StoryVoice("uccisioni_10");
+            if (const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity); hp && hp->maxHealth > 0.0f) {
+                const float f = hp->currentHealth / hp->maxHealth;
+                if (f < 0.25f) StoryVoice("grave");
+                else if (f < 0.55f) StoryVoice("ferito");
+            }
+            if (chapter == 0) {
+                const float total = glm::length(glm::vec2(kChapters[0].start.x - kMartusGoal.x, kChapters[0].start.z - kMartusGoal.z));
+                const float left = glm::length(glm::vec2(playerPos.x - kMartusGoal.x, playerPos.z - kMartusGoal.z));
+                if (left < 28.0f) StoryVoice("vicino");
+                else if (left < total * 0.55f) StoryVoice("meta");
+            }
+            else if (chapter == 1) {
+                if (m_Story.time > 45.0f) StoryVoice("tiene_1");
+                if (m_Story.time > 120.0f) StoryVoice("tiene_2");
+            }
+            else {
+                if (m_Story.time > 60.0f) StoryVoice("minuto_1");
+                if (m_Story.time > 180.0f) StoryVoice("minuto_3");
+                if (m_Story.bossSpawned) {
+                    StoryVoice("capo");
+                    const auto* bhp = reg.valid(m_Story.boss) ? reg.try_get<HealthComponent>(m_Story.boss) : nullptr;
+                    if (bhp && bhp->currentHealth < bhp->maxHealth * 0.5f) StoryVoice("capo_meta");
+                }
+            }
         }
 
         if (chapter == 0) {
@@ -465,6 +612,7 @@ namespace SunEngine {
         }
 
         if (m_Story.result != 0) {   // fine del capitolo: la simulazione si ferma sotto la schermata
+            if (!s_Voices[chapter].win.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(s_Voices[chapter].win); s_SkipWasDown = true; }
             m_IsPaused = true;
             if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         }
@@ -490,6 +638,9 @@ namespace SunEngine {
             m_Story.result = 2;
             ApplyMatchXp(0.5f, m_Story.chapter == 0 ? "Martus e' caduto prima del magazzino" : "Konrad e' caduto");
         }
+        // le ultime righe del personaggio, prima della schermata di fine
+        LoadVoices();
+        if (!s_Voices[m_Story.chapter].fall.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(s_Voices[m_Story.chapter].fall); s_SkipWasDown = true; }
         m_IsPaused = true;
         if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
@@ -497,8 +648,55 @@ namespace SunEngine {
     // ---------------------------------------------------------------------------------------------------------
     // HUD e schermata di fine
     // ---------------------------------------------------------------------------------------------------------
+    // Battuta del personaggio: va in coda e compare in basso, una alla volta
+    void GameLayer::StoryVoice(const char* key) {
+        if (!m_Story.active || s_VoiceFired.count(key)) return;
+        s_VoiceFired.insert(key);
+        const auto& lines = s_Voices[std::clamp(m_Story.chapter, 0, 2)].lines;
+        const auto it = lines.find(key);
+        if (it == lines.end()) return;
+        for (const auto& l : it->second) s_Subtitles.push_back({ l, ReadTime(l), ReadTime(l) });
+    }
+
+    bool GameLayer::StoryIntroActive() const { return m_Story.active && m_Story.result == 0 && s_IntroTime >= 0.0f; }
+
+    // Prologo: schermo scuro, il personaggio dice chi e' e che cosa ha davanti. SPAZIO per entrare subito.
+    void GameLayer::RenderStoryIntro() {
+        ImGuiIO& io = ImGui::GetIO();
+        const int chapter = std::clamp(m_Story.chapter, 0, 2);
+        s_IntroTime += std::min(io.DeltaTime, 0.1f);
+        const float fade = std::clamp((s_IntroTotal - s_IntroTime) / 1.2f, 0.0f, 1.0f);   // alla fine si apre sul campo
+        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(4, 4, 6, static_cast<int>(255.0f * (0.35f + 0.65f * fade))));
+        const std::string header = std::string("PRIMO INCONTRO  -  ") + kChapters[chapter].name;
+        DrawLines(s_Voices[chapter].prologue, s_IntroTime, fade, header.c_str());
+        const char* hint = "SPAZIO: entra in campo";
+        const ImVec2 hs = ImGui::CalcTextSize(hint);
+        ImGui::GetForegroundDrawList()->AddText(ImVec2((io.DisplaySize.x - hs.x) * 0.5f, io.DisplaySize.y - 60.0f), Ui::U32(Ui::Col::Ash, fade), hint);
+        if (s_IntroTime >= s_IntroTotal || (s_IntroTime > 0.5f && SkipPressed())) {
+            s_IntroTime = -1.0f;
+            m_IsPaused = false;
+            if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
+    }
+
     void GameLayer::RenderStoryHUD() {
         if (!m_Story.active) return;
+        // battute del personaggio in basso al centro
+        if (!s_Subtitles.empty()) {
+            ImGuiIO& io = ImGui::GetIO();
+            Subtitle& sub = s_Subtitles.front();
+            sub.left -= std::min(io.DeltaTime, 0.1f);
+            const float a = std::clamp(std::min((sub.total - sub.left) / 0.35f, sub.left / 0.5f), 0.0f, 1.0f);
+            ImFont* font = Ui::FontRead();
+            const float size = font->FontSize * 1.15f;
+            const float wrap = std::min(760.0f, io.DisplaySize.x - 160.0f);
+            const ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, wrap, sub.text.c_str());
+            const ImVec2 pos((io.DisplaySize.x - std::min(ts.x, wrap)) * 0.5f, io.DisplaySize.y * 0.80f);
+            ImDrawList* dl = ImGui::GetForegroundDrawList();
+            dl->AddRectFilled(ImVec2(pos.x - 18.0f, pos.y - 8.0f), ImVec2(pos.x + std::min(ts.x, wrap) + 18.0f, pos.y + ts.y + 8.0f), IM_COL32(6, 6, 8, static_cast<int>(150.0f * a)));
+            dl->AddText(font, size, pos, Ui::U32(Ui::Col::Bone, a), sub.text.c_str(), nullptr, wrap);
+            if (sub.left <= 0.0f) s_Subtitles.erase(s_Subtitles.begin());
+        }
         auto& reg = m_Scene.GetRegistry();
         const int chapter = m_Story.chapter;
         const int kills = m_KillCount - m_Story.kills0;
@@ -541,6 +739,16 @@ namespace SunEngine {
     void GameLayer::RenderStoryEnd() {
         ImGuiIO& io = ImGui::GetIO();
         const int chapter = m_Story.chapter;
+        // prima le ultime righe del personaggio sul campo che si oscura (SPAZIO per passare oltre)
+        if (s_OutroTime >= 0.0f) {
+            s_OutroTime += std::min(io.DeltaTime, 0.1f);
+            const float in = std::clamp(s_OutroTime / 1.0f, 0.0f, 1.0f);
+            ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(4, 4, 6, static_cast<int>(215.0f * in)));
+            const auto& v = s_Voices[std::clamp(chapter, 0, 2)];
+            DrawLines(m_Story.result == 1 ? v.win : v.fall, s_OutroTime, 1.0f, nullptr);
+            if (s_OutroTime >= s_OutroTotal || (s_OutroTime > 0.5f && SkipPressed())) s_OutroTime = -1.0f;
+            return;
+        }
         const int kills = m_KillCount - m_Story.kills0;
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(620.0f, 0.0f));
@@ -574,9 +782,21 @@ namespace SunEngine {
         ImGui::Spacing();
         RenderMatchRecap();
         ImGui::Spacing();
-        const bool again = Ui::PlainButton("Rigioca il capitolo", ImVec2(-1.0f, 40.0f));
-        const bool back = Ui::PlainButton("Torna alla PVE-STORY", ImVec2(-1.0f, 40.0f));
+        const int readChapter = s_Voices[std::clamp(chapter, 0, 2)].readAfter;
+        const bool read = readChapter > 0 && Ui::Button("Leggi cosa e' successo", ImVec2(-1.0f, 40.0f), Ui::Btn::Primary);
+        const float halfW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        const bool again = Ui::PlainButton("Rigioca il capitolo", ImVec2(halfW, 40.0f));
+        ImGui::SameLine();
+        const bool back = Ui::PlainButton("Torna alla PVE-STORY", ImVec2(halfW, 40.0f));
         ImGui::End();
+
+        if (read) {   // dalla partita al racconto: si apre il capitolo di questo momento
+            StoryLeaveToMenu();
+            s_Reading = true;
+            s_ReadChapter = readChapter - 1;
+            s_ReadScrollTop = true;
+            return;
+        }
 
         if (again) {
             ResetMatchState(true);

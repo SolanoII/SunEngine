@@ -644,6 +644,9 @@ namespace SunEngine {
         int m_StoryBackupEvent = 3;
         void RenderStoryUI();                       // scheda PVE-STORY del menu
         void RenderStoryReader();   // galleria: il racconto completo da leggere (GameData/Stories)
+        bool StoryIntroActive() const;   // prologo del capitolo in corso (la partita aspetta)
+        void RenderStoryIntro();         // prologo: le righe del personaggio sullo schermo scuro
+        void StoryVoice(const char* key);   // battuta del personaggio (una volta per capitolo), in basso sullo schermo
         void RenderEliteXpTransfer(const ResearchFaction& faction, const ResearchNode& elite, float width);   // punti speciali delle unita' d'elite
         void StartStoryChapter(int chapter);
         void UpdateStory(float deltaTime, const glm::vec3& playerPos);
