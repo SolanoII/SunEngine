@@ -45,6 +45,9 @@ namespace SunEngine {
             NM_Roster = 'R',      // Vs Bot, host: squadre di tutti, bot, tempo, riscaldamento, fine partita
             NM_TeamSwitch = 'T',  // Vs Bot, all'host: voglio passare all'altra squadra
             NM_Despawn = 'X',     // host: questo nemico sparisce senza morire
+            NM_VsJoin = 'J',      // Vs Bot gia' avviato: posso entrare? (all'host, nel riscaldamento)
+            NM_VsLineup = 'F',    // host: roster aggiornato (qualcuno ha preso il posto di un bot), per chi l'ha chiesto e per tutti
+            NM_VsJoinNo = 'N',    // host: troppo tardi o niente posti, aspetta la prossima partita
         };
         constexpr std::uint8_t kSnapMagic = 0xA7;   // istantanea della partita (Party::PublishSnapshot)
         constexpr float kStateRate = 1.0f / 20.0f, kEnemyRate = 1.0f / 15.0f, kSnapRate = 1.5f, kUnitResend = 3.0f;
@@ -187,9 +190,12 @@ namespace SunEngine {
     void GameLayer::NetJoinRunningMatch() {
         SnapInfo si;
         if (ParseSnapshot(m_Party.Snapshot(), si)) {
-            if (si.eventIdx == 4 && (m_Net.vsRoster.empty() || m_Net.vsRosterMatch != si.matchId)) {
-                m_PartyToasts.push_back({ "Il Vs Bot della squadra e' iniziato prima che entrassi in squadra: aspetta la prossima partita", 5.0f });
-                return;
+            if (si.eventIdx == 4) {   // Vs Bot: si entra solo se nel roster c'e' un posto mio, altrimenti lo si chiede all'host
+                int tier = 0; std::vector<VsBotPlayer> pl;
+                bool inRoster = false;
+                if (m_Net.vsRosterMatch == si.matchId && ReadRoster(m_Net.vsRoster, tier, pl))
+                    for (const auto& p : pl) inRoster = inRoster || (p.human && p.owner == m_Party.SelfId());
+                if (!inRoster) { NetRequestVsBotJoin(si.matchId); return; }
             }
             m_Net.matchId = si.matchId; NetEnterMatch(si.map, si.eventIdx); return;
         }
@@ -233,7 +239,11 @@ namespace SunEngine {
 
         if (m_SelectedEventIndex == 4) {   // Vs Bot: roster del capo, squadra mia
             int tier = 0; std::vector<VsBotPlayer> players;
-            if (m_Net.vsRosterMatch != matchId || !ReadRoster(m_Net.vsRoster, tier, players) || !VsBotLaunch(tier, std::move(players))) {
+            bool inRoster = false;
+            const bool ok = m_Net.vsRosterMatch == matchId && ReadRoster(m_Net.vsRoster, tier, players);
+            if (ok) for (const auto& p : players) inRoster = inRoster || (p.human && p.owner == m_Party.SelfId());
+            if (!ok || !inRoster) { m_Net.active = false; NetRequestVsBotJoin(matchId); return; }   // avviato senza di me: chiedo un posto
+            if (!VsBotLaunch(tier, std::move(players))) {
                 m_Net.active = false;
                 m_PartyToasts.push_back({ "Non riesco a entrare nel Vs Bot della squadra", 5.0f });
                 return;
@@ -754,6 +764,22 @@ namespace SunEngine {
             m_Net.matchId = id; m_Net.startMap = map; m_Net.startEvent = ev; m_Net.startPending = true;
             return;
         }
+        if ((type == NM_VsLineup || type == NM_VsJoinNo) && !m_Net.active) {
+            // risposta dell'host alla mia richiesta di entrare nel Vs Bot gia' avviato
+            const std::uint32_t id = r.U32(); const std::uint64_t target = r.U64();
+            if (!r.ok || id == 0 || id != m_Net.joinRequestMatch || target != m_Party.SelfId()) return;
+            m_Net.joinRequestMatch = 0;
+            if (type == NM_VsJoinNo) {
+                m_PartyToasts.push_back({ "Il Vs Bot sta gia' iniziando e i posti sono presi: aspetta la prossima partita", 5.0f });
+                return;
+            }
+            m_Net.vsRoster.assign(r.p, r.p + r.n);
+            m_Net.vsRosterMatch = id;
+            m_Net.matchId = id;
+            if (m_GameState == GameState::MainMenu) NetEnterMatch("vsbot_trincee", 4);
+            else { m_Net.startMap = "vsbot_trincee"; m_Net.startEvent = 4; m_PartyToasts.push_back({ "Hai un posto nel Vs Bot: esci e premi ENTRA IN PARTITA", 6.0f }); }
+            return;
+        }
         const std::uint32_t matchId = r.U32();
         if (type == NM_State && r.ok) m_Net.heard[from] = 0.0f;   // e' in partita (anche se io no)
         if (!r.ok || !m_Net.active || matchId != m_Net.matchId || m_GameState != GameState::Gameplay) return;
@@ -1001,6 +1027,36 @@ namespace SunEngine {
             if (winner >= -1 && m_VsBotResult == 0) VsBotFinish(winner, why);
             break;
         }
+        case NM_VsJoin: {   // all'host: un compagno arrivato tardi chiede un posto nel Vs Bot
+            if (!m_VsBotActive || !m_Net.authority) break;
+            const std::string name = r.Str();
+            if (!r.ok) break;
+            if (!VsBotAdmitHuman(from, name.empty() ? std::string("Compagno") : name)) {
+                Writer w; w.U8(NM_VsJoinNo); w.U32(m_Net.matchId); w.U64(from);
+                m_Party.SendToAll(w.b.data(), w.b.size(), true);
+                break;
+            }
+            Writer w; w.U8(NM_VsLineup); w.U32(m_Net.matchId); w.U64(from);
+            WriteRoster(w, m_VsBotTier, m_VsBotPlayers);
+            m_Party.SendToAll(w.b.data(), w.b.size(), true);
+            m_Net.rosterTimer = 0.0f;
+            m_PartyToasts.push_back({ name + " entra nel Vs Bot al posto di un bot", 3.0f });
+            break;
+        }
+        case NM_VsLineup: {   // dall'host, gia' in partita: un bot e' diventato un giocatore vero
+            if (!m_VsBotActive || m_Net.authority) break;
+            (void)r.U64();
+            int tier = 0; std::vector<VsBotPlayer> pl;
+            if (!r.ok || !ReadRoster(std::vector<std::uint8_t>(r.p, r.p + r.n), tier, pl) || pl.size() != m_VsBotPlayers.size()) break;
+            for (size_t i = 0; i < pl.size(); ++i) {
+                auto& p = m_VsBotPlayers[i];
+                if (!pl[i].human || p.human) continue;
+                // il suo bot non era ancora in campo: ora e' un compagno, la sua squadra arriva da lui
+                p.human = true; p.local = false; p.owner = pl[i].owner; p.name = pl[i].name;
+                p.squad.clear(); p.active = -1;
+            }
+            break;
+        }
         case NM_TeamSwitch: {   // all'host: un giocatore vero vuole passare all'altra squadra
             if (!m_VsBotActive || !m_Net.authority) break;
             for (int i = 0; i < static_cast<int>(m_VsBotPlayers.size()); ++i) if (m_VsBotPlayers[i].human && m_VsBotPlayers[i].owner == from) { VsBotSwitchTeam(i); break; }
@@ -1050,6 +1106,16 @@ namespace SunEngine {
             for (size_t k = 0; k < n; ++k) w.U8(static_cast<std::uint8_t>(p.squad[k].state));
         }
         m_Party.SendToAll(w.b.data(), w.b.size(), true);
+    }
+
+    // Vs Bot gia' avviato senza di me: chiedo all'host un posto (lo prendo al posto di un bot finche' i bot non scendono
+    // in campo, negli ultimi 3 secondi del riscaldamento)
+    void GameLayer::NetRequestVsBotJoin(std::uint32_t matchId) {
+        if (matchId == 0) return;
+        m_Net.joinRequestMatch = matchId;
+        Writer w; w.U8(NM_VsJoin); w.U32(matchId); w.Str(m_Profile.netName);
+        m_Party.SendToAll(w.b.data(), w.b.size(), true);
+        m_PartyToasts.push_back({ "Chiedo un posto nel Vs Bot della squadra...", 3.0f });
     }
 
     // [T] nel riscaldamento: chiede all'host di passare all'altra squadra (da soli lo si fa subito)

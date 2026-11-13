@@ -8857,16 +8857,8 @@ namespace SunEngine {
         VsBotPlaceMe(false);
         if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = hp->maxHealth;
 
-        // I giocatori IA schierano la prima unita' (solo chi simula i bot: in squadra l'host, gli altri ne vedono le copie)
-        if (NetIsAuthority()) {
-            int spawnIdx[2] = { 0, 0 };
-            for (const auto& p : m_VsBotPlayers) if (p.human) ++spawnIdx[p.team == 1 ? 1 : 0];
-            for (auto& p : m_VsBotPlayers) {
-                if (p.human) continue;
-                VsBotSpawnAi(p, 0, VsBotSpawnPoint(p.team, spawnIdx[p.team == 1 ? 1 : 0]++, false));
-            }
-            m_PhysicsSystem.RefreshBodies(m_Scene);
-        }
+        // I giocatori IA non scendono ancora in campo: entrano negli ultimi 3 secondi del riscaldamento (UpdateVsBot),
+        // cosi' fino ad allora un compagno che arriva in ritardo puo' prendere il posto di uno di loro
         int pts[2] = { 0, 0 }, units[2] = { 0, 0 };
         for (const auto& p : m_VsBotPlayers) { pts[p.team == 1 ? 1 : 0] += p.TotalPoints(); units[p.team == 1 ? 1 : 0] += static_cast<int>(p.squad.size()); }
         SUN_CORE_INFO("Vs Bot {0}: squadra 0 {1} pti in {2} unita', squadra 1 {3} pti in {4} unita'", tier.name, pts[0], units[0], pts[1], units[1]);
@@ -8945,6 +8937,25 @@ namespace SunEngine {
         m_VsBotPlayers[playerIdx].team = to;
         m_Net.rosterTimer = 0.0f;   // in squadra: tutti lo sanno subito
         SUN_CORE_INFO("Vs Bot: {0} passa alla squadra {1} al posto di {2}", m_VsBotPlayers[playerIdx].name, to, bot.name);
+    }
+
+    // Host: un compagno arrivato dopo l'avvio entra nel Vs Bot prendendo il posto di un bot che non e' ancora sceso in
+    // campo (fino agli ultimi 3 secondi del riscaldamento). Prima la squadra del capo, poi l'altra.
+    bool GameLayer::VsBotAdmitHuman(std::uint64_t owner, const std::string& name) {
+        if (!m_VsBotActive || m_VsBotResult != 0 || m_VsBotWarmup <= kVsBotBotsEnterAt) return false;
+        for (const auto& p : m_VsBotPlayers) if (p.human && p.owner == owner) return true;   // c'e' gia'
+        int pick = -1;
+        for (int team = 0; team < 2 && pick < 0; ++team)
+            for (int i = static_cast<int>(m_VsBotPlayers.size()) - 1; i >= 0; --i) {
+                const auto& p = m_VsBotPlayers[i];
+                if (!p.human && (p.team == 1 ? 1 : 0) == team && p.active < 0) { pick = i; break; }
+            }
+        if (pick < 0) return false;
+        auto& p = m_VsBotPlayers[pick];
+        SUN_CORE_INFO("Vs Bot: {0} entra al posto di {1}", name, p.name);
+        p.human = true; p.local = false; p.owner = owner; p.name = name;
+        p.squad.clear(); p.active = -1; p.respawnTimer = 0.0f;   // la sua squadra arriva da lui (NM_Squad)
+        return true;
     }
 
     // Basi: durante il riscaldamento ognuno resta nella sua; poi la squadra avversaria non puo' entrare nella base
@@ -9052,10 +9063,19 @@ namespace SunEngine {
             }
             p.respawnTimer = std::max(0.0f, p.respawnTimer - deltaTime);
             if (p.human || p.respawnTimer > 0.0f) continue;
-            // IA: rientra con un'unita' a caso fra quelle in riserva (l'avversario non sa cosa arriva)
+            if (m_VsBotWarmup > kVsBotBotsEnterAt) continue;   // posti ancora aperti per chi arriva in ritardo
+            // IA: entra (o rientra) con un'unita' fra quelle in riserva: la prima volta la prima della sua squadra,
+            // ai rientri una a caso (l'avversario non sa cosa arriva)
             std::vector<int> reserve;
             for (int i = 0; i < static_cast<int>(p.squad.size()); ++i) if (p.squad[i].state == VsBotSlotState::Reserve) reserve.push_back(i);
             if (reserve.empty()) continue;
+            if (static_cast<int>(reserve.size()) == static_cast<int>(p.squad.size())) {   // primo ingresso: dal suo posto nella base
+                int idx = 0;
+                for (const auto& q : m_VsBotPlayers) { if (&q == &p) break; if ((q.team == 1 ? 1 : 0) == (p.team == 1 ? 1 : 0)) ++idx; }
+                VsBotSpawnAi(p, 0, VsBotSpawnPoint(p.team, idx, false));
+                m_PhysicsSystem.RefreshBodies(m_Scene);
+                continue;
+            }
             const int pick = reserve[Random::RangeInt(0, static_cast<int>(reserve.size()) - 1)];
             const int nPts = static_cast<int>(m_VsBotSpawns[p.team == 1 ? 1 : 0].size());
             VsBotSpawnAi(p, pick, VsBotSpawnPoint(p.team, Random::RangeInt(0, std::max(0, nPts - 1)), true));

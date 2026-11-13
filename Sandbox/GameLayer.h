@@ -589,10 +589,13 @@ namespace SunEngine {
             float rosterTimer = 0.0f, squadTimer = 0.0f;
             std::string squadKey;                   // stato della mia squadra gia' mandato
             std::uint32_t vsRosterMatch = 0;        // partita a cui appartiene vsRoster
+            std::uint32_t joinRequestMatch = 0;     // Vs Bot gia' avviato: ho chiesto all'host di entrare in questa partita
         } m_Net;
         void NetLeaderStartVsBot(int tierIdx);      // il capo avvia il Vs Bot per tutta la squadra
         void NetVsBotTick(float realDt);            // roster (host) e la mia squadra (tutti)
         void NetRequestTeamSwitch();
+        void NetRequestVsBotJoin(std::uint32_t matchId);   // entrare in un Vs Bot gia' avviato (durante il riscaldamento)
+        bool VsBotAdmitHuman(std::uint64_t owner, const std::string& name);   // host: il nuovo arrivato prende il posto di un bot non ancora in campo
         void NetDespawnEnemy(entt::entity e);       // host: un nemico sparisce senza morire (es. bot che cambia base)
         void InitNetMatch();
         void UpdateNetMatch(float realDt);          // ogni fotogramma, subito dopo la rete
@@ -902,6 +905,7 @@ namespace SunEngine {
         int m_VsBotSpectate = 0;                   // alleato osservato
         static constexpr float kVsBotAiRespawn = 5.0f;      // l'IA rientra dopo 5 s
         static constexpr float kVsBotHumanRespawn = 3.0f;   // tu puoi scegliere dopo 3 s
+        static constexpr float kVsBotBotsEnterAt = 3.0f;    // i bot entrano negli ultimi 3 s del riscaldamento: prima i posti restano liberi per chi arriva
     };
 
 }
