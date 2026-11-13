@@ -186,7 +186,7 @@ namespace SunEngine {
                         const glm::mat4 entityMat = transform.GetTransform();
                         for (const auto& part : blockModel->model->parts) {
                             deferred.DrawCube(BlockPartMatrix(entityMat, part), part.color,
-                                part.roughness, part.metallic, part.emissive);
+                                part.roughness, part.metallic, part.emissive, 9);   // 9 = equipaggiamento: spigoli smussati e materiali
                         }
                     }
                     else {

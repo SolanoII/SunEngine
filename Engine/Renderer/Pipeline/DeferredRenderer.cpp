@@ -5,6 +5,7 @@
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <stb_image.h>
 
 namespace SunEngine {
 
@@ -25,14 +26,20 @@ namespace SunEngine {
 
         out vec3 v_WorldPos;
         out vec3 v_Normal;
+        out vec3 v_Local;          // posizione nel cubo (-0.5 .. 0.5)
         flat out vec4 v_Color;
         flat out vec4 v_Params;
+        flat out vec3 v_Size;      // lati del cubo in metri
+        flat out mat3 v_Rot;       // rotazione del cubo (senza scala)
 
         void main() {
             vec4 worldPos = i_Model * vec4(a_Position, 1.0);
             v_WorldPos = worldPos.xyz;
             mat3 normalMatrix = transpose(inverse(mat3(i_Model)));
             v_Normal = normalize(normalMatrix * a_Normal);
+            v_Local = a_Position;
+            v_Size = vec3(length(i_Model[0].xyz), length(i_Model[1].xyz), length(i_Model[2].xyz));
+            v_Rot = mat3(i_Model[0].xyz / max(v_Size.x, 1e-6), i_Model[1].xyz / max(v_Size.y, 1e-6), i_Model[2].xyz / max(v_Size.z, 1e-6));
             v_Color = i_Color;
             v_Params = i_Params;
             gl_Position = u_ViewProjection * worldPos;
@@ -45,6 +52,9 @@ namespace SunEngine {
         #version 410 core
         in vec3 v_WorldPos;
         in vec3 v_Normal;
+        in vec3 v_Local;
+        flat in vec3 v_Size;
+        flat in mat3 v_Rot;
 
         layout (location = 0) out vec4 out_Albedo;
         layout (location = 1) out vec4 out_Normal;
@@ -57,8 +67,13 @@ namespace SunEngine {
         #define u_Roughness v_Params.x
         #define u_Metallic v_Params.y
         #define u_Emissive v_Params.z
-        #define u_Material int(v_Params.w + 0.5)   // 0 tinta unita, 1 fango, 2 cemento, 3 lamiera, 4 sacchi, 5 legno, 6 chioma, 7 terrapieno, 8 detriti
+        #define u_Material int(v_Params.w + 0.5)   // 0 tinta unita, 1 fango, 2 cemento, 3 lamiera, 4 sacchi, 5 legno, 6 chioma, 7 terrapieno, 8 detriti, 9 equipaggiamento
         uniform float u_Relief;     // rilievo dei materiali (opzioni grafiche)
+        // Dettaglio fotografico (texture generate, vedi LoadSurfaceDetail): strato = materiale
+        uniform sampler2DArray u_SurfAlb;   // RGB albedo relativo (0.5 = invariato), A altezza
+        uniform sampler2DArray u_SurfDat;   // RG normale, B rugosita', A occlusione
+        uniform int   u_SurfOn;
+        uniform float u_SurfDetail;
 
         float H31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
         float H21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -80,11 +95,82 @@ namespace SunEngine {
             return normalize(abs(det) * N - grad);
         }
 
+        // Normale da texture con le coordinate della faccia (cornice tangente dalle derivate a schermo)
+        vec3 PerturbUV(vec3 N, vec2 uv, vec2 tn) {
+            vec3 dp1 = dFdx(v_WorldPos), dp2 = dFdy(v_WorldPos);
+            vec2 duv1 = dFdx(uv), duv2 = dFdy(uv);
+            vec3 dp2perp = cross(dp2, N), dp1perp = cross(N, dp1);
+            vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+            vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+            float m = max(dot(T, T), dot(B, B));
+            if (m < 1e-20) return N;
+            float inv = inversesqrt(m);
+            return normalize(T * inv * tn.x + B * inv * tn.y + N * sqrt(max(1.0 - dot(tn, tn), 0.05)));
+        }
+
         void main() {
             vec3 N = normalize(v_Normal);
             vec3 col = u_Color.rgb;
             float rough = u_Roughness, metal = u_Metallic;
-            if (u_Material > 0) {
+            float ao = 1.0;
+            if (u_Material == 9) {
+                // ---- EQUIPAGGIAMENTO (armi e oggetti a blocchi): spigoli arrotondati, i pezzi sottili diventano
+                // tondi come canne e manici; acciaio brunito, legno o polimero secondo il pezzo; spigoli consumati.
+                vec3 hl = v_Size * 0.5;
+                vec3 q = abs(v_Local) * v_Size;                         // distanza dal centro (metri)
+                float minDim = min(v_Size.x, min(v_Size.y, v_Size.z));
+                float r = min(minDim * 0.5, 0.011);                     // raggio dello smusso
+                vec3 e = max(q - (hl - r), 0.0);
+                vec3 nl = e * sign(v_Local);
+                float bev = 0.0;                                        // 0 faccia piana, 1 pieno spigolo
+                if (dot(nl, nl) > 1e-12) {
+                    nl = normalize(nl);
+                    N = normalize(v_Rot * nl);
+                    vec3 an = abs(nl);
+                    bev = 1.0 - max(an.x, max(an.y, an.z));
+                    bev = smoothstep(0.0, 0.3, bev);
+                }
+                // coordinate sulla faccia (metri), l'asse lungo del pezzo in v
+                vec3 pl = v_Local * v_Size;
+                vec3 fa = abs(normalize(v_Normal * v_Rot));              // normale della faccia nello spazio del cubo
+                vec2 fuv = fa.x > 0.5 ? pl.zy : (fa.y > 0.5 ? pl.xz : pl.xy);
+                vec2 fsz = fa.x > 0.5 ? v_Size.zy : (fa.y > 0.5 ? v_Size.xz : v_Size.xy);
+                if (fsz.x > fsz.y) fuv = fuv.yx;
+                fuv += vec2(H31(floor(v_Size * 917.0)), H31(floor(v_Size * 531.0 + 7.0)));   // ogni pezzo un ritaglio diverso
+                float n1 = N3(vec3(fuv * 40.0, v_Size.x * 50.0));
+                float n2 = N3(vec3(fuv * 190.0, v_Size.y * 50.0));
+                bool isMetal = metal > 0.35;
+                bool isWood = !isMetal && col.r > col.b * 1.3 && col.r > col.g * 1.08 && Lum(col) < 0.5;
+                float layer = isMetal ? 8.0 : (isWood ? 4.0 : 2.0);
+                float tile = isMetal ? 0.22 : (isWood ? 0.30 : 0.35);
+                float amt = isMetal ? 1.0 : (isWood ? 1.0 : 0.45);
+                vec2 tn = vec2(0.0);
+                if (u_SurfOn == 1 && u_SurfDetail > 0.001) {
+                    vec4 sa = texture(u_SurfAlb, vec3(fuv / tile, layer));
+                    vec4 sd = texture(u_SurfDat, vec3(fuv / tile, layer));
+                    float k = min(u_SurfDetail, 1.0) * amt;
+                    col *= mix(vec3(1.0), sa.rgb * 2.0, k);
+                    rough = clamp(rough + (sd.b - 0.5) * 0.6 * k, 0.08, 1.0);
+                    ao = mix(1.0, sd.a, k);
+                    tn = (sd.rg * 2.0 - 1.0) * k * (isWood ? 0.8 : 0.6);
+                }
+                col *= 0.9 + 0.2 * n1;                                   // patina non uniforme
+                // spigoli consumati: metallo nudo che luccica (sull'acciaio) o materiale lisciato e schiarito
+                float wear = bev * smoothstep(0.3, 0.7, n1 * 0.6 + n2 * 0.6);
+                if (isMetal) {
+                    col = mix(col, vec3(0.62, 0.61, 0.59), wear * 0.75);
+                    rough = mix(rough, 0.28, wear * 0.8);
+                    metal = mix(metal, 0.95, wear);
+                }
+                else {
+                    col = mix(col, col * 1.35 + 0.02, wear * 0.6);
+                    rough = mix(rough, rough * 0.7, wear);
+                }
+                // sporco negli incavi fra un pezzo e l'altro (facce piane, lontano dagli spigoli)
+                col *= 1.0 - 0.12 * smoothstep(0.55, 0.8, n2) * (1.0 - bev);
+                if (dot(tn, tn) > 1e-8 && u_Relief > 0.001) N = PerturbUV(N, fuv, tn * min(u_Relief, 1.5) * (1.0 - bev));
+            }
+            else if (u_Material > 0) {
                 vec3 p = v_WorldPos;
                 bool top = N.y > 0.6;
                 bool sideX = abs(N.x) > abs(N.z);
@@ -93,6 +179,10 @@ namespace SunEngine {
                 float h = 0.0;                                          // rilievo (metri)
                 float big = Fbm(p * 0.35), mid = N3(p * 3.1), fine = N3(p * 17.0);
                 rough = 0.85;
+                // dettaglio fotografico: strato (0 terra, 1 cemento, 2 lamiera, 3 juta, 4 legno, 5 foglie, 6 ghiaia),
+                // metri per ripetizione, quantita' (colore) e forza della normale
+                float sLayer = -1.0, sTile = 1.5, sAmt = 1.0, sNrm = 1.0;
+                vec2 sUV = uv;
 
                 if (u_Material == 1) {
                     // ---- FANGO: asciutto e crepato / bagnato e scuro, ghiaia, crateri bruciati, pozzanghere
@@ -126,6 +216,7 @@ namespace SunEngine {
                     rough = mix(rough, 0.05, puddle);
                     h = mix(h, -0.02 + 0.002 * N3(p * 25.0), puddle);
                     col = mix(col, col * tint / max(Lum(tint), 0.05), 0.2);
+                    sLayer = 0.0; sTile = 1.6; sAmt = 1.0 - puddle * 0.85; sNrm = (1.0 - puddle) * (1.0 - wetness * 0.4);
                 }
                 else if (u_Material == 2 || u_Material == 8) {
                     // ---- CEMENTO (rockcrete): pannelli, crepe, colature, colpi di proiettile, fuliggine
@@ -146,6 +237,8 @@ namespace SunEngine {
                     h = mid * 0.006 + fine * 0.002 - seam * 0.012 - cracks * 0.006 - hit * 0.015 + big * 0.01;
                     if (u_Material == 8) { h += big * 0.05; col *= 0.85; }
                     rough = 0.9 - stains * 0.1;
+                    if (u_Material == 8) { sLayer = 6.0; sTile = 1.1; sAmt = 0.7; }
+                    else { sLayer = 1.0; sTile = 2.0; sNrm = 0.8; }
                 }
                 else if (u_Material == 3) {
                     // ---- LAMIERE: vernice militare scrostata, ruggine, rivetti, colature di ruggine
@@ -167,6 +260,7 @@ namespace SunEngine {
                     rough = mix(0.7, 0.95, chip) - bare * 0.35;
                     col *= 1.0 - seam * 0.5;
                     h = -seam * 0.01 + rivet * 0.008 + chip * 0.002 + mid * 0.002;
+                    sLayer = 2.0; sTile = 1.4; sAmt = 0.8; sNrm = 0.7;
                 }
                 else if (u_Material == 4) {
                     // ---- SACCHI DI SABBIA: file sfalsate, cuciture, juta, fango in basso
@@ -183,6 +277,7 @@ namespace SunEngine {
                     col *= 0.85 + 0.25 * mid;
                     h = pillow * 0.05 + weave * 0.0006 + mid * 0.004;
                     rough = 0.95;
+                    sLayer = 3.0; sTile = 0.28;
                 }
                 else if (u_Material == 5) {
                     // ---- LEGNO: venature lungo l'asse, bruciature
@@ -193,6 +288,7 @@ namespace SunEngine {
                     col = mix(col, vec3(0.035, 0.03, 0.028), burnt);
                     h = grain * 0.004 + Ridge(gp * 3.0, 0.05) * 0.003;
                     rough = 0.9;
+                    sLayer = 4.0; sTile = 1.3; sNrm = 0.8;
                 }
                 else if (u_Material == 6) {
                     // ---- CHIOMA MORTA: ciuffi secchi oliva e marroni
@@ -201,11 +297,12 @@ namespace SunEngine {
                     col *= 0.55 + 0.75 * clump;
                     h = clump * 0.12 + fine * 0.02;
                     rough = 0.95;
+                    sLayer = 5.0; sTile = 1.1;
                 }
                 else if (u_Material == 7) {
                     // ---- TERRAPIENO: terra battuta sopra, assi di contenimento e pali sui lati
                     vec3 dirt = mix(vec3(0.21, 0.17, 0.13), vec3(0.11, 0.09, 0.07), smoothstep(0.4, 0.7, big)) * (0.85 + 0.25 * mid);
-                    if (top) { col = dirt; h = big * 0.05 + mid * 0.01; }
+                    if (top) { col = dirt; h = big * 0.05 + mid * 0.01; sLayer = 0.0; sTile = 1.6; }
                     else {
                         float plankY = fract(uv.y / 0.26);
                         float gap = 1.0 - smoothstep(0.02, 0.07, min(plankY, 1.0 - plankY));
@@ -215,8 +312,26 @@ namespace SunEngine {
                         col = mix(wood, dirt * 0.6, gap);
                         col = mix(col, vec3(0.08, 0.06, 0.045), post * 0.8);
                         h = (1.0 - gap) * 0.015 + post * 0.02 + mid * 0.003;
+                        sLayer = 4.0; sTile = 1.2; sUV = uv.yx; sNrm = 0.7;   // assi orizzontali: venatura lungo X
                     }
                     rough = 0.92;
+                }
+
+                // Dettaglio fotografico sopra il disegno procedurale: sassolini, inerti, fibre, venature, pori.
+                // Una seconda lettura ruotata e piu' larga si mescola a chiazze e rompe la ripetizione.
+                vec2 sTN = vec2(0.0);
+                float sK = u_SurfDetail * sAmt;
+                if (u_SurfOn == 1 && sLayer >= 0.0 && sK > 0.001) {
+                    vec2 suv = sUV / sTile;
+                    vec4 sa = texture(u_SurfAlb, vec3(suv, sLayer));
+                    vec4 sa2 = texture(u_SurfAlb, vec3(mat2(0.8, -0.6, 0.6, 0.8) * suv * 0.37 + 0.31, sLayer));
+                    vec4 sd = texture(u_SurfDat, vec3(suv, sLayer));
+                    vec3 salb = mix(sa.rgb, sa2.rgb, smoothstep(0.35, 0.65, big) * 0.6);
+                    col *= mix(vec3(1.0), salb * 2.0, min(sK, 1.0));
+                    rough = clamp(rough + (sd.b - 0.5) * 0.6 * sK, 0.04, 1.0);
+                    ao = mix(1.0, sd.a, min(sK, 1.0));
+                    sTN = (sd.rg * 2.0 - 1.0) * sNrm * sK;
+                    sUV = suv;
                 }
 
                 // sporco comune: fango schizzato in basso sulle pareti, polvere sulle superfici in alto
@@ -228,9 +343,12 @@ namespace SunEngine {
                     float dust = top ? smoothstep(0.3, 0.7, big) * 0.35 : 0.0;
                     col = mix(col, vec3(0.27, 0.24, 0.20), dust);
                 }
-                if (u_Relief > 0.001) N = BumpW(N, h * u_Relief);
+                if (u_Relief > 0.001) {
+                    N = BumpW(N, h * u_Relief);
+                    if (dot(sTN, sTN) > 1e-8) N = PerturbUV(N, sUV, sTN * min(u_Relief, 1.5));
+                }
             }
-            out_Albedo   = vec4(col, u_Color.a);
+            out_Albedo   = vec4(col, u_Color.a * ao);
             out_Normal   = vec4(N, 1.0);
             out_Material = vec4(clamp(rough, 0.04, 1.0), metal, u_Emissive, 0.0);
         }
@@ -916,6 +1034,20 @@ uniform int   u_Detail;       // 0 niente, 1 pelle, 2 stoffa, 3 armatura/metallo
 uniform float u_InvHeight;    // 1 / altezza del corpo in posa T (scala dei dettagli)
 uniform float u_Grime;        // opzioni grafiche: sporco su vestiti e armature
 uniform float u_Desat;        // opzioni grafiche: tinte spente grimdark (0 = colori originali)
+uniform sampler2DArray u_SurfAlb;   // dettaglio fotografico (unita' 5): RGB albedo relativo, A altezza
+uniform sampler2DArray u_SurfDat;   // (unita' 6): RG normale, B rugosita', A occlusione
+uniform int   u_SurfOn;
+uniform float u_SurfDetail;
+
+// Dettaglio fotografico in posa T, triplanare (strato 7 stoffa, 8 armatura; reps = ripetizioni per altezza del corpo)
+void SurfTri(float layer, float reps, out vec4 A, out vec4 D) {
+    vec3 n = abs(normalize(v_BindNormal));
+    n = pow(n, vec3(4.0));
+    n /= max(n.x + n.y + n.z, 1e-4);
+    vec3 p = v_BindPos * u_InvHeight * reps;
+    A = texture(u_SurfAlb, vec3(p.zy, layer)) * n.x + texture(u_SurfAlb, vec3(p.xz, layer)) * n.y + texture(u_SurfAlb, vec3(p.xy, layer)) * n.z;
+    D = texture(u_SurfDat, vec3(p.zy, layer)) * n.x + texture(u_SurfDat, vec3(p.xz, layer)) * n.y + texture(u_SurfDat, vec3(p.xy, layer)) * n.z;
+}
 
 // Proiezione triplanare in posa T: niente UV, la texture segue il corpo in ogni animazione
 vec4 SampleTriplanar() {
@@ -1083,8 +1215,17 @@ void main() {
             bool arm = abs(pn.x) > 0.17;
             float c = (arm ? pn.x : pn.y) * 46.0 + n1 * 5.0;
             float folds = (sin(c) * 0.5 + 0.5) * smoothstep(0.25, 0.8, Noise3(pn * 6.0 + 3.1));
-            float weave = Noise3(pn * vec3(900.0, 900.0, 900.0));
-            N = Bump(N, folds * 0.0045 + weave * 0.00035 + n2 * 0.001, 1.0);
+            float weave = Noise3(pn * vec3(900.0, 900.0, 900.0)) * 0.00035;
+            if (u_SurfOn == 1 && u_SurfDetail > 0.001) {
+                // trama della saia, fibre, pallini di tessuto consumato (texture generata)
+                vec4 sa, sd; SurfTri(7.0, 16.0, sa, sd);
+                float k = min(u_SurfDetail, 1.0);
+                color.rgb *= mix(vec3(1.0), sa.rgb * 2.0, k * 0.85);
+                rough = clamp(rough + (sd.b - 0.5) * 0.4 * k, 0.3, 1.0);
+                aoTex *= mix(1.0, sd.a, k * 0.7);
+                weave = mix(weave, (sa.a - 0.5) * 0.0007, k) * max(u_SurfDetail, 1.0);
+            }
+            N = Bump(N, folds * 0.0045 + weave + n2 * 0.001, 1.0);
             color.rgb *= 0.86 + 0.18 * n1 - 0.08 * folds;                     // pieghe in ombra, stoffa non uniforme
             float hem = smoothstep(0.0, 0.006, edge);
             color.rgb *= mix(0.68, 1.0, hem);                                 // orlo ripiegato piu' scuro
@@ -1096,7 +1237,17 @@ void main() {
             // Armatura: ammaccature, sporco negli incavi, vernice consumata sugli spigoli (metallo nudo che luccica)
             float wear = (1.0 - smoothstep(0.0, 0.012, edge)) * smoothstep(0.35, 0.75, n2 + 0.3);
             float scratches = smoothstep(0.9, 0.98, Noise3(pn * vec3(500.0, 30.0, 500.0))) * smoothstep(0.4, 0.7, n1);
-            N = Bump(N, n1 * 0.002 + n2 * 0.0006 - (1.0 - smoothstep(0.0, 0.004, edge)) * 0.0015, 1.0);
+            float plate = 0.0;
+            if (u_SurfOn == 1 && u_SurfDetail > 0.001) {
+                // piastra fusa e martellata: fossette, vaiolatura, graffi sottili, spazzolatura (texture generata)
+                vec4 sa, sd; SurfTri(8.0, 6.0, sa, sd);
+                float k = min(u_SurfDetail, 1.0);
+                color.rgb *= mix(vec3(1.0), sa.rgb * 2.0, k * 0.9);
+                rough = clamp(rough + (sd.b - 0.5) * 0.6 * k, 0.12, 1.0);
+                aoTex *= mix(1.0, sd.a, k * 0.7);
+                plate = (sa.a - 0.5) * 0.0009 * u_SurfDetail;
+            }
+            N = Bump(N, n1 * 0.002 + n2 * 0.0006 - (1.0 - smoothstep(0.0, 0.004, edge)) * 0.0015 + plate, 1.0);
             color.rgb *= 0.82 + 0.25 * n1;                                    // patina non uniforme
             color.rgb *= mix(0.75, 1.0, smoothstep(0.2, 0.6, n1));            // sporco
             vec3 bare = vec3(0.62, 0.6, 0.58);
@@ -1315,7 +1466,78 @@ void main() {
         return true;
     }
 
+    // Texture di dettaglio delle superfici: l'ordine e' quello degli strati usati negli shader dei cubi e dei corpi
+    bool DeferredRenderer::LoadSurfaceDetail(const std::string& dir) {
+        static const char* k_Layers[] = { "soil", "concrete", "metal", "burlap", "wood", "foliage", "gravel", "fabric", "armour" };
+        const int count = (int)(sizeof(k_Layers) / sizeof(k_Layers[0]));
+        int size = 0;
+        std::vector<unsigned char> albedo, data;   // tutti gli strati, RGBA
+        int loaded = 0;
+        for (int l = 0; l < count; ++l) {
+            const std::string base = dir + k_Layers[l];
+            int w[3] = {}, h[3] = {}, c = 0;
+            stbi_set_flip_vertically_on_load(true);
+            unsigned char* a = stbi_load((base + "_albedo.jpg").c_str(), &w[0], &h[0], &c, 3);
+            unsigned char* n = stbi_load((base + "_normal.jpg").c_str(), &w[1], &h[1], &c, 3);
+            unsigned char* d = stbi_load((base + "_data.jpg").c_str(), &w[2], &h[2], &c, 3);
+            const bool ok = a && n && d && w[0] == w[1] && w[1] == w[2] && h[0] == h[1] && h[1] == h[2] && w[0] == h[0];
+            if (ok && size == 0) {
+                size = w[0];
+                albedo.assign((size_t)size * size * 4 * count, 128);
+                data.assign((size_t)size * size * 4 * count, 128);
+                for (size_t i = 3; i < data.size(); i += 4) data[i] = 255;   // occlusione: nessuna
+            }
+            if (ok && w[0] == size) {
+                unsigned char* A = albedo.data() + (size_t)l * size * size * 4;
+                unsigned char* D = data.data() + (size_t)l * size * size * 4;
+                for (size_t i = 0, px = (size_t)size * size; i < px; ++i) {
+                    A[i * 4 + 0] = a[i * 3 + 0]; A[i * 4 + 1] = a[i * 3 + 1]; A[i * 4 + 2] = a[i * 3 + 2]; A[i * 4 + 3] = d[i * 3 + 0];
+                    D[i * 4 + 0] = n[i * 3 + 0]; D[i * 4 + 1] = n[i * 3 + 1]; D[i * 4 + 2] = d[i * 3 + 1]; D[i * 4 + 3] = d[i * 3 + 2];
+                }
+                ++loaded;
+            }
+            else SUN_CORE_WARN("Dettaglio superfici: manca o non va {0}_*.jpg", base);
+            stbi_image_free(a); stbi_image_free(n); stbi_image_free(d);
+        }
+        if (loaded == 0 || size == 0) return false;
+        auto upload = [&](GLuint& id, const std::vector<unsigned char>& px) {
+            if (id == 0) glGenTextures(1, &id);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, id);
+            glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, size, size, count, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            GLfloat maxAniso = 0.0f;
+            glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
+            if (maxAniso > 0.0f) glTexParameterf(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_ANISOTROPY, std::min(maxAniso, 8.0f));
+            glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+        };
+        upload(m_SurfAlbedoArr, albedo);
+        upload(m_SurfDataArr, data);
+        SUN_CORE_INFO("Dettaglio superfici: {0}/{1} strati {2}x{2}", loaded, count, size);
+        return true;
+    }
+
+    void DeferredRenderer::BindSurfaceDetail(Shader& sh) {
+        const bool on = m_SurfAlbedoArr != 0 && m_Quality.surfaceDetail > 0.001f;
+        // le unita' restano 5 e 6 anche da spento: due campionatori di tipo diverso sulla stessa unita' bloccano il disegno
+        sh.SetInt("u_SurfAlb", 5);
+        sh.SetInt("u_SurfDat", 6);
+        sh.SetInt("u_SurfOn", on ? 1 : 0);
+        sh.SetFloat("u_SurfDetail", glm::clamp(m_Quality.surfaceDetail, 0.0f, 2.0f));
+        if (!on) return;
+        glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, m_SurfAlbedoArr);
+        glActiveTexture(GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, m_SurfDataArr);
+        glActiveTexture(GL_TEXTURE0);
+    }
+
     void DeferredRenderer::Shutdown() {
+        if (m_SurfAlbedoArr != 0) { glDeleteTextures(1, &m_SurfAlbedoArr); m_SurfAlbedoArr = 0; }
+        if (m_SurfDataArr != 0) { glDeleteTextures(1, &m_SurfDataArr); m_SurfDataArr = 0; }
         if (m_LightUBO != 0) {
             glDeleteBuffers(1, &m_LightUBO);
             m_LightUBO = 0;
@@ -1573,6 +1795,7 @@ void main() {
         m_GBufferShader->Bind();
         m_GBufferShader->SetMat4("u_ViewProjection", m_ViewProjection);
         m_GBufferShader->SetFloat("u_Relief", m_Quality.materialRelief);
+        BindSurfaceDetail(*m_GBufferShader);
         glBindVertexArray(m_CubeInstVAO);
         glBindBuffer(GL_ARRAY_BUFFER, m_CubeInstVBO);
         glBufferData(GL_ARRAY_BUFFER, m_CubeQueue.size() * sizeof(CubeInstance), m_CubeQueue.data(), GL_STREAM_DRAW);
@@ -1935,7 +2158,7 @@ void main() {
         if (m_CloakCapture) { m_CloakCubes.push_back({ transform, m_CloakAmount }); return; }   // mimetizzato
         // in coda: FlushCubes li disegna tutti con una chiamata sola
         m_CubeQueue.push_back({ transform, color,
-            glm::vec4(roughness, metallic, emissive, static_cast<float>(m_Quality.mapMaterials ? material : 0)) });
+            glm::vec4(roughness, metallic, emissive, static_cast<float>((m_Quality.mapMaterials || material == 9) ? material : 0)) });
         ++m_CubesDrawn;
         if (m_CubeQueue.size() >= 16384) FlushCubes();
     }
@@ -2056,6 +2279,7 @@ void main() {
         }
         m_GBufferSkinnedShader->SetFloat("u_Grime", glm::clamp(m_Quality.gearGrime, 0.0f, 2.0f));
         m_GBufferSkinnedShader->SetFloat("u_Desat", glm::clamp(m_Quality.desaturation, 0.0f, 1.0f));
+        BindSurfaceDetail(*m_GBufferSkinnedShader);
         m_GBufferSkinnedShader->SetFloat("u_InvHeight", invHeight > 0.0f ? invHeight : 1.0f);
         m_GBufferSkinnedShader->SetMat4("u_Model", model);
         m_GBufferSkinnedShader->SetMat4("u_ViewProjection", m_ViewProjection);

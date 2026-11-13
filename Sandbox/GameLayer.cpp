@@ -1381,6 +1381,8 @@ namespace SunEngine {
         if (!modelsDir.empty()) {
             // Vestiti del modello animato: i percorsi nei JSON sono relativi a GameData
             m_Garments.SetRoot(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/");
+            // Dettaglio fotografico di mappe, vesti, armature e armi (texture generate in Textures/Surfaces)
+            m_DeferredRenderer.LoadSurfaceDetail(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/Textures/Surfaces/");
             std::string fbxPath = modelsDir + "Characters/guardsman_master.fbx";
             // Il modello skinnato serve al personaggio animato (UpdateAnimatedPlayer). Rimossi i modelli di
             // prova: la copia statica in T-pose, il dummy animato accanto al giocatore e l'entity all'origine.
@@ -1550,7 +1552,7 @@ namespace SunEngine {
             {"shadowDistance", q.shadowDistance}, {"ssaoRadius", q.ssaoRadius}, {"ssaoStrength", q.ssaoStrength},
             {"bloom", q.bloom}, {"bloomIntensity", q.bloomIntensity}, {"brightness", q.brightness}, {"gamma", q.gamma},
             {"skinSSS", q.skinSSS}, {"skinDetail", q.skinDetail}, {"gearGrime", q.gearGrime}, {"desaturation", q.desaturation},
-            {"mapMaterials", q.mapMaterials}, {"materialRelief", q.materialRelief}, {"mapDecor", q.mapDecor},
+            {"mapMaterials", q.mapMaterials}, {"materialRelief", q.materialRelief}, {"mapDecor", q.mapDecor}, {"surfaceDetail", q.surfaceDetail},
             {"renderScale", q.renderScale}, {"shadowResolution", q.shadowResolution}, {"ssaoHalfRes", q.ssaoHalfRes}, {"vsync", q.vsync} };
         j["atmosphere"] = {
             {"zenith", Vec3Json(a.zenith)}, {"horizon", Vec3Json(a.horizon)}, {"ground", Vec3Json(a.ground)},
@@ -1583,6 +1585,7 @@ namespace SunEngine {
             JsonBool(g, "mapMaterials", q.mapMaterials);
             JsonFloat(g, "materialRelief", q.materialRelief, 0.0f, 2.0f);
             JsonBool(g, "mapDecor", q.mapDecor);
+            JsonFloat(g, "surfaceDetail", q.surfaceDetail, 0.0f, 2.0f);
             JsonFloat(g, "renderScale", q.renderScale, 0.5f, 1.0f);
             if (g.contains("shadowResolution") && g["shadowResolution"].is_number_integer()) q.shadowResolution = std::clamp(g["shadowResolution"].get<int>(), 1024, 4096);
             JsonBool(g, "ssaoHalfRes", q.ssaoHalfRes);
@@ -5539,7 +5542,6 @@ namespace SunEngine {
             m_Camera.SetYawOffset(recoilYaw + feelKick.yaw);
             m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight, extraFov);
             m_Camera.Update(shakeOffset, 1.0f);
-
             // Raggio del mirino (centro dello schermo) per far convergere i colpi del giocatore
             {
                 auto& aim = m_Scene.GetRegistry().get_or_emplace<AimRayComponent>(m_PlayerEntity);
@@ -8213,6 +8215,8 @@ namespace SunEngine {
             ImGui::BeginDisabled(!q.mapMaterials);
             ImGui::SliderFloat("Rilievo dei materiali", &q.materialRelief, 0.0f, 2.0f, "%.2f");
             ImGui::EndDisabled();
+            ImGui::SliderFloat("Dettaglio delle superfici", &q.surfaceDetail, 0.0f, 2.0f, "%.2f");
+            hint("Texture ad alta risoluzione: sassi e grumi nella terra, inerti del cemento, juta, venature, trama dei vestiti, piastre delle armature, acciaio e legno delle armi. 0 = spento.");
             ImGui::Checkbox("Detriti sparsi", &q.mapDecor);
             hint("Macerie, pietre, assi e rottami sparsi sul campo (solo grafica, non bloccano).");
         }

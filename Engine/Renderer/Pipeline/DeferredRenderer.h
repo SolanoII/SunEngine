@@ -59,6 +59,7 @@ namespace SunEngine {
         float desaturation = 1.0f;        // tinte spente grimdark di pelle e vestiti (0 = colori originali)
         bool  mapMaterials = true;        // materiali procedurali delle mappe (0 = tinta unita)
         float materialRelief = 1.0f;      // rilievo dei materiali delle mappe
+        float surfaceDetail = 1.0f;       // dettaglio fotografico delle superfici (Textures/Surfaces): mappe, vesti, armature, armi (0 = spento)
         bool  mapDecor = true;            // detriti sparsi sulle mappe (li salta il RenderSystem)
         // Prestazioni
         float renderScale = 1.0f;         // risoluzione interna rispetto alla finestra (0.5 - 1): l'immagine viene poi ingrandita
@@ -165,6 +166,10 @@ namespace SunEngine {
             int detail = 0,          // dettagli procedurali: 1 pelle, 2 stoffa, 3 armatura, 5 occhio, 6 dente (0 = niente)
             float invHeight = 0.0f,  // 1 / altezza del corpo in posa T (scala dei dettagli; 0 = niente dettagli)
             const SkinnedDrawExtra* extra = nullptr);
+        // Texture di dettaglio delle superfici (terra, cemento, lamiera, juta, legno, foglie, ghiaia, stoffa,
+        // armatura): per ognuna <nome>_albedo.jpg, _normal.jpg, _data.jpg (R altezza, G rugosita', B occlusione) nella
+        // cartella. Diventano due texture array; senza file le superfici restano solo procedurali.
+        bool LoadSurfaceDetail(const std::string& dir);
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
         Atmosphere& GetAtmosphere() { return m_Atmosphere; }
         RenderQuality& GetQuality() { return m_Quality; }
@@ -267,6 +272,9 @@ namespace SunEngine {
         std::unique_ptr<Shader> m_ShadowSkinnedShader;
         glm::vec3 m_SunDirection = glm::normalize(glm::vec3(-0.4f, -1.0f, 0.3f));
         std::unique_ptr<Shader> m_GBufferSkinnedShader;
+        GLuint m_SurfAlbedoArr = 0;   // RGB albedo relativo (0.5 = invariato), A altezza
+        GLuint m_SurfDataArr = 0;     // RG normale, B rugosita' (0.5 = invariata), A occlusione
+        void BindSurfaceDetail(Shader& sh);
         static constexpr int MAX_BONES = 128;
         // Aggiungi il VBO/EBO del cubo shadow (condiviso col cube gbuffer)
         // → riutilizza m_TestCubeVAO/m_TestCubeEBO già presenti
