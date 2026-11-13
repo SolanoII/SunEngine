@@ -1,7 +1,7 @@
 {
   "id": "whiteshield_frag",
   "displayName": "Granata Frag",
-  "comment": "Dotazione base del whiteshield: granata a frammentazione. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4,5 m di raggio). 1 per partita.",
+  "comment": "Dotazione base del Recluta di Leva: granata a frammentazione. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4,5 m di raggio). 1 per partita.",
   "faction": "Imperium",
   "allowed_units": [
     "imperium_whiteshield"

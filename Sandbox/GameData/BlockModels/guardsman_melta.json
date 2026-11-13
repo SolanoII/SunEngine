@@ -1,6 +1,6 @@
 {
   "id": "guardsman_melta",
-  "comment": "Fucile melta del guardsman a blocchi: canna larga con anelli dissipatori, doppia fiasca di combustibile, bocca incandescente. Canna verso -Z.",
+  "comment": "Fucile fusione del Fante del Regno a blocchi: canna larga con anelli dissipatori, doppia fiasca di combustibile, bocca incandescente. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

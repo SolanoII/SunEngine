@@ -1,6 +1,6 @@
 {
   "id": "grot_blasta",
-  "comment": "Grot Blasta a blocchi: pistola sgangherata a canna larga, piastre rivettate e impugnatura di legno. Spazio modello: canna verso -Z, +Y alto, +X destra. Metri.",
+  "comment": "Pighcib Blasta a blocchi: pistola sgangherata a canna larga, piastre rivettate e impugnatura di legno. Spazio modello: canna verso -Z, +Y alto, +X destra. Metri.",
   "anchors": {
     "grip_right": [
       0.0,

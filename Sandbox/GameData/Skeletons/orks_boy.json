@@ -1,7 +1,7 @@
 {
   "id": "orks_boy",
   "race": "Ork",
-  "comment": "Ork boy: postura ingobbita (torso inclinato in avanti, campo rotation), testa bassa che esce dal petto con mascella, spalle e pugni massicci, braccia lunghe, gambe corte. Gli stessi nomi di blocco dell'umano base + blocchi extra (Hump, Jaw, Shoulder, Fist).",
+  "comment": "Vrepigh Vrepigh: postura ingobbita (torso inclinato in avanti, campo rotation), testa bassa che esce dal petto con mascella, spalle e pugni massicci, braccia lunghe, gambe corte. Gli stessi nomi di blocco dell'umano base + blocchi extra (Hump, Jaw, Shoulder, Fist).",
   "blocks": [
     {
       "name": "Torso",

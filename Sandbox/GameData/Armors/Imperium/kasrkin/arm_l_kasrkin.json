@@ -3,10 +3,109 @@
   "displayName": "Bracciale Rigido della Guardia Scelta (sx)",
   "location": "LeftArm",
   "armor_rating": 20,
-  "coverage": 0.80,
+  "coverage": 0.8,
   "max_durability": 220.0,
   "weight": 3.0,
   "point_cost": 1,
   "faction": "Imperium",
-  "unit_restriction": "imperium_kasrkin"
+  "unit_restriction": "imperium_kasrkin",
+  "skin_parts": [
+    {
+      "block": "Arm_L",
+      "offset": [
+        0,
+        0.25,
+        0
+      ],
+      "size": [
+        0.23,
+        0.14,
+        0.23
+      ],
+      "color": [
+        0.15,
+        0.15,
+        0.16,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.45
+    },
+    {
+      "block": "Arm_L",
+      "offset": [
+        0,
+        -0.15,
+        0
+      ],
+      "size": [
+        0.19,
+        0.18,
+        0.19
+      ],
+      "color": [
+        0.15,
+        0.15,
+        0.16,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.45
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_arm_guard_l_kasrkin",
+      "bones": [
+        "LeftArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.78,
+        0.86
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.0144,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.387,
+        0.387,
+        0.387,
+        1
+      ]
+    },
+    {
+      "id": "guardsman_bracer_l_kasrkin",
+      "bones": [
+        "LeftForeArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.76,
+        0.86
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.387,
+        0.387,
+        0.387,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema Kingsman Scelto: nero e grigio ferro."
 }

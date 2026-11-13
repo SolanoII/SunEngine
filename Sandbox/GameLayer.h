@@ -628,6 +628,7 @@ namespace SunEngine {
         std::string m_StoryBackupMap;
         int m_StoryBackupEvent = 3;
         void RenderStoryUI();                       // scheda PVE-STORY del menu
+        void RenderEliteXpTransfer(const ResearchFaction& faction, const ResearchNode& elite, float width);   // punti speciali delle unita' d'elite
         void StartStoryChapter(int chapter);
         void UpdateStory(float deltaTime, const glm::vec3& playerPos);
         void RenderStoryHUD();

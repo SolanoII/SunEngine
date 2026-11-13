@@ -1,6 +1,6 @@
 {
   "id": "yoof_choppa",
-  "comment": "Sbloccabile dello yoof: la choppa degli orki, uguale a quella che c'era gia'. Si ricerca sotto lo Yoof e si compra per unita'.",
+  "comment": "Sbloccabile del Giovane Vrepigh: la mannaia dei Vrepigh, uguale a quella che c'era gia'. Si ricerca sotto il Giovane Vrepigh e si compra per unita'.",
   "allowed_units": [
     "orks_yoof"
   ],

@@ -43,7 +43,7 @@
     -0.2
   ],
   "spare_magazines": 2,
-  "comment": "Dotazione base dell'aspirante (in alternativa all'autogun): 20 colpi e 40 di riserva.",
+  "comment": "Dotazione base dell'Candidato (in alternativa all'autogun): 20 colpi e 40 di riserva.",
   "allowed_units": [
     "spacemarines_neophyte"
   ]

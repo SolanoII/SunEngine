@@ -44,7 +44,7 @@
     -0.25
   ],
   "spare_magazines": 5,
-  "comment": "Dotazione base dello scout (in alternativa al fucile a pompa): boltgun da ricognizione. Spara cartucce bolt, enormi proiettili a razzo che esplodono nel bersaglio. 12 colpi e 60 di riserva.",
+  "comment": "Dotazione base dello scout (in alternativa al fucile a pompa): fucile a proiettili pesanti da ricognizione. Spara cartucce bolt, enormi proiettili a razzo che esplodono nel bersaglio. 12 colpi e 60 di riserva.",
   "allowed_units": [
     "spacemarines_scout"
   ]

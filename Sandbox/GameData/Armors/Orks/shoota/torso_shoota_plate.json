@@ -1,7 +1,7 @@
 {
   "id": "torso_shoota_plate",
   "displayName": "Pettorale da Tiratore",
-  "comment": "Dotazione base dello shoota boy: pettorale di lamiera con cinghie.",
+  "comment": "Dotazione base del Vrepigh Sparammazza: pettorale di lamiera con cinghie.",
   "allowed_units": [
     "orks_shoota_boy"
   ],

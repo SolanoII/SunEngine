@@ -1,7 +1,7 @@
 {
   "id": "leg_l_firstborn_mk7",
   "displayName": "Gambale da Difensore Vanguardio (sx)",
-  "comment": "Dotazione base del firstborn: Vestment generica, grigio non dipinto. Cosciale, ginocchiera bordata, schiniere e stivale.",
+  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Cosciale, ginocchiera bordata, schiniere e stivale.",
   "location": "LeftLeg",
   "faction": "SpaceMarines",
   "allowed_units": [

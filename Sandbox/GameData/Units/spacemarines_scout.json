@@ -19,7 +19,7 @@
   "weight_capacity": 120.0,
   "base_speed": 3.84,
   "health": 230.0,
-  "comment": "Scout: ha gia' ricevuto gran parte degli impianti genetici Astartes ed e' addestrato al combattimento, ma non indossa ancora l'armatura potenziata. Dotazione base: boltgun (12+60) o fucile a pompa, bolt pistol (6+30), coltello o spada a catena, 1 frag, armatura da scout (petto, braccia, gambe), auspex. Sbloccabili: fucile di precisione, heavy bolter, elmetto con visiera, mantello mimetico.",
+  "comment": "Scout: ha gia' ricevuto gran parte degli impianti genetici Vanguard Armors ed e' addestrato al combattimento, ma non indossa ancora l'armatura potenziata. Dotazione base: fucile a proiettili pesanti (12+60) o fucile a pompa, pistola a proiettili pesanti (6+30), coltello o spada a denti meccanici, 1 frag, armatura da scout (petto, braccia, gambe), rilevatore tattico. Sbloccabili: fucile di precisione, mitragliatrice a proiettili pesanti, elmetto con visiera, mantello mimetico.",
   "default_loadout": {
     "primary": "scout_boltgun",
     "secondary": "scout_bolt_pistol",

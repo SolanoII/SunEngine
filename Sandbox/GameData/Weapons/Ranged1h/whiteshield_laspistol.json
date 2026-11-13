@@ -63,7 +63,7 @@
   ],
   "heat_recoil_multiplier": 1.1,
   "spare_magazines": 2,
-  "comment": "Arma secondaria base del whiteshield: 10 colpi nel caricatore e 20 di riserva.",
+  "comment": "Arma secondaria base del Recluta di Leva: 10 colpi nel caricatore e 20 di riserva.",
   "allowed_units": [
     "imperium_whiteshield"
   ]

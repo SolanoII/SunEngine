@@ -5,7 +5,7 @@
   "allowed_units": [
     "imperium_whiteshield"
   ],
-  "comment": "Sbloccabile del whiteshield: arma pesante da piazzare. In mano (tasti 4-6), fermo e col click sinistro tenuto per 5 secondi la monta davanti a se'. E vicino per entrarci (si resta fermi dietro l'arma, brandeggio +-60 gradi), E tenuto 1,5 s per uscire; fuori, il proprietario la smonta e la riprende tenendo E per 5 secondi. Click sinistro tenuto 1,5 s carica il colpo (barra), al rilascio spara; oltre i 3 secondi di carica l'arma si danneggia (1 punto ogni 50 ms). 1 colpo pronto + 10 di riserva, 250 di salute con un po' di armatura; se distrutta non si recupera. 1 per partita.",
+  "comment": "Sbloccabile del Recluta di Leva: arma pesante da piazzare. In mano (tasti 4-6), fermo e col click sinistro tenuto per 5 secondi la monta davanti a se'. E vicino per entrarci (si resta fermi dietro l'arma, brandeggio +-60 gradi), E tenuto 1,5 s per uscire; fuori, il proprietario la smonta e la riprende tenendo E per 5 secondi. Click sinistro tenuto 1,5 s carica il colpo (barra), al rilascio spara; oltre i 3 secondi di carica l'arma si danneggia (1 punto ogni 50 ms). 1 colpo pronto + 10 di riserva, 250 di salute con un po' di armatura; se distrutta non si recupera. 1 per partita.",
   "slot_type": "equipment",
   "equipment_type": "turret",
   "hand_type": "TwoHanded",

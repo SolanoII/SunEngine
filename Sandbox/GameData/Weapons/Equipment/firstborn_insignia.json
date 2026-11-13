@@ -118,10 +118,11 @@
       ]
     }
   ],
-  "comment": "Sbloccabile del firstborn: aquila imperiale sul petto (va in uno slot della dotazione). Passiva: morale +10% a chi la porta e ai compagni entro 12 m.",
+  "comment": "Sbloccabile del Difensore Vanguardio: nucleo del Kingship sul petto (va in uno slot della dotazione). Passiva: morale +10% a chi la porta e ai compagni entro 12 m.",
   "id": "firstborn_insignia",
   "allowed_units": [
-    "spacemarines_battle_brother"
+    "spacemarines_battle_brother",
+    "spacemarines_sworn_brother"
   ],
   "faction": "SpaceMarines"
 }

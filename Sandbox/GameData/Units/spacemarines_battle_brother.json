@@ -19,7 +19,7 @@
   "fov_degrees": 110,
   "weight_capacity": 220.0,
   "skeleton_scale": 0.95,
-  "comment": "Firstborn: Space Marine 'vecchio', prima del Rubicon Primaris. Piu' forte di uno scout, meno di un primaris; alto 2,2 m (scout 2 m, primaris 2,4 m). Dotazione base: boltgun o auto bolt rifle (30+120), bolt pistol (12+48), coltello o spada a catena, 1 frag, Power Armour Mark VII, zaino energetico. Sbloccabili: heavy bolter, granata krak, insegna imperiale.",
+  "comment": "Difensore Vanguardio: Vanguard Armors 'vecchio', prima dell'ultima modifica del Vanguardio. Piu' forte di uno scout, meno di un Vestment; alto 2,2 m (scout 2 m, Vestment 2,4 m). Dotazione base: fucile a proiettili pesanti o fucile automatico a proiettili pesanti (30+120), pistola a proiettili pesanti (12+48), coltello o spada a denti meccanici, 1 frag, Vestment Generica, zaino energetico. Sbloccabili: mitragliatrice a proiettili pesanti, granata perforante, insegna del Kingship.",
   "default_loadout": {
     "primary": "firstborn_boltgun",
     "secondary": "firstborn_bolt_pistol",

@@ -1,7 +1,7 @@
 {
   "id": "shoota_shoota",
   "displayName": "Fucile Rozzo",
-  "comment": "Dotazione base dello shoota boy: fucile automatico a due mani da 24 colpi, 144 di riserva (6 caricatori).",
+  "comment": "Dotazione base del Vrepigh Sparammazza: fucile automatico a due mani da 24 colpi, 144 di riserva (6 caricatori).",
   "faction": "Orks",
   "allowed_units": [
     "orks_shoota_boy"

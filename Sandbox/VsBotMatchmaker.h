@@ -273,7 +273,7 @@ namespace SunEngine {
     inline std::string VsBotRandomName(const std::string& faction, std::vector<std::string>& used, std::mt19937& rng) {
         static const std::vector<std::string> orks = { "Grunf", "Zannor", "Brakk", "Murgan", "Ruggzanna", "Krungh",
             "Vrokk", "Mazzuco", "Dorgun", "Skarn", "Bogrim", "Tusk" };
-        static const std::vector<std::string> imperium = { "Sgt. Varro", "Cpl. Hessin", "Kael", "Ostrava", "Brandt", "Mirelle",
+        static const std::vector<std::string> imperium = { "Sgt. Varn", "Cpl. Hessin", "Kael", "Ostrava", "Brandt", "Mirelle",
             "Taveck", "Ilsen", "Corvin", "Lt. Drusa", "Okonkwo", "Reiss" };
         static const std::vector<std::string> marines = { "Aurelian", "Cassar", "Valerius", "Severan", "Marcell",
             "Dorian", "Lucent", "Hadrian", "Corvin", "Octavian" };

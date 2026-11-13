@@ -1,7 +1,7 @@
 {
   "id": "leg_l_guardsman_guard",
   "displayName": "Gambale del Presidio (sx)",
-  "comment": "Dotazione base del guardsman: pantaloni, anfibi, ginocchiera e parastinchi antischegge.",
+  "comment": "Dotazione base del Fante del Regno: pantaloni, anfibi, ginocchiera e parastinchi antischegge.",
   "location": "LeftLeg",
   "faction": "Imperium",
   "allowed_units": [
@@ -16,8 +16,8 @@
   "skin_blocks": {
     "Leg_L": [
       0.3,
-      0.32,
-      0.21,
+      0.3,
+      0.3,
       1
     ]
   },

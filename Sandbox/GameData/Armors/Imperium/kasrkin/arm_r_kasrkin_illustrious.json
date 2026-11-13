@@ -8,5 +8,104 @@
   "weight": 2.8,
   "point_cost": 2,
   "faction": "Imperium",
-  "unit_restriction": "imperium_kasrkin"
+  "unit_restriction": "imperium_kasrkin",
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        0.25,
+        0
+      ],
+      "size": [
+        0.23,
+        0.14,
+        0.23
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        -0.15,
+        0
+      ],
+      "size": [
+        0.19,
+        0.18,
+        0.19
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_arm_guard_r_kasrkin_illustrious",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.78,
+        0.86
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.0144,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.35,
+      "metallic": 0.7,
+      "color": [
+        0.817,
+        0.817,
+        0.817,
+        1
+      ]
+    },
+    {
+      "id": "guardsman_bracer_r_kasrkin_illustrious",
+      "bones": [
+        "RightForeArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.76,
+        0.86
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.35,
+      "metallic": 0.7,
+      "color": [
+        0.817,
+        0.817,
+        0.817,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema modello d'onore: piastre d'argento (lo stemma del Kingship: argento e nero)."
 }

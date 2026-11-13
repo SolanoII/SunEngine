@@ -63,7 +63,7 @@
   ],
   "heat_recoil_multiplier": 1.0,
   "spare_magazines": 5,
-  "comment": "Secondaria base del guardsman (in alternativa alla laspistol): 12 colpi e 60 di riserva.",
+  "comment": "Secondaria base del Fante del Regno (in alternativa alla pistola a impulsi): 12 colpi e 60 di riserva.",
   "allowed_units": [
     "imperium_guardsman_recruit",
     "imperium_schola_cadet"

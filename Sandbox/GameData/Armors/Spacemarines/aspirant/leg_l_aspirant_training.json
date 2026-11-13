@@ -1,7 +1,7 @@
 {
   "id": "leg_l_aspirant_training",
   "displayName": "Pantaloni d'Addestramento (sx)",
-  "comment": "Dotazione base dell'aspirante: pantaloni d'addestramento rinforzati, stivali e ginocchiera leggera.",
+  "comment": "Dotazione base dell'Candidato: pantaloni d'addestramento rinforzati, stivali e ginocchiera leggera.",
   "location": "LeftLeg",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -81,7 +81,7 @@
       "inflate": 0.0045,
       "noise": 0.3,
       "noise_scale": 12,
-      "texture": "Textures/Garments/guard_fatigues.png",
+      "texture": "Textures/Garments/militia_fatigues.png",
       "tex_tiles": 6,
       "color": [
         0.62,
@@ -106,7 +106,7 @@
       ],
       "side": 1,
       "inflate": 0.0048,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 6,
       "color": [
         0.55,
@@ -138,7 +138,7 @@
       "inflate": 0.0096,
       "plate_cells": 5,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.6,
       "metallic": 0.25,

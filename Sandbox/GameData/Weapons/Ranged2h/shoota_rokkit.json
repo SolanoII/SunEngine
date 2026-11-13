@@ -1,7 +1,7 @@
 {
   "id": "shoota_rokkit",
   "displayName": "Lanciarazzi",
-  "comment": "Sbloccabile dello shoota boy: lanciarazzi a colpo singolo. Il razzo esplode dove arriva (muro, unita' o fine gittata): 60 danni a chi viene centrato e un'esplosione da 110 danni su 3.5 metri. 1 razzo nel tubo + 4 di scorta.",
+  "comment": "Sbloccabile del Vrepigh Sparammazza: lanciarazzi a colpo singolo. Il razzo esplode dove arriva (muro, unita' o fine gittata): 60 danni a chi viene centrato e un'esplosione da 110 danni su 3.5 metri. 1 razzo nel tubo + 4 di scorta.",
   "faction": "Orks",
   "allowed_units": [
     "orks_shoota_boy"

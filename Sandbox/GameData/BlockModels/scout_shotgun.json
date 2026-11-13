@@ -1,6 +1,6 @@
 {
   "id": "scout_shotgun",
-  "comment": "Fucile a pompa Astartes: tutto metallo, castello squadrato come un boltgun, canna corta e spessa con camicia forata, serbatoio tubolare e pompa in acciaio, caricatore a scatola, aquila dorata. Canna verso -Z.",
+  "comment": "Fucile a pompa Vanguard Armors: tutto metallo, castello squadrato come un fucile a proiettili pesanti, canna corta e spessa con camicia forata, serbatoio tubolare e pompa in acciaio, caricatore a scatola, nucleo dorata. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

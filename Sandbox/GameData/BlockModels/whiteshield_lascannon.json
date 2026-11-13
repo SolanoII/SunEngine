@@ -1,6 +1,6 @@
 {
   "id": "whiteshield_lascannon",
-  "comment": "Lascannon a blocchi (parte che ruota): involucro squadrato, canna con anelli di focalizzazione e lente, batteria dietro, due impugnature. Origine al perno, canna verso -Z. Metri.",
+  "comment": "Cannone a impulsi a blocchi (parte che ruota): involucro squadrato, canna con anelli di focalizzazione e lente, batteria dietro, due impugnature. Origine al perno, canna verso -Z. Metri.",
   "anchors": {
     "grip_right": [
       0,

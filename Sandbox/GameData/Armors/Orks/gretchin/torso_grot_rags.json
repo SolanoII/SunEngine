@@ -1,7 +1,7 @@
 {
   "id": "torso_grot_rags",
   "displayName": "Vesti da Pighcib",
-  "comment": "Stracci del gretchin: nessuna armatura, solo aspetto. Cuboni: torso e pancia color straccio. Modello animato: casacca sulla schiena (Spine1) e perizoma sui fianchi (Hips).",
+  "comment": "Stracci del Pighcib: nessuna armatura, solo aspetto. Cuboni: torso e pancia color straccio. Modello animato: casacca sulla schiena (Spine1) e perizoma sui fianchi (Hips).",
   "location": "Torso",
   "faction": "Orks",
   "allowed_units": [

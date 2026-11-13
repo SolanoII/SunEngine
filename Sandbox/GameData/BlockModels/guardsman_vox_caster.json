@@ -1,6 +1,6 @@
 {
   "id": "guardsman_vox_caster",
-  "comment": "Cornetta del vox caster (in mano) a blocchi; la radio e' sulla schiena. Spazio modello: +Y alto.",
+  "comment": "Cornetta del Communication Device (in mano) a blocchi; la radio e' sulla schiena. Spazio modello: +Y alto.",
   "anchors": {
     "grip_right": [
       0,

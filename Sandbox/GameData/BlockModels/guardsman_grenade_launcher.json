@@ -1,6 +1,6 @@
 {
   "id": "guardsman_grenade_launcher",
-  "comment": "Lanciagranate del guardsman a blocchi: canna corta e larga, tamburo a 3 colpi, calcio e impugnatura anteriore. Canna verso -Z.",
+  "comment": "Lanciagranate del Fante del Regno a blocchi: canna corta e larga, tamburo a 3 colpi, calcio e impugnatura anteriore. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

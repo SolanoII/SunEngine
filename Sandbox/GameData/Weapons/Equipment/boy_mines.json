@@ -1,7 +1,7 @@
 {
   "id": "boy_mines",
   "displayName": "Mine da Terra",
-  "comment": "Sbloccabile dell'ork boy: 2 mine a pressione. In mano, click sinistro ne piazza una davanti ai piedi; dopo 1.5 secondi si arma e scoppia quando un nemico ci passa sopra (150 danni al centro, 3.5 metri di raggio).",
+  "comment": "Sbloccabile dell'Vrepigh Vrepigh: 2 mine a pressione. In mano, click sinistro ne piazza una davanti ai piedi; dopo 1.5 secondi si arma e scoppia quando un nemico ci passa sopra (150 danni al centro, 3.5 metri di raggio).",
   "faction": "Orks",
   "allowed_units": [
     "orks_boy"

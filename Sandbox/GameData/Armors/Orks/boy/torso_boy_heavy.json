@@ -1,7 +1,7 @@
 {
   "id": "torso_boy_heavy",
   "displayName": "Corazza Pesante da Vrepigh",
-  "comment": "Sbloccabile dell'ork boy: corazza completa di piastre rivettate su petto, schiena e gobba.",
+  "comment": "Sbloccabile dell'Vrepigh Vrepigh: corazza completa di piastre rivettate su petto, schiena e gobba.",
   "location": "Torso",
   "faction": "Orks",
   "allowed_units": [

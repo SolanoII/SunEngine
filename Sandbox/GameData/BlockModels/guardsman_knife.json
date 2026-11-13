@@ -1,6 +1,6 @@
 {
   "id": "guardsman_knife",
-  "comment": "Coltello del guardsman. Coltello del whiteshield. Coltello del coscritto. Coltello da combattimento a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
+  "comment": "Coltello del Fante del Regno. Coltello del Recluta di Leva. Coltello del coscritto. Coltello da combattimento a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
   "anchors": {
     "grip_right": [
       0.0,

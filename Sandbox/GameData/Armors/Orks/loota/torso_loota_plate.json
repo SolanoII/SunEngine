@@ -1,7 +1,7 @@
 {
   "id": "torso_loota_plate",
   "displayName": "Pettorale da Razziatore",
-  "comment": "Dotazione base del loota: pettorale di lamiera.",
+  "comment": "Dotazione base del Razziatore: pettorale di lamiera.",
   "allowed_units": [
     "orks_loota"
   ],

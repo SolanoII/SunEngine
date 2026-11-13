@@ -1,7 +1,7 @@
 {
   "id": "loota_deffgun_beamy",
   "displayName": "Fucile a Fascio",
-  "comment": "Sbloccabile del loota: deffgun a raggio laser. Colpi singoli precisi e potenti che passano le armature. 10 colpi, 30 di riserva.",
+  "comment": "Sbloccabile del Razziatore: fucile pesante a raggio laser. Colpi singoli precisi e potenti che passano le armature. 10 colpi, 30 di riserva.",
   "faction": "Orks",
   "allowed_units": [
     "orks_loota"

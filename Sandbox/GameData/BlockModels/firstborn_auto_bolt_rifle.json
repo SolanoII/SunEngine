@@ -1,6 +1,6 @@
 {
   "id": "firstborn_auto_bolt_rifle",
-  "comment": "Auto bolt rifle a blocchi: corpo lungo e liscio, caricatore curvo, canna con camicia forata, calcio integrato. Canna verso -Z.",
+  "comment": "Fucile automatico a proiettili pesanti a blocchi: corpo lungo e liscio, caricatore curvo, canna con camicia forata, calcio integrato. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

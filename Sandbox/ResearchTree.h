@@ -49,6 +49,11 @@ namespace SunEngine {
         float row = 0.0f;
         int64_t researchCost = 0;  // punti studio del padre
         int64_t purchaseCost = 0;  // energia
+        // Unita' d'elite ("premium"): niente ricerca, si sblocca subito pagando Vanguardio (la valuta premium) e arriva
+        // con tutto l'equipaggiamento gia' sbloccato. Sta su una riga sua dell'albero ("row_label").
+        bool premium = false;
+        int64_t premiumCost = 0;   // Vanguardio
+        std::string rowLabel;
     };
 
     struct ResearchFaction {
@@ -63,7 +68,8 @@ namespace SunEngine {
         Researchable,      // sbloccabile adesso
         LockedParent,      // il padre non e' ancora sbloccato
         LockedPoints,      // padre sbloccato ma punti studio insufficienti
-        LockedMastery      // manca la maestria (stellina) di un'unita' richiesta
+        LockedMastery,     // manca la maestria (stellina) di un'unita' richiesta
+        Premium            // unita' d'elite non ancora sbloccata: si compra col Vanguardio
     };
 
     class ResearchTree {
@@ -116,6 +122,9 @@ namespace SunEngine {
                         n.row = jn.value("row", 0.0f);
                         n.researchCost = std::max<int64_t>(0, jn.value("research_cost", 0));
                         n.purchaseCost = std::max<int64_t>(0, jn.value("purchase_cost", 0));
+                        n.premium = jn.value("premium", false);
+                        n.premiumCost = std::max<int64_t>(0, jn.value("premium_cost", 0));
+                        n.rowLabel = jn.value("row_label", std::string());
                         if (jn.contains("color") && jn["color"].is_array() && jn["color"].size() >= 4) {
                             for (int i = 0; i < 4; ++i) n.color[i] = jn["color"][i].get<float>();
                         }
@@ -275,6 +284,7 @@ namespace SunEngine {
 
         ResearchStatus GetStatus(const PlayerProfile& p, const ResearchNode& n) const {
             if (IsResearched(p, n)) return ResearchStatus::Researched;
+            if (n.premium) return ResearchStatus::Premium;
             const auto parents = Parents(n);
             if (parents.empty()) return ResearchStatus::Researchable;  // radice
             bool anyResearched = false;
@@ -296,6 +306,14 @@ namespace SunEngine {
             return true;
         }
 
+        // Unita' d'elite: si paga in Vanguardio e risulta subito sbloccata. false se non e' premium o il Vanguardio non basta.
+        bool UnlockPremium(PlayerProfile& p, const ResearchNode& n) const {
+            if (!n.premium || IsResearched(p, n) || p.blackStone < n.premiumCost) return false;
+            p.blackStone -= n.premiumCost;
+            p.researchedNodes.insert(n.id);
+            return true;
+        }
+
         // Addebita l'energia per creare un'unita'. false se non sbloccato o energia insufficiente.
         // (Aggiungere l'unita' al garage spetta al chiamante, che conosce TrainedUnit.)
         bool Pay(PlayerProfile& p, const ResearchNode& n) const {
@@ -307,7 +325,7 @@ namespace SunEngine {
 
         // I nodi radice sono sempre sbloccati.
         void EnsureRootsResearched(PlayerProfile& p) const {
-            for (const auto& kv : m_ById) if (kv.second.parentId.empty()) p.researchedNodes.insert(kv.first);
+            for (const auto& kv : m_ById) if (kv.second.parentId.empty() && !kv.second.premium) p.researchedNodes.insert(kv.first);
         }
 
         // Compatibilita' con i salvataggi esistenti: le unita' gia' possedute (e i loro antenati) risultano

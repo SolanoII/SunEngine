@@ -1,7 +1,7 @@
 {
   "id": "grot_ammo_box",
   "displayName": "Scatola di Munizioni",
-  "comment": "Dotazione base del gretchin. In mano: click sinistro = recupera le munizioni perse (caricatori e riserva al massimo), click destro = le da' a un compagno entro 5 metri. 1 uso per partita, 1.2 s per rifornimento.",
+  "comment": "Dotazione base del Pighcib. In mano: click sinistro = recupera le munizioni perse (caricatori e riserva al massimo), click destro = le da' a un compagno entro 5 metri. 1 uso per partita, 1.2 s per rifornimento.",
   "faction": "Orks",
   "allowed_units": [
     "orks_gretchin"

@@ -1,7 +1,7 @@
 {
   "id": "arm_r_whiteshield_guard",
   "displayName": "Spallaccio da Recluta (dx)",
-  "comment": "Sbloccabile del whiteshield: spallaccio e parabraccio antischegge.",
+  "comment": "Sbloccabile del Recluta di Leva: spallaccio e parabraccio antischegge.",
   "location": "RightArm",
   "faction": "Imperium",
   "allowed_units": [

@@ -1,7 +1,7 @@
 {
   "id": "head_loota_helmet",
   "displayName": "Elmetto da Razziatore",
-  "comment": "Sbloccabile del loota: elmetto di ferro. Finche' regge annulla il bonus del colpo in testa.",
+  "comment": "Sbloccabile del Razziatore: elmetto di ferro. Finche' regge annulla il bonus del colpo in testa.",
   "allowed_units": [
     "orks_loota"
   ],

@@ -46,7 +46,7 @@
   "damage_falloff_start": 10.0,
   "damage_falloff_end": 25.0,
   "melta_shot": true,
-  "comment": "Sbloccabile del guardsman: fucile melta a colpo singolo. Entro 6 m il danno raddoppia e mezzo e passa quasi ogni corazza; oltre i 25 m si disperde. 5 colpi e 25 di riserva.",
+  "comment": "Sbloccabile del Fante del Regno: fucile fusione a colpo singolo. Entro 6 m il danno raddoppia e mezzo e passa quasi ogni corazza; oltre i 25 m si disperde. 5 colpi e 25 di riserva.",
   "allowed_units": [
     "imperium_guardsman_recruit"
   ]

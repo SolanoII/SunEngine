@@ -42,7 +42,7 @@
     -0.2
   ],
   "spare_magazines": 1,
-  "comment": "Sbloccabile del guardsman: lanciafiamme. Cono di fuoco di 12 m che passa le coperture leggere solo se ti vede. Serbatoio da 100 e una tanica di riserva (100).",
+  "comment": "Sbloccabile del Fante del Regno: lanciafiamme. Cono di fuoco di 12 m che passa le coperture leggere solo se ti vede. Serbatoio da 100 e una tanica di riserva (100).",
   "allowed_units": [
     "imperium_guardsman_recruit"
   ]

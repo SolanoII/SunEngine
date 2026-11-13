@@ -8,5 +8,195 @@
   "weight": 8.5,
   "point_cost": 5,
   "faction": "Imperium",
-  "unit_restriction": "imperium_guardsman_recruit"
+  "unit_restriction": "imperium_guardsman_recruit",
+  "skin_blocks": {
+    "Torso": [
+      0.27,
+      0.27,
+      0.27,
+      1
+    ],
+    "Arm_L": [
+      0.27,
+      0.27,
+      0.27,
+      1
+    ],
+    "Arm_R": [
+      0.27,
+      0.27,
+      0.27,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.04,
+        -0.155
+      ],
+      "size": [
+        0.4,
+        0.46,
+        0.04
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.04,
+        0.155
+      ],
+      "size": [
+        0.4,
+        0.46,
+        0.04
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.17,
+        0.27,
+        0
+      ],
+      "size": [
+        0.12,
+        0.06,
+        0.3
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.17,
+        0.27,
+        0
+      ],
+      "size": [
+        0.12,
+        0.06,
+        0.3
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        -0.22,
+        -0.15
+      ],
+      "size": [
+        0.34,
+        0.14,
+        0.04
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_shirt_cadian_veteran",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftArm",
+        "RightArm",
+        "LeftForeArm",
+        "RightForeArm"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.5,
+        0.835
+      ],
+      "inflate": 0.0065,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/militia_fatigues.png",
+      "tex_tiles": 6,
+      "roughness": 0.9,
+      "color": [
+        0.9,
+        0.9,
+        0.9,
+        1
+      ]
+    },
+    {
+      "id": "guardsman_flak_cadian_veteran",
+      "bones": [
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.55,
+        0.835
+      ],
+      "inflate": 0.0149,
+      "plate_cells": 4,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.533,
+        0.533,
+        0.533,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema veterano: grigio scuro."
 }

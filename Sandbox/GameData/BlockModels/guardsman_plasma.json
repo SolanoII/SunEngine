@@ -1,6 +1,6 @@
 {
   "id": "guardsman_plasma",
-  "comment": "Fucile al plasma del guardsman a blocchi: castello massiccio, bobine con prese d'aria azzurre, canna con alette di raffreddamento, fiasca del plasma. Canna verso -Z.",
+  "comment": "Fucile al plasma del Fante del Regno a blocchi: castello massiccio, bobine con prese d'aria azzurre, canna con alette di raffreddamento, fiasca del plasma. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

@@ -1,7 +1,7 @@
 {
   "id": "guardsman_grenade_launcher",
   "displayName": "Lanciagranate del Presidio",
-  "comment": "Sbloccabile del guardsman: lanciagranate. Ogni colpo e' una granata a impatto che vola in parabola (alza la mira per tirare lontano): 95 danni su 3,5 m. 3 granate nel tamburo e 12 di riserva.",
+  "comment": "Sbloccabile del Fante del Regno: lanciagranate. Ogni colpo e' una granata a impatto che vola in parabola (alza la mira per tirare lontano): 95 danni su 3,5 m. 3 granate nel tamburo e 12 di riserva.",
   "faction": "Imperium",
   "allowed_units": [
     "imperium_guardsman_recruit"

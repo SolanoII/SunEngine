@@ -148,7 +148,7 @@
       }
     }
   },
-  "comment": "Dotazione base dello scout (in alternativa alla spada a catena): coltello da combattimento.",
+  "comment": "Dotazione base dello scout (in alternativa alla spada a denti meccanici): coltello da combattimento.",
   "allowed_units": [
     "spacemarines_scout"
   ]

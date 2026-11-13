@@ -1,7 +1,7 @@
 {
   "id": "firstborn_frag",
   "displayName": "Granata Frag",
-  "comment": "Dotazione base del firstborn: granata a frammentazione (110 danni al centro, 4,5 m). 1 per partita.",
+  "comment": "Dotazione base del Difensore Vanguardio: granata a frammentazione (110 danni al centro, 4,5 m). 1 per partita.",
   "faction": "SpaceMarines",
   "allowed_units": [
     "spacemarines_battle_brother"

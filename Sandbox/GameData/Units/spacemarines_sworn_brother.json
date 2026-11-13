@@ -1,0 +1,44 @@
+{
+  "id": "spacemarines_sworn_brother",
+  "displayName": "Konrad (Sworn Brother)",
+  "ai_role": "versatile",
+  "point_cost": 75,
+  "animated_body": "astartes",
+  "base_speed": 3.5,
+  "stamina": 330.0,
+  "stamina_regen": 24.0,
+  "health": 460.0,
+  "toughness": 52,
+  "armor_rating": 10,
+  "strength": 62,
+  "accuracy_skill": 82,
+  "melee_skill": 85,
+  "morale": 100,
+  "suppression_threshold": 120,
+  "vision_range": 180,
+  "fov_degrees": 110,
+  "weight_capacity": 220.0,
+  "skeleton_scale": 0.95,
+  "comment": "Konrad von Eber, Sworn Brother dell'Ordo Domus Humilitatis. Grado V d'elite: si sblocca con 1500 Vanguardio, arriva con tutto l'equipaggiamento migliore gia' sbloccato (niente da ricercare o ricomprare). I suoi punti studio si possono trasferire a qualsiasi altra unita' delle Vanguard Armors.",
+  "default_loadout": {
+    "primary": "firstborn_auto_bolt_rifle",
+    "secondary": "firstborn_bolt_pistol",
+    "melee": "konrad_longsword",
+    "equipment": [
+      "firstborn_krak",
+      "firstborn_power_pack",
+      "firstborn_insignia"
+    ],
+    "armor": {
+      "head": "head_humilitatis",
+      "torso": "torso_humilitatis",
+      "arm_l": "arm_l_humilitatis",
+      "arm_r": "arm_r_humilitatis",
+      "leg_l": "leg_l_humilitatis",
+      "leg_r": "leg_r_humilitatis"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 3,
+  "skeleton": "spacemarines_battle_brother"
+}

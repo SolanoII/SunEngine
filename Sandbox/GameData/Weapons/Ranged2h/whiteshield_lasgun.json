@@ -43,7 +43,7 @@
     -0.2
   ],
   "spare_magazines": 2,
-  "comment": "Dotazione base del whiteshield (in alternativa all'autogun): 20 colpi nel caricatore e 40 di riserva.",
+  "comment": "Dotazione base del Recluta di Leva (in alternativa all'autogun): 20 colpi nel caricatore e 40 di riserva.",
   "allowed_units": [
     "imperium_whiteshield"
   ]

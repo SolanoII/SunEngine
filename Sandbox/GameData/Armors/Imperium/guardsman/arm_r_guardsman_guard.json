@@ -1,7 +1,7 @@
 {
   "id": "arm_r_guardsman_guard",
   "displayName": "Spallaccio del Presidio (dx)",
-  "comment": "Dotazione base del guardsman: spallaccio e parabraccio antischegge.",
+  "comment": "Dotazione base del Fante del Regno: spallaccio e parabraccio antischegge.",
   "location": "RightArm",
   "faction": "Imperium",
   "allowed_units": [

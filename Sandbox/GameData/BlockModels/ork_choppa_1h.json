@@ -1,6 +1,6 @@
 {
   "id": "ork_choppa_1h",
-  "comment": "Choppa orchesca a blocchi (cleaver arrugginito, lama larga con spuntoni, manico fasciato). Spazio modello: origine al centro dell'ingombro, lama verso -Z, +Y alto, +X destra. Metri.",
+  "comment": "Mannaia Vrepigh a blocchi (cleaver arrugginito, lama larga con spuntoni, manico fasciato). Spazio modello: origine al centro dell'ingombro, lama verso -Z, +Y alto, +X destra. Metri.",
   "anchors": {
     "grip_right": [
       0.0,

@@ -1,6 +1,6 @@
 {
   "id": "guardsman_flamer",
-  "comment": "Lanciafiamme del guardsman a blocchi: corpo con serbatoio del promezio sotto, canna con fiamma pilota, maniglia anteriore. Canna verso -Z.",
+  "comment": "Lanciafiamme del Fante del Regno a blocchi: corpo con serbatoio del promezio sotto, canna con fiamma pilota, maniglia anteriore. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

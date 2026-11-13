@@ -1,6 +1,6 @@
 {
   "id": "laspistol_standard",
-  "comment": "Laspistol imperiale a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
+  "comment": "Pistola a impulsi del Kingship a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
   "anchors": {
     "grip_right": [
       0.0,

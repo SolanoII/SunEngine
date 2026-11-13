@@ -20,7 +20,7 @@
           "parent": "",
           "research_cost": 0,
           "purchase_cost": 15000,
-          "default_name": "Coscritto",
+          "default_name": "Recluta Teren",
           "color": [
             0.55,
             0.45,
@@ -38,7 +38,7 @@
           "parent": "ig_conscript",
           "research_cost": 15000,
           "purchase_cost": 15000,
-          "default_name": "Scudo Bianco",
+          "default_name": "Recluta di Leva Brann",
           "color": [
             0.78,
             0.74,
@@ -56,7 +56,7 @@
           "parent": "ig_whiteshield",
           "research_cost": 25000,
           "purchase_cost": 30000,
-          "default_name": "Recluta Vance",
+          "default_name": "Fante Hessel",
           "color": [
             0.65,
             0.5,
@@ -74,7 +74,7 @@
           "parent": "ig_guardsman",
           "research_cost": 35000,
           "purchase_cost": 45000,
-          "default_name": "Artigliere Bren",
+          "default_name": "Artigliere Ulmar",
           "color": [
             0.5,
             0.48,
@@ -92,7 +92,7 @@
           "parent": "ig_special_weapon_team",
           "research_cost": 45000,
           "purchase_cost": 120000,
-          "default_name": "Ogryn Bruto",
+          "default_name": "Ogre Grobb",
           "color": [
             0.6,
             0.45,
@@ -110,7 +110,7 @@
           "parent": "ig_ogryn",
           "research_cost": 70000,
           "purchase_cost": 150000,
-          "default_name": "Bone 'ead Grukk",
+          "default_name": "Capo Ogre Maddok",
           "color": [
             0.62,
             0.5,
@@ -128,7 +128,7 @@
           "parent": "ig_bone_ead",
           "research_cost": 100000,
           "purchase_cost": 200000,
-          "default_name": "Bullgryn Torr",
+          "default_name": "Ogre Corazzato Torvald",
           "color": [
             0.45,
             0.4,
@@ -146,7 +146,7 @@
           "parent": "ig_special_weapon_team",
           "research_cost": 45000,
           "purchase_cost": 60000,
-          "default_name": "Kasrkin Thorne",
+          "default_name": "Kingsman Thorne",
           "color": [
             0.35,
             0.25,
@@ -185,7 +185,7 @@
           "parent": "ig_captain",
           "research_cost": 100000,
           "purchase_cost": 130000,
-          "default_name": "Colonnello Halvek",
+          "default_name": "Comandante Halvek",
           "color": [
             0.45,
             0.36,
@@ -203,7 +203,7 @@
           "parent": "ig_colonel",
           "research_cost": 150000,
           "purchase_cost": 200000,
-          "default_name": "Lord General Varro",
+          "default_name": "Gran Stratega Ottmar",
           "color": [
             0.7,
             0.55,
@@ -221,7 +221,7 @@
           "parent": "ig_tempestus_specialist",
           "research_cost": 70000,
           "purchase_cost": 90000,
-          "default_name": "Cadetto Kell",
+          "default_name": "Allievo Prefetto Ordwin",
           "color": [
             0.2,
             0.2,
@@ -243,7 +243,7 @@
           "parent": "ig_commissar_cadet",
           "research_cost": 100000,
           "purchase_cost": 130000,
-          "default_name": "Commissario Raik",
+          "default_name": "Prefetto Raik",
           "color": [
             0.15,
             0.15,
@@ -261,7 +261,7 @@
           "parent": "ig_commissar",
           "research_cost": 150000,
           "purchase_cost": 200000,
-          "default_name": "Lord Commissario Kordan",
+          "default_name": "Alto Prefetto Kordan",
           "color": [
             0.12,
             0.1,
@@ -279,7 +279,7 @@
           "parent": "ig_whiteshield",
           "research_cost": 25000,
           "purchase_cost": 30000,
-          "default_name": "Progena Ilse",
+          "default_name": "Cadetta Ilse",
           "color": [
             0.3,
             0.3,
@@ -297,7 +297,7 @@
           "parent": "ig_schola_cadet",
           "research_cost": 35000,
           "purchase_cost": 50000,
-          "default_name": "Scion Darro",
+          "default_name": "Guardia Scelta Darro",
           "color": [
             0.25,
             0.28,
@@ -333,7 +333,7 @@
           "parent": "ig_tempestus_specialist",
           "research_cost": 70000,
           "purchase_cost": 90000,
-          "default_name": "Tempestor Hask",
+          "default_name": "Capitano Hask",
           "color": [
             0.2,
             0.24,
@@ -351,7 +351,7 @@
           "parent": "ig_tempestor",
           "research_cost": 110000,
           "purchase_cost": 150000,
-          "default_name": "Tempestor Prime Vell",
+          "default_name": "Primo Capitano Vell",
           "color": [
             0.18,
             0.2,
@@ -645,7 +645,7 @@
           "parent": "",
           "research_cost": 0,
           "purchase_cost": 20000,
-          "default_name": "Aspirante Corvo",
+          "default_name": "Candidato Corvo",
           "color": [
             0.92,
             0.72,
@@ -666,7 +666,7 @@
           "parent": "sm_aspirant",
           "research_cost": 20000,
           "purchase_cost": 85000,
-          "default_name": "Scout Ilex",
+          "default_name": "Esploratore Ilex",
           "color": [
             0.78,
             0.62,
@@ -684,7 +684,7 @@
           "parent": "sm_scout",
           "research_cost": 40000,
           "purchase_cost": 165000,
-          "default_name": "Fratello Titus",
+          "default_name": "Dietrich Falken",
           "color": [
             0.5,
             0.5,
@@ -705,7 +705,7 @@
           "parent": "sm_firstborn",
           "research_cost": 50000,
           "purchase_cost": 200000,
-          "default_name": "Fratello Cassian",
+          "default_name": "Ansgar Holt",
           "color": [
             0.5,
             0.5,
@@ -723,7 +723,7 @@
           "parent": "sm_intercessors",
           "research_cost": 70000,
           "purchase_cost": 240000,
-          "default_name": "Veterano Adrax",
+          "default_name": "Ulrich Kessel",
           "color": [
             0.5,
             0.5,
@@ -741,7 +741,7 @@
           "parent": "sm_sternguard",
           "research_cost": 95000,
           "purchase_cost": 280000,
-          "default_name": "Fratello Gideon",
+          "default_name": "Gideon Brandt",
           "color": [
             0.5,
             0.5,
@@ -759,7 +759,7 @@
           "parent": "sm_terminators",
           "research_cost": 125000,
           "purchase_cost": 330000,
-          "default_name": "Fratello Kaelen",
+          "default_name": "Kaelen Stahl",
           "color": [
             0.5,
             0.5,
@@ -777,7 +777,7 @@
           "parent": "sm_terminator_assault",
           "research_cost": 170000,
           "purchase_cost": 400000,
-          "default_name": "Capitano Severus",
+          "default_name": "Capitano Severin Rauch",
           "color": [
             0.5,
             0.5,
@@ -795,7 +795,7 @@
           "parent": "sm_firstborn",
           "research_cost": 50000,
           "purchase_cost": 200000,
-          "default_name": "Fratello Damon",
+          "default_name": "Damon Reiter",
           "color": [
             0.5,
             0.5,
@@ -813,7 +813,7 @@
           "parent": "sm_assault_intercessors",
           "research_cost": 70000,
           "purchase_cost": 240000,
-          "default_name": "Fratello Icaro",
+          "default_name": "Icaro Wendt",
           "color": [
             0.5,
             0.5,
@@ -831,7 +831,7 @@
           "parent": "sm_jump_intercessors",
           "research_cost": 95000,
           "purchase_cost": 280000,
-          "default_name": "Veterano Lysander",
+          "default_name": "Leopold Marr",
           "color": [
             0.5,
             0.5,
@@ -849,7 +849,7 @@
           "parent": "sm_vanguard",
           "research_cost": 125000,
           "purchase_cost": 330000,
-          "default_name": "Veterano Aurelio",
+          "default_name": "Aurel Grau",
           "color": [
             0.5,
             0.5,
@@ -867,7 +867,7 @@
           "parent": "sm_bladeguard",
           "research_cost": 170000,
           "purchase_cost": 400000,
-          "default_name": "Capitano Varro",
+          "default_name": "Capitano Otto Varn",
           "color": [
             0.5,
             0.5,
@@ -885,7 +885,7 @@
           "parent": "sm_firstborn",
           "research_cost": 50000,
           "purchase_cost": 200000,
-          "default_name": "Fratello Brutus",
+          "default_name": "Bruno Eisen",
           "color": [
             0.5,
             0.5,
@@ -903,7 +903,7 @@
           "parent": "sm_devastators",
           "research_cost": 70000,
           "purchase_cost": 240000,
-          "default_name": "Fratello Plinio",
+          "default_name": "Plinius Brand",
           "color": [
             0.5,
             0.5,
@@ -921,7 +921,7 @@
           "parent": "sm_hellblasters",
           "research_cost": 95000,
           "purchase_cost": 280000,
-          "default_name": "Fratello Vulkar",
+          "default_name": "Walther Vulk",
           "color": [
             0.5,
             0.5,
@@ -939,7 +939,7 @@
           "parent": "sm_eradicators",
           "research_cost": 125000,
           "purchase_cost": 330000,
-          "default_name": "Fratello Garran",
+          "default_name": "Garran Stein",
           "color": [
             0.5,
             0.5,
@@ -960,7 +960,7 @@
           "parent": "sm_aggressors",
           "research_cost": 170000,
           "purchase_cost": 400000,
-          "default_name": "Capitano Tyberos",
+          "default_name": "Capitano Tybald Hart",
           "color": [
             0.5,
             0.5,
@@ -978,7 +978,7 @@
           "parent": "sm_firstborn",
           "research_cost": 50000,
           "purchase_cost": 200000,
-          "default_name": "Fratello Vael",
+          "default_name": "Vael Sturm",
           "color": [
             0.5,
             0.5,
@@ -999,7 +999,7 @@
           "parent": "sm_infiltrators",
           "research_cost": 70000,
           "purchase_cost": 240000,
-          "default_name": "Fratello Nyx",
+          "default_name": "Nyx Adler",
           "color": [
             0.5,
             0.5,
@@ -1017,7 +1017,7 @@
           "parent": "sm_incursors",
           "research_cost": 95000,
           "purchase_cost": 280000,
-          "default_name": "Fratello Mortis",
+          "default_name": "Mortimer Graf",
           "color": [
             0.5,
             0.5,
@@ -1035,7 +1035,7 @@
           "parent": "sm_reivers",
           "research_cost": 125000,
           "purchase_cost": 330000,
-          "default_name": "Fratello Silas",
+          "default_name": "Silas Fink",
           "color": [
             0.5,
             0.5,
@@ -1053,7 +1053,7 @@
           "parent": "sm_eliminators",
           "research_cost": 170000,
           "purchase_cost": 400000,
-          "default_name": "Capitano Shrike",
+          "default_name": "Capitano Rainer Schrick",
           "color": [
             0.5,
             0.5,
@@ -1170,6 +1170,26 @@
           "parent": "sm_firstborn",
           "research_cost": 25000,
           "purchase_cost": 50000
+        },
+        {
+          "id": "sm_sworn_brother",
+          "unit": "spacemarines_sworn_brother",
+          "name": "Konrad (Sworn Brother)",
+          "tier": 5,
+          "col": 4,
+          "row": 4.6,
+          "premium": true,
+          "premium_cost": 1500,
+          "row_label": "ORDO DOMUS HUMILITATIS",
+          "default_name": "Konrad von Eber",
+          "color": [
+            0.78,
+            0.62,
+            0.52,
+            1
+          ],
+          "research_cost": 0,
+          "purchase_cost": 0
         }
       ]
     },
@@ -1192,7 +1212,7 @@
           "parent": "",
           "research_cost": 0,
           "purchase_cost": 15000,
-          "default_name": "Snik",
+          "default_name": "Snuffo",
           "color": [
             0.4,
             0.37,
@@ -1210,7 +1230,7 @@
           "parent": "ork_gretchin",
           "research_cost": 15000,
           "purchase_cost": 35000,
-          "default_name": "Grotz",
+          "default_name": "Grufolo",
           "color": [
             0.31,
             0.28,
@@ -1228,7 +1248,7 @@
           "parent": "ork_yoof",
           "research_cost": 25000,
           "purchase_cost": 55000,
-          "default_name": "Gor-Gath",
+          "default_name": "Brakk",
           "color": [
             0.27,
             0.22,
@@ -1246,7 +1266,7 @@
           "parent": "ork_yoof",
           "research_cost": 25000,
           "purchase_cost": 50000,
-          "default_name": "Zogga",
+          "default_name": "Zannor",
           "color": [
             0.22,
             0.17,
@@ -1264,7 +1284,7 @@
           "parent": "ork_yoof",
           "research_cost": 35000,
           "purchase_cost": 60000,
-          "default_name": "Mekk",
+          "default_name": "Ferrigno",
           "color": [
             0.22,
             0.17,
@@ -1282,7 +1302,7 @@
           "parent": "ork_slugga",
           "research_cost": 35000,
           "purchase_cost": 70000,
-          "default_name": "Zoomgit",
+          "default_name": "Saltagrugno",
           "color": [
             0.27,
             0.22,
@@ -1300,7 +1320,7 @@
           "parent": "ork_stormboyz",
           "research_cost": 50000,
           "purchase_cost": 90000,
-          "default_name": "Grukk 'Ard",
+          "default_name": "Krungh il Duro",
           "color": [
             0.22,
             0.17,
@@ -1318,7 +1338,7 @@
           "parent": "ork_shoota",
           "research_cost": 35000,
           "purchase_cost": 70000,
-          "default_name": "Snikrot il Giovane",
+          "default_name": "Ombragrufo",
           "color": [
             0.31,
             0.28,
@@ -1336,7 +1356,7 @@
           "parent": "ork_shoota",
           "research_cost": 35000,
           "purchase_cost": 70000,
-          "default_name": "Boomgut",
+          "default_name": "Pancia di Botto",
           "color": [
             0.27,
             0.22,
@@ -1354,7 +1374,7 @@
           "parent": "",
           "research_cost": 50000,
           "purchase_cost": 90000,
-          "default_name": "Badrukk il Lucido",
+          "default_name": "Sfondo il Lucido",
           "color": [
             0.35,
             0.3,
@@ -1376,7 +1396,7 @@
           "parent": "ork_ard_boyz",
           "research_cost": 75000,
           "purchase_cost": 120000,
-          "default_name": "Uzgrak",
+          "default_name": "Ruggzanna",
           "color": [
             0.17,
             0.12,
@@ -1398,7 +1418,7 @@
           "parent": "ork_nobz",
           "research_cost": 100000,
           "purchase_cost": 160000,
-          "default_name": "Gorbag Mega",
+          "default_name": "Murgan il Corazzato",
           "color": [
             0.17,
             0.12,
@@ -1416,7 +1436,7 @@
           "parent": "ork_meganobz",
           "research_cost": 150000,
           "purchase_cost": 220000,
-          "default_name": "Kapo Grozzak",
+          "default_name": "Gran Capo Vrokk",
           "color": [
             0.12,
             0.08,
@@ -1434,7 +1454,7 @@
           "parent": "ork_loota",
           "research_cost": 35000,
           "purchase_cost": 70000,
-          "default_name": "Klankit",
+          "default_name": "Chiavino",
           "color": [
             0.31,
             0.28,
@@ -1452,7 +1472,7 @@
           "parent": "ork_spanner",
           "research_cost": 50000,
           "purchase_cost": 90000,
-          "default_name": "Mek Zogwort",
+          "default_name": "Ferraro Mazzuco",
           "color": [
             0.27,
             0.22,
@@ -1470,7 +1490,7 @@
           "parent": "ork_mek_boy",
           "research_cost": 75000,
           "purchase_cost": 120000,
-          "default_name": "Big Mek Gazbag",
+          "default_name": "Gran Ferraro Dorgun",
           "color": [
             0.22,
             0.17,
@@ -1488,7 +1508,7 @@
           "parent": "ork_big_mek",
           "research_cost": 100000,
           "purchase_cost": 160000,
-          "default_name": "Boss Gork-Spanna",
+          "default_name": "Capozanna Bullone",
           "color": [
             0.17,
             0.12,
@@ -1506,7 +1526,7 @@
           "parent": "ork_big_mek_boss",
           "research_cost": 150000,
           "purchase_cost": 220000,
-          "default_name": "Boss Ferrocrank",
+          "default_name": "Capozanna Manovella",
           "color": [
             0.12,
             0.08,

@@ -1,7 +1,7 @@
 {
   "id": "leg_r_yoof_rags",
   "displayName": "Calzoni da Giovane Vrepigh (dx)",
-  "comment": "Calzoni dello yoof: nessuna armatura, solo aspetto.",
+  "comment": "Calzoni del Giovane Vrepigh: nessuna armatura, solo aspetto.",
   "location": "RightLeg",
   "faction": "Orks",
   "allowed_units": [

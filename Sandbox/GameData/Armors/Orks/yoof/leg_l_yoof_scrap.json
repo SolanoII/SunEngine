@@ -1,7 +1,7 @@
 {
   "id": "leg_l_yoof_scrap",
   "displayName": "Gambale di Rottami (sx)",
-  "comment": "Ginocchiera e gambale di lamiera. Si ricerca sotto lo Yoof e si compra per unita', un pezzo alla volta.",
+  "comment": "Ginocchiera e gambale di lamiera. Si ricerca sotto il Giovane Vrepigh e si compra per unita', un pezzo alla volta.",
   "location": "LeftLeg",
   "faction": "Orks",
   "allowed_units": [

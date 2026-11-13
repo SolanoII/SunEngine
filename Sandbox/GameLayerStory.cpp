@@ -68,16 +68,10 @@ namespace SunEngine {
                 u.secondaryWeaponId = "guardsman_autopistol";
             }
             else {
-                u = TrainedUnit{ "Konrad von Eber", "spacemarines_battle_brother", glm::vec4(0.78f, 0.62f, 0.52f, 1.0f) };
+                // lo stesso Konrad che si sblocca nei Vestments (Sworn Brother): livrea bianca, nera e avorio
+                // dell'Ordo Domus Humilitatis, spada lunga dalla lama scura, equipaggiamento migliore
+                u = TrainedUnit{ "Konrad von Eber", "spacemarines_sworn_brother", glm::vec4(0.78f, 0.62f, 0.52f, 1.0f) };
                 u.ApplyDefaultLoadout();
-                u.meleeWeaponId = "konrad_longsword";     // spada lunga e sottile, lama scura
-                // livrea avorio sporco dell'Ordo Domus Humilitatis, con la croce semplice sull'elmo
-                u.armorHeadId = "head_humilitatis";
-                u.armorTorsoId = "torso_humilitatis";
-                u.armorLeftArmId = "arm_l_humilitatis";
-                u.armorRightArmId = "arm_r_humilitatis";
-                u.armorLeftLegId = "leg_l_humilitatis";
-                u.armorRightLegId = "leg_r_humilitatis";
             }
             return u;
         }

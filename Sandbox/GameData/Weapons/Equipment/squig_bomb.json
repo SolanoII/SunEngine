@@ -1,7 +1,7 @@
 {
   "id": "squig_bomb",
   "displayName": "Grugn Esplosivo",
-  "comment": "Potenziamento dello squig: carica il nemico piu' vicino che vede (o quello a cui spari) ed esplode a contatto. Esplosione: 160 danni al centro, 40% al bordo di 4 metri, abbastanza per un guardsman. Uno solo per partita. Colpibile: 25 di salute, schiva il 30% dei colpi; se viene ucciso e' perso fino a fine partita.",
+  "comment": "Potenziamento del grugn: carica il nemico piu' vicino che vede (o quello a cui spari) ed esplode a contatto. Esplosione: 160 danni al centro, 40% al bordo di 4 metri, abbastanza per un Fante del Regno. Uno solo per partita. Colpibile: 25 di salute, schiva il 30% dei colpi; se viene ucciso e' perso fino a fine partita.",
   "faction": "Orks",
   "allowed_units": [
     "orks_gretchin"

@@ -1,7 +1,7 @@
 {
   "id": "shoota_frag",
   "displayName": "Granata Frag",
-  "comment": "Dotazione base dello shoota boy: granata a frammentazione classica. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4.5 metri di raggio). 1 per partita.",
+  "comment": "Dotazione base del Vrepigh Sparammazza: granata a frammentazione classica. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4.5 metri di raggio). 1 per partita.",
   "faction": "Orks",
   "allowed_units": [
     "orks_shoota_boy"

@@ -1,6 +1,6 @@
 {
   "id": "grot_knife_small",
-  "comment": "Coltello da grot a blocchi: lama corta e seghettata, manico avvolto di stracci. Spazio modello: punta verso -Z, +Y alto, +X destra. Metri.",
+  "comment": "Coltello da Pighcib a blocchi: lama corta e seghettata, manico avvolto di stracci. Spazio modello: punta verso -Z, +Y alto, +X destra. Metri.",
   "anchors": {
     "grip_right": [
       0.0,

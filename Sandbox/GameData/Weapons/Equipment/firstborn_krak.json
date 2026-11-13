@@ -1,10 +1,11 @@
 {
   "id": "firstborn_krak",
   "displayName": "Granata Perforante",
-  "comment": "Sbloccabile del firstborn: granata anticarro. Scoppia all'impatto, raggio piccolo (2 m) ma 220 danni che passano le corazze; distrugge strutture e mezzi. 1 per partita.",
+  "comment": "Sbloccabile del Difensore Vanguardio: granata anticarro. Scoppia all'impatto, raggio piccolo (2 m) ma 220 danni che passano le corazze; distrugge strutture e mezzi. 1 per partita.",
   "faction": "SpaceMarines",
   "allowed_units": [
-    "spacemarines_battle_brother"
+    "spacemarines_battle_brother",
+    "spacemarines_sworn_brother"
   ],
   "slot_type": "equipment",
   "equipment_type": "grenade",

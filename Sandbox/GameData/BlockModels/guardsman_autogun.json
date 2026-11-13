@@ -1,6 +1,6 @@
 {
   "id": "guardsman_autogun",
-  "comment": "Autogun del guardsman. Autogun a blocchi (stile Vraks): castello d'acciaio, canna lunga con freno di bocca, calcio e guardamano in legno, caricatore curvo. Spazio modello: canna verso -Z, +Y alto. Metri.",
+  "comment": "Autogun del Fante del Regno. Autogun a blocchi (stile Vraks): castello d'acciaio, canna lunga con freno di bocca, calcio e guardamano in legno, caricatore curvo. Spazio modello: canna verso -Z, +Y alto. Metri.",
   "anchors": {
     "grip_right": [
       0,

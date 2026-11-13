@@ -201,7 +201,7 @@
       }
     }
   },
-  "comment": "Sbloccabile del whiteshield: spada a catena a una mano a misura d'uomo, piu' piccola e leggera di quella degli Astartes (danno base 36).",
+  "comment": "Sbloccabile del Recluta di Leva: spada a denti meccanici a una mano a misura d'uomo, piu' piccola e leggera di quella dei Vanguard Armors (danno base 36).",
   "allowed_units": [
     "imperium_whiteshield"
   ]

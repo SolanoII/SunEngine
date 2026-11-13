@@ -6195,12 +6195,24 @@ namespace SunEngine {
             { "OPZIONI", false, Ui::Col::Phosphor },
         };
         constexpr int kNavCount = static_cast<int>(sizeof(navs) / sizeof(navs[0]));
-        float navW[kNavCount], totalNav = 0.0f;
+        float navW[kNavCount], totalNav = 0.0f, currencyW = 270.0f;
         {
+            // le schede non devono finire sotto le valute a destra (circa 270 px): con la finestra stretta si stringono
             ImFont* fh = Ui::FontHeading();
-            for (int i = 0; i < kNavCount; ++i) { navW[i] = fh->CalcTextSizeA(fh->FontSize * 0.92f, FLT_MAX, 0.0f, navs[i].label).x + 34.0f; totalNav += navW[i]; }
+            float textW = 0.0f;
+            for (int i = 0; i < kNavCount; ++i) { navW[i] = fh->CalcTextSizeA(fh->FontSize * 0.92f, FLT_MAX, 0.0f, navs[i].label).x; textW += navW[i]; }
+            // larghezza delle valute (stesso calcolo di sotto)
+            ImFont* fs = Ui::FontSmall(); ImFont* fv = Ui::FontStrong();
+            char eb[32], sb[32];
+            std::snprintf(eb, sizeof(eb), "%lld", static_cast<long long>(m_Profile.energy));
+            std::snprintf(sb, sizeof(sb), "%lld", static_cast<long long>(m_Profile.blackStone));
+            currencyW = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "ENERGIA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, eb).x
+                      + 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "VANGUARDIO").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, sb).x + 80.0f;
+            const float avail = io.DisplaySize.x - 300.0f - currencyW;
+            const float padTab = std::clamp((avail - textW) / static_cast<float>(kNavCount), 12.0f, 34.0f);
+            for (int i = 0; i < kNavCount; ++i) { navW[i] += padTab; totalNav += navW[i]; }
         }
-        ImGui::SetCursorPos(ImVec2(std::max(300.0f, io.DisplaySize.x * 0.5f - totalNav * 0.5f), 0.0f));
+        ImGui::SetCursorPos(ImVec2(std::max(300.0f, std::min(io.DisplaySize.x * 0.5f - totalNav * 0.5f, io.DisplaySize.x - currencyW - totalNav)), 0.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
         int clickedNav = -1;
         for (int i = 0; i < kNavCount; ++i) {
@@ -6268,11 +6280,11 @@ namespace SunEngine {
             std::snprintf(eb, sizeof(eb), "%lld", static_cast<long long>(m_Profile.energy));
             std::snprintf(sb, sizeof(sb), "%lld", static_cast<long long>(m_Profile.blackStone));
             const float wE = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "ENERGIA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, eb).x;
-            const float wS = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "PIETRA NERA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, sb).x;
+            const float wS = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "VANGUARDIO").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, sb).x;
             ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - wE - wS - 48.0f, 18.0f));
             Ui::Currency("ENERGIA", static_cast<long long>(m_Profile.energy), Ui::Col::Gold);
             ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - wS - 22.0f, 18.0f));
-            Ui::Currency("PIETRA NERA", static_cast<long long>(m_Profile.blackStone), Ui::Col::Amethyst);
+            Ui::Currency("VANGUARDIO", static_cast<long long>(m_Profile.blackStone), Ui::Col::Amethyst);
         }
 
         ImGui::End();
@@ -6328,7 +6340,7 @@ namespace SunEngine {
         if (m_ResearchTree.IsLoaded()) {
             for (const auto& faction : m_ResearchTree.GetFactions()) {
                 for (const auto& n : faction.nodes) {
-                    if (!n.parentId.empty() || !BlueprintManager::Get().GetUnit(n.unitId)) continue;
+                    if (!n.parentId.empty() || n.premium || !BlueprintManager::Get().GetUnit(n.unitId)) continue;   // le unita' d'elite si comprano
                     if (static_cast<int>(m_PlayerRoster.size()) >= MAX_ROSTER_SIZE) break;
                     m_PlayerRoster.push_back(TrainedUnit{ n.defaultName, n.unitId,
                         glm::vec4(n.color[0], n.color[1], n.color[2], n.color[3]) });
@@ -6337,9 +6349,9 @@ namespace SunEngine {
             }
         }
         if (m_PlayerRoster.empty()) {
-            m_PlayerRoster.push_back(TrainedUnit{ "Coscritto", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
-            m_PlayerRoster.push_back(TrainedUnit{ "Neofita Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
-            m_PlayerRoster.push_back(TrainedUnit{ "Snik", "orks_gretchin", glm::vec4(kPighcibSkin, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Recluta Teren", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Candidato Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Snuffo", "orks_gretchin", glm::vec4(kPighcibSkin, 1.0f) });
             for (auto& u : m_PlayerRoster) u.ApplyDefaultLoadout();
         }
         m_SelectedVaultIndex = 0;
@@ -6364,6 +6376,52 @@ namespace SunEngine {
         m_PlayerRoster.push_back(newUnit);
         m_SelectedVaultIndex = static_cast<int>(m_PlayerRoster.size()) - 1;
         return true;
+    }
+
+    // Unita' d'elite: i suoi punti studio sono punti esperienza speciali, da trasferire a scelta a un'altra unita' della
+    // stessa fazione (ne paga le ricerche come se li avesse guadagnati lei).
+    void GameLayer::RenderEliteXpTransfer(const ResearchFaction& faction, const ResearchNode& elite, float width) {
+        static std::string s_Target;
+        static int s_Amount = 0;
+        const int64_t have = ResearchTree::GetStudyPoints(m_Profile, elite.unitId);
+        std::vector<const ResearchNode*> targets;   // unita' gia' sbloccate della fazione (non d'elite)
+        for (const auto& t : faction.nodes)
+            if (!t.unitId.empty() && !t.premium && m_ResearchTree.IsResearched(m_Profile, t)) targets.push_back(&t);
+        ImGui::Spacing();
+        Ui::Heading("PUNTI ESPERIENZA SPECIALI", Ui::Col::Bone);
+        if (targets.empty()) { ImGui::TextColored(Ui::Col::Ash, "Nessun'altra unita' sbloccata a cui trasferirli."); return; }
+        bool found = false;
+        for (const auto* t : targets) found = found || t->unitId == s_Target;
+        if (!found) s_Target = targets.front()->unitId;
+        const ResearchNode* target = targets.front();
+        for (const auto* t : targets) if (t->unitId == s_Target) target = t;
+        ImGui::SetNextItemWidth(std::min(260.0f, width * 0.6f));
+        if (ImGui::BeginCombo("##elite_target", target->name.c_str())) {
+            for (const auto* t : targets) {
+                char row[128];
+                std::snprintf(row, sizeof(row), "%s   (%lld PS)", t->name.c_str(), static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, t->unitId)));
+                if (ImGui::Selectable(row, t->unitId == s_Target)) s_Target = t->unitId;
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        ImGui::TextColored(Ui::Col::Ash, "destinataria");
+        const int maxAmount = static_cast<int>(std::min<int64_t>(have, 2000000000));
+        s_Amount = std::clamp(s_Amount, 0, std::max(0, maxAmount));
+        ImGui::SetNextItemWidth(std::min(260.0f, width * 0.6f));
+        ImGui::SliderInt("##elite_amount", &s_Amount, 0, std::max(1, maxAmount), "%d PS");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("tutti")) s_Amount = maxAmount;
+        char label[96];
+        std::snprintf(label, sizeof(label), "TRASFERISCI A %s", target->name.c_str());
+        if (Ui::Button(label, ImVec2(std::min(360.0f, width), 32.0f), Ui::Btn::Primary, s_Amount > 0 && s_Amount <= have)) {
+            m_Profile.studyPoints[elite.unitId] -= s_Amount;
+            m_Profile.studyPoints[target->unitId] += s_Amount;
+            m_ResearchMessage = std::to_string(s_Amount) + " punti esperienza trasferiti a " + target->name;
+            m_ResearchMessageTimer = 4.0f;
+            s_Amount = 0;
+            SaveProfileIfChanged();
+        }
     }
 
     void GameLayer::RenderResearchUI() {
@@ -6516,7 +6574,8 @@ namespace SunEngine {
             if (itemsTotal > 0) std::snprintf(info, sizeof(info), "PUNTI STUDIO %lld   -   OGGETTI %d/%d", ps, itemsDone, itemsTotal);
             else std::snprintf(info, sizeof(info), "PUNTI STUDIO %lld", ps);
             char status[96];
-            if (!hasBp && st == ResearchStatus::Researched) std::snprintf(status, sizeof(status), "IN ARRIVO (sbloccata)");
+            if (st == ResearchStatus::Premium) std::snprintf(status, sizeof(status), "ELITE - %lld VANGUARDIO", static_cast<long long>(n.premiumCost));
+            else if (!hasBp && st == ResearchStatus::Researched) std::snprintf(status, sizeof(status), "IN ARRIVO (sbloccata)");
             else if (!hasBp && st == ResearchStatus::Researchable) std::snprintf(status, sizeof(status), "IN ARRIVO - %lld PS", static_cast<long long>(n.researchCost));
             else if (st == ResearchStatus::LockedMastery) std::snprintf(status, sizeof(status), "SERVE LA MAESTRIA");
             else if (!hasBp && st == ResearchStatus::LockedPoints) std::snprintf(status, sizeof(status), "IN ARRIVO - servono %lld PS", static_cast<long long>(n.researchCost));
@@ -6540,6 +6599,24 @@ namespace SunEngine {
                     card.progress = static_cast<float>(ResearchTree::GetStudyPoints(m_Profile, payer->unitId)) / static_cast<float>(n.researchCost);
             }
             Ui::DrawNodeCard(dl, p, ImVec2(nodeW, nodeH), card);
+            if (n.premium) {
+                // unita' d'elite: cornice bianca e nera, il segno dell'Ordo Domus Humilitatis
+                dl->AddRect(ImVec2(p.x - 4.0f, p.y - 4.0f), ImVec2(p.x + nodeW + 4.0f, p.y + nodeH + 4.0f), IM_COL32(8, 8, 9, 255), 0.0f, 0, 5.0f);
+                dl->AddRect(ImVec2(p.x - 2.0f, p.y - 2.0f), ImVec2(p.x + nodeW + 2.0f, p.y + nodeH + 2.0f), IM_COL32(240, 238, 232, 255), 0.0f, 0, 1.5f);
+                const float cx = p.x + nodeW - 16.0f, cy = p.y + nodeH - 18.0f;   // croce semplice (in basso: in alto c'e' il sole della maestria)
+                dl->AddRectFilled(ImVec2(cx - 1.5f, cy - 7.0f), ImVec2(cx + 1.5f, cy + 7.0f), IM_COL32(240, 238, 232, 255));
+                dl->AddRectFilled(ImVec2(cx - 5.0f, cy - 3.5f), ImVec2(cx + 5.0f, cy - 0.5f), IM_COL32(240, 238, 232, 255));
+            }
+        }
+        // titoli delle righe dedicate (es. ORDO DOMUS HUMILITATIS), sopra la prima carta della riga
+        for (const auto& n : faction.nodes) {
+            if (n.unitId.empty() || n.rowLabel.empty()) continue;
+            const ImVec2 p = nodePos(n);
+            ImFont* fh = Ui::FontHeading();
+            const float fsz = fh->FontSize * 0.75f;
+            const float ty = p.y - fsz - 10.0f;
+            dl->AddLine(ImVec2(origin.x + pad, ty + fsz * 0.5f), ImVec2(p.x - 10.0f, ty + fsz * 0.5f), IM_COL32(240, 238, 232, 90), 1.0f);
+            dl->AddText(fh, fsz, ImVec2(p.x, ty), IM_COL32(240, 238, 232, 235), n.rowLabel.c_str());
         }
 
         ImGui::SetCursorScreenPos(origin);
@@ -6577,7 +6654,9 @@ namespace SunEngine {
                 auto chip = [&](const char* text, const ImVec4& col) { ImGui::SameLine(0.0f, 10.0f); ImGui::SetCursorPosY(titleY + 8.0f); Ui::Chip(text, col); };
                 char tierBuf[32]; std::snprintf(tierBuf, sizeof(tierBuf), "GRADO %s", Ui::Roman(n.tier));
                 chip(tierBuf, Ui::Col::Brass);
+                if (n.premium) chip("ELITE", Ui::Col::Bone);
                 if (st == ResearchStatus::Researched) chip(isItem ? "RICERCATO" : "SBLOCCATA", Ui::Col::Verdigris);
+                else if (st == ResearchStatus::Premium) chip("SI SBLOCCA COL VANGUARDIO", Ui::Col::Amethyst);
                 else if (st == ResearchStatus::Researchable) chip("RICERCA DISPONIBILE", Ui::Col::Gold);
                 else chip("BLOCCATA", Ui::Col::Ash);
                 if (!isItem && isMastered(n)) chip("MAESTRIA COMPLETA", Ui::Col::Gold);
@@ -6650,6 +6729,7 @@ namespace SunEngine {
                 ImGui::SameLine();
                 ImGui::SetCursorPosY(psY);
                 ImGui::TextColored(Ui::Col::Phosphor, "%lld", static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, n.unitId)));
+                if (n.premium && st == ResearchStatus::Researched) RenderEliteXpTransfer(faction, n, leftW);
             }
             else {
                 ImGui::TextColored(Ui::Col::Rust, "UNITA' IN ARRIVO");
@@ -6676,7 +6756,30 @@ namespace SunEngine {
                 ImGui::TextColored(ok ? Ui::Col::Bone : Ui::Col::Rust, "%s", text.c_str());
             };
 
-            if (st != ResearchStatus::Researched) {
+            if (st == ResearchStatus::Premium) {
+                // Unita' d'elite: niente ricerca ne' equipaggiamento da sbloccare, si prende col Vanguardio
+                ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + actionW - 40.0f);
+                ImGui::TextColored(Ui::Col::Bone, "Unita' d'elite di grado %s: arriva con tutto l'equipaggiamento migliore gia' sbloccato, "
+                                   "da non ricercare ne' ricomprare.", Ui::Roman(n.tier));
+                ImGui::TextColored(Ui::Col::Ash, "I suoi punti studio sono punti esperienza speciali: puoi trasferirli a qualsiasi altra unita' della fazione.");
+                ImGui::PopTextWrapPos();
+                ImGui::Spacing();
+                Ui::Currency("COSTO", static_cast<long long>(n.premiumCost), Ui::Col::Amethyst);
+                const bool canPay = m_Profile.blackStone >= n.premiumCost;
+                const bool roomLeft = static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE;
+                char label[96];
+                std::snprintf(label, sizeof(label), "SBLOCCA   %lld VANGUARDIO", static_cast<long long>(n.premiumCost));
+                if (Ui::Button(label, ImVec2(actionW - 40.0f, 40.0f), Ui::Btn::Primary, bp != nullptr && canPay && roomLeft)) {
+                    if (m_ResearchTree.UnlockPremium(m_Profile, n)) {
+                        PurchaseResearchedUnit(n);   // costo in energia zero: arriva subito nel garage
+                        SaveProfileIfChanged();
+                        setMessage("Sbloccata e aggiunta al garage: " + n.name);
+                    }
+                }
+                if (!canPay) ImGui::TextColored(Ui::Col::Ember, "Vanguardio insufficiente.");
+                else if (!roomLeft) ImGui::TextColored(Ui::Col::Ember, "Garage pieno.");
+            }
+            else if (st != ResearchStatus::Researched) {
                 // Fase 1: ricerca con i punti studio del PADRE
                 if (const ResearchNode* payer = m_ResearchTree.PaySource(m_Profile, n)) {
                     const long long have = static_cast<long long>(ResearchTree::GetStudyPoints(m_Profile, payer->unitId));
@@ -6717,19 +6820,22 @@ namespace SunEngine {
                 Ui::Currency("COSTO IN ENERGIA", static_cast<long long>(n.purchaseCost), Ui::Col::Gold);
             }
             else {
-                // Fase 2: acquisto con energia -> nuova unita' nel garage
-                const bool roomLeft = static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE;
+                // Fase 2: acquisto con energia -> nuova unita' nel garage (l'unita' d'elite e' una sola)
+                int ownedHere = 0;
+                for (const auto& u : m_PlayerRoster) ownedHere += (u.blueprintId == n.unitId ? 1 : 0);
+                const bool roomLeft = static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE && !(n.premium && ownedHere > 0);
                 const bool canPay = m_Profile.energy >= n.purchaseCost;
                 ImGui::TextColored(Ui::Col::Ash, "Unita' in garage");
                 ImGui::SameLine();
-                ImGui::TextColored(roomLeft ? Ui::Col::Bone : Ui::Col::Ember, "%d / %d", static_cast<int>(m_PlayerRoster.size()), MAX_ROSTER_SIZE);
+                ImGui::TextColored(static_cast<int>(m_PlayerRoster.size()) < MAX_ROSTER_SIZE ? Ui::Col::Bone : Ui::Col::Ember, "%d / %d", static_cast<int>(m_PlayerRoster.size()), MAX_ROSTER_SIZE);
                 ImGui::Spacing();
                 char label[96];
                 std::snprintf(label, sizeof(label), "ACQUISTA UNITA'   %lld ENERGIA", static_cast<long long>(n.purchaseCost));
                 if (Ui::Button(label, ImVec2(actionW - 40.0f, 40.0f), Ui::Btn::Primary, bp != nullptr && roomLeft && canPay)) {
                     if (PurchaseResearchedUnit(n)) setMessage("Aggiunta al garage: " + n.name);
                 }
-                if (!roomLeft) ImGui::TextColored(Ui::Col::Ember, "Garage pieno.");
+                if (n.premium && ownedHere > 0) ImGui::TextColored(Ui::Col::Ash, "Gia' nel garage: l'unita' d'elite e' una sola.");
+                else if (!roomLeft) ImGui::TextColored(Ui::Col::Ember, "Garage pieno.");
                 else if (!canPay) ImGui::TextColored(Ui::Col::Ember, "Energia insufficiente.");
             }
             if (m_ResearchMessageTimer > 0.0f && !m_ResearchMessage.empty()) {
@@ -6797,10 +6903,10 @@ namespace SunEngine {
         ImGui::PopStyleVar(2);
         Ui::Backdrop(ImGui::GetWindowDrawList(), ImVec2(0.0f, 60.0f), io.DisplaySize);
 
-        Ui::Title("EMPORIO DELLA PIETRA NERA", Ui::Col::Amethyst);
+        Ui::Title("EMPORIO DEL VANGUARDIO", Ui::Col::Amethyst);
         ImGui::TextColored(Ui::Col::Ash, "Qui si usa solo la valuta premium.");
         ImGui::SameLine(0.0f, 24.0f);
-        Ui::Currency("PIETRA NERA", static_cast<long long>(m_Profile.blackStone), Ui::Col::Amethyst);
+        Ui::Currency("VANGUARDIO", static_cast<long long>(m_Profile.blackStone), Ui::Col::Amethyst);
         Ui::Divider(0.0f, Ui::Col::Amethyst);
         ImGui::Spacing();
 
@@ -6828,14 +6934,14 @@ namespace SunEngine {
         else {
             const bool canBuy = m_Profile.blackStone >= kVipPrice;
             char label[64];
-            std::snprintf(label, sizeof(label), "ACQUISTA   %lld PIETRA NERA", static_cast<long long>(kVipPrice));
+            std::snprintf(label, sizeof(label), "ACQUISTA   %lld VANGUARDIO", static_cast<long long>(kVipPrice));
             if (Ui::Button(label, ImVec2(400.0f, 40.0f), Ui::Btn::Primary, canBuy)) {
                 m_Profile.blackStone -= kVipPrice;
                 m_Profile.vip = true;
                 SaveProfileIfChanged();
                 SUN_CORE_INFO("Negozio: VIP acquistato");
             }
-            if (!canBuy) ImGui::TextColored(Ui::Col::Rust, "Pietra Nera insufficiente.");
+            if (!canBuy) ImGui::TextColored(Ui::Col::Rust, "Vanguardio insufficiente.");
         }
         ImGui::EndGroup();
         ImGui::EndChild();
@@ -7000,7 +7106,7 @@ namespace SunEngine {
 
                 if (m_SelectedFaction == "Imperium") {
                     if (Ui::PlainButton("Fante del Regno (10 Pti)\n(Recluta)", ImVec2(280, 50))) {
-                        recruitAction("imperium_guardsman_recruit", "Recluta Vance", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
+                        recruitAction("imperium_guardsman_recruit", "Fante Hessel", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
                     }
                     if (Ui::PlainButton("Kingsman Scelto (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
                         recruitAction("imperium_kasrkin", "Kingsman Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
@@ -7008,18 +7114,18 @@ namespace SunEngine {
                 }
                 else if (m_SelectedFaction == "SpaceMarines") {
                     if (Ui::PlainButton("Candidato Umano (40 Pti)\n(Candidato)", ImVec2(280, 50))) {
-                        recruitAction("spacemarines_neophyte", "Neofita Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
+                        recruitAction("spacemarines_neophyte", "Candidato Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
                     if (Ui::PlainButton("Difensore Vanguardio (75 Pti)\n(Difensore)", ImVec2(280, 50))) {
-                        recruitAction("spacemarines_battle_brother", "Fratello Titus", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
+                        recruitAction("spacemarines_battle_brother", "Dietrich Falken", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
                 else if (m_SelectedFaction == "Orks") {
                     if (Ui::PlainButton("Vrepigh (15 Pti)\n(Fante Vrepigh)", ImVec2(280, 50))) {
-                        recruitAction("orks_boy", "Gor-Gath", glm::vec4(kVrepighSkin[2], 1.0f));
+                        recruitAction("orks_boy", "Brakk", glm::vec4(kVrepighSkin[2], 1.0f));
                     }
                     if (Ui::PlainButton("Vrepigh Capozanna (50 Pti)\n(Capoclan Vrepigh)", ImVec2(280, 50))) {
-                        recruitAction("orks_nob", "Uzgrak", glm::vec4(kVrepighSkin[4], 1.0f));
+                        recruitAction("orks_nob", "Ruggzanna", glm::vec4(kVrepighSkin[4], 1.0f));
                     }
                 }
 
@@ -8603,7 +8709,11 @@ namespace SunEngine {
         const VsBotQueueTier& tier = kVsBotTiers[std::clamp(tierIdx, 0, 2)];
         std::vector<VsBotCandidate> all;
         // Costo di un candidato = unita' con la sua dotazione base (punti battaglia)
-        for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id), bp.max_per_squad });
+        for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) {
+            const ResearchNode* rn = m_ResearchTree.FindNodeByUnit(id);
+            if (rn && rn->premium) continue;   // le unita' d'elite (Konrad) non le usano i bot: sono personaggi unici
+            all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id), bp.max_per_squad });
+        }
         std::sort(all.begin(), all.end(), [](const VsBotCandidate& a, const VsBotCandidate& b) { return a.unitId < b.unitId; });
         std::mt19937 rng(std::random_device{}());
         std::vector<VsBotPlayer> players;

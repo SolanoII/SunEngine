@@ -112,7 +112,7 @@
         1.0
       ],
       "inflate": 0.0138,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 5,
       "roughness": 0.5,
       "metallic": 0.35,

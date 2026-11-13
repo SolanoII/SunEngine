@@ -44,7 +44,7 @@
     -0.22
   ],
   "spare_magazines": 5,
-  "comment": "Sbloccabile del guardsman: fucile al plasma, colpi pesantissimi che passano le corazze. Si scalda: piu' di 5 colpi di fila e va in surriscaldamento. 6 colpi e 30 di riserva.",
+  "comment": "Sbloccabile del Fante del Regno: fucile al plasma, colpi pesantissimi che passano le corazze. Si scalda: piu' di 5 colpi di fila e va in surriscaldamento. 6 colpi e 30 di riserva.",
   "allowed_units": [
     "imperium_guardsman_recruit"
   ]

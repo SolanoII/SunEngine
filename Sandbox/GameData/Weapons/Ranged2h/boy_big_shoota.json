@@ -1,7 +1,7 @@
 {
   "id": "boy_big_shoota",
   "displayName": "Mitragliatore Pesante",
-  "comment": "Sbloccabile dell'ork boy: mitragliatrice a due mani, 36 colpi a caricatore e 36 di riserva (2 caricatori in tutto) (truppa standard: le munizioni vanno gestite). Spara tanto e male, come piace agli orki.",
+  "comment": "Sbloccabile dell'Vrepigh Vrepigh: mitragliatrice a due mani, 36 colpi a caricatore e 36 di riserva (2 caricatori in tutto) (truppa standard: le munizioni vanno gestite). Spara tanto e male, come piace ai Vrepigh.",
   "faction": "Orks",
   "allowed_units": [
     "orks_boy"

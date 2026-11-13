@@ -1,7 +1,7 @@
 {
   "id": "torso_whiteshield_flak",
   "displayName": "Corpetto da Recluta",
-  "comment": "Dotazione base del whiteshield: giubba e corpetto antischegge (davanti, dietro e spalle).",
+  "comment": "Dotazione base del Recluta di Leva: giubba e corpetto antischegge (davanti, dietro e spalle).",
   "location": "Torso",
   "faction": "Imperium",
   "allowed_units": [
@@ -14,21 +14,21 @@
   "point_cost": 2,
   "skin_blocks": {
     "Torso": [
-      0.36,
       0.38,
-      0.25,
+      0.38,
+      0.37,
       1
     ],
     "Arm_L": [
-      0.36,
       0.38,
-      0.25,
+      0.38,
+      0.37,
       1
     ],
     "Arm_R": [
-      0.36,
       0.38,
-      0.25,
+      0.38,
+      0.37,
       1
     ]
   },

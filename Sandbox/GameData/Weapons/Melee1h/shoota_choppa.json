@@ -1,7 +1,7 @@
 {
   "id": "shoota_choppa",
   "displayName": "Mannaia da Guerra",
-  "comment": "Dotazione base dello shoota boy: la choppa degli orki.",
+  "comment": "Dotazione base del Vrepigh Sparammazza: la mannaia dei Vrepigh.",
   "allowed_units": [
     "orks_shoota_boy"
   ],

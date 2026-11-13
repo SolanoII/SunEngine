@@ -1,6 +1,6 @@
 {
   "id": "guardsman_chainsword",
-  "comment": "Spada a catena del guardsman. Spada a catena a misura d'uomo: il modello degli Astartes all'80%. Spada a catena a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
+  "comment": "Spada a denti meccanici del Fante del Regno. Spada a denti meccanici a misura d'uomo: il modello dei Vanguard Armors all'80%. Spada a denti meccanici a blocchi. Spazio modello: origine al centro dell'ingombro, punta/canna verso -Z, +Y alto, +X destra. Metri. 'grip_right' = impugnatura principale (vale per la mano che regge l'arma).",
   "anchors": {
     "grip_right": [
       0.0,

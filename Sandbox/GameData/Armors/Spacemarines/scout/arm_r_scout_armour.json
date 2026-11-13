@@ -1,7 +1,7 @@
 {
   "id": "arm_r_scout_armour",
   "displayName": "Spallaccio da Esploratore Vanguardio (dx)",
-  "comment": "Dotazione base dello scout: spallaccio e parabraccio in carapace.",
+  "comment": "Dotazione base dello scout: spallaccio e parabraccio in rigida.",
   "location": "RightArm",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -76,7 +76,7 @@
       "inflate": 0.0144,
       "plate_cells": 5,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.5,
       "metallic": 0.35,
@@ -98,7 +98,7 @@
         0.86
       ],
       "inflate": 0.012,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 5,
       "roughness": 0.5,
       "metallic": 0.35,

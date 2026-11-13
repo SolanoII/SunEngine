@@ -203,7 +203,7 @@
   },
   "armor_penetration": 4,
   "melee_reach": 1.9,
-  "comment": "Sbloccabile dell'aspirante: spada a catena in formato Space Marine. Per un aspirante e' troppo grande e pesante: la impugna a due mani, colpi piu' lenti ma che fanno male.",
+  "comment": "Sbloccabile dell'Candidato: spada a denti meccanici in formato Vanguard Armors. Per un Candidato e' troppo grande e pesante: la impugna a due mani, colpi piu' lenti ma che fanno male.",
   "allowed_units": [
     "spacemarines_neophyte"
   ]

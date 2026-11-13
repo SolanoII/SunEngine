@@ -1,6 +1,6 @@
 {
   "id": "scout_auspex",
-  "comment": "Auspex a blocchi: scanner portatile con schermo verde e antenna. +Y alto, schermo verso +Z (verso chi lo tiene).",
+  "comment": "Rilevatore tattico a blocchi: scanner portatile con schermo verde e antenna. +Y alto, schermo verso +Z (verso chi lo tiene).",
   "anchors": {
     "grip_right": [
       0,

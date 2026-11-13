@@ -1,7 +1,7 @@
 {
   "id": "torso_shoota_heavy",
   "displayName": "Corazza Pesante da Tiratore",
-  "comment": "Sbloccabile dello shoota boy: corazza completa di piastre rivettate.",
+  "comment": "Sbloccabile del Vrepigh Sparammazza: corazza completa di piastre rivettate.",
   "allowed_units": [
     "orks_shoota_boy"
   ],

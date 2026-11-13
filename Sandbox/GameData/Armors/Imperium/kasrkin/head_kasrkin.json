@@ -8,5 +8,96 @@
   "weight": 4.0,
   "point_cost": 4,
   "faction": "Imperium",
-  "unit_restriction": "imperium_kasrkin"
+  "unit_restriction": "imperium_kasrkin",
+  "skin_parts": [
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.12,
+        0
+      ],
+      "size": [
+        0.3,
+        0.1,
+        0.3
+      ],
+      "color": [
+        0.15,
+        0.15,
+        0.16,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.45
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.075,
+        0
+      ],
+      "size": [
+        0.33,
+        0.025,
+        0.33
+      ],
+      "color": [
+        0.15,
+        0.15,
+        0.16,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.45
+    },
+    {
+      "block": "Head",
+      "offset": [
+        0,
+        0.05,
+        0.13
+      ],
+      "size": [
+        0.3,
+        0.08,
+        0.04
+      ],
+      "color": [
+        0.15,
+        0.15,
+        0.16,
+        1
+      ],
+      "roughness": 0.55,
+      "metallic": 0.45
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_helmet_kasrkin",
+      "bones": [
+        "Head",
+        "HeadTop_End"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.915,
+        1.0
+      ],
+      "inflate": 0.0138,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.55,
+      "metallic": 0.3,
+      "color": [
+        0.387,
+        0.387,
+        0.387,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema Kingsman Scelto: nero e grigio ferro."
 }

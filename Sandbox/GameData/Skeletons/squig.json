@@ -1,7 +1,7 @@
 {
   "id": "squig",
   "race": "Orks",
-  "comment": "Squig da compagnia: scheletro a cubi che fa da modello e da hitbox. Origine a terra, muso verso -Z. Torso = corpo (palla), Head = cupola con gli occhi (colpo in testa x1.75), Jaw = mascella (conta come testa), Leg_L/Leg_R = piedoni.",
+  "comment": "Grugn da compagnia: scheletro a cubi che fa da modello e da hitbox. Origine a terra, muso verso -Z. Torso = corpo (palla), Head = cupola con gli occhi (colpo in testa x1.75), Jaw = mascella (conta come testa), Leg_L/Leg_R = piedoni.",
   "blocks": [
     {
       "name": "Torso",

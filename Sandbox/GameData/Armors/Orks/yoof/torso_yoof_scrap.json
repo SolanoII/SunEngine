@@ -1,7 +1,7 @@
 {
   "id": "torso_yoof_scrap",
   "displayName": "Corazza di Rottami",
-  "comment": "Piastre di lamiera rivettate sul petto dello yoof. Si ricerca sotto lo Yoof e si compra per unita'.",
+  "comment": "Piastre di lamiera rivettate sul petto del Giovane Vrepigh. Si ricerca sotto il Giovane Vrepigh e si compra per unita'.",
   "location": "Torso",
   "faction": "Orks",
   "allowed_units": [

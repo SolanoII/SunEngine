@@ -1,6 +1,6 @@
 {
   "id": "schola_ammo_crate",
-  "comment": "Cassa di munizioni della Schola Progenium a blocchi: cassa verde con rinforzi, maniglie e aquila stampata. Origine al centro della base (posata a terra), +Y alto.",
+  "comment": "Cassa di munizioni del Collegio a blocchi: cassa verde con rinforzi, maniglie e nucleo stampata. Origine al centro della base (posata a terra), +Y alto.",
   "anchors": {
     "grip_right": [
       0,

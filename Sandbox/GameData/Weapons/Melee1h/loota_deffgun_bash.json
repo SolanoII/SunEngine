@@ -1,7 +1,7 @@
 {
   "id": "loota_deffgun_bash",
   "displayName": "Colpo di Fucile a Fascio",
-  "comment": "Mischia di riserva del loota (che non puo' equipaggiare armi da mischia): colpi dati col deffgun. Non si equipaggia (allowed_units non contiene nessuna unita').",
+  "comment": "Mischia di riserva del Razziatore (che non puo' equipaggiare armi da mischia): colpi dati col fucile pesante. Non si equipaggia (allowed_units non contiene nessuna unita').",
   "faction": "Orks",
   "allowed_units": [
     "__nessuno__"

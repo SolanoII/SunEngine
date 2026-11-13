@@ -1,7 +1,7 @@
 {
   "id": "head_schola_carapace",
   "displayName": "Elmo Rigido",
-  "comment": "Sbloccabile della Schola Progenium: armatura in carapace, molto piu' resistente della flak del guardsman.",
+  "comment": "Sbloccabile del Collegio: armatura in rigida, molto piu' resistente della antischegge del Fante del Regno.",
   "location": "Head",
   "faction": "Imperium",
   "allowed_units": [
@@ -27,9 +27,9 @@
         0.3
       ],
       "color": [
-        0.18,
-        0.2,
-        0.17,
+        0.14,
+        0.14,
+        0.15,
         1
       ],
       "roughness": 0.45,
@@ -48,9 +48,9 @@
         0.33
       ],
       "color": [
-        0.18,
-        0.2,
-        0.17,
+        0.14,
+        0.14,
+        0.15,
         1
       ],
       "roughness": 0.45,
@@ -69,9 +69,9 @@
         0.04
       ],
       "color": [
-        0.18,
-        0.2,
-        0.17,
+        0.14,
+        0.14,
+        0.15,
         1
       ],
       "roughness": 0.45,
@@ -112,14 +112,14 @@
         1.0
       ],
       "inflate": 0.0179,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 5,
       "roughness": 0.45,
       "metallic": 0.45,
       "color": [
-        0.6,
-        0.66,
-        0.58,
+        0.34,
+        0.34,
+        0.36,
         1
       ]
     }

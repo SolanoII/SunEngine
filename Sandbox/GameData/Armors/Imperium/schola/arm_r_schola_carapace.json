@@ -1,7 +1,7 @@
 {
   "id": "arm_r_schola_carapace",
   "displayName": "Spallaccio Rigido (dx)",
-  "comment": "Sbloccabile della Schola Progenium: armatura in carapace, molto piu' resistente della flak del guardsman.",
+  "comment": "Sbloccabile del Collegio: armatura in rigida, molto piu' resistente della antischegge del Fante del Regno.",
   "location": "RightArm",
   "faction": "Imperium",
   "allowed_units": [
@@ -26,9 +26,9 @@
         0.23
       ],
       "color": [
-        0.18,
-        0.2,
-        0.17,
+        0.14,
+        0.14,
+        0.15,
         1
       ],
       "roughness": 0.45,
@@ -47,9 +47,9 @@
         0.19
       ],
       "color": [
-        0.18,
-        0.2,
-        0.17,
+        0.14,
+        0.14,
+        0.15,
         1
       ],
       "roughness": 0.45,
@@ -76,14 +76,14 @@
       "inflate": 0.0187,
       "plate_cells": 5,
       "plate_step": 0.004,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.45,
       "metallic": 0.45,
       "color": [
-        0.6,
-        0.66,
-        0.58,
+        0.34,
+        0.34,
+        0.36,
         1
       ]
     },
@@ -98,14 +98,14 @@
         0.86
       ],
       "inflate": 0.0156,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 5,
       "roughness": 0.45,
       "metallic": 0.45,
       "color": [
-        0.6,
-        0.66,
-        0.58,
+        0.34,
+        0.34,
+        0.36,
         1
       ]
     }

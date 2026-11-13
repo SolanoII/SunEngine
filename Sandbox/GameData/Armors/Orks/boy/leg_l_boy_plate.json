@@ -1,7 +1,7 @@
 {
   "id": "leg_l_boy_plate",
   "displayName": "Gambale da Vrepigh (sx)",
-  "comment": "Sbloccabile dell'ork boy: cosciale e ginocchiera di piastra.",
+  "comment": "Sbloccabile dell'Vrepigh Vrepigh: cosciale e ginocchiera di piastra.",
   "location": "LeftLeg",
   "faction": "Orks",
   "allowed_units": [

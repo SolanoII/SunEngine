@@ -1,7 +1,7 @@
 {
   "id": "shoota_ammo_backpack",
   "displayName": "Zaino Munizioni",
-  "comment": "Sbloccabile dello shoota boy: zaino pieno di caricatori. Passivo (basta averlo in uno slot): +50% di munizioni di riserva per tutte le armi. Si vede sulla schiena.",
+  "comment": "Sbloccabile del Vrepigh Sparammazza: zaino pieno di caricatori. Passivo (basta averlo in uno slot): +50% di munizioni di riserva per tutte le armi. Si vede sulla schiena.",
   "faction": "Orks",
   "allowed_units": [
     "orks_shoota_boy"

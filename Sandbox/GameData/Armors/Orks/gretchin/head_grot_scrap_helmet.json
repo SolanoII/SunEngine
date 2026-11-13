@@ -1,7 +1,7 @@
 {
   "id": "head_grot_scrap_helmet",
   "displayName": "Elmetto di Ferraglia",
-  "comment": "Elmetto rattoppato del gretchin: 1 di armatura e pochissima durabilita' (regge un colpo), ma finche' regge annulla il bonus del colpo in testa: un colpo di lasgun in testa non lo uccide piu' al primo colpo. Si ricerca sotto il Gretchin e si compra per unita'.",
+  "comment": "Elmetto rattoppato del Pighcib: 1 di armatura e pochissima durabilita' (regge un colpo), ma finche' regge annulla il bonus del colpo in testa: un colpo di fucile a impulsi in testa non lo uccide piu' al primo colpo. Si ricerca sotto il Pighcib e si compra per unita'.",
   "location": "Head",
   "faction": "Orks",
   "allowed_units": [

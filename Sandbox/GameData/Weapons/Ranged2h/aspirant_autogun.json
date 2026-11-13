@@ -63,7 +63,7 @@
   ],
   "heat_recoil_multiplier": 1.0,
   "spare_magazines": 2,
-  "comment": "Dotazione base dell'aspirante (in alternativa al lasrifle): 30 colpi e 60 di riserva.",
+  "comment": "Dotazione base dell'Candidato (in alternativa al fucile a impulsi): 30 colpi e 60 di riserva.",
   "allowed_units": [
     "spacemarines_neophyte"
   ]

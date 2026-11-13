@@ -44,7 +44,7 @@
     -0.2
   ],
   "spare_magazines": 5,
-  "comment": "Sbloccabile del guardsman: fucile a pompa, 8 pallettoni per colpo. 6 colpi e 30 di riserva.",
+  "comment": "Sbloccabile del Fante del Regno: fucile a pompa, 8 pallettoni per colpo. 6 colpi e 30 di riserva.",
   "allowed_units": [
     "imperium_guardsman_recruit"
   ]

@@ -1,7 +1,7 @@
 {
   "id": "yoof_spear",
   "displayName": "Lancia Rudimentale",
-  "comment": "Dotazione base alternativa dello yoof (al posto del pugnale): a due mani, affondi con piu' portata (2.5 m) e attacco pesante con scatto in avanti di 2.5 m.",
+  "comment": "Dotazione base alternativa del Giovane Vrepigh (al posto del pugnale): a due mani, affondi con piu' portata (2.5 m) e attacco pesante con scatto in avanti di 2.5 m.",
   "faction": "Orks",
   "allowed_units": [
     "orks_yoof"

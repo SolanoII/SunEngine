@@ -1,7 +1,7 @@
 {
   "id": "schola_ammo_crate",
   "displayName": "Cassa di Munizioni",
-  "comment": "Sbloccabile della Schola Progenium: cassa posata a terra. Chiunque della squadra, vicino e premendo E, recupera un caricatore dell'arma che ha in mano; 3 caricatori in tutto, poi la cassa sparisce. 1 per partita.",
+  "comment": "Sbloccabile del Collegio: cassa posata a terra. Chiunque della squadra, vicino e premendo E, recupera un caricatore dell'arma che ha in mano; 3 caricatori in tutto, poi la cassa sparisce. 1 per partita.",
   "faction": "Imperium",
   "allowed_units": [
     "imperium_schola_cadet"

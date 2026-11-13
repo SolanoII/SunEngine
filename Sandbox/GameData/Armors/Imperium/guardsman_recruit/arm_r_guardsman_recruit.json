@@ -3,10 +3,109 @@
   "displayName": "Spallaccio Antischegge da Fante (dx)",
   "location": "RightArm",
   "armor_rating": 7,
-  "coverage": 0.60,
+  "coverage": 0.6,
   "max_durability": 80.0,
   "weight": 1.5,
   "point_cost": 1,
   "faction": "Imperium",
-  "unit_restriction": "imperium_guardsman_recruit"
+  "unit_restriction": "imperium_guardsman_recruit",
+  "skin_parts": [
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        0.25,
+        0
+      ],
+      "size": [
+        0.23,
+        0.14,
+        0.23
+      ],
+      "color": [
+        0.36,
+        0.36,
+        0.35,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.25
+    },
+    {
+      "block": "Arm_R",
+      "offset": [
+        0,
+        -0.15,
+        0
+      ],
+      "size": [
+        0.19,
+        0.18,
+        0.19
+      ],
+      "color": [
+        0.36,
+        0.36,
+        0.35,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.25
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_arm_guard_r_guardsman_recruit",
+      "bones": [
+        "RightArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.78,
+        0.86
+      ],
+      "facing": [
+        0,
+        1,
+        0
+      ],
+      "facing_min": -0.2,
+      "inflate": 0.0144,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.74,
+        0.74,
+        0.74,
+        1
+      ]
+    },
+    {
+      "id": "guardsman_bracer_r_guardsman_recruit",
+      "bones": [
+        "RightForeArm"
+      ],
+      "min_weight": 0.6,
+      "height_range": [
+        0.76,
+        0.86
+      ],
+      "inflate": 0.012,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 5,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.74,
+        0.74,
+        0.74,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema milizia: grigio come i Laboratores."
 }

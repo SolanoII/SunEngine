@@ -1,7 +1,7 @@
 {
   "id": "guardsman_vox_caster",
   "displayName": "Communication Device",
-  "comment": "Sbloccabile del guardsman: radio da spalla. Click sinistro e 1 secondo di chiamata (ci si puo' muovere): 5 secondi dopo arriva un coscritto che ti segue e combatte con te (cerchio verde sotto i piedi). 1 per partita.",
+  "comment": "Sbloccabile del Fante del Regno: radio da spalla. Click sinistro e 1 secondo di chiamata (ci si puo' muovere): 5 secondi dopo arriva un coscritto che ti segue e combatte con te (cerchio verde sotto i piedi). 1 per partita.",
   "faction": "Imperium",
   "allowed_units": [
     "imperium_guardsman_recruit"

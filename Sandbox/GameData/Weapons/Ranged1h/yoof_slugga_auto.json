@@ -1,7 +1,7 @@
 {
   "id": "yoof_slugga_auto",
   "displayName": "Pistola Automatica Rozza",
-  "comment": "Sbloccabile dello yoof: slugga a raffica continua da 10 colpi, 30 di riserva. Si ricerca sotto lo Yoof e si compra per unita'.",
+  "comment": "Sbloccabile del Giovane Vrepigh: pistola rozza a raffica continua da 10 colpi, 30 di riserva. Si ricerca sotto il Giovane Vrepigh e si compra per unita'.",
   "faction": "Orks",
   "allowed_units": [
     "orks_yoof"

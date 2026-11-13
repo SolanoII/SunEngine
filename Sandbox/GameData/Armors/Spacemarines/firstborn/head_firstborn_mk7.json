@@ -1,7 +1,7 @@
 {
   "id": "head_firstborn_mk7",
   "displayName": "Elmo da Difensore Vanguardio",
-  "comment": "Dotazione base del firstborn: Vestment generica, grigio non dipinto. Elmo con griglia vocale e visiera con una linea di luce; finche' regge annulla il bonus del colpo in testa.",
+  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Elmo con griglia vocale e visiera con una linea di luce; finche' regge annulla il bonus del colpo in testa.",
   "location": "Head",
   "faction": "SpaceMarines",
   "allowed_units": [

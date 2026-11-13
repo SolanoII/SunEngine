@@ -3,10 +3,200 @@
   "displayName": "Corazza Rinforzata Modello d'Onore",
   "location": "Torso",
   "armor_rating": 45,
-  "coverage": 1.00,
+  "coverage": 1.0,
   "max_durability": 800.0,
   "weight": 13.0,
   "point_cost": 12,
   "faction": "Imperium",
-  "unit_restriction": "imperium_kasrkin"
+  "unit_restriction": "imperium_kasrkin",
+  "skin_blocks": {
+    "Torso": [
+      0.2,
+      0.2,
+      0.21,
+      1
+    ],
+    "Arm_L": [
+      0.2,
+      0.2,
+      0.21,
+      1
+    ],
+    "Arm_R": [
+      0.2,
+      0.2,
+      0.21,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.04,
+        -0.155
+      ],
+      "size": [
+        0.4,
+        0.46,
+        0.04
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        0.04,
+        0.155
+      ],
+      "size": [
+        0.4,
+        0.46,
+        0.04
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0.17,
+        0.27,
+        0
+      ],
+      "size": [
+        0.12,
+        0.06,
+        0.3
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        -0.17,
+        0.27,
+        0
+      ],
+      "size": [
+        0.12,
+        0.06,
+        0.3
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    },
+    {
+      "block": "Torso",
+      "offset": [
+        0,
+        -0.22,
+        -0.15
+      ],
+      "size": [
+        0.34,
+        0.14,
+        0.04
+      ],
+      "color": [
+        0.62,
+        0.63,
+        0.66,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.75
+    }
+  ],
+  "garments": [
+    {
+      "id": "guardsman_shirt_kasrkin_illustrious",
+      "bones": [
+        "Hips",
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder",
+        "LeftArm",
+        "RightArm",
+        "LeftForeArm",
+        "RightForeArm"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.5,
+        0.835
+      ],
+      "inflate": 0.0065,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/militia_fatigues.png",
+      "tex_tiles": 6,
+      "roughness": 0.9,
+      "color": [
+        0.55,
+        0.55,
+        0.55,
+        1
+      ]
+    },
+    {
+      "id": "guardsman_flak_kasrkin_illustrious",
+      "bones": [
+        "Spine",
+        "Spine1",
+        "Spine2",
+        "LeftShoulder",
+        "RightShoulder"
+      ],
+      "min_weight": 0.45,
+      "height_range": [
+        0.55,
+        0.835
+      ],
+      "inflate": 0.0149,
+      "plate_cells": 4,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.35,
+      "metallic": 0.7,
+      "color": [
+        0.817,
+        0.817,
+        0.817,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema modello d'onore: piastre d'argento (lo stemma del Kingship: argento e nero)."
 }

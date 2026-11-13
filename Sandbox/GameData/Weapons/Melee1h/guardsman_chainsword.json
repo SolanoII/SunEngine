@@ -201,7 +201,7 @@
       }
     }
   },
-  "comment": "Sbloccabile del guardsman: spada a catena a una mano, formato umano.",
+  "comment": "Sbloccabile del Fante del Regno: spada a denti meccanici a una mano, formato umano.",
   "allowed_units": [
     "imperium_guardsman_recruit"
   ]

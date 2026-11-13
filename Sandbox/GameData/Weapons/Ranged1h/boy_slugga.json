@@ -1,7 +1,7 @@
 {
   "id": "boy_slugga",
   "displayName": "Pistola Rozza",
-  "comment": "Dotazione base dell'ork boy: pistola a proiettili da 7 colpi, 21 di riserva.",
+  "comment": "Dotazione base dell'Vrepigh Vrepigh: pistola a proiettili da 7 colpi, 21 di riserva.",
   "allowed_units": [
     "orks_boy"
   ],

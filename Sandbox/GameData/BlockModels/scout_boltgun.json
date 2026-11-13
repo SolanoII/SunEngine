@@ -1,6 +1,6 @@
 {
   "id": "scout_boltgun",
-  "comment": "Boltgun da scout a blocchi: castello squadrato, caricatore a cassetta, canna corta e grossa con freno di bocca, aquila d'ottone. Canna verso -Z.",
+  "comment": "Fucile a proiettili pesanti da scout a blocchi: castello squadrato, caricatore a cassetta, canna corta e grossa con freno di bocca, nucleo d'ottone. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0,

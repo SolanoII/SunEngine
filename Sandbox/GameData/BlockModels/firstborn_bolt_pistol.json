@@ -1,6 +1,6 @@
 {
   "id": "firstborn_bolt_pistol",
-  "comment": "Bolt pistol del firstborn. Bolt pistol a blocchi: corpo massiccio, canna corta e grossa, caricatore nell'impugnatura. Canna verso -Z.",
+  "comment": "Pistola a proiettili pesanti del Difensore Vanguardio. Pistola a proiettili pesanti a blocchi: corpo massiccio, canna corta e grossa, caricatore nell'impugnatura. Canna verso -Z.",
   "anchors": {
     "grip_right": [
       0.0,

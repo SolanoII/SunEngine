@@ -1,7 +1,7 @@
 {
   "id": "grot_blasta",
   "displayName": "Pistola Pighcib",
-  "comment": "Dotazione base del gretchin: pistola rudimentale da 6 colpi, molto imprecisa. 2 caricatori di scorta = 18 colpi in tutto.",
+  "comment": "Dotazione base del Pighcib: pistola rudimentale da 6 colpi, molto imprecisa. 2 caricatori di scorta = 18 colpi in tutto.",
   "faction": "Orks",
   "allowed_units": [
     "orks_gretchin"

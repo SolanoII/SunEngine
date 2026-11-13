@@ -63,7 +63,7 @@
   ],
   "heat_recoil_multiplier": 1.0,
   "spare_magazines": 2,
-  "comment": "Dotazione base del whiteshield (in alternativa alla lasgun): automatico a proiettili, 30 colpi nel caricatore e 60 di riserva.",
+  "comment": "Dotazione base del Recluta di Leva (in alternativa al fucile a impulsi): automatico a proiettili, 30 colpi nel caricatore e 60 di riserva.",
   "allowed_units": [
     "imperium_whiteshield"
   ]

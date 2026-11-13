@@ -1,7 +1,7 @@
 {
   "id": "arm_l_boy_plate",
   "displayName": "Spallaccio da Vrepigh (sx)",
-  "comment": "Sbloccabile dell'ork boy: spallaccio e bracciale di piastra.",
+  "comment": "Sbloccabile dell'Vrepigh Vrepigh: spallaccio e bracciale di piastra.",
   "location": "LeftArm",
   "faction": "Orks",
   "allowed_units": [

@@ -44,7 +44,7 @@
     -0.2
   ],
   "spare_magazines": 4,
-  "comment": "Dotazione base dello scout (in alternativa al boltgun): fucile a pompa per il combattimento ravvicinato, 8 pallettoni per colpo. 8 colpi e 32 di riserva.",
+  "comment": "Dotazione base dello scout (in alternativa al fucile a proiettili pesanti): fucile a pompa per il combattimento ravvicinato, 8 pallettoni per colpo. 8 colpi e 32 di riserva.",
   "allowed_units": [
     "spacemarines_scout"
   ]

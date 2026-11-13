@@ -201,7 +201,7 @@
       }
     }
   },
-  "comment": "Dotazione base del firstborn (in alternativa al coltello): spada a catena a una mano.",
+  "comment": "Dotazione base del Difensore Vanguardio (in alternativa al coltello): spada a denti meccanici a una mano.",
   "allowed_units": [
     "spacemarines_battle_brother"
   ]

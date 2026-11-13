@@ -1,7 +1,7 @@
 {
   "id": "torso_firstborn_mk7",
   "displayName": "Corazza da Difensore Vanguardio",
-  "comment": "Dotazione base del firstborn: Vestment generica, grigio non dipinto. Piastra del petto col nucleo di Vanguardio, schiena, cintura.",
+  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Piastra del petto col nucleo di Vanguardio, schiena, cintura.",
   "location": "Torso",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -145,7 +145,7 @@
         0.87
       ],
       "inflate": 0.004,
-      "texture": "Textures/Garments/guard_fatigues.png",
+      "texture": "Textures/Garments/militia_fatigues.png",
       "tex_tiles": 9,
       "roughness": 0.85,
       "metallic": 0.05,
@@ -262,6 +262,66 @@
         0.56,
         1
       ]
+    },
+    {
+      "id": "fb_core_housing",
+      "bones": [
+        "Spine1",
+        "Spine2"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.675,
+        0.765
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.8,
+      "max_abs_x": 0.045,
+      "inflate": 0.036,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "color": [
+        0.16,
+        0.16,
+        0.18,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.6
+    },
+    {
+      "id": "fb_core",
+      "bones": [
+        "Spine1",
+        "Spine2"
+      ],
+      "min_weight": 0.3,
+      "height_range": [
+        0.695,
+        0.745
+      ],
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.85,
+      "max_abs_x": 0.024,
+      "inflate": 0.041,
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 2,
+      "color": [
+        1.15,
+        0.55,
+        1.25,
+        1
+      ],
+      "roughness": 0.08,
+      "metallic": 0.0
     }
   ]
 }

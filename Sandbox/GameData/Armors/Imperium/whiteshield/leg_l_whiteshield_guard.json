@@ -1,7 +1,7 @@
 {
   "id": "leg_l_whiteshield_guard",
   "displayName": "Gambale da Recluta (sx)",
-  "comment": "Sbloccabile del whiteshield: ginocchiera e parastinchi antischegge sopra i pantaloni.",
+  "comment": "Sbloccabile del Recluta di Leva: ginocchiera e parastinchi antischegge sopra i pantaloni.",
   "location": "LeftLeg",
   "faction": "Imperium",
   "allowed_units": [
@@ -15,8 +15,8 @@
   "skin_blocks": {
     "Leg_L": [
       0.3,
-      0.32,
-      0.21,
+      0.3,
+      0.3,
       1
     ]
   },

@@ -1,7 +1,7 @@
 {
   "id": "arm_l_firstborn_mk7",
   "displayName": "Spallaccio da Difensore Vanguardio (sx)",
-  "comment": "Dotazione base del firstborn: Vestment generica, grigio non dipinto. Spallaccio enorme bordato e guanto corazzato.",
+  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Spallaccio enorme bordato e guanto corazzato.",
   "location": "LeftArm",
   "faction": "SpaceMarines",
   "allowed_units": [

@@ -1,7 +1,7 @@
 {
   "id": "arm_r_aspirant_guard",
   "displayName": "Protezione Leggera del Braccio (dx)",
-  "comment": "Dotazione base dell'aspirante: spallaccio e parabraccio leggeri.",
+  "comment": "Dotazione base dell'Candidato: spallaccio e parabraccio leggeri.",
   "location": "RightArm",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -76,7 +76,7 @@
       "inflate": 0.0096,
       "plate_cells": 5,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.6,
       "metallic": 0.25,
@@ -98,7 +98,7 @@
         0.86
       ],
       "inflate": 0.008,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 5,
       "roughness": 0.6,
       "metallic": 0.25,

@@ -1,7 +1,7 @@
 {
   "id": "yoof_food_pack",
   "displayName": "Zaino di Cibo",
-  "comment": "Sbloccabile dello yoof: in mano, click sinistro lo posa a terra; per 10 secondi cura 5 HP al secondo ai compagni entro 5 metri (cerchio verde). Uno per partita.",
+  "comment": "Sbloccabile del Giovane Vrepigh: in mano, click sinistro lo posa a terra; per 10 secondi cura 5 HP al secondo ai compagni entro 5 metri (cerchio verde). Uno per partita.",
   "faction": "Orks",
   "allowed_units": [
     "orks_yoof"

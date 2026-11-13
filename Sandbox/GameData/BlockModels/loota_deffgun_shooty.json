@@ -1,6 +1,6 @@
 {
   "id": "loota_deffgun_shooty",
-  "comment": "Shooty Deffgun a blocchi: corpo massiccio da spalla, tre canne, serbatoio laterale. Canna verso -Z. Metri.",
+  "comment": "Shooty Fucile pesante a blocchi: corpo massiccio da spalla, tre canne, serbatoio laterale. Canna verso -Z. Metri.",
   "anchors": {
     "grip_right": [
       0.0,

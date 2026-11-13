@@ -1,7 +1,7 @@
 {
   "id": "torso_aspirant_training",
   "displayName": "Tuta d'Addestramento Rinforzata",
-  "comment": "Dotazione base dell'aspirante: tuta d'addestramento rinforzata con una protezione leggera sul torace.",
+  "comment": "Dotazione base dell'Candidato: tuta d'addestramento rinforzata con una protezione leggera sul torace.",
   "location": "Torso",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -141,7 +141,7 @@
       "inflate": 0.0065,
       "noise": 0.3,
       "noise_scale": 12,
-      "texture": "Textures/Garments/guard_fatigues.png",
+      "texture": "Textures/Garments/militia_fatigues.png",
       "tex_tiles": 6,
       "roughness": 0.9,
       "color": [
@@ -168,7 +168,7 @@
       "inflate": 0.0104,
       "plate_cells": 4,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.6,
       "metallic": 0.25,

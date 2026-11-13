@@ -1,6 +1,6 @@
 {
   "id": "whiteshield_lascannon_base",
-  "comment": "Treppiede del lascannon: colonna, tre gambe, scudo e cassa di energia a terra. Origine a terra (il perno dell'arma e' a 0,95 m). Metri.",
+  "comment": "Treppiede del cannone a impulsi: colonna, tre gambe, scudo e cassa di energia a terra. Origine a terra (il perno dell'arma e' a 0,95 m). Metri.",
   "anchors": {
     "grip_right": [
       0,

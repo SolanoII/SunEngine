@@ -1,7 +1,7 @@
 {
   "id": "leg_r_grot_rags",
   "displayName": "Calzoni da Pighcib (dx)",
-  "comment": "Calzoni stracciati del gretchin: nessuna armatura, solo aspetto.",
+  "comment": "Calzoni stracciati del Pighcib: nessuna armatura, solo aspetto.",
   "location": "RightLeg",
   "faction": "Orks",
   "allowed_units": [

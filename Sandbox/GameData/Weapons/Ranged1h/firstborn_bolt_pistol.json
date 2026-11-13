@@ -63,8 +63,9 @@
   ],
   "heat_recoil_multiplier": 1.0,
   "spare_magazines": 4,
-  "comment": "Secondaria base del firstborn: pistola bolt. 12 colpi e 48 di riserva.",
+  "comment": "Secondaria base del Difensore Vanguardio: pistola bolt. 12 colpi e 48 di riserva.",
   "allowed_units": [
-    "spacemarines_battle_brother"
+    "spacemarines_battle_brother",
+    "spacemarines_sworn_brother"
   ]
 }

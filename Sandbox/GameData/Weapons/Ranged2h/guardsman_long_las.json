@@ -43,7 +43,7 @@
     -0.2
   ],
   "spare_magazines": 10,
-  "comment": "Sbloccabile del guardsman: fucile laser di precisione con ottica (rotella del mouse mirando). Un colpo alla volta, 10 di riserva.",
+  "comment": "Sbloccabile del Fante del Regno: fucile laser di precisione con ottica (rotella del mouse mirando). Un colpo alla volta, 10 di riserva.",
   "allowed_units": [
     "imperium_guardsman_recruit"
   ],

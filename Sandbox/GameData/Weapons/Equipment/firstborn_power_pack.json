@@ -109,10 +109,11 @@
       "metallic": 0.7
     }
   ],
-  "comment": "Dotazione base del firstborn: zaino energetico che alimenta armatura e sistemi ausiliari. Click sinistro: +10% di velocita' per 5 secondi, poi 30 secondi di ricarica. Senza limite di usi.",
+  "comment": "Dotazione base del Difensore Vanguardio: zaino energetico che alimenta armatura e sistemi ausiliari. Click sinistro: +10% di velocita' per 5 secondi, poi 30 secondi di ricarica. Senza limite di usi.",
   "id": "firstborn_power_pack",
   "allowed_units": [
-    "spacemarines_battle_brother"
+    "spacemarines_battle_brother",
+    "spacemarines_sworn_brother"
   ],
   "faction": "SpaceMarines"
 }

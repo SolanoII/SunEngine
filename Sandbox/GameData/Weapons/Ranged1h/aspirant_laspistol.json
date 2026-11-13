@@ -63,7 +63,7 @@
   ],
   "heat_recoil_multiplier": 1.1,
   "spare_magazines": 2,
-  "comment": "Sbloccabile dell'aspirante: pistola laser come secondaria. 10 colpi e 20 di riserva.",
+  "comment": "Sbloccabile dell'Candidato: pistola laser come secondaria. 10 colpi e 20 di riserva.",
   "allowed_units": [
     "spacemarines_neophyte"
   ]

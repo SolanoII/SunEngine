@@ -1,7 +1,7 @@
 {
   "id": "leg_l_shoota_plate",
   "displayName": "Gambale da Tiratore (sx)",
-  "comment": "Sbloccabile dello shoota boy: cosciale e ginocchiera di piastra.",
+  "comment": "Sbloccabile del Vrepigh Sparammazza: cosciale e ginocchiera di piastra.",
   "allowed_units": [
     "orks_shoota_boy"
   ],

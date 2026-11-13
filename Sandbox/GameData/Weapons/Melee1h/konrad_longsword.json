@@ -203,6 +203,7 @@
   },
   "comment": "Spada lunga e sottile, lama scura quasi opaca: l'arma di Konrad in 'Primo Incontro'. Solo per la PVE-STORY.",
   "allowed_units": [
-    "story_konrad"
+    "story_konrad",
+    "spacemarines_sworn_brother"
   ]
 }

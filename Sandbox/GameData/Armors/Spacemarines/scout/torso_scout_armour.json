@@ -1,7 +1,7 @@
 {
   "id": "torso_scout_armour",
   "displayName": "Corazza da Esploratore Vanguardio",
-  "comment": "Dotazione base dello scout: corazza in carapace leggera su petto, schiena e spalle, sopra la tuta.",
+  "comment": "Dotazione base dello scout: corazza in rigida leggera su petto, schiena e spalle, sopra la tuta.",
   "location": "Torso",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -14,21 +14,21 @@
   "point_cost": 3,
   "skin_blocks": {
     "Torso": [
-      0.28,
       0.3,
-      0.27,
+      0.3,
+      0.31,
       1
     ],
     "Arm_L": [
-      0.28,
       0.3,
-      0.27,
+      0.3,
+      0.31,
       1
     ],
     "Arm_R": [
-      0.28,
       0.3,
-      0.27,
+      0.3,
+      0.31,
       1
     ]
   },
@@ -162,7 +162,7 @@
       "inflate": 0.0065,
       "noise": 0.3,
       "noise_scale": 12,
-      "texture": "Textures/Garments/guard_fatigues.png",
+      "texture": "Textures/Garments/militia_fatigues.png",
       "tex_tiles": 6,
       "roughness": 0.9,
       "color": [
@@ -189,7 +189,7 @@
       "inflate": 0.0149,
       "plate_cells": 4,
       "plate_step": 0.003,
-      "texture": "Textures/Garments/guard_flak.png",
+      "texture": "Textures/Garments/militia_flak.png",
       "tex_tiles": 4,
       "roughness": 0.5,
       "metallic": 0.35,

@@ -1,7 +1,7 @@
 {
   "id": "boy_big_choppa",
   "displayName": "Mannaia Pesante",
-  "comment": "Sbloccabile dell'ork boy: enorme ascia a due mani. Lenta, ma ogni colpo e' devastante e passa le armature.",
+  "comment": "Sbloccabile dell'Vrepigh Vrepigh: enorme ascia a due mani. Lenta, ma ogni colpo e' devastante e passa le armature.",
   "faction": "Orks",
   "allowed_units": [
     "orks_boy"

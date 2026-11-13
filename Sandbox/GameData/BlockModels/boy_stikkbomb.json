@@ -1,6 +1,6 @@
 {
   "id": "boy_stikkbomb",
-  "comment": "Stikkbomb a blocchi: manico di legno e testa cilindrica di metallo verde con fascia gialla. Testa verso -Z. Metri.",
+  "comment": "Granata a chiodi a blocchi: manico di legno e testa cilindrica di metallo verde con fascia gialla. Testa verso -Z. Metri.",
   "anchors": {
     "grip_right": [
       0.0,

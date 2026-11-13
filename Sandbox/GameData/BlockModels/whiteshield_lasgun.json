@@ -1,6 +1,6 @@
 {
   "id": "whiteshield_lasgun",
-  "comment": "Lasgun del whiteshield (modello della lasgun imperiale). Lasgun imperiale a blocchi. Spazio modello: origine al centro dell'ingombro, canna verso -Z, +Y alto, +X destra. Metri. 'anchors' servono a far combaciare l'arma con le mani del personaggio animato.",
+  "comment": "Fucile a impulsi del Recluta di Leva (modello del fucile a impulsi del Kingship). Fucile a impulsi del Kingship a blocchi. Spazio modello: origine al centro dell'ingombro, canna verso -Z, +Y alto, +X destra. Metri. 'anchors' servono a far combaciare l'arma con le mani del personaggio animato.",
   "anchors": {
     "grip_right": [
       0,

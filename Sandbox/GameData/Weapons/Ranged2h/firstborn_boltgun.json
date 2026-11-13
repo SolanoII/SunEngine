@@ -44,7 +44,7 @@
     -0.25
   ],
   "spare_magazines": 4,
-  "comment": "Dotazione base del firstborn (in alternativa all'auto bolt rifle): boltgun a colpo singolo, cartucce bolt esplosive. 30 colpi e 120 di riserva.",
+  "comment": "Dotazione base del Difensore Vanguardio (in alternativa all'fucile automatico a proiettili pesanti): fucile a proiettili pesanti a colpo singolo, cartucce bolt esplosive. 30 colpi e 120 di riserva.",
   "allowed_units": [
     "spacemarines_battle_brother"
   ]

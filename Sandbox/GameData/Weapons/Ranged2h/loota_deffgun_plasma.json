@@ -1,7 +1,7 @@
 {
   "id": "loota_deffgun_plasma",
   "displayName": "Fucile a Scarica",
-  "comment": "Sbloccabile del loota: deffgun al plasma. Pochi colpi pesantissimi che sciolgono le corazze. 8 colpi, 16 di riserva.",
+  "comment": "Sbloccabile del Razziatore: fucile pesante al plasma. Pochi colpi pesantissimi che sciolgono le corazze. 8 colpi, 16 di riserva.",
   "faction": "Orks",
   "allowed_units": [
     "orks_loota"

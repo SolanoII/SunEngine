@@ -1,7 +1,7 @@
 {
   "id": "loota_deffgun_shooty",
   "displayName": "Fucile a Raffica Pesante",
-  "comment": "Dotazione base del loota: arma enorme da spalla montata sul braccio destro, tante canne e tanti proiettili. 40 colpi, 120 di riserva.",
+  "comment": "Dotazione base del Razziatore: arma enorme da spalla montata sul braccio destro, tante canne e tanti proiettili. 40 colpi, 120 di riserva.",
   "faction": "Orks",
   "allowed_units": [
     "orks_loota"

@@ -201,7 +201,7 @@
       }
     }
   },
-  "comment": "Dotazione base dello scout (in alternativa al coltello): spada a catena a una mano.",
+  "comment": "Dotazione base dello scout (in alternativa al coltello): spada a denti meccanici a una mano.",
   "allowed_units": [
     "spacemarines_scout"
   ]

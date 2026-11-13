@@ -18,7 +18,7 @@
   "vision_range": 120,
   "fov_degrees": 90,
   "weight_capacity": 70.0,
-  "comment": "Guardsman cadiano. Dotazione base: armatura completa, lasgun (20+80) o autogun (30+120), laspistol (10+50) o autopistola (12+60), coltello, 1 granata frag. Sbloccabili: fucile a pompa, spada a catena, lanciagranate, lanciafiamme, plasma, melta, long-las e vox caster (chiama un coscritto che ti segue).",
+  "comment": "Fante del Regno del Presidio. Dotazione base: armatura completa, fucile a impulsi (20+80) o autogun (30+120), pistola a impulsi (10+50) o autopistola (12+60), coltello, 1 granata frag. Sbloccabili: fucile a pompa, spada a denti meccanici, lanciagranate, lanciafiamme, plasma, fusione, fucile di precisione a impulsi e Communication Device (chiama un coscritto che ti segue).",
   "default_loadout": {
     "primary": "guardsman_lasgun",
     "secondary": "guardsman_laspistol",

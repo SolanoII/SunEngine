@@ -18,7 +18,7 @@
   "vision_range": 125,
   "fov_degrees": 90,
   "weight_capacity": 80.0,
-  "comment": "Aspirante: un essere umano eccezionalmente dotato, scelto dal Capitolo perche' potrebbe sopravvivere alla trasformazione in Space Marine. Ancora umano: poco piu' forte di un buon soldato della Guardia. Dotazione base: autogun (30+60) o lasrifle (20+40), coltello da combattimento, abiti da addestramento rinforzati con protezioni leggere, 1 granata frag. Sbloccabili: fucile a pompa, laspistol, spada a catena da Space Marine (a due mani per un aspirante).",
+  "comment": "Candidato: un essere umano eccezionalmente dotato, scelto dal Capitolo perche' potrebbe sopravvivere alla trasformazione in Vanguard Armors. Ancora umano: poco piu' forte di un buon soldato della Guardia. Dotazione base: autogun (30+60) o fucile a impulsi (20+40), coltello da combattimento, abiti da addestramento rinforzati con protezioni leggere, 1 granata frag. Sbloccabili: fucile a pompa, pistola a impulsi, spada a denti meccanici da Vanguard Armors (a due mani per un Candidato).",
   "default_loadout": {
     "primary": "aspirant_lasrifle",
     "secondary": "",

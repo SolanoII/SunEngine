@@ -1,7 +1,7 @@
 {
   "id": "loota_slit_wall",
   "displayName": "Muro con Feritoia",
-  "comment": "Sbloccabile del loota: fermo e col click sinistro tenuto per 4 secondi costruisce davanti a se' un muro alto 2 metri con una fessura centrale (fra 1.1 e 1.5 m) da cui sparare. Si rompe con le esplosioni (soprattutto le bombe anti-struttura) e si ripara con la chiave inglese. 1 per partita.",
+  "comment": "Sbloccabile del Razziatore: fermo e col click sinistro tenuto per 4 secondi costruisce davanti a se' un muro alto 2 metri con una fessura centrale (fra 1.1 e 1.5 m) da cui sparare. Si rompe con le esplosioni (soprattutto le bombe anti-struttura) e si ripara con la chiave inglese. 1 per partita.",
   "faction": "Orks",
   "allowed_units": [
     "orks_loota"

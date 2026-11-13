@@ -43,7 +43,7 @@
     -0.2
   ],
   "spare_magazines": 2,
-  "comment": "Sbloccabile della Schola Progenium: lasgun a colpi sovraccaricati, una volta e mezza il danno di una lasgun e piu' rapida. Raggi arancioni e piu' grossi. Caricatore da 40 e 80 di riserva, ma ogni colpo ne consuma 2.",
+  "comment": "Sbloccabile del Collegio: fucile a impulsi a colpi sovraccaricati, una volta e mezza il danno di una fucile a impulsi e piu' rapida. Raggi arancioni e piu' grossi. Caricatore da 40 e 80 di riserva, ma ogni colpo ne consuma 2.",
   "allowed_units": [
     "imperium_schola_cadet"
   ],

@@ -14,9 +14,9 @@ namespace SunEngine::Ui {
         ImVec4 Mix(const ImVec4& a, const ImVec4& b, float t) { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t); }
         ImVec4 Dim(const ImVec4& c, float k) { return ImVec4(c.x * k, c.y * k, c.z * k, c.w); }
         // testo "in grassetto" per i caratteri che non ce l'hanno: due passate sfalsate di mezzo punto
-        void BoldText(ImDrawList* dl, ImFont* f, float size, ImVec2 p, ImU32 col, const char* text) {
-            dl->AddText(f, size, p, col, text);
-            dl->AddText(f, size, ImVec2(p.x + 0.6f, p.y), col, text);
+        void BoldText(ImDrawList* dl, ImFont* f, float size, ImVec2 p, ImU32 col, const char* text, const char* end = nullptr) {
+            dl->AddText(f, size, p, col, text, end);
+            dl->AddText(f, size, ImVec2(p.x + 0.6f, p.y), col, text, end);
         }
         void Diamond(ImDrawList* dl, ImVec2 c, float r, ImU32 col) {
             dl->AddQuadFilled(ImVec2(c.x, c.y - r), ImVec2(c.x + r, c.y), ImVec2(c.x, c.y + r), ImVec2(c.x - r, c.y), col);
@@ -315,7 +315,8 @@ namespace SunEngine::Ui {
         }
         const ImVec4 tc = active ? ImVec4(1.0f, 0.95f, 0.82f, 1.0f) : (hov ? Col::Bone : Col::Ash);
         const ImVec2 tp(a.x + (width - ts.x) * 0.5f, a.y + (height - ts.y) * 0.5f - 1.0f);
-        if (active) BoldText(dl, f, fs, tp, U32(tc), label); else dl->AddText(f, fs, tp, U32(tc), label, end);
+        if (active) BoldText(dl, f, fs, tp, U32(tc), label, end); else   // senza la parte "##id" dell'etichetta
+        dl->AddText(f, fs, tp, U32(tc), label, end);
         return clicked;
     }
 

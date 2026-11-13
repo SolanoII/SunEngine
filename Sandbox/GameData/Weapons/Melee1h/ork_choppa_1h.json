@@ -1,6 +1,6 @@
 {
   "id": "ork_choppa_1h",
-  "comment": "Choppa originale: non si equipaggia piu' dal garage (gli orki usano le loro choppe: boy_choppa, shoota_choppa, yoof_choppa). Resta per l'orda della sopravvivenza e come arma di riserva.",
+  "comment": "Mannaia originale: non si equipaggia piu' dal garage (i Vrepigh usano le loro choppe: boy_mannaia, Vrepigh Sparammazza_mannaia, Giovane Vrepigh_mannaia). Resta per l'orda della sopravvivenza e come arma di riserva.",
   "allowed_units": [
     "__nessuno__"
   ],
