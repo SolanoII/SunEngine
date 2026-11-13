@@ -117,7 +117,8 @@ namespace SunEngine {
             for (const auto& line : lines) {
                 const float a = std::clamp((time - start) / 0.8f, 0.0f, 1.0f) * alpha;
                 const ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, wrap, line.c_str());
-                if (a > 0.0f) dl->AddText(font, size, ImVec2((io.DisplaySize.x - std::min(ts.x, wrap)) * 0.5f, y), Ui::U32(Ui::Col::Bone, a), line.c_str(), nullptr, wrap);
+                const bool signature = line.rfind("- ", 0) == 0;   // firma di chi parla
+                if (a > 0.0f) dl->AddText(font, size, ImVec2((io.DisplaySize.x - std::min(ts.x, wrap)) * 0.5f, y), Ui::U32(signature ? Ui::Col::Brass : Ui::Col::Bone, a), line.c_str(), nullptr, wrap);
                 y += ts.y + 16.0f;
                 start += ReadTime(line) * 0.75f;
             }
@@ -173,6 +174,7 @@ namespace SunEngine {
 
         constexpr const char* kStoryMap = "warzone_sector4";   // Vespera IV - Terza Serra
         constexpr float kKonradBossTime = 300.0f;               // 5 minuti
+        constexpr float kOrdanHoldTime = 60.0f;                 // Ordan: la porta va tenuta almeno un minuto (i civili passano)
 
         struct StoryChapter {
             const char* name;
@@ -188,7 +190,7 @@ namespace SunEngine {
               { 2.0f, 0.5f, -50.0f } },   // dentro la serra centrale, fra due filari
             { "Sergente Ordan", "Sergente della milizia di Vespera IV",
               "\"Qualcuno deve chiudere quella porta.\"",
-              "Tieni il rifugio del livello tre. I Vrepighs sfondano dall'anticamera, ondata dopo ondata, fino alla fine.",
+              "Tieni la porta del rifugio almeno 1 minuto: e' il tempo che serve ai civili per fuggire nel condotto. Poi resisti finche' puoi.",
               { 2.0f, 0.5f, 94.0f } },
             { "Konrad von Eber", "Ordo Domus Humilitatis",
               "\"Allora non possiamo lasciare che raggiungano i rifugi.\"",
@@ -329,8 +331,9 @@ namespace SunEngine {
             if (c == 1) {
                 const int bestK = st.is_object() ? st.value("ordan_best_kills", 0) : 0;
                 const float bestT = st.is_object() ? st.value("ordan_best_time", 0.0f) : 0.0f;
-                if (bestT > 0.0f) ImGui::TextColored(Ui::Col::Verdigris, "Record: %d Vrepighs, porta tenuta %s", bestK, Clock(bestT).c_str());
-                else ImGui::TextColored(Ui::Col::Ash, "Nessun record");
+                const bool held = st.is_object() && st.value("ordan_done", false);
+                if (bestT > 0.0f) ImGui::TextColored(held ? Ui::Col::Verdigris : Ui::Col::Ash, "%s  -  record: %d Vrepighs, %s", held ? "Completato" : "Non ancora completato", bestK, Clock(bestT).c_str());
+                else ImGui::TextColored(Ui::Col::Ash, "Non ancora completato");
             }
             else {
                 const bool done = st.is_object() && st.value(c == 0 ? "martus_done" : "konrad_done", false);
@@ -553,7 +556,8 @@ namespace SunEngine {
                 else if (left < total * 0.55f) StoryVoice("meta");
             }
             else if (chapter == 1) {
-                if (m_Story.time > 45.0f) StoryVoice("tiene_1");
+                if (m_Story.time > 30.0f) StoryVoice("tiene_1");
+                if (m_Story.time >= kOrdanHoldTime) StoryVoice("minuto");
                 if (m_Story.time > 120.0f) StoryVoice("tiene_2");
             }
             else {
@@ -621,8 +625,10 @@ namespace SunEngine {
     void GameLayer::StoryOnPlayerDeath() {
         if (!m_Story.active || m_Story.result != 0) return;
         if (m_Story.chapter == 1) {
-            // Ordan: e' la fine che conosciamo. Conta quanto ha tenuto la porta.
-            m_Story.result = 3;
+            // Ordan: e' la fine che conosciamo. Se ha tenuto la porta almeno un minuto i civili sono passati (3),
+            // altrimenti e' caduto troppo presto (2). Conta comunque quanto ha tenuto.
+            m_Story.result = m_Story.time >= kOrdanHoldTime ? 3 : 2;
+            if (m_Story.result == 3) m_Profile.story["ordan_done"] = true;
             const int kills = m_KillCount - m_Story.kills0;
             auto& st = m_Profile.story;
             const float bestT = st.value("ordan_best_time", 0.0f);
@@ -632,7 +638,7 @@ namespace SunEngine {
                 st["ordan_best_time"] = m_Story.time;
                 m_Story.newRecord = true;
             }
-            ApplyMatchXp(1.0f, "La porta ha retto per " + Clock(m_Story.time));
+            ApplyMatchXp(m_Story.result == 3 ? 1.0f : 0.5f, (m_Story.result == 3 ? "La porta ha retto per " : "La porta ha ceduto dopo ") + Clock(m_Story.time));
         }
         else {
             m_Story.result = 2;
@@ -640,7 +646,11 @@ namespace SunEngine {
         }
         // le ultime righe del personaggio, prima della schermata di fine
         LoadVoices();
-        if (!s_Voices[m_Story.chapter].fall.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(s_Voices[m_Story.chapter].fall); s_SkipWasDown = true; }
+        {
+            const auto& v = s_Voices[m_Story.chapter];
+            const auto& lines = m_Story.result == 3 ? v.win : v.fall;
+            if (!lines.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(lines); s_SkipWasDown = true; }
+        }
         m_IsPaused = true;
         if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
@@ -716,7 +726,8 @@ namespace SunEngine {
             WorldMarker(vp, kMartusGoal + glm::vec3(0.0f, 2.5f, 0.0f), "MAGAZZINO NORD", Ui::U32(Ui::Col::Gold));
         }
         else if (chapter == 1) {
-            ImGui::TextColored(Ui::Col::Rust, "Tieni la porta del rifugio");
+            if (m_Story.time < kOrdanHoldTime) ImGui::TextColored(Ui::Col::Rust, "Tieni la porta: i civili passano tra %s", Clock(kOrdanHoldTime - m_Story.time).c_str());
+            else ImGui::TextColored(Ui::Col::Verdigris, "I civili sono passati. Resisti finche' puoi");
             const float bestT = m_Profile.story.value("ordan_best_time", 0.0f);
             if (bestT > 0.0f) ImGui::TextColored(Ui::Col::Ash, "Record: %d Vrepighs, %s", m_Profile.story.value("ordan_best_kills", 0), Clock(bestT).c_str());
         }
@@ -745,7 +756,7 @@ namespace SunEngine {
             const float in = std::clamp(s_OutroTime / 1.0f, 0.0f, 1.0f);
             ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(4, 4, 6, static_cast<int>(215.0f * in)));
             const auto& v = s_Voices[std::clamp(chapter, 0, 2)];
-            DrawLines(m_Story.result == 1 ? v.win : v.fall, s_OutroTime, 1.0f, nullptr);
+            DrawLines((m_Story.result == 1 || m_Story.result == 3) ? v.win : v.fall, s_OutroTime, 1.0f, nullptr);
             if (s_OutroTime >= s_OutroTotal || (s_OutroTime > 0.5f && SkipPressed())) s_OutroTime = -1.0f;
             return;
         }
@@ -763,31 +774,40 @@ namespace SunEngine {
             else { title = "CADUTO"; text = "Martus Kell e' caduto nella Terza Serra, prima di raggiungere il magazzino."; col = Ui::Col::Ember; }
         }
         else if (chapter == 1) {
-            title = "LA FINE DELLA LINEA";
-            text = "Il sergente Ordan ha tenuto la porta finche' ha potuto.";
-            quote = "\"Siamo noi i rinforzi.\"";
-            col = Ui::Col::Rust;
+            if (m_Story.result == 3) { title = "LA FINE DELLA LINEA"; text = "Il sergente Ordan ha tenuto la porta finche' i civili non sono passati."; col = Ui::Col::Verdigris; }
+            else { title = "LA PORTA HA CEDUTO TROPPO PRESTO"; text = "Il sergente Ordan e' caduto prima che i civili raggiungessero il condotto."; col = Ui::Col::Ember; }
         }
         else {
             if (m_Story.result == 1) { title = "LA LINEA HA RETTO"; text = "Il capo dei Vrepighs e' caduto e la sua collana di frammenti si e' spezzata."; quote = "\"Avete fatto il vostro dovere.\""; col = Ui::Col::Verdigris; }
             else { title = "CADUTO"; text = "Konrad von Eber e' caduto nella Terza Serra."; col = Ui::Col::Ember; }
         }
         Ui::Heading(title, col);
-        ImGui::TextWrapped("%s", text);
-        if (quote[0]) ImGui::TextColored(Ui::Col::Brass, "%s", quote);
+        // le parole di Martus (o del personaggio) dal file delle voci; senza file restano quelle qui sopra
+        const bool won = m_Story.result == 1 || m_Story.result == 3;
+        const auto& closing = won ? s_Voices[std::clamp(chapter, 0, 2)].win : s_Voices[std::clamp(chapter, 0, 2)].fall;
+        if (!closing.empty()) {
+            for (const auto& l : closing) {
+                if (l.rfind("- ", 0) == 0) ImGui::TextColored(Ui::Col::Brass, "%s", l.c_str());
+                else ImGui::TextWrapped("%s", l.c_str());
+            }
+        }
+        else {
+            ImGui::TextWrapped("%s", text);
+            if (quote[0]) ImGui::TextColored(Ui::Col::Brass, "%s", quote);
+        }
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
         ImGui::Text("Tempo: %s", Clock(m_Story.time).c_str());
         ImGui::Text("Vrepighs abbattuti: %d", kills);
-        if (chapter == 1 && m_Story.newRecord) ImGui::TextColored(Ui::Col::Gold, "Nuovo record!");
+        if (chapter == 1 && m_Story.newRecord && m_Story.result == 3) ImGui::TextColored(Ui::Col::Gold, "Nuovo record!");
         ImGui::Spacing();
         RenderMatchRecap();
         ImGui::Spacing();
         const int readChapter = s_Voices[std::clamp(chapter, 0, 2)].readAfter;
         const bool read = readChapter > 0 && Ui::Button("Leggi cosa e' successo", ImVec2(-1.0f, 40.0f), Ui::Btn::Primary);
         const float halfW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-        const bool again = Ui::PlainButton("Rigioca il capitolo", ImVec2(halfW, 40.0f));
+        const bool again = Ui::PlainButton(won ? "Rigioca il capitolo" : "Riprova", ImVec2(halfW, 40.0f));
         ImGui::SameLine();
-        const bool back = Ui::PlainButton("Torna alla PVE-STORY", ImVec2(halfW, 40.0f));
+        const bool back = Ui::PlainButton("Torna al menu", ImVec2(halfW, 40.0f));
         ImGui::End();
 
         if (read) {   // dalla partita al racconto: si apre il capitolo di questo momento

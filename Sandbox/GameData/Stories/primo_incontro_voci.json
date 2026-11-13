@@ -1,8 +1,10 @@
 {
-  "_nota": "Voci dei capitoli giocabili di Primo Incontro: il personaggio parla in prima persona. 'prologo' prima di entrare in campo, 'voci' durante la partita (ognuna una volta sola), 'vittoria' e 'caduta' alla fine. 'racconto' = capitoli del racconto che offrono 'Gioca questo momento'; 'leggi' = capitolo aperto da 'Leggi cosa è successo'.",
+  "_nota": "Voci dei capitoli giocabili di Primo Incontro. 'prologo' prima di entrare in campo, 'voci' durante la partita (ognuna una volta sola), 'vittoria' e 'caduta' alla fine (sullo schermo scuro e nella schermata dei risultati; una riga che comincia con '- ' è la firma). Ordan e Konrad sono raccontati da Martus in terza persona. 'racconto' = capitoli del racconto che offrono 'Gioca questo momento'; 'leggi' = capitolo aperto da 'Leggi cosa è successo'.",
   "capitoli": [
     {
-      "racconto": [3],
+      "racconto": [
+        3
+      ],
       "leggi": 3,
       "prologo": [
         "Mi chiamo Martus Kell. Ho ventitré anni e fino a ieri raccoglievo cereali.",
@@ -11,12 +13,26 @@
         "Il magazzino nord. Devo solo arrivare al magazzino nord."
       ],
       "voci": {
-        "inizio": ["«Kell! Apri gli occhi!»", "Corri. Non voltarti."],
-        "prima_uccisione": ["È caduto. Non pensavo che potessero cadere."],
-        "ferito": ["Respira. Respira."],
-        "grave": ["Non qui. Non in mezzo al grano."],
-        "meta": ["Mi sono voltato una volta sola.", "Non stanno conquistando niente. Stanno mangiando."],
-        "vicino": ["La porta del magazzino. C'è qualcuno là dentro. Ci deve essere qualcuno."]
+        "inizio": [
+          "«Kell! Apri gli occhi!»",
+          "Corri. Non voltarti."
+        ],
+        "prima_uccisione": [
+          "È caduto. Non pensavo che potessero cadere."
+        ],
+        "ferito": [
+          "Respira. Respira."
+        ],
+        "grave": [
+          "Non qui. Non in mezzo al grano."
+        ],
+        "meta": [
+          "Mi sono voltato una volta sola.",
+          "Non stanno conquistando niente. Stanno mangiando."
+        ],
+        "vicino": [
+          "La porta del magazzino. C'è qualcuno là dentro. Ci deve essere qualcuno."
+        ]
       },
       "vittoria": [
         "Dentro c'erano ventitré persone.",
@@ -29,60 +45,102 @@
       ]
     },
     {
-      "racconto": [6, 8],
+      "racconto": [
+        6,
+        8
+      ],
       "leggi": 8,
       "prologo": [
-        "Quarantadue ragazzi. Contadini. Il più giovane aveva quindici anni.",
-        "Ne ho portati sette fino a questa stanza.",
-        "Il braccio sinistro non risponde più. È solo una scheggia, ho detto. Non mi hanno creduto.",
-        "Dietro di me c'è un condotto pieno di bambini. Davanti a me c'è una porta.",
-        "Qualcuno deve chiuderla."
+        "Il sergente Ordan rimase a difendere il portone.",
+        "Sapeva che da esso dipendeva la vita delle persone dietro di lui.",
+        "Aveva un braccio solo e un caricatore. Non chiese altro.",
+        "Durò abbastanza a lungo da permetterci di fuggire."
       ],
       "voci": {
-        "inizio": ["«Avete portato i rinforzi?»", "Siamo noi i rinforzi."],
-        "prima_uccisione": ["Uno. A Kell serve più tempo di così."],
-        "tiene_1": ["Seguite i segnali gialli, ragazzi. Non voltatevi."],
-        "uccisioni_10": ["Dieci. Ho smesso di contare i miei uomini. Questi posso contarli."],
-        "tiene_2": ["Ogni minuto che resto in piedi è un pezzo di condotto in più per loro."],
-        "ferito": ["Dovremmo anche avere una flotta orbitale. Non sempre si ottiene ciò che si vuole."],
-        "grave": ["Il caricatore è quasi vuoto. Va bene così. Non serviva che bastasse."]
+        "inizio": [
+          "«Avete portato i rinforzi?»",
+          "Siamo noi i rinforzi."
+        ],
+        "prima_uccisione": [
+          "Uno. A Kell serve più tempo di così."
+        ],
+        "tiene_1": [
+          "Seguite i segnali gialli, ragazzi. Non voltatevi."
+        ],
+        "uccisioni_10": [
+          "Dieci. Ho smesso di contare i miei uomini. Questi posso contarli."
+        ],
+        "tiene_2": [
+          "Ogni minuto che resto in piedi è un pezzo di condotto in più per loro."
+        ],
+        "ferito": [
+          "Dovremmo anche avere una flotta orbitale. Non sempre si ottiene ciò che si vuole."
+        ],
+        "grave": [
+          "Il caricatore è quasi vuoto. Va bene così. Non serviva che bastasse."
+        ],
+        "minuto": [
+          "Nel condotto non si sente più nessuno. Sono passati."
+        ]
       },
-      "vittoria": [],
+      "vittoria": [
+        "Ordan, tu hai salvato la vita a queste persone.",
+        "Io farò in modo di non rendere vano il tuo sacrificio.",
+        "- Martus"
+      ],
       "caduta": [
-        "Mi ha sollevato da terra. Ho sentito le piastre piegarsi.",
-        "Nel condotto non si sente più nessuno. Sono passati.",
-        "Qualcuno doveva chiudere quella porta."
+        "Ordan non è riuscito a sopravvivere abbastanza a lungo.",
+        "La sua morte prematura non è bastata per consentire a tutti di fuggire."
       ]
     },
     {
-      "racconto": [19, 20],
+      "racconto": [
+        19,
+        20
+      ],
       "leggi": 20,
       "prologo": [
-        "Non abbiamo ricevuto ordini dal comando.",
-        "Non ne servono, per proteggere chi non può combattere.",
-        "Una cinquantina nei campi. Almeno quattro di quelli grandi. E uno che canta.",
-        "Il nucleo batte piano contro il petto. Chiede sempre qualcosa in cambio.",
-        "Non è un onore. È un dovere."
+        "Konrad von Eber non aspettò ordini dal comando.",
+        "Si mise fra i Vrepighs e i rifugi, con la spada scura in mano e quella luce bianca nel petto.",
+        "Non lo fece per la gloria. Disse soltanto che era un dovere.",
+        "Tenne la linea finché il loro capo non venne a cercarlo."
       ],
       "voci": {
-        "inizio": ["«Allora non possiamo lasciare che raggiungano i rifugi.»"],
-        "prima_uccisione": ["Nessun movimento sprecato. Ogni colpo è uno in meno per chi sta dietro di me."],
-        "minuto_1": ["Dietro questa linea ci sono nove soldati e ventitré civili. Li ho contati."],
-        "minuto_3": ["Portano frammenti di Vanguardio nella carne. Non è un'incursione casuale."],
-        "ferito": ["La corazza si è incrinata. La luce si abbassa. Poi torna."],
-        "grave": ["Il nucleo dà quello che gli chiedo. E si prende il resto."],
-        "capo": ["Lo sento prima di vederlo. Il canto.", "Quello è il loro capo. Allora morirà qui."],
-        "capo_meta": ["Mi osserva. Cerca di capire che cosa ha davanti.", "Anch'io."]
+        "inizio": [
+          "«Allora non possiamo lasciare che raggiungano i rifugi.»"
+        ],
+        "prima_uccisione": [
+          "Nessun movimento sprecato. Ogni colpo è uno in meno per chi sta dietro di me."
+        ],
+        "minuto_1": [
+          "Dietro questa linea ci sono nove soldati e ventitré civili. Li ho contati."
+        ],
+        "minuto_3": [
+          "Portano frammenti di Vanguardio nella carne. Non è un'incursione casuale."
+        ],
+        "ferito": [
+          "La corazza si è incrinata. La luce si abbassa. Poi torna."
+        ],
+        "grave": [
+          "Il nucleo dà quello che gli chiedo. E si prende il resto."
+        ],
+        "capo": [
+          "Lo sento prima di vederlo. Il canto.",
+          "Quello è il loro capo. Allora morirà qui."
+        ],
+        "capo_meta": [
+          "Mi osserva. Cerca di capire che cosa ha davanti.",
+          "Anch'io."
+        ]
       },
       "vittoria": [
-        "La collana si è spezzata. Le pietre rotolano fra i detriti.",
-        "Nessun grido di vittoria. Soltanto il colpo.",
-        "Avete fatto il vostro dovere. Ora portate a casa i vostri morti."
+        "Konrad, tu hai fermato quello che noi non potevamo fermare.",
+        "Ho visto che cosa ti è costato, e non lo dimenticherò.",
+        "- Martus"
       ],
       "caduta": [
-        "La luce nel petto si spegne.",
-        "Questa volta non torna.",
-        "Che qualcun altro tenga la linea."
+        "Konrad non è riuscito a tenere la linea.",
+        "Senza di lui i Vrepighs hanno raggiunto i rifugi, e nessuno di noi è tornato a casa."
       ]
     }
   ]
