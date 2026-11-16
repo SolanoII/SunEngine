@@ -113,6 +113,25 @@ namespace SunEngine {
             p.Rotate(side + "ForeArm", dE);
         }
 
+        // A quattro zampe (Feral Pig lanciato): schiena piegata in avanti, muso alto, anche basse sulle gambe
+        // piegate; la schiena si inarca e si distende col galoppo. Le mani a terra le mette l'IK (GameLayer).
+        inline void Quadruped(ProceduralPose& p, float amount, float gallop, float thighLen, float shinLen) {
+            if (amount <= 0.0f) return;
+            const float a = Smooth(amount), s = std::sin(gallop);
+            p.Rotate("Spine", Rx((24.0f + 6.0f * s) * a));
+            p.Rotate("Spine1", Rx(14.0f * a));
+            p.Rotate("Spine2", Rx((8.0f - 5.0f * s) * a));
+            p.Rotate("Neck", Rx(-34.0f * a));
+            p.Rotate("Head", Rx((-40.0f + 5.0f * s) * a));
+            const float thigh = 42.0f * a, knee = 78.0f * a;
+            p.Rotate("LeftUpLeg", Rx(-thigh));  p.Rotate("RightUpLeg", Rx(-thigh));
+            p.Rotate("LeftLeg", Rx(knee));      p.Rotate("RightLeg", Rx(knee));
+            p.Rotate("LeftFoot", Rx(-(knee - thigh))); p.Rotate("RightFoot", Rx(-(knee - thigh)));
+            const float ta = glm::radians(thigh), tb = glm::radians(knee - thigh);
+            p.hipsOffset.y -= (thighLen + shinLen) - (thighLen * std::cos(ta) + shinLen * std::cos(tb));
+            p.hipsOffset.y += shinLen * 0.06f * s * a;   // il bacino sale e scende col galoppo
+        }
+
         // Accovacciato: cosce avanti, ginocchia piegate, piedi a terra, busto un po' in avanti. legLen = coscia +
         // stinco (unita' del modello): l'abbassamento delle anche e' quello che tiene i piedi a terra.
         inline void Crouch(ProceduralPose& p, float amount, float thighLen, float shinLen) {

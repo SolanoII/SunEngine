@@ -6,6 +6,7 @@
 #include "Engine/Core/Random.h"
 #include "Engine/Core/MathUtils.h"
 #include "Engine/Core/Input.h"
+#include "Engine/ECS/FeralCharge.h"
 #include "Engine/Core/Logger/Log.h"
 #include "Engine/ECS/Components.h"
 #include "Engine/ECS/Tags.h"
@@ -827,6 +828,12 @@ namespace SunEngine {
         stats.toughness = bp->toughness;
         stats.strength = bp->strength;
         stats.climbHeight = bp->climb_height;
+        stats.momentumBonus = bp->momentum_bonus;   // slancio e carica (Feral Pig)
+        stats.momentumTime = bp->momentum_time;
+        stats.chargeThreshold = bp->charge_threshold;
+        stats.chargeDamage = bp->charge_damage;
+        stats.quadruped = bp->quadruped_run;
+        scene.GetRegistry().remove<MomentumComponent>(playerEntity);
         stats.climbSpeed = bp->climb_speed > 0.05f ? bp->climb_speed : 0.6f;
         stats.accuracySkill = bp->accuracy_skill;
         stats.meleeSkill = bp->melee_skill;
@@ -2524,6 +2531,10 @@ namespace SunEngine {
                 inst.holdSpeed = in.isMoving ? speed : 0.0f;
                 inst.holdDt = deltaTime;
                 if (const auto* cr = reg.try_get<CrouchComponent>(e)) in.crouching = cr->amount > 0.5f;
+                if (const auto* vault = reg.try_get<VaultComponent>(e); vault && vault->isVaulting) {   // bot e orda ora scavalcano
+                    in.vaulting = true; in.vaultDuration = vault->vaultDuration; in.forward = true; in.backward = false;
+                    in.climbing = vault->vaultDuration > 1.2f;
+                }
                 inst.poseTime += deltaTime;
                 BuildUnitPose(e, inst.pose, *inst.ctrl, inst.poseTime, inst.climb, deltaTime);
                 inst.ctrl->SetProceduralPose(&inst.pose);
@@ -2638,6 +2649,7 @@ namespace SunEngine {
             const bool leftOn = model->hasGripLeft && (!held || holdKind == WeaponHoldKind::Rifle);   // a una mano e armi bianche: sinistra libera
             ApplyHandIK(*inst.ctrl, inst.pose, vt, &gR, leftOn ? &gL : nullptr);
         }
+        if (inst.poseFresh) ApplyQuadrupedIK(bot, *inst.ctrl, inst.pose, vt);   // Feral Pig lanciato: mani a terra
         inst.poseFresh = false;
         // Il colpo parte dalla bocca della canna, anche per i bot
         {
@@ -2646,6 +2658,42 @@ namespace SunEngine {
             PublishMuzzle(bot, probe, model);
         }
         return true;
+    }
+
+    // Quanto l'unita' e' a quattro zampe: sale con lo slancio (da 0,3 a 0,6), mai mentre mena o scavalca
+    float GameLayer::QuadrupedAmount(entt::registry& reg, entt::entity unit) {
+        if (!reg.valid(unit)) return 0.0f;
+        const auto* stats = reg.try_get<UnitStatsComponent>(unit);
+        const auto* mom = reg.try_get<MomentumComponent>(unit);
+        if (!stats || !mom || !stats->quadruped) return 0.0f;
+        if (reg.all_of<VaultComponent>(unit)) return 0.0f;
+        if (const auto* ms = reg.try_get<MeleeStateComponent>(unit); ms && ms->currentPhase != MeleePhase::None) return 0.0f;
+        return std::clamp((mom->value - 0.3f) / 0.3f, 0.0f, 1.0f);
+    }
+
+    void GameLayer::ApplyQuadrupedIK(entt::entity unit, RifleAnimationController& ctrl, ProceduralPose& pose, const TransformComponent& visualT) {
+        (void)visualT;
+        auto& reg = m_Scene.GetRegistry();
+        const float amount = QuadrupedAmount(reg, unit);
+        if (amount <= 0.0f) return;
+        const float gallop = reg.get<MomentumComponent>(unit).gallop;
+        bool changed = false;
+        for (int i = 0; i < 2; ++i) {
+            const std::string side = i == 0 ? "Left" : "Right";
+            glm::mat4 tS(1.0f), tE(1.0f), tH(1.0f);
+            if (!ctrl.GetBoneModelTransform("mixamorig1:" + side + "Arm", tS) ||
+                !ctrl.GetBoneModelTransform("mixamorig1:" + side + "ForeArm", tE) ||
+                !ctrl.GetBoneModelTransform("mixamorig1:" + side + "Hand", tH)) continue;
+            const glm::vec3 S(tS[3]), E(tE[3]), H(tH[3]);
+            const float arm = glm::length(E - S) + glm::length(H - E);
+            // Galoppo: le due mani battono quasi insieme (la destra un attimo dopo), avanti e indietro sotto le spalle
+            const float ph = gallop + (i == 0 ? 0.0f : 0.7f);
+            glm::vec3 target(S.x * 1.08f, arm * 0.16f * std::max(0.0f, std::cos(ph)), S.z + arm * (0.30f + 0.38f * std::sin(ph)));
+            const glm::vec3 pole(i == 0 ? 0.25f : -0.25f, 0.2f, -1.0f);   // gomiti indietro, come zampe anteriori
+            PoseLib::ArmIK(pose, side, S, E, H, target, amount, &pole);
+            changed = true;
+        }
+        if (changed) ctrl.Reevaluate();
     }
 
     // IK delle braccia. L'arma e' gia' al suo posto (messa fra le mani della clip); qui le braccia si piegano
@@ -3503,6 +3551,21 @@ namespace SunEngine {
             dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), Ui::U32(Ui::Col::Steel, 0.9f), 0.0f, 0, 1.0f);
             y += bh + 8.0f;
             if (st->staminaExhausted) { dl->AddText(ImVec2(x, y), IM_COL32(230, 130, 60, 255), "Senza fiato"); y += 16.0f; }
+            // Slancio (Feral Pig): cresce correndo dritto; oltre la tacca si puo' caricare con le zanne
+            if (st->momentumBonus > 0.0f) {
+                const auto* mom = reg.try_get<MomentumComponent>(m_PlayerEntity);
+                const float mv = mom ? std::clamp(mom->value, 0.0f, 1.0f) : 0.0f;
+                const bool ready = mv >= st->chargeThreshold && (!mom || mom->cooldown <= 0.0f);
+                const float mh = 8.0f;
+                dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + mh), IM_COL32(14, 12, 12, 205));
+                if (mv > 0.0f) dl->AddRectFilled(ImVec2(x + 1.0f, y + 1.0f), ImVec2(x + (w - 1.0f) * mv, y + mh - 1.0f), ready ? Ui::U32(Ui::Col::Ember) : Ui::U32(Ui::Col::Rust, 0.9f));
+                const float tx = x + w * st->chargeThreshold;
+                dl->AddLine(ImVec2(tx, y - 2.0f), ImVec2(tx, y + mh + 2.0f), Ui::U32(Ui::Col::Bone), 1.5f);
+                dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + mh), Ui::U32(Ui::Col::Steel, 0.9f), 0.0f, 0, 1.0f);
+                y += mh + 4.0f;
+                dl->AddText(ImVec2(x, y), ready ? Ui::U32(Ui::Col::Ember) : Ui::U32(Ui::Col::Ash), ready ? "CARICA PRONTA: travolgi chi hai davanti" : "Slancio: corri dritto per caricare");
+                y += 16.0f;
+            }
             // Rigenerazione passiva della vita (fuori dal combattimento)
             const auto* hpc = reg.try_get<HealthComponent>(m_PlayerEntity);
             if (hpc && hpc->currentHealth < hpc->maxHealth && hpc->currentHealth > 0.0f) {
@@ -3697,6 +3760,10 @@ namespace SunEngine {
         const auto* vault = reg.try_get<VaultComponent>(e);
         approach(climb, vault && vault->isVaulting && vault->vaultDuration > 1.2f, 6.0f);
         PoseLib::Climb(pose, poseTime, climb);
+
+        // Feral Pig lanciato: a quattro zampe (le mani a terra le mette ApplyQuadrupedIK dopo la clip)
+        if (const float quad = QuadrupedAmount(reg, e); quad > 0.0f)
+            PoseLib::Quadruped(pose, quad, reg.get<MomentumComponent>(e).gallop, thigh, shin);
 
         // Mischia: fasi dell'attacco dalla macchina a stati della mischia
         if (const auto* melee = reg.try_get<MeleeStateComponent>(e)) {
@@ -4703,6 +4770,10 @@ namespace SunEngine {
                 if (auto* vt = m_Scene.GetRegistry().try_get<TransformComponent>(m_AnimatedPlayerEntity))
                     ApplyHandIK(ActiveAnimController(), m_PlayerPose, *vt, ikR ? &ikGripR : nullptr, ikL ? &ikGripL : nullptr);
             }
+            if (m_PlayerPoseFresh && IsAnimatedPlayerActive()) {   // Feral Pig lanciato: mani a terra
+                if (auto* vt = m_Scene.GetRegistry().try_get<TransformComponent>(m_AnimatedPlayerEntity))
+                    ApplyQuadrupedIK(m_PlayerEntity, ActiveAnimController(), m_PlayerPose, *vt);
+            }
             m_PlayerPoseFresh = false;
         }
 
@@ -5699,6 +5770,8 @@ namespace SunEngine {
         SyncWeaponAttachment();
         UpdateUnitAnimations(m_IsPaused && !m_Net.active ? 0.0f : deltaTime);   // corpi animati di bot, orda e manichini
         SyncCloakVisuals();
+        if (!m_IsPaused && m_GameState == GameState::Gameplay) m_MovementSystem.UpdateAiVaulting(m_Scene, m_PhysicsSystem, deltaTime);   // bot e orda scavalcano
+        if (!m_IsPaused) FeralCharge::UpdateFeralCharges(m_Scene, deltaTime);   // zanne di chi corre lanciato (Feral Pig)
         if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // WAAAGH! (anche mentre sei a terra: il contatore resta)
         if (m_VsBotActive) {
             UpdateBotVisuals();
@@ -8596,13 +8669,10 @@ namespace SunEngine {
             tryUpgrade(0.30f, u.armorHeadId, "head_grot_scrap_helmet");
         }
         else if (u.blueprintId == "orks_yoof") {
-            tryUpgrade(0.30f, u.meleeWeaponId, "yoof_spear");   // lancia rudimentale (dotazione base alternativa al pugnale)
-            tryUpgrade(0.30f, u.secondaryWeaponId, "yoof_slugga_auto");
-            tryUpgrade(0.30f, u.meleeWeaponId, "yoof_choppa");
+            tryUpgrade(0.30f, u.armorHeadId, "head_yoof_scrap");   // Feral Pig: solo armatura, pezzo per pezzo
             tryUpgrade(0.35f, u.armorTorsoId, "torso_yoof_scrap");
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_yoof_scrap"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_yoof_scrap"); }
             if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_yoof_scrap"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_yoof_scrap"); }
-            tryUpgrade(0.25f, u.equipmentSlots[1], "yoof_food_pack");
         }
         else if (u.blueprintId == "orks_boy") {
             tryUpgrade(0.30f, u.meleeWeaponId, "boy_big_choppa");
@@ -9433,7 +9503,12 @@ namespace SunEngine {
             // Corpo animato: l'arma va in mano al modello 3D
             if (model) SetWeaponBlockModel(brain.weaponEntity, weaponId);
             else { if (reg.all_of<BlockModelComponent>(brain.weaponEntity)) reg.remove<BlockModelComponent>(brain.weaponEntity); wt.Scale = glm::vec3(0.08f, 0.10f, 0.70f); }
+            // Armi naturali (artigli: "weapon_scale" a zero) non si disegnano
+            const WeaponBlueprint* heldBp = weaponId.empty() ? nullptr : BlueprintManager::Get().GetWeapon(weaponId);
+            const bool naturalWeapon = !model && heldBp && glm::length(heldBp->weapon_scale) < 1e-4f;
+            if (naturalWeapon) wt.Scale = glm::vec3(0.0f);
             if (PlaceBotWeaponOnHand(e, wt, model)) continue;
+            if (naturalWeapon) continue;
             if (model) {
                 const glm::vec3 grip = model->hasGripRight ? model->gripRight : glm::vec3(0.0f);
                 wt.Position = hand - glm::vec3(weaponRot * glm::vec4(grip, 0.0f));

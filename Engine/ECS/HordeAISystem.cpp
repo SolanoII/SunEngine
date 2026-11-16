@@ -225,7 +225,12 @@ namespace SunEngine {
             }
 
             // ESECUZIONE NAVMESH PATHFINDING E MOVIMENTO
-            if (needsToMove) {
+            if (needsToMove && scene.GetRegistry().all_of<VaultComponent>(ork)) {
+                // sta scavalcando un ostacolo: lo muove MovementSystem, il percorso si ricalcola all'atterraggio
+                horde.currentPath.clear();
+                horde.pathUpdateTimer = 0.0f;
+            }
+            else if (needsToMove) {
                 horde.pathUpdateTimer -= deltaTime;
 
                 if (horde.pathUpdateTimer <= 0.0f || horde.currentPath.empty()) {

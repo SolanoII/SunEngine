@@ -678,6 +678,9 @@ namespace SunEngine {
         void BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime);
         void RenderHitboxOverlay();                        // campo da tiro: hitbox trasparenti sopra il corpo 3D
         bool PlaceBotWeaponOnHand(entt::entity bot, TransformComponent& weaponTransform, const BlockModel* model);
+        // A quattro zampe (Feral Pig lanciato): mani a terra davanti alle spalle, al passo del galoppo
+        void ApplyQuadrupedIK(entt::entity unit, RifleAnimationController& ctrl, ProceduralPose& pose, const TransformComponent& visualT);
+        static float QuadrupedAmount(entt::registry& reg, entt::entity unit);   // 0 in piedi, 1 a quattro zampe
         // Leggi dell'impugnatura (WeaponHold.h) sul corpo animato: posa l'arma rispetto alle spalle. basis = rotazione.
         bool SolveHoldOnBody(RifleAnimationController& ctrl, const TransformComponent& visualT, float bodyYawDeg,
             const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis);

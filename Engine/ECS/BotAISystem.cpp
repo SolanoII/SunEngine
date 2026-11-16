@@ -1,4 +1,5 @@
 #include "BotAISystem.h"
+#include "FeralCharge.h"
 #include "DamageResolver.h"
 #include "RaycastUtils.h"
 #include "AmmoSystem.h"
@@ -525,6 +526,7 @@ namespace SunEngine {
         auto& t = reg.get<TransformComponent>(self);
         auto& stats = reg.get<UnitStatsComponent>(self);
         stats.sprinting = false;   // lo rimette TickSprint se corre davvero
+        if (reg.all_of<VaultComponent>(self)) { brain.isMoving = true; brain.lastPos = t.Position; brain.stuckTimer = 0.0f; return; }   // sta scavalcando: lo muove MovementSystem
 
         const bool wantsMove = !brain.holdStill && brain.hasMoveGoal && (brain.intent == BotIntent::Advance || brain.intent == BotIntent::Reposition || brain.intent == BotIntent::Charge);
         brain.isMoving = false;
@@ -548,6 +550,10 @@ namespace SunEngine {
                     float runFactor = brain.moveSpeedFactor;
                     if (!TickSprint(stats, runFactor > 1.05f, dt)) runFactor = std::min(runFactor, 1.0f);
                     float speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * runFactor;
+                    if (stats.momentumBonus > 0.0f) {   // slancio (Feral Pig): la velocita' sale andando dritti, niente corsa a stamina
+                        speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * FeralCharge::TickMomentum(reg, self, stats, dir, true, dt);
+                        if (const auto* mom = reg.try_get<MomentumComponent>(self)) stats.sprinting = mom->value > 0.45f;
+                    }
                     if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
@@ -563,6 +569,7 @@ namespace SunEngine {
         else {
             brain.path.clear();
         }
+        if (!brain.isMoving && stats.momentumBonus > 0.0f) FeralCharge::TickMomentum(reg, self, stats, glm::vec3(0.0f), false, dt);   // fermo: lo slancio si perde
 
         // Bloccato? (percorso che non avanza): ricalcola presto con una destinazione leggermente diversa
         brain.stuckTimer = (brain.isMoving && HorizontalDist(t.Position, brain.lastPos) < 0.6f * dt) ? brain.stuckTimer + dt : 0.0f;

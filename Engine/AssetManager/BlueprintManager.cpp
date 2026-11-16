@@ -371,6 +371,11 @@ namespace SunEngine {
                 bp.armor_rating = j.value("armor_rating", 0);
                 bp.strength = j.value("strength", 50.0f);
                 bp.climb_height = j.value("climb_height", 0.0f);
+                bp.momentum_bonus = j.value("momentum_bonus", 0.0f);
+                bp.momentum_time = j.value("momentum_time", 2.5f);
+                bp.charge_threshold = j.value("charge_threshold", 0.7f);
+                bp.charge_damage = j.value("charge_damage", 0.0f);
+                bp.quadruped_run = j.value("quadruped_run", false);
                 bp.climb_speed = j.value("climb_speed", 0.6f);
                 bp.accuracy_skill = j.value("accuracy_skill", 1.0f);
                 bp.melee_skill = j.value("melee_skill", 1.0f);

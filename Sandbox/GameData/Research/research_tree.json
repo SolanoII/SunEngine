@@ -1223,7 +1223,7 @@
         {
           "id": "ork_yoof",
           "unit": "orks_yoof",
-          "name": "Giovani Vrepigh",
+          "name": "Feral Pigs",
           "tier": 2,
           "col": 1,
           "row": 2.5,
@@ -1235,6 +1235,23 @@
             0.31,
             0.28,
             0.32,
+            1
+          ]
+        },
+        {
+          "id": "ork_yoof_item_scrap_head",
+          "item": "head_yoof_scrap",
+          "name": "Museruola di Rottami",
+          "tier": 2,
+          "col": 2,
+          "row": 6,
+          "parent": "ork_yoof",
+          "research_cost": 15000,
+          "purchase_cost": 25000,
+          "color": [
+            0.32,
+            0.3,
+            0.28,
             1
           ]
         },
@@ -1616,57 +1633,6 @@
             0.36,
             0.34,
             0.31,
-            1
-          ]
-        },
-        {
-          "id": "ork_yoof_item_slugga_auto",
-          "item": "yoof_slugga_auto",
-          "name": "Pistola Automatica Rozza",
-          "tier": 2,
-          "col": 2,
-          "row": 3,
-          "parent": "ork_yoof",
-          "research_cost": 20000,
-          "purchase_cost": 40000,
-          "color": [
-            0.62,
-            0.12,
-            0.08,
-            1
-          ]
-        },
-        {
-          "id": "ork_yoof_item_choppa",
-          "item": "yoof_choppa",
-          "name": "Mannaia",
-          "tier": 2,
-          "col": 2,
-          "row": 4,
-          "parent": "ork_yoof",
-          "research_cost": 20000,
-          "purchase_cost": 35000,
-          "color": [
-            0.45,
-            0.47,
-            0.5,
-            1
-          ]
-        },
-        {
-          "id": "ork_yoof_item_food",
-          "item": "yoof_food_pack",
-          "name": "Zaino di Cibo",
-          "tier": 2,
-          "col": 2,
-          "row": 6,
-          "parent": "ork_yoof",
-          "research_cost": 25000,
-          "purchase_cost": 45000,
-          "color": [
-            0.5,
-            0.4,
-            0.25,
             1
           ]
         },

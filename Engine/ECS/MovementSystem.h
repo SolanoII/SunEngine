@@ -21,6 +21,7 @@
 #include "Components.h"
 #include "VfxEvents.h"
 #include "SunPhysicsSystem.h"
+#include "FeralCharge.h"
 
 namespace SunEngine {
     
@@ -442,6 +443,64 @@ namespace SunEngine {
             return false;
         }
 public:
+    // -------------------------------------------------------------------------
+    // SCAVALCAMENTO DI BOT E ORDA
+        // Prima solo il giocatore scavalcava: bot e Vrepighs dell'orda giravano attorno a sacchi e muretti seguendo
+        // la navmesh. Ora chi ha un ostacolo basso fra se' e dove sta andando lo scavalca (stesse regole e stesse
+        // altezze del giocatore: forza, gambe, arrampicata). L'IA non muove l'unita' finche' e' in volo.
+    // Si chiama a ogni fotogramma non in pausa (anche con il giocatore a terra).
+    // -------------------------------------------------------------------------
+    void UpdateAiVaulting(Scene& scene, PhysicsSystem& physicsSystem, float deltaTime) {
+        {
+            auto& reg = scene.GetRegistry();
+            std::vector<entt::entity> flying;
+            for (auto e : reg.view<VaultComponent, TransformComponent>(entt::exclude<PlayerTag>)) flying.push_back(e);
+            for (auto e : flying) ProcessVaulting(scene, physicsSystem, e, deltaTime);
+
+            auto tryVault = [&](entt::entity e, const glm::vec3& goal, bool detouring) {
+                auto& cool = reg.get_or_emplace<AiVaultComponent>(e);
+                cool.timer -= deltaTime;
+                if (cool.timer > 0.0f || !detouring) return;
+                cool.timer = 0.3f;
+                auto& t = reg.get<TransformComponent>(e);
+                glm::vec3 to = goal - t.Position; to.y = 0.0f;
+                const float dist = glm::length(to);
+                if (dist < 1.2f || dist > 14.0f) return;
+                const float savedYaw = t.AimYaw;
+                t.AimYaw = glm::degrees(std::atan2(-to.x, -to.z));   // CheckVaultObstacle guarda lungo la mira
+                glm::vec3 peak, target; bool climbing = false; float duration = 0.35f;
+                const bool ok = CheckVaultObstacle(scene, e, peak, target, climbing, duration);
+                if (!ok) { t.AimYaw = savedYaw; return; }
+                // Vale la pena solo se l'atterraggio avvicina alla meta
+                if (glm::length(glm::vec2(goal.x - target.x, goal.z - target.z)) > dist - 0.4f) { t.AimYaw = savedYaw; return; }
+                auto& vault = reg.emplace<VaultComponent>(e);
+                vault.isVaulting = true; vault.vaultTimer = 0.0f; vault.vaultDuration = duration; vault.isClimbing = climbing;
+                vault.startPos = t.Position; vault.peakPos = peak; vault.targetPos = target;
+                t.Rotation.y = t.AimYaw;
+                cool.timer = duration + 0.8f;
+            };
+            // bot: la meta del movimento; "gira attorno" = il prossimo punto del percorso non e' verso la meta
+            for (auto e : reg.view<BotBrainComponent, TransformComponent, UnitStatsComponent, HealthComponent>(entt::exclude<VaultComponent, CorpseComponent, NetGhostComponent, TurretMountComponent>)) {
+                const auto& brain = reg.get<BotBrainComponent>(e);
+                if (!brain.isMoving || !brain.hasMoveGoal || brain.path.empty()) continue;
+                const glm::vec3 p = reg.get<TransformComponent>(e).Position;
+                glm::vec3 a = brain.path.front() - p, b = brain.moveGoal - p; a.y = b.y = 0.0f;
+                const bool detour = glm::length(a) > 0.05f && glm::length(b) > 0.05f && glm::dot(glm::normalize(a), glm::normalize(b)) < 0.80f;
+                tryVault(e, brain.moveGoal, detour || brain.stuckTimer > 0.4f);
+            }
+            // orda: la meta e' la fine del percorso
+            for (auto e : reg.view<HordeAgentComponent, TransformComponent, UnitStatsComponent, HealthComponent>(entt::exclude<VaultComponent, CorpseComponent, NetGhostComponent>)) {
+                const auto& horde = reg.get<HordeAgentComponent>(e);
+                if (horde.currentPath.size() < 2) continue;
+                const glm::vec3 p = reg.get<TransformComponent>(e).Position;
+                const glm::vec3 goal = horde.currentPath.back();
+                glm::vec3 a = horde.currentPath.front() - p, b = goal - p; a.y = b.y = 0.0f;
+                const bool detour = glm::length(a) > 0.05f && glm::length(b) > 0.05f && glm::dot(glm::normalize(a), glm::normalize(b)) < 0.80f;
+                tryVault(e, goal, detour);
+            }
+        }
+    }
+
     void Update(Scene& scene, PhysicsSystem& physicsSystem, ma_engine* audioEngine,
         ma_sound_group* sfxGroup, float deltaTime, float volumeSFX = 1.0f) {
         // -------------------------------------------------------------------------
@@ -506,7 +565,16 @@ public:
             // Corsa: SHIFT + avanti, non mirando e non accovacciati. Consuma stamina in base al carico.
             const bool wantSprint = isMoving && Input::IsKeyPressed(GLFW_KEY_LEFT_SHIFT) && Input::IsKeyPressed(GLFW_KEY_W)
                 && !Input::IsKeyPressed(GLFW_KEY_S) && crouch.amount < 0.3f && !Input::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT);
-            if (TickSprint(stats, wantSprint, deltaTime)) moveSpeed *= kSprintSpeedMult;
+            if (stats.momentumBonus > 0.0f) {
+                // Slancio (Feral Pig): niente corsa con SHIFT, la velocita' sale andando dritti in avanti
+                TickSprint(stats, false, deltaTime);
+                const bool straight = isMoving && Input::IsKeyPressed(GLFW_KEY_W) && !Input::IsKeyPressed(GLFW_KEY_S) && crouch.amount < 0.3f;
+                const glm::mat4 yawRot = glm::rotate(glm::mat4(1.0f), glm::radians(transform.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
+                const glm::vec3 wdir = isMoving ? glm::vec3(yawRot * glm::vec4(glm::normalize(moveDir), 0.0f)) : glm::vec3(0.0f);
+                moveSpeed *= FeralCharge::TickMomentum(scene.GetRegistry(), entity, stats, wdir, straight, deltaTime);
+                if (const auto* mom = scene.GetRegistry().try_get<MomentumComponent>(entity)) stats.sprinting = mom->value > 0.45f;
+            }
+            else if (TickSprint(stats, wantSprint, deltaTime)) moveSpeed *= kSprintSpeedMult;
             const glm::vec3 posBeforeMove = transform.Position;   // FIX #21: ultima posizione valida del frame
 
             transform.Rotation.x = 0.0f;

@@ -276,6 +276,13 @@ namespace SunEngine {
         float vaultModifier = 1.0f;
         float climbHeight = 0.0f;   // arrampicata lenta oltre lo scavalcamento (m, 0 = no)
         float climbSpeed = 0.6f;    // m/s in salita
+        // Slancio e carica (FeralCharge.h, es. Feral Pig): velocita' in piu' a slancio pieno (0 = niente), secondi
+        // per arrivarci, soglia di slancio per caricare con le zanne, danno della carica, corsa a quattro zampe
+        float momentumBonus = 0.0f;
+        float momentumTime = 2.5f;
+        float chargeThreshold = 0.7f;
+        float chargeDamage = 0.0f;
+        bool quadruped = false;
         float accuracySkill = 1.0f;
         float meleeSkill = 1.0f;
         float morale = 100.0f;
@@ -752,6 +759,8 @@ namespace SunEngine {
         glm::vec3 targetPos{ 0.0f };
         bool isClimbing = false;
     };
+    // Bot e orda: attesa fra un tentativo di scavalcamento e l'altro (MovementSystem)
+    struct AiVaultComponent { float timer = 0.0f; };
     struct FootstepComponent {
         SurfaceType currentSurface = SurfaceType::Concrete;
         float stepTimer = 0.0f;
@@ -824,6 +833,15 @@ namespace SunEngine {
 
     // Squadra di appartenenza. 0 = giocatore e alleati, 1 = avversari. Le unita' della stessa squadra non si
     // colpiscono (ne' a distanza ne' in mischia). Le unita' senza squadra (orda, manichini) restano colpibili da tutti.
+    // Slancio di chi corre dritto (FeralCharge.h): 0..1, direzione lisciata, attesa fra una carica e l'altra
+    struct MomentumComponent {
+        float value = 0.0f;
+        glm::vec2 dir{ 0.0f };
+        float cooldown = 0.0f;
+        float sinceGore = 99.0f;   // secondi dall'ultima carica a segno (posa della testata)
+        float gallop = 0.0f;       // fase del galoppo (radianti)
+    };
+
     struct TeamComponent {
         int team = 0;
     };

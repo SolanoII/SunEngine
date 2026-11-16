@@ -1,7 +1,7 @@
 {
-  "id": "yoof_dagger",
-  "displayName": "Pugnale da Giovane Vrepigh",
-  "comment": "Dotazione base del Giovane Vrepigh: come il coltello del Pighcib ma a misura di Giovane Vrepigh. Meno danno di un coltello vero (18 contro 22), +5% velocita' a chi lo tiene in mano, x2 danno alle spalle.",
+  "id": "feral_claws",
+  "displayName": "Artigli",
+  "comment": "Arma naturale del Feral Pig: zampe artigliate. Non si vede in mano (weapon_scale 0), non si puo' togliere ne' cambiare. Colpi rapidi, x2 danno alle spalle.",
   "faction": "Orks",
   "allowed_units": [
     "orks_yoof"
@@ -9,22 +9,21 @@
   "is_melee": true,
   "hand_type": "OneHanded",
   "slot_type": "Melee",
-  "weight_kg": 0.7,
-  "point_cost": 1,
-  "base_damage": 18.0,
-  "melee_reach": 1.75,
+  "weight_kg": 0.0,
+  "point_cost": 0,
+  "base_damage": 24.0,
+  "melee_reach": 1.6,
   "backstab_multiplier": 2.0,
-  "wielder_speed_bonus": 0.05,
   "default_melee_type": "Light",
   "weapon_scale": [
-    0.04,
-    0.07,
-    0.34
+    0.0,
+    0.0,
+    0.0
   ],
   "hold_offset": [
     0.0,
-    -0.02,
-    0.16
+    0.0,
+    0.0
   ],
   "primary_color": [
     0.55,

@@ -273,6 +273,14 @@ namespace SunEngine {
         // Arrampicata lenta (es. gretchin): muri fino a "climb_height" metri, piu' alti di quanto scavalcherebbe,
         // a "climb_speed" m/s. 0 = solo lo scavalcamento normale.
         float climb_height = 0.0f;
+        // Slancio e carica (FeralCharge.h): "momentum_bonus" velocita' in piu' a slancio pieno, "momentum_time"
+        // secondi di corsa dritta per arrivarci, "charge_threshold" slancio minimo per caricare, "charge_damage"
+        // danno delle zanne, "quadruped_run" corsa a quattro zampe
+        float momentum_bonus = 0.0f;
+        float momentum_time = 2.5f;
+        float charge_threshold = 0.7f;
+        float charge_damage = 0.0f;
+        bool quadruped_run = false;
         float climb_speed = 0.6f;
         float accuracy_skill = 0.0f;
         float melee_skill = 0.0f;
