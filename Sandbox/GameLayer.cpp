@@ -2555,8 +2555,9 @@ namespace SunEngine {
             // Vestiti e armature (stesse ossa del corpo)
             sk.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(e);
-            if (skin && sk.sourceModel && !BareSculptedBody(inst.kind)) {
+            if (skin && sk.sourceModel) {
                 for (const auto& d : skin->garments) {
+                    if (BareSculptedBody(inst.kind) && !d.sculptedFit) continue;   // corpo nudo: solo i pezzi fatti per lui
                     GarmentDraw draw;
                     if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);
                 }
@@ -4460,8 +4461,9 @@ namespace SunEngine {
             ApplySkinStyle(inst, static_cast<int>(m_AnimatedBodyInUse));
             inst.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity);
-            if (skin && inst.sourceModel && !BareSculptedBody(m_AnimatedBodyInUse) && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
+            if (skin && inst.sourceModel && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
                 for (const auto& d : skin->garments) {
+                    if (BareSculptedBody(m_AnimatedBodyInUse) && !d.sculptedFit) continue;
                     GarmentDraw draw;
                     if (m_Garments.Get(*inst.sourceModel, d, draw)) inst.garments.push_back(draw);
                 }

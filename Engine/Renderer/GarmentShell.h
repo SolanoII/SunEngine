@@ -64,6 +64,10 @@ namespace SunEngine {
         float metallic = 0.0f;
         float alphaCut = 0.0f;               // >0: dove l'alpha della texture e' sotto soglia c'e' un buco
         std::string model;                   // opzionale: mesh skinnata esterna (sostituisce il guscio)
+        std::string procedural;              // opzionale: pezzo costruito sul corpo (es. "teutonic_helm", TeutonicArmor.h)
+        bool sculptedFit = false;            // si indossa anche sul corpo Vanguard nudo (BodySculpt.h)
+        int detail = -1;                     // dettaglio dello shader (-1 = dal metallo: stoffa o armatura; 0 = niente)
+        float emissive = 0.0f;               // luce propria (occhi dell'elmo)
     };
 
     struct GarmentShell {

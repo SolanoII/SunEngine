@@ -756,8 +756,9 @@ namespace SunEngine {
         };
         AnimatedBody m_AnimatedBodies[static_cast<int>(AnimatedBodyKind::Count)];   // [Human] inutilizzato
         AnimatedBody& Body(AnimatedBodyKind kind) { return m_AnimatedBodies[static_cast<int>(kind)]; }
-        // Corpo Vanguard procedurale: nudo (niente armature ne' pezzi della skin), e' la base per il modello
-        // dell'artista. Col modello d'autore in Characters/ le skin tornano come prima.
+        // Corpo Vanguard procedurale: nudo (niente cubi della skin ne' vecchi gusci), e' la base per il modello
+        // dell'artista. Si vedono solo i pezzi fatti per questo corpo ("sculpted_fit", come l'armatura teutonica
+        // di Konrad). Col modello d'autore in Characters/ le skin tornano come prima.
         bool BareSculptedBody(AnimatedBodyKind kind) const {
             return kind == AnimatedBodyKind::Astartes && !m_AnimatedBodies[static_cast<int>(kind)].model.authored;
         }

@@ -3,6 +3,7 @@
 // Vedi GarmentShell.h per come nasce il guscio.
 #include "GarmentShell.h"
 #include "SkinnedModel.h"
+#include "TeutonicArmor.h"
 #include "Core/Texture.h"
 #include "../Core/Logger/Log.h"
 #include <filesystem>
@@ -31,6 +32,8 @@ namespace SunEngine {
             out.texScale = d.texTiles / e->height;
             out.alphaCut = out.texture ? d.alphaCut : 0.0f;
             out.invHeight = 1.0f / std::max(1e-4f, e->height);
+            out.detail = d.detail;
+            out.emissive = d.emissive;
             return true;
         }
 
@@ -43,9 +46,9 @@ namespace SunEngine {
         static std::string Key(const SkinnedModel& body, const GarmentDef& d) {
             // Stesso id ma parametri diversi (es. due armature che riusano l'id): la chiave include i campi
             // che cambiano la forma
-            char buf[256];
-            std::snprintf(buf, sizeof(buf), "%p|%s|%s|%.4f|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.2f|%d|%.4f|%.3f|%d|%zu",
-                static_cast<const void*>(&body), d.id.c_str(), d.model.c_str(), d.inflate, d.minWeight, d.heightRange.x, d.heightRange.y,
+            char buf[512];
+            std::snprintf(buf, sizeof(buf), "%p|%s|%s%s|%.4f|%.3f|%.3f|%.3f|%.3f|%.3f|%.3f|%.2f|%d|%.4f|%.3f|%d|%zu",
+                static_cast<const void*>(&body), d.id.c_str(), d.model.c_str(), d.procedural.c_str(), d.inflate, d.minWeight, d.heightRange.x, d.heightRange.y,
                 d.facing.x + d.facing.y * 3.0f + d.facing.z * 7.0f, d.facingMin, d.noise, d.noiseScale, d.plateCells, d.plateStep,
                 d.maxAbsX + d.minAbsX * 3.0f, d.side, d.bones.size());
             return buf;
@@ -63,7 +66,12 @@ namespace SunEngine {
             e.height = info.Height();
 
             GarmentShell shell;
-            if (!d.model.empty()) {
+            if (!d.procedural.empty()) {
+                // Pezzo costruito su questo corpo (armatura teutonica: elmo, sopravveste, mantello, spallacci...)
+                if (!BuildProceduralGarment(body, d.procedural, shell))
+                    SUN_CORE_WARN("Vestito '{0}': pezzo procedurale '{1}' sconosciuto o corpo senza le ossa che servono", d.id, d.procedural);
+            }
+            else if (!d.model.empty()) {
                 // Mesh modellata a parte, skinnata sullo stesso scheletro: ossa rimappate per nome
                 SkinnedModel garment;
                 const std::string path = m_Root + d.model;
@@ -80,7 +88,7 @@ namespace SunEngine {
                 }
                 else SUN_CORE_WARN("Vestito '{0}': modello {1} non trovato, uso il guscio generato", d.id, path);
             }
-            if (shell.indices.empty()) {
+            if (shell.indices.empty() && d.procedural.empty()) {
                 const std::vector<int> boneIds = GarmentBoneIds(body.boneInfoMap, d);
                 for (const auto& m : body.meshes) GarmentBuildShell(m.vertices, m.indices, boneIds, d, info, shell);
             }

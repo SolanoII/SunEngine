@@ -106,8 +106,9 @@ namespace SunEngine {
         // vestiti e armature: la stessa skin che avrebbe in partita
         const entt::entity holder = m_Scene.CreateEntity();
         ApplyArmorSkin(holder, tu);
-        if (const auto* skin = reg.try_get<SkinComponent>(holder); skin && !BareSculptedBody(a.kind)) {
+        if (const auto* skin = reg.try_get<SkinComponent>(holder)) {
             for (const auto& d : skin->garments) {
+                if (BareSculptedBody(a.kind) && !d.sculptedFit) continue;   // corpo Vanguard nudo: solo i pezzi fatti per lui
                 GarmentDraw draw;
                 if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);
             }

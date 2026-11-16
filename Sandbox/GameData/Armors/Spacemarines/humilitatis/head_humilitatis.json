@@ -1,7 +1,7 @@
 {
   "id": "head_humilitatis",
-  "displayName": "Elmo dell'Ordo Domus Humilitatis",
-  "comment": "Livrea dell'Ordo Domus Humilitatis (Konrad von Eber, Sworn Brother): piastre bianche, bordi neri, finiture avorio. Nucleo di Vanguardio nero con la pietra bianca, luce bianca. Croce semplice sull'elmo, nessuna decorazione superflua.",
+  "displayName": "Grande Elmo Teutonico (medio)",
+  "comment": "Armatura teutonica dell'Ordo Domus Humilitatis, versione media (solo Konrad von Eber). Piastre brunite quasi nere, sopravveste bianca con la croce nera, mantello scuro, grande elmo con la luce viola degli occhi. I pezzi 'procedural' sono costruiti sul corpo (Engine/Renderer/TeutonicArmor.h): vestono ogni Vanguard Armor di taglia media; i gusci 'sculpted_fit' vengono dal corpo.",
   "location": "Head",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -27,13 +27,13 @@
         0.37
       ],
       "color": [
-        0.86,
-        0.86,
         0.84,
+        0.82,
+        0.76,
         1
       ],
-      "roughness": 0.4,
-      "metallic": 0.55
+      "roughness": 0.9,
+      "metallic": 0.0
     },
     {
       "block": "Head",
@@ -48,9 +48,9 @@
         0.04
       ],
       "color": [
-        0.06,
-        0.06,
-        0.07,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
       "roughness": 0.5,
@@ -69,13 +69,13 @@
         0.02
       ],
       "color": [
-        1.0,
-        1.0,
-        1.0,
+        0.84,
+        0.82,
+        0.76,
         1
       ],
-      "roughness": 0.05,
-      "metallic": 0.2
+      "roughness": 0.9,
+      "metallic": 0.0
     },
     {
       "block": "Head",
@@ -90,9 +90,9 @@
         0.016
       ],
       "color": [
-        0.06,
-        0.06,
-        0.07,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
       "roughness": 0.6,
@@ -111,9 +111,9 @@
         0.016
       ],
       "color": [
-        0.06,
-        0.06,
-        0.07,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
       "roughness": 0.6,
@@ -123,58 +123,42 @@
   "blocks_headshot_bonus": true,
   "garments": [
     {
-      "id": "hum_helmet",
-      "bones": [
-        "Head",
-        "HeadTop_End",
-        "Neck"
-      ],
-      "min_weight": 0.4,
-      "height_range": [
-        0.85,
-        1.0
-      ],
-      "inflate": 0.025,
-      "texture": "Textures/Garments/power_armour.png",
-      "tex_tiles": 4,
-      "roughness": 0.35,
-      "metallic": 0.55,
+      "id": "teu_helm",
+      "procedural": "teutonic_helm",
       "color": [
-        1.3,
-        1.3,
-        1.3,
+        0.13,
+        0.13,
+        0.14,
         1
       ],
-      "noise": 0.05
+      "roughness": 0.3,
+      "metallic": 0.75
     },
     {
-      "id": "hum_helmet_grille",
-      "bones": [
-        "Head"
-      ],
-      "min_weight": 0.45,
-      "height_range": [
-        0.855,
-        0.89
-      ],
-      "inflate": 0.03,
-      "texture": "Textures/Garments/power_armour.png",
-      "tex_tiles": 4,
-      "roughness": 0.5,
-      "metallic": 0.6,
+      "id": "teu_helm_eyes",
+      "procedural": "teutonic_helm_eyes",
       "color": [
-        0.05,
-        0.05,
-        0.06,
+        0.62,
+        0.28,
+        1.0,
         1
       ],
-      "facing": [
-        0,
-        0,
+      "roughness": 0.1,
+      "metallic": 0.0,
+      "detail": 0,
+      "emissive": 3.0
+    },
+    {
+      "id": "teu_gorget",
+      "procedural": "teutonic_gorget",
+      "color": [
+        0.13,
+        0.13,
+        0.14,
         1
       ],
-      "facing_min": 0.55,
-      "max_abs_x": 0.025
+      "roughness": 0.32,
+      "metallic": 0.72
     }
   ]
 }

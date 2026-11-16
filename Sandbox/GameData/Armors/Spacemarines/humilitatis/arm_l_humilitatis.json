@@ -1,7 +1,7 @@
 {
   "id": "arm_l_humilitatis",
-  "displayName": "Spallaccio (sx) dell'Ordo Domus Humilitatis",
-  "comment": "Livrea dell'Ordo Domus Humilitatis (Konrad von Eber, Sworn Brother): piastre bianche, bordi neri, finiture avorio. Nucleo di Vanguardio nero con la pietra bianca, luce bianca. Croce semplice sull'elmo, nessuna decorazione superflua.",
+  "displayName": "Spallaccio e Bracciale Teutonico (sx, medio)",
+  "comment": "Armatura teutonica dell'Ordo Domus Humilitatis, versione media (solo Konrad von Eber). Piastre brunite quasi nere, sopravveste bianca con la croce nera, mantello scuro, grande elmo con la luce viola degli occhi. I pezzi 'procedural' sono costruiti sul corpo (Engine/Renderer/TeutonicArmor.h): vestono ogni Vanguard Armor di taglia media; i gusci 'sculpted_fit' vengono dal corpo.",
   "location": "LeftArm",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -27,13 +27,13 @@
         0.52
       ],
       "color": [
-        0.86,
-        0.86,
         0.84,
+        0.82,
+        0.76,
         1
       ],
-      "roughness": 0.4,
-      "metallic": 0.55
+      "roughness": 0.9,
+      "metallic": 0.0
     },
     {
       "block": "Arm_L",
@@ -48,9 +48,9 @@
         0.54
       ],
       "color": [
-        0.06,
-        0.06,
-        0.07,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
       "roughness": 0.3,
@@ -69,13 +69,13 @@
         0.38
       ],
       "color": [
-        0.86,
-        0.86,
         0.84,
+        0.82,
+        0.76,
         1
       ],
-      "roughness": 0.4,
-      "metallic": 0.55
+      "roughness": 0.9,
+      "metallic": 0.0
     },
     {
       "block": "Arm_L",
@@ -90,9 +90,9 @@
         0.4
       ],
       "color": [
-        0.06,
-        0.06,
-        0.07,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
       "roughness": 0.5,
@@ -101,37 +101,19 @@
   ],
   "garments": [
     {
-      "id": "hum_pauldron_l",
-      "bones": [
-        "LeftShoulder",
-        "LeftArm",
-        "Spine2"
-      ],
-      "min_weight": 0.3,
-      "height_range": [
-        0.72,
-        0.9
-      ],
-      "inflate": 0.06,
-      "texture": "Textures/Garments/power_armour.png",
-      "tex_tiles": 4,
-      "roughness": 0.35,
-      "metallic": 0.55,
+      "id": "teu_pauldron_l",
+      "procedural": "teutonic_pauldron_l",
       "color": [
-        1.3,
-        1.3,
-        1.3,
+        0.13,
+        0.13,
+        0.14,
         1
       ],
-      "side": 1,
-      "min_abs_x": 0.075,
-      "max_abs_x": 0.2,
-      "noise": 0.1,
-      "plate_cells": 2,
-      "plate_step": 0.006
+      "roughness": 0.3,
+      "metallic": 0.75
     },
     {
-      "id": "hum_rerebrace_l",
+      "id": "teu_rerebrace_l",
       "bones": [
         "LeftArm"
       ],
@@ -143,18 +125,31 @@
       "inflate": 0.024,
       "texture": "Textures/Garments/power_armour.png",
       "tex_tiles": 4,
-      "roughness": 0.38,
-      "metallic": 0.55,
+      "roughness": 0.32,
+      "metallic": 0.72,
       "color": [
-        0.05,
-        0.05,
-        0.06,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
+      "sculpted_fit": true,
       "side": 1
     },
     {
-      "id": "hum_vambrace_l",
+      "id": "teu_couter_l",
+      "procedural": "teutonic_couter_l",
+      "color": [
+        0.13,
+        0.13,
+        0.14,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.75
+    },
+    {
+      "id": "teu_vambrace_l",
       "bones": [
         "LeftForeArm"
       ],
@@ -163,23 +158,36 @@
         0.7,
         0.9
       ],
-      "inflate": 0.028,
+      "inflate": 0.026,
       "texture": "Textures/Garments/power_armour.png",
       "tex_tiles": 4,
-      "roughness": 0.35,
-      "metallic": 0.55,
+      "roughness": 0.32,
+      "metallic": 0.72,
       "color": [
-        1.2,
-        1.12,
-        0.93,
+        0.13,
+        0.13,
+        0.14,
         1
       ],
+      "sculpted_fit": true,
       "side": 1,
       "plate_cells": 3,
       "plate_step": 0.003
     },
     {
-      "id": "hum_gauntlet_l",
+      "id": "teu_cuff_l",
+      "procedural": "teutonic_cuff_l",
+      "color": [
+        0.13,
+        0.13,
+        0.14,
+        1
+      ],
+      "roughness": 0.3,
+      "metallic": 0.75
+    },
+    {
+      "id": "teu_gauntlet_l",
       "bones": [
         "LeftHand",
         "LeftHandThumb1",
@@ -209,11 +217,12 @@
       "roughness": 0.38,
       "metallic": 0.6,
       "color": [
-        0.05,
-        0.05,
-        0.06,
+        0.08,
+        0.08,
+        0.09,
         1
       ],
+      "sculpted_fit": true,
       "side": 1
     }
   ]

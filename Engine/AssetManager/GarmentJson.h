@@ -6,7 +6,9 @@
 //                   "texture": "Textures/Garments/grot_rags.png", "tex_tiles": 4, "alpha_cut": 0.5 } ]
 // Campi: bones, min_weight, height_range [min,max] (frazione dell'altezza in posa T), side (+1 sinistra, -1 destra),
 // max_abs_x, facing [x,y,z] + facing_min (es. solo il davanti), inflate, noise, noise_scale, plate_cells,
-// plate_step, texture, tex_tiles, color, roughness, metallic, alpha_cut, model (FBX skinnato opzionale).
+// plate_step, texture, tex_tiles, color, roughness, metallic, alpha_cut, model (FBX skinnato opzionale),
+// procedural (pezzo costruito sul corpo, es. "teutonic_helm": vedi TeutonicArmor.h), sculpted_fit (si vede anche sul
+// corpo Vanguard nudo; vero di default per i pezzi procedurali), detail (dettaglio dello shader), emissive.
 #include "../Renderer/GarmentShell.h"
 #include <nlohmann/json.hpp>
 
@@ -46,6 +48,10 @@ namespace SunEngine {
         d.metallic = j.value("metallic", d.metallic);
         d.alphaCut = j.value("alpha_cut", d.alphaCut);
         d.model = j.value("model", std::string());
+        d.procedural = j.value("procedural", std::string());
+        d.sculptedFit = j.value("sculpted_fit", !d.procedural.empty());
+        d.detail = j.value("detail", d.detail);
+        d.emissive = j.value("emissive", d.emissive);
         return d;
     }
 
