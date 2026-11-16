@@ -166,7 +166,8 @@ namespace SunEngine {
                     col = mix(col, col * 1.35 + 0.02, wear * 0.6);
                     rough = mix(rough, rough * 0.7, wear);
                 }
-                // sporco negli incavi fra un pezzo e l'altro (facce piane, lontano dagli spigoli)
+)"
+R"(                // sporco negli incavi fra un pezzo e l'altro (facce piane, lontano dagli spigoli)
                 col *= 1.0 - 0.12 * smoothstep(0.55, 0.8, n2) * (1.0 - bev);
                 if (dot(tn, tn) > 1e-8 && u_Relief > 0.001) N = PerturbUV(N, fuv, tn * min(u_Relief, 1.5) * (1.0 - bev));
             }
@@ -258,7 +259,8 @@ namespace SunEngine {
                     col = mix(col, vec3(0.38, 0.37, 0.36), bare * 0.6);
                     metal = mix(0.25, 0.85, bare);
                     rough = mix(0.7, 0.95, chip) - bare * 0.35;
-                    col *= 1.0 - seam * 0.5;
+)"
+R"(                    col *= 1.0 - seam * 0.5;
                     h = -seam * 0.01 + rivet * 0.008 + chip * 0.002 + mid * 0.002;
                     sLayer = 2.0; sTile = 1.4; sAmt = 0.8; sNrm = 0.7;
                 }
@@ -648,7 +650,8 @@ float SampleShadowCascade(int cascade, vec3 worldPos, vec3 N, float NdotL) {
     float currentDepth = projCoords.z;
 
     // Tutte le 4 cascade hanno la stessa risoluzione (2048x2048), quindi
-    // il texelSize di una vale per tutte. Uso la texture #0 come riferimento.
+)"
+R"(    // il texelSize di una vale per tutte. Uso la texture #0 come riferimento.
     vec2 texelSize = 1.0 / vec2(textureSize(u_ShadowMap0, 0));
 
     float bias = max(u_ShadowBias * (1.0 - NdotL), u_ShadowBias * 0.1);
@@ -815,7 +818,8 @@ void main() {
     vec3 color = ambient + Lo + albedo * emissive;
 
     if (u_AtmoOn == 1) {
-        // Nebbia in altezza (piu' fitta in basso) con la luce del sole che la attraversa, e polvere che si muove nel vento
+)"
+R"(        // Nebbia in altezza (piu' fitta in basso) con la luce del sole che la attraversa, e polvere che si muove nel vento
         vec3 rd = (worldPos - u_CameraPos) / max(viewDist, 1e-4);
         float k = max(u_FogFalloff, 1e-4);
         float dy = worldPos.y - u_CameraPos.y;
@@ -1130,7 +1134,8 @@ void main() {
         // grimdark: anche la pelle e' spenta (il verde degli orki tende all'oliva) e i piedi nudi sono infangati
         {
             float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-            color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.78) * 0.94, u_Desat);
+)"
+R"(            color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.78) * 0.94, u_Desat);
             float feet = 1.0 - smoothstep(0.02, 0.11, pn.y + (Noise3(pn * 9.0) - 0.5) * 0.04);
             float mudS = feet * smoothstep(0.35, 0.6, Noise3(pn * 40.0 + 3.0) * 0.6 + feet * 0.5);
             color.rgb = mix(color.rgb, vec3(0.12, 0.095, 0.07), clamp(mudS * 0.8 * u_Grime, 0.0, 1.0));
@@ -1244,7 +1249,8 @@ void main() {
                 float k = min(u_SurfDetail, 1.0);
                 color.rgb *= mix(vec3(1.0), sa.rgb * 2.0, k * 0.9);
                 rough = clamp(rough + (sd.b - 0.5) * 0.6 * k, 0.12, 1.0);
-                aoTex *= mix(1.0, sd.a, k * 0.7);
+)"
+R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
                 plate = (sa.a - 0.5) * 0.0009 * u_SurfDetail;
             }
             N = Bump(N, n1 * 0.002 + n2 * 0.0006 - (1.0 - smoothstep(0.0, 0.004, edge)) * 0.0015 + plate, 1.0);
