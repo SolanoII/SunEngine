@@ -102,10 +102,11 @@ namespace SunEngine {
         sk.sourceModel = &AnimatedBodyModel(a.kind);
         sk.boneMatrices = &a.ctrl->GetFinalBoneMatrices();
         sk.albedo = glm::vec4(SkinFor(static_cast<int>(a.kind)), 1.0f);
+        if (a.kind == AnimatedBodyKind::Ork && !Body(a.kind).boar.parts.parts.empty()) sk.extraParts = &Body(a.kind).boar.parts;   // testa del vrepigh
         // vestiti e armature: la stessa skin che avrebbe in partita
         const entt::entity holder = m_Scene.CreateEntity();
         ApplyArmorSkin(holder, tu);
-        if (const auto* skin = reg.try_get<SkinComponent>(holder)) {
+        if (const auto* skin = reg.try_get<SkinComponent>(holder); skin && !BareSculptedBody(a.kind)) {
             for (const auto& d : skin->garments) {
                 GarmentDraw draw;
                 if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);

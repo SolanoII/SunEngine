@@ -2555,7 +2555,7 @@ namespace SunEngine {
             // Vestiti e armature (stesse ossa del corpo)
             sk.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(e);
-            if (skin && sk.sourceModel) {
+            if (skin && sk.sourceModel && !BareSculptedBody(inst.kind)) {
                 for (const auto& d : skin->garments) {
                     GarmentDraw draw;
                     if (m_Garments.Get(*sk.sourceModel, d, draw)) sk.garments.push_back(draw);
@@ -2564,7 +2564,7 @@ namespace SunEngine {
             // Pezzi della skin agganciati alle ossa (elmetti, zaini, mantelli...)
             std::vector<const SkinPart*> parts;
             const bool authoredBody = sk.sourceModel && sk.sourceModel->authored;   // modello d'autore: niente pezzi a cubi
-            if (skin && !inst.bindPose && !authoredBody) for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
+            if (skin && !inst.bindPose && !authoredBody && !BareSculptedBody(inst.kind)) for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
             while (inst.skinParts.size() > parts.size()) { if (reg.valid(inst.skinParts.back())) m_Scene.DestroyEntity(inst.skinParts.back()); inst.skinParts.pop_back(); }
             while (inst.skinParts.size() < parts.size()) {
                 const entt::entity pe = m_Scene.CreateEntity();
@@ -2584,6 +2584,18 @@ namespace SunEngine {
                 pt.Scale = parts[i]->size * unitScale;
                 auto& c = reg.get<ColorComponent>(inst.skinParts[i]);
                 c.Color = parts[i]->color; c.BaseColor = c.Color;
+            }
+            // Testa del vrepigh (muso, zanne, occhi) sulle stesse ossa del corpo
+            sk.extraParts = (inst.kind == AnimatedBodyKind::Ork && !Body(inst.kind).boar.parts.parts.empty()) ? &Body(inst.kind).boar.parts : nullptr;
+            // Hitbox mosse dalle ossa del corpo animato (i manichini del campo da tiro sulla posa a T del loro corpo)
+            if (auto* skel = reg.try_get<SkeletonComponent>(e)) {
+                if (inst.kind == AnimatedBodyKind::Human || inst.kind == AnimatedBodyKind::Count) skel->data.driven = false;
+                else {
+                    const BoneHitboxTemplate& hb = Body(inst.kind).hitboxes;
+                    DriveBoneHitboxes(hb, [&](const std::string& n, glm::mat4& m) {
+                            return inst.bindPose ? hb.BindBone(n, m) : inst.ctrl->GetBoneModelTransform(n, m);   // manichini: posa a T
+                        }, vt.GetTransform(), t.Position, skel->data);
+                }
             }
         }
     }
@@ -4210,6 +4222,7 @@ namespace SunEngine {
                     // le clip che mancano nella cartella dell'artista si prendono da quelle del gioco
                     if (!clips.empty()) body.animLoaded = body.controller.LoadClips(clips, info.modelPath, &body.model, info.animsDir.empty() ? std::string() : gameClips);
                     SUN_CORE_INFO("Corpo {0}: modello d'autore {1} (animazioni: {2})", label, info.modelPath, clips);
+                    body.hitboxes = BuildBoneHitboxes(body.model);   // hitbox misurate sul modello dell'artista
                     return;
                 }
                 SUN_CORE_WARN("Corpo {0}: modello d'autore in {1} non caricato, uso quello del gioco", label, folder);
@@ -4253,6 +4266,18 @@ namespace SunEngine {
         if (body.modelLoaded) {
             ApplyMuscleTone(body.model, RaceMuscleTone(bodyLabel));
         }
+        // Sagoma (BodySculpt.h): Vanguard a V (spalle larghe, vita stretta), vrepigh uomini-cinghiale
+        // (gobba, collo taurino, muso con zanne). Prima delle clip: il retarget eredita le ossa spostate.
+        if (body.modelLoaded && bodyLabel == "astartes") {
+            SculptVanguardBody(body.model);
+            SUN_CORE_INFO("Corpo {0}: sagoma a V", label);
+        }
+        if (body.modelLoaded && bodyLabel == "ork") {
+            SculptBoarBody(body.model, &body.boar);
+            SUN_CORE_INFO("Corpo {0}: uomo-cinghiale ({1} parti di testa)", label, body.boar.parts.parts.size());
+        }
+        // Hitbox dalla mesh (BoneHitboxes.h): misurate sul corpo finale e mosse dalle ossa
+        if (body.modelLoaded) body.hitboxes = BuildBoneHitboxes(body.model);
         const std::string animsDir = FindValidDir("Animations");
         if (!body.modelLoaded || animsDir.empty()) return;
         const std::string ownDir = animsDir + animFolder + "/";
@@ -4362,6 +4387,8 @@ namespace SunEngine {
             if (playerOk && reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) {
                 reg.remove<HideProceduralVisualTag>(m_PlayerEntity);
             }
+            if (playerOk && !reg.all_of<CorpseComponent>(m_PlayerEntity))   // cuboni: tornano le hitbox del JSON
+                if (auto* skel = reg.try_get<SkeletonComponent>(m_PlayerEntity)) skel->data.driven = false;
             return;
         }
 
@@ -4401,6 +4428,18 @@ namespace SunEngine {
         if (auto* pc = reg.try_get<ColorComponent>(m_PlayerEntity)) {
             reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity).albedo = pc->BaseColor;
         }
+        // Testa del vrepigh e hitbox mosse dalle ossa del corpo animato
+        {
+            auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+            const bool raceBody = kind != AnimatedBodyKind::Human && kind != AnimatedBodyKind::Count;
+            inst.extraParts = (kind == AnimatedBodyKind::Ork && !Body(kind).boar.parts.parts.empty()) ? &Body(kind).boar.parts : nullptr;
+            if (auto* skel = reg.try_get<SkeletonComponent>(m_PlayerEntity)) {
+                if (!raceBody) skel->data.driven = false;
+                else DriveBoneHitboxes(Body(kind).hitboxes,
+                    [&](const std::string& n, glm::mat4& m) { return controller.GetBoneModelTransform(n, m); },
+                    vt.GetTransform(), pt.Position, skel->data);
+            }
+        }
     }
 
     // Pezzi della skin (elmetto, vesti) sul modello animato del giocatore: un cubo per pezzo, sull'osso
@@ -4411,7 +4450,7 @@ namespace SunEngine {
         std::vector<const SkinPart*> parts;
         // In partita e nel garage (dove il personaggio animato gira su se' stesso)
         if ((m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu) && IsAnimatedPlayerActive() &&
-            !AnimatedBodyModel(CurrentAnimatedBodyKind()).authored) {   // modello d'autore: i pezzi sono gia' nel modello
+            !AnimatedBodyModel(CurrentAnimatedBodyKind()).authored && !BareSculptedBody(CurrentAnimatedBodyKind())) {   // modello d'autore: i pezzi sono gia' nel modello
             if (const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity))
                 for (const auto& p : skin->parts) if (!p.bone.empty()) parts.push_back(&p);
         }
@@ -4421,7 +4460,7 @@ namespace SunEngine {
             ApplySkinStyle(inst, static_cast<int>(m_AnimatedBodyInUse));
             inst.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity);
-            if (skin && inst.sourceModel && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
+            if (skin && inst.sourceModel && !BareSculptedBody(m_AnimatedBodyInUse) && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
                 for (const auto& d : skin->garments) {
                     GarmentDraw draw;
                     if (m_Garments.Get(*inst.sourceModel, d, draw)) inst.garments.push_back(draw);
@@ -5547,7 +5586,9 @@ namespace SunEngine {
 
             if (m_Scene.GetRegistry().all_of<SkeletonComponent>(m_PlayerEntity)) {
                 auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);
-                auto worldTransforms = skel.data.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
+                // misure dal JSON (le hitbox guidate dalle ossa cambiano con le animazioni: la camera tremerebbe)
+                SkeletonData restSkel; restSkel.blocks = skel.data.blocks;
+                auto worldTransforms = restSkel.ComputeWorldTransforms(transform.Position, transform.Rotation, skel.scale);
 
                 float minY = 9999.0f, maxY = -9999.0f;
 
@@ -5824,7 +5865,7 @@ namespace SunEngine {
                             // cosi' il modello (in metri reali) non viene deformato.
                             glm::mat4 armRot(1.0f);
                             for (int i = 0; i < 3; ++i) armRot[i] = glm::vec4(glm::normalize(glm::vec3(armWorldMat[i])), 0.0f);
-                            const glm::vec3 armSize = skel.data.blocks[armRIndex].size * skel.scale;
+                            const glm::vec3 armSize = skel.data.BlockWorldSize(armRIndex, skel.scale);
                             const glm::mat4 corr = glm::eulerAngleYXZ(glm::radians(m_OrkWeaponModelRotation.y),
                                 glm::radians(m_OrkWeaponModelRotation.x), glm::radians(m_OrkWeaponModelRotation.z));
                             const glm::mat4 weaponRot = armRot * corr;
@@ -9492,7 +9533,7 @@ namespace SunEngine {
             const glm::mat4& arm = mats[armR];
             glm::mat4 armRot(1.0f);
             for (int i = 0; i < 3; ++i) armRot[i] = glm::vec4(glm::normalize(glm::vec3(arm[i])), 0.0f);
-            const glm::vec3 armSize = skel.data.blocks[armR].size * skel.scale;
+            const glm::vec3 armSize = skel.data.BlockWorldSize(armR, skel.scale);
             const glm::vec3 hand = glm::vec3(arm[3]) + glm::vec3(armRot * glm::vec4(0.0f, -armSize.y * 0.5f, 0.0f, 0.0f));
 
             std::string weaponId;

@@ -59,7 +59,7 @@ namespace SunEngine {
             p.breath = 1.2f; p.lookAmp = 22.0f; p.lookEvery = 3.5f; p.lookSpeed = 2.5f;
             break;
         case RaceMotionKind::Ork:
-            p.hunch = 18.0f; p.headUp = 14.0f; p.shoulderFwd = 9.0f; p.armOut = 11.0f; p.stance = 5.0f; p.knee = 9.0f;
+            p.hunch = 18.0f; p.headUp = 22.0f; p.shoulderFwd = 9.0f; p.armOut = 11.0f; p.stance = 5.0f; p.knee = 9.0f;
             p.sway = 6.0f; p.swagger = 9.0f; p.bob = 0.018f; p.heavyStep = 0.5f; p.strideLen = 1.25f; p.rateMult = 0.95f;
             p.breath = 2.4f; p.breathRate = 0.32f; p.lookAmp = 35.0f; p.lookEvery = 2.2f; p.lookSpeed = 4.0f;
             p.aimSteady = 0.5f; p.chargeHunch = 12.0f; p.jaw = true; p.jawIdle = 3.0f;

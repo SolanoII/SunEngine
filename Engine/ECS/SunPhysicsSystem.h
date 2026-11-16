@@ -282,7 +282,7 @@ namespace SunEngine {
 
                         glm::vec3 worldPos = ToGlmVec3(bPos);
                         glm::quat worldRot = ToGlmQuat(bRot);
-                        glm::vec3 blockSize = skel.data.blocks[i].size * skel.scale;
+                        glm::vec3 blockSize = skel.data.BlockWorldSize(i, skel.scale);
 
                         ragdoll.worldTransforms[i] = glm::translate(glm::mat4(1.0f), worldPos) *
                             glm::mat4_cast(worldRot) *
@@ -331,7 +331,7 @@ namespace SunEngine {
             for (size_t i = 0; i < skeleton.blocks.size(); ++i) {
                 const auto& block = skeleton.blocks[i];
 
-                glm::vec3 safeSize = glm::max(block.size * skeletonScale, glm::vec3(0.02f));
+                glm::vec3 safeSize = glm::max(skeleton.BlockWorldSize(i, skeletonScale), glm::vec3(0.02f));   // hitbox dalle ossa: misure vere
                 JPH::Vec3 halfExtents = ToJoltVec3(safeSize * 0.5f);
                 JPH::ShapeRefC blockShape = new JPH::BoxShape(halfExtents, 0.005f);
 

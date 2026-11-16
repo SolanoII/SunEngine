@@ -56,6 +56,8 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include "Engine/Renderer/BodySculpt.h"
+#include "Engine/Renderer/BoneHitboxes.h"
 
 namespace SunEngine {
 
@@ -749,9 +751,16 @@ namespace SunEngine {
             RifleAnimationController controller;
             bool modelLoaded = false;
             bool animLoaded = false;
+            BoarHead boar;                  // muso, zanne e occhi del vrepigh (solo corpo ork procedurale)
+            BoneHitboxTemplate hitboxes;    // hitbox misurate sulla mesh, mosse dalle ossa
         };
         AnimatedBody m_AnimatedBodies[static_cast<int>(AnimatedBodyKind::Count)];   // [Human] inutilizzato
         AnimatedBody& Body(AnimatedBodyKind kind) { return m_AnimatedBodies[static_cast<int>(kind)]; }
+        // Corpo Vanguard procedurale: nudo (niente armature ne' pezzi della skin), e' la base per il modello
+        // dell'artista. Col modello d'autore in Characters/ le skin tornano come prima.
+        bool BareSculptedBody(AnimatedBodyKind kind) const {
+            return kind == AnimatedBodyKind::Astartes && !m_AnimatedBodies[static_cast<int>(kind)].model.authored;
+        }
         const AnimatedBody& Body(AnimatedBodyKind kind) const { return m_AnimatedBodies[static_cast<int>(kind)]; }
         AnimatedBodyKind m_AnimatedBodyInUse = AnimatedBodyKind::Human;   // modello assegnato ora all'entity animata
         bool m_AnimatedBodyAssigned = false;

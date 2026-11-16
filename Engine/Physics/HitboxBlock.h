@@ -40,8 +40,29 @@ namespace SunEngine {
         std::string race;
         std::vector<HitboxBlock> blocks;
 
+        // Hitbox guidate dalle ossa del corpo animato (BoneHitboxes.h): matrici nel mondo gia' pronte (con la
+        // scala), centri delle articolazioni e misure. Valgono per l'entita' in drivenAt; se l'entita' si e'
+        // spostata dopo (stesso fotogramma) si traslano. driven = false: i cubi del JSON come prima.
+        bool driven = false;
+        glm::vec3 drivenAt{ 0.0f };
+        std::vector<glm::mat4> drivenWorld;
+        std::vector<glm::vec3> drivenJoint;
+        std::vector<glm::vec3> drivenSize;
+        bool IsDriven() const { return driven && drivenWorld.size() == blocks.size() && drivenJoint.size() == blocks.size() && drivenSize.size() == blocks.size(); }
+        // Misure del blocco nel mondo (ragdoll)
+        glm::vec3 BlockWorldSize(size_t i, float entityScale) const {
+            if (IsDriven()) return drivenSize[i];
+            return blocks[i].size * entityScale;
+        }
+
         // Calcola le matrici di trasformazione per il Rendering (scala applicata alla fine)
         std::vector<glm::mat4> ComputeWorldTransforms(const glm::vec3& entityPos, const glm::vec3& entityRot, float entityScale = 1.0f) const {
+            if (IsDriven()) {
+                const glm::mat4 shift = glm::translate(glm::mat4(1.0f), entityPos - drivenAt);
+                std::vector<glm::mat4> out(blocks.size());
+                for (size_t i = 0; i < blocks.size(); ++i) out[i] = shift * drivenWorld[i];
+                return out;
+            }
             std::vector<glm::mat4> worldTransforms(blocks.size());
             std::vector<glm::mat4> jointWorldMatrices(blocks.size());
 
@@ -73,6 +94,21 @@ namespace SunEngine {
         // Calcola trasformazioni ortonormali (SENZA SCALA) per i corpi rigidi di Jolt Physics
         std::vector<BlockPhysicsTransform> ComputePhysicsTransforms(const glm::vec3& entityPos, const glm::vec3& entityRot, float entityScale = 1.0f) const {
             std::vector<BlockPhysicsTransform> physicsTransforms(blocks.size());
+            if (IsDriven()) {
+                // Il ragdoll parte dalla posa vera del corpo animato. entityPos/entityRot: dove nasce il ragdoll
+                // (di solito la stessa posizione dell'unita'), si trasla rispetto a drivenAt.
+                (void)entityRot; (void)entityScale;
+                const glm::vec3 d = entityPos - drivenAt;
+                for (size_t i = 0; i < blocks.size(); ++i) {
+                    const glm::mat4& m = drivenWorld[i];
+                    glm::mat3 r = glm::mat3(glm::vec3(m[0]), glm::vec3(m[1]), glm::vec3(m[2]));
+                    for (int k = 0; k < 3; ++k) { const float l = glm::length(r[k]); r[k] = l > 1e-6f ? r[k] / l : glm::vec3(k == 0, k == 1, k == 2); }
+                    physicsTransforms[i].blockCenterPos = glm::vec3(m[3]) + d;
+                    physicsTransforms[i].jointWorldPos = drivenJoint[i] + d;
+                    physicsTransforms[i].rotation = glm::normalize(glm::quat_cast(r));
+                }
+                return physicsTransforms;
+            }
             std::vector<glm::mat4> jointWorldMatrices(blocks.size());
 
             glm::mat4 rootEntityMatrix = glm::translate(glm::mat4(1.0f), entityPos);
