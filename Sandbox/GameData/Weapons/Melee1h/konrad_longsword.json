@@ -7,7 +7,7 @@
   "slot_type": "Melee",
   "weight_kg": 4.2,
   "point_cost": 0,
-  "base_damage": 60.0,
+  "base_damage": 78.0,
   "default_melee_type": "Normal",
   "weapon_scale": [
     0.035,
@@ -201,9 +201,10 @@
       }
     }
   },
-  "comment": "Spada lunga e sottile, lama scura quasi opaca: l'arma di Konrad in 'Primo Incontro'. Solo per la PVE-STORY.",
+  "comment": "Spada lunga e sottile, lama scura quasi opaca: l'arma di Konrad in 'Primo Incontro'. Solo per la PVE-STORY. Grado VI: danno 78, penetrazione 10.",
   "allowed_units": [
     "story_konrad",
     "spacemarines_sworn_brother"
-  ]
+  ],
+  "armor_penetration": 10
 }

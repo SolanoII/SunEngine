@@ -8,9 +8,9 @@
     "story_konrad",
     "spacemarines_sworn_brother"
   ],
-  "armor_rating": 15,
-  "coverage": 0.8,
-  "max_durability": 180.0,
+  "armor_rating": 19,
+  "coverage": 0.82,
+  "max_durability": 240.0,
   "weight": 0.0,
   "point_cost": 2,
   "skin_parts": [

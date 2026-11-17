@@ -46,8 +46,7 @@
   "spare_magazines": 4,
   "comment": "Dotazione base del Difensore Vanguardio (in alternativa al fucile a proiettili pesanti): variante automatica, raffiche di cartucce bolt, meno precisa a distanza. 30 colpi e 120 di riserva.",
   "allowed_units": [
-    "spacemarines_battle_brother",
-    "spacemarines_sworn_brother"
+    "spacemarines_battle_brother"
   ],
   "spread_auto_multiplier": 1.5
 }
