@@ -81,6 +81,7 @@ namespace SunEngine {
         bool Load(const std::filesystem::path& file, std::string* error = nullptr) {
             m_Factions.clear();
             m_ById.clear();
+            m_HiddenUnits.clear();
             auto fail = [&](const std::string& msg) { if (error) *error = msg; m_Factions.clear(); m_ById.clear(); return false; };
             try {
                 std::ifstream in(file, std::ios::binary);
@@ -137,6 +138,39 @@ namespace SunEngine {
                     m_Factions.push_back(std::move(f));
                 }
 
+                // "max_tier": oltre questo grado l'albero non si mostra (la storia non ci e' ancora arrivata). Restano le
+                // unita' d'elite ("premium", es. Konrad). Spariscono anche gli oggetti e i rami appesi a quel che e'
+                // nascosto; i nodi restano nel file per quando la storia andra' avanti.
+                const int maxTier = j.value("max_tier", 0);
+                if (maxTier > 0) {
+                    std::unordered_set<std::string> hidden;
+                    for (const auto& kv : m_ById) if (kv.second.tier > maxTier && !kv.second.premium) hidden.insert(kv.first);
+                    for (bool changed = true; changed;) {
+                        changed = false;
+                        for (auto& kv : m_ById) {
+                            ResearchNode& n = kv.second;
+                            if (hidden.count(kv.first) || n.premium) continue;
+                            // padri alternativi: restano quelli visibili
+                            n.anyParents.erase(std::remove_if(n.anyParents.begin(), n.anyParents.end(), [&](const std::string& q) { return hidden.count(q) > 0; }), n.anyParents.end());
+                            if (!n.parentId.empty() && hidden.count(n.parentId)) {
+                                if (!n.anyParents.empty()) n.parentId = n.anyParents.front();
+                                else { hidden.insert(kv.first); changed = true; }
+                            }
+                        }
+                    }
+                    for (const auto& id : hidden) {
+                        if (!m_ById[id].unitId.empty()) m_HiddenUnits.insert(m_ById[id].unitId);
+                        m_ById.erase(id);
+                    }
+                    for (auto& kv : m_ById)
+                        kv.second.requiresMastered.erase(std::remove_if(kv.second.requiresMastered.begin(), kv.second.requiresMastered.end(),
+                            [&](const std::string& q) { return hidden.count(q) > 0; }), kv.second.requiresMastered.end());
+                    for (auto& f : m_Factions) {
+                        f.nodes.erase(std::remove_if(f.nodes.begin(), f.nodes.end(), [&](const ResearchNode& n) { return hidden.count(n.id) > 0; }), f.nodes.end());
+                        for (auto& n : f.nodes) n = m_ById[n.id];   // con padri e requisiti ripuliti
+                    }
+                }
+
                 // Validazione: padre esistente e nessun ciclo
                 for (const auto& kv : m_ById) {
                     const ResearchNode* cur = &kv.second;
@@ -169,6 +203,8 @@ namespace SunEngine {
         const ResearchNode* FindParent(const ResearchNode& n) const {
             return n.parentId.empty() ? nullptr : FindNode(n.parentId);
         }
+        // Unita' tolte dall'albero da "max_tier" (non ricercabili, e i bot non le usano)
+        bool IsHiddenUnit(const std::string& unitId) const { return m_HiddenUnits.count(unitId) > 0; }
         const ResearchNode* FindNodeByUnit(const std::string& unitId) const {
             if (unitId.empty()) return nullptr;
             for (const auto& kv : m_ById) if (kv.second.unitId == unitId) return &kv.second;
@@ -360,6 +396,7 @@ namespace SunEngine {
     private:
         std::vector<ResearchFaction> m_Factions;
         std::unordered_map<std::string, ResearchNode> m_ById;
+        std::unordered_set<std::string> m_HiddenUnits;
     };
 
 }

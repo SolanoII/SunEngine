@@ -6764,9 +6764,27 @@ namespace SunEngine {
         const float nodeW = 240.0f, nodeH = 92.0f, gapX = 84.0f, gapY = 30.0f, pad = 30.0f;
         const ImVec4 accent(faction.accent[0], faction.accent[1], faction.accent[2], 1.0f);
 
-        // Nell'albero solo i personaggi; gli oggetti di ciascuno si vedono selezionandolo (pannello sotto)
+        // Nell'albero solo i personaggi; gli oggetti di ciascuno si vedono selezionandolo (pannello sotto).
+        // Righe compattate: con i gradi alti nascosti ("max_tier") le righe vuote spariscono. Le unita' d'elite stanno
+        // in una colonna a parte, dopo l'albero, a meta' altezza (come i carri premium).
+        std::vector<float> usedRows;
+        float treeMaxCol = 0.0f;
+        for (const auto& n : faction.nodes) {
+            if (n.unitId.empty() || n.premium) continue;
+            usedRows.push_back(n.row); treeMaxCol = std::max(treeMaxCol, n.col);
+        }
+        std::sort(usedRows.begin(), usedRows.end());
+        usedRows.erase(std::unique(usedRows.begin(), usedRows.end()), usedRows.end());
+        auto rowOf = [&](const ResearchNode& n) {
+            if (n.premium) return usedRows.empty() ? 0.0f : (static_cast<float>(usedRows.size()) - 1.0f) * 0.5f + 0.35f;
+            return static_cast<float>(std::lower_bound(usedRows.begin(), usedRows.end(), n.row) - usedRows.begin());
+        };
+        int premiumIdx = 0;
+        std::unordered_map<std::string, float> premiumCol;
+        for (const auto& n : faction.nodes) if (!n.unitId.empty() && n.premium) premiumCol[n.id] = treeMaxCol + 1.15f + 1.1f * premiumIdx++;
+        auto colOf = [&](const ResearchNode& n) { auto it = premiumCol.find(n.id); return it != premiumCol.end() ? it->second : n.col; };
         float maxCol = 0.0f, maxRow = 0.0f;
-        for (const auto& n : faction.nodes) { if (n.unitId.empty()) continue; maxCol = std::max(maxCol, n.col); maxRow = std::max(maxRow, n.row); }
+        for (const auto& n : faction.nodes) { if (n.unitId.empty()) continue; maxCol = std::max(maxCol, colOf(n)); maxRow = std::max(maxRow, rowOf(n)); }
         const float totalW = pad * 2.0f + (maxCol + 1.0f) * nodeW + maxCol * gapX;
         const float totalH = pad * 2.0f + (maxRow + 1.0f) * nodeH + maxRow * gapY;
 
@@ -6795,7 +6813,7 @@ namespace SunEngine {
         }
         const ImVec2 origin = ImGui::GetCursorScreenPos();
         auto nodePos = [&](const ResearchNode& n) {
-            return ImVec2(std::floor(origin.x + pad + n.col * (nodeW + gapX)), std::floor(origin.y + pad + n.row * (nodeH + gapY)));
+            return ImVec2(std::floor(origin.x + pad + colOf(n) * (nodeW + gapX)), std::floor(origin.y + pad + rowOf(n) * (nodeH + gapY)));
         };
 
         // Rami padre -> figlio (a gomito), anche dai padri alternativi (ne basta uno)
@@ -6885,14 +6903,27 @@ namespace SunEngine {
                 dl->AddRectFilled(ImVec2(cx - 5.0f, cy - 3.5f), ImVec2(cx + 5.0f, cy - 0.5f), IM_COL32(240, 238, 232, 255));
             }
         }
-        // titoli delle righe dedicate (es. ORDO DOMUS HUMILITATIS), sopra la prima carta della riga
+        // Unita' d'elite a parte, come i carri premium: una colonna staccata dall'albero, oltre un filo verticale,
+        // con il suo titolo; nessun ramo le collega (non si ricercano, si comprano col Vanguardio)
+        {
+            float eliteX = 1e9f;
+            for (const auto& n : faction.nodes) if (!n.unitId.empty() && n.premium) eliteX = std::min(eliteX, nodePos(n).x);
+            if (eliteX < 1e8f) {
+                const float x = eliteX - gapX * 0.5f;
+                const float y0 = origin.y + pad * 0.4f, y1 = origin.y + totalH - pad * 0.4f;
+                for (float y = y0; y < y1; y += 12.0f) dl->AddLine(ImVec2(x, y), ImVec2(x, std::min(y + 6.0f, y1)), IM_COL32(240, 238, 232, 110), 1.5f);
+                ImFont* fh = Ui::FontHeading();
+                dl->AddText(fh, fh->FontSize * 0.7f, ImVec2(eliteX, y0), IM_COL32(240, 238, 232, 220), "UNITA' D'ELITE");
+            }
+        }
+        // titoli delle righe dedicate (es. ORDO DOMUS HUMILITATIS), sopra la carta
         for (const auto& n : faction.nodes) {
             if (n.unitId.empty() || n.rowLabel.empty()) continue;
             const ImVec2 p = nodePos(n);
             ImFont* fh = Ui::FontHeading();
             const float fsz = fh->FontSize * 0.75f;
             const float ty = p.y - fsz - 10.0f;
-            dl->AddLine(ImVec2(origin.x + pad, ty + fsz * 0.5f), ImVec2(p.x - 10.0f, ty + fsz * 0.5f), IM_COL32(240, 238, 232, 90), 1.0f);
+            if (!n.premium) dl->AddLine(ImVec2(origin.x + pad, ty + fsz * 0.5f), ImVec2(p.x - 10.0f, ty + fsz * 0.5f), IM_COL32(240, 238, 232, 90), 1.0f);
             dl->AddText(fh, fsz, ImVec2(p.x, ty), IM_COL32(240, 238, 232, 235), n.rowLabel.c_str());
         }
 
@@ -8988,6 +9019,7 @@ namespace SunEngine {
         for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) {
             const ResearchNode* rn = m_ResearchTree.FindNodeByUnit(id);
             if (rn && rn->premium) continue;   // le unita' d'elite (Konrad) non le usano i bot: sono personaggi unici
+            if (m_ResearchTree.IsHiddenUnit(id)) continue;   // oltre il grado mostrato nell'albero: la storia non c'e' ancora arrivata
             all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id), bp.max_per_squad });
         }
         std::sort(all.begin(), all.end(), [](const VsBotCandidate& a, const VsBotCandidate& b) { return a.unitId < b.unitId; });

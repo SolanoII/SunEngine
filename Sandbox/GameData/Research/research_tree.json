@@ -1,5 +1,7 @@
 {
   "comment": "Albero di ricerca. research_cost = punti studio dell'unita' PADRE spesi per sbloccare il nodo; purchase_cost = energia per creare un'unita' nel garage. I nodi radice sono gia' sbloccati. Per ricercare un personaggio serve la maestria (tutti gli oggetti ricercati) del personaggio padre; 'requires_mastered' aggiunge altre unita' da padroneggiare. Valori di costo provvisori. Nodi con 'item' al posto di 'unit' = oggetti: si ricercano coi punti studio della prima unita' risalendo l'albero e si comprano nel garage per ogni unita'. Costi in migliaia (un'uccisione = 500 PS, un secondo in vita = 50 PS).",
+  "max_tier": 3,
+  "max_tier_comment": "Gradi mostrati: fino al 3 per le tre fazioni (quello che The Sun's Darkest Hours ha gia' raccontato). Le unita' d'elite ('premium', Konrad di grado 5) restano a parte. Alzare il numero per aprire i gradi successivi: i nodi sono gia' qui sotto.",
   "factions": [
     {
       "id": "imperium",
@@ -1177,7 +1179,7 @@
           "name": "Konrad (Sworn Brother)",
           "tier": 5,
           "col": 4,
-          "row": 4.6,
+          "row": 1.5,
           "premium": true,
           "premium_cost": 1500,
           "row_label": "ORDO DOMUS HUMILITATIS",
