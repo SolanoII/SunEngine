@@ -1,7 +1,7 @@
 {
   "id": "leg_r_firstborn_mk7",
   "displayName": "Gambale da Difensore Vanguardio (dx)",
-  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Cosciale, ginocchiera bordata, schiniere e stivale.",
+  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Cosciale, ginocchiera bordata, schiniere e stivale. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
   "location": "RightLeg",
   "faction": "SpaceMarines",
   "allowed_units": [
@@ -112,7 +112,7 @@
       "inflate": 0.026,
       "texture": "Textures/Garments/power_armour.png",
       "tex_tiles": 4,
-      "roughness": 0.38,
+      "roughness": 0.35,
       "metallic": 0.55,
       "color": [
         0.62,
@@ -120,39 +120,22 @@
         0.64,
         1
       ],
+      "sculpted_fit": true,
       "side": -1
     },
     {
       "id": "fb_knee_r",
-      "bones": [
-        "RightLeg",
-        "RightUpLeg"
-      ],
-      "min_weight": 0.3,
-      "height_range": [
-        0.24,
-        0.32
-      ],
-      "inflate": 0.05,
+      "procedural": "vanguard_knee_medium_r",
       "texture": "Textures/Garments/power_armour.png",
       "tex_tiles": 4,
-      "roughness": 0.38,
-      "metallic": 0.55,
       "color": [
-        0.62,
-        0.62,
-        0.64,
+        0.56,
+        0.56,
+        0.58,
         1
       ],
-      "side": -1,
-      "facing": [
-        0,
-        0,
-        1
-      ],
-      "facing_min": 0.2,
-      "plate_cells": 2,
-      "plate_step": 0.005
+      "roughness": 0.35,
+      "metallic": 0.55
     },
     {
       "id": "fb_greave_r",
@@ -164,10 +147,10 @@
         0.06,
         0.3
       ],
-      "inflate": 0.032,
+      "inflate": 0.03,
       "texture": "Textures/Garments/power_armour.png",
       "tex_tiles": 4,
-      "roughness": 0.38,
+      "roughness": 0.35,
       "metallic": 0.55,
       "color": [
         0.62,
@@ -175,12 +158,13 @@
         0.64,
         1
       ],
+      "sculpted_fit": true,
       "side": -1,
       "plate_cells": 3,
       "plate_step": 0.004
     },
     {
-      "id": "fb_boot_r",
+      "id": "fb_sabaton_r",
       "bones": [
         "RightFoot",
         "RightToeBase"
@@ -193,7 +177,7 @@
       "inflate": 0.02,
       "texture": "Textures/Garments/power_armour.png",
       "tex_tiles": 4,
-      "roughness": 0.38,
+      "roughness": 0.35,
       "metallic": 0.55,
       "color": [
         0.13,
@@ -201,7 +185,10 @@
         0.14,
         1
       ],
-      "side": -1
+      "sculpted_fit": true,
+      "side": -1,
+      "plate_cells": 4,
+      "plate_step": 0.003
     }
   ]
 }

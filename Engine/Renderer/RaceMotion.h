@@ -17,6 +17,7 @@
 // Rotazioni nello spazio della mesh in posa (vedi ProceduralPose.h): Rx(+) piega avanti la colonna, Rx(-) alza
 // in avanti cosce e braccia; Ry(+) ruota a sinistra; Rz(+) porta il braccio/la gamba sinistra in fuori.
 #include "ProceduralPose.h"
+#include <nlohmann/json.hpp>
 #include <cmath>
 #include <algorithm>
 
@@ -46,7 +47,7 @@ namespace SunEngine {
         float aimSteady = 0.8f;      // quanto lo stile si spegne mirando (0 = niente, 1 = tutto)
         float chargeHunch = 0.0f;    // gobba in piu' correndo/caricando
         // ossa in piu'
-        bool ears = false, jaw = false, belly = false, pauldrons = false;
+        bool ears = false, jaw = false, belly = false, pauldrons = false, tail = false;
         float jawIdle = 0.0f;        // bocca socchiusa a riposo (gradi)
         float jawChatter = 0.0f;     // chiacchiericcio (gradi)
     };
@@ -62,7 +63,7 @@ namespace SunEngine {
             p.hunch = 18.0f; p.headUp = 22.0f; p.shoulderFwd = 9.0f; p.armOut = 11.0f; p.stance = 5.0f; p.knee = 9.0f;
             p.sway = 6.0f; p.swagger = 9.0f; p.bob = 0.018f; p.heavyStep = 0.5f; p.strideLen = 1.25f; p.rateMult = 0.95f;
             p.breath = 2.4f; p.breathRate = 0.32f; p.lookAmp = 35.0f; p.lookEvery = 2.2f; p.lookSpeed = 4.0f;
-            p.aimSteady = 0.5f; p.chargeHunch = 12.0f; p.jaw = true; p.jawIdle = 3.0f;
+            p.aimSteady = 0.5f; p.chargeHunch = 12.0f; p.jaw = true; p.jawIdle = 3.0f; p.ears = true; p.tail = true;
             break;
         case RaceMotionKind::Gretchin:
             p.hunch = 20.0f; p.headUp = 16.0f; p.shoulderFwd = 12.0f; p.armOut = 3.0f; p.stance = 3.0f; p.knee = 17.0f;
@@ -133,6 +134,20 @@ namespace SunEngine {
 
     // Applica lo stile alla posa (sopra le clip e prima delle azioni). Ritorna il moltiplicatore della velocita'
     // delle clip.
+    // Ritocchi allo stile scritti nell'animset.json della razza ("style": {"hunch": 22, "tail": true, ...}): chi fa le
+    // animazioni regola postura e passo senza toccare il codice. Nomi dei campi come in RaceMotionProfile.
+    inline void ApplyRaceStyleJson(RaceMotionProfile& p, const nlohmann::json& j) {
+        if (!j.is_object()) return;
+        auto f = [&](const char* k, float& v) { if (j.contains(k) && j[k].is_number()) v = j[k].get<float>(); };
+        auto b = [&](const char* k, bool& v) { if (j.contains(k) && j[k].is_boolean()) v = j[k].get<bool>(); };
+        f("hunch", p.hunch); f("headUp", p.headUp); f("shoulderFwd", p.shoulderFwd); f("armOut", p.armOut); f("stance", p.stance);
+        f("knee", p.knee); f("sway", p.sway); f("swagger", p.swagger); f("bob", p.bob); f("heavyStep", p.heavyStep);
+        f("strideLen", p.strideLen); f("rateMult", p.rateMult); f("breath", p.breath); f("breathRate", p.breathRate);
+        f("lookAmp", p.lookAmp); f("lookEvery", p.lookEvery); f("lookSpeed", p.lookSpeed); f("headTilt", p.headTilt);
+        f("aimSteady", p.aimSteady); f("chargeHunch", p.chargeHunch); f("jawIdle", p.jawIdle); f("jawChatter", p.jawChatter);
+        b("ears", p.ears); b("jaw", p.jaw); b("belly", p.belly); b("pauldrons", p.pauldrons); b("tail", p.tail);
+    }
+
     inline float ApplyRaceMotion(ProceduralPose& pose, const RaceMotionProfile& p, RaceMotionState& s, const RaceMotionInput& in) {
         using namespace PoseLib;
         using RaceMotionDetail::Spring;
@@ -287,6 +302,11 @@ namespace SunEngine {
             Spring(s.bellyAngle, s.bellyVel, -bobAcc * 0.0006f + breath * 1.2f, 90.0f, 5.0f, dt);
             s.bellyAngle = std::clamp(s.bellyAngle, -8.0f, 8.0f);
             pose.Rotate("Belly", Rx(s.bellyAngle));
+        }
+        if (p.tail) {
+            // coda del vrepigh: scodinzola piano da fermo, frusta correndo
+            const float wag = std::sin(s.time * (2.0f + 7.0f * s.moveBlend)) * (8.0f + 20.0f * s.moveBlend);
+            pose.Rotate("Tail", Ry(wag) * Rx(-10.0f * s.moveBlend));
         }
         if (p.pauldrons) {
             // spallacci: un sobbalzo pesante a ogni appoggio, poi fermi

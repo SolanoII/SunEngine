@@ -58,6 +58,12 @@ namespace SunEngine {
             CalculateBoneTransform(m_CurrentAnimation->GetRootNode(), glm::mat4(1.0f));
         }
 
+        // Tempo della clip in corso come frazione della sua durata (azioni sincronizzate con il gioco: mischia)
+        void SetNormalizedTime(float u) {
+            if (!m_CurrentAnimation) return;
+            m_CurrentTime = std::clamp(u, 0.0f, 0.999f) * m_CurrentAnimation->GetDuration();
+        }
+
         const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_FinalBoneMatrices; }
 
         bool IsFinished() const { return m_Finished; }

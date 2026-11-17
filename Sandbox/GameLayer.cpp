@@ -2538,6 +2538,7 @@ namespace SunEngine {
                 inst.poseTime += deltaTime;
                 BuildUnitPose(e, inst.pose, *inst.ctrl, inst.poseTime, inst.climb, deltaTime);
                 inst.ctrl->SetProceduralPose(&inst.pose);
+                SetActionClip(e, *inst.ctrl, in);
                 inst.ctrl->Update(deltaTime, in);
                 inst.poseFresh = true;
             }
@@ -2590,9 +2591,9 @@ namespace SunEngine {
             sk.extraParts = (inst.kind == AnimatedBodyKind::Ork && !Body(inst.kind).boar.parts.parts.empty()) ? &Body(inst.kind).boar.parts : nullptr;
             // Hitbox mosse dalle ossa del corpo animato (i manichini del campo da tiro sulla posa a T del loro corpo)
             if (auto* skel = reg.try_get<SkeletonComponent>(e)) {
-                if (inst.kind == AnimatedBodyKind::Human || inst.kind == AnimatedBodyKind::Count) skel->data.driven = false;
+                if (inst.kind == AnimatedBodyKind::Count) skel->data.driven = false;
                 else {
-                    const BoneHitboxTemplate& hb = Body(inst.kind).hitboxes;
+                    const BoneHitboxTemplate& hb = HitboxTemplateFor(inst.kind, skel->data, sk);
                     DriveBoneHitboxes(hb, [&](const std::string& n, glm::mat4& m) {
                             return inst.bindPose ? hb.BindBone(n, m) : inst.ctrl->GetBoneModelTransform(n, m);   // manichini: posa a T
                         }, vt.GetTransform(), t.Position, skel->data);
@@ -3737,8 +3738,52 @@ namespace SunEngine {
         const bool heavy = melee && melee->currentAttack == MeleeAttackType::Heavy &&
             (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active);
         in.roar = heavy || (buff && buff->moveSpeedMult > 1.01f) || (in.sprinting && kind != AnimatedBodyKind::Human);
-        const float rate = ApplyRaceMotion(pose, GetRaceMotionProfile(RaceMotionOf(kind)), slot.state, in);
+        const float rate = ApplyRaceMotion(pose, RaceProfileFor(kind), slot.state, in);
         controller.SetStyleRate(rate);
+    }
+
+    // Stile della razza: quello del codice (RaceMotion.h) con i ritocchi dell'animset.json della sua cartella
+    const RaceMotionProfile& GameLayer::RaceProfileFor(AnimatedBodyKind kind) {
+        auto it = m_RaceProfiles.find(static_cast<int>(kind));
+        if (it != m_RaceProfiles.end()) return it->second;
+        RaceMotionProfile p = GetRaceMotionProfile(RaceMotionOf(kind));
+        ApplyRaceStyleJson(p, AnimatedBodyController(kind).StyleOverrides());
+        return m_RaceProfiles.emplace(static_cast<int>(kind), p).first->second;
+    }
+
+    // Azione dell'unita' con una clip sua (animset.json): mischia, parata, stordito, carica a quattro zampe.
+    // Per la mischia la clip segue il punto del colpo (carica, colpo, recupero) fotogramma per fotogramma.
+    void GameLayer::SetActionClip(entt::entity e, const RifleAnimationController& c, RifleAnimInput& in) {
+        auto& reg = m_Scene.GetRegistry();
+        in.action = -1; in.actionTime = -1.0f;
+        if (!reg.valid(e)) return;
+        auto use = [&](RifleAnimState st, float t) {
+            if (!c.HasClip(st)) return false;
+            in.action = static_cast<int>(st); in.actionTime = t; return true;
+        };
+        if (const auto* melee = reg.try_get<MeleeStateComponent>(e)) {
+            if (melee->currentPhase == MeleePhase::Stunned && use(RifleAnimState::Stunned, -1.0f)) return;
+            if (melee->currentAttack == MeleeAttackType::Parry) {
+                const float end = std::max(0.05f, DamageResolver::ParryEnd(*melee));
+                if (use(RifleAnimState::Parry, std::clamp(melee->stateTimer / end, 0.0f, 1.0f))) return;
+            }
+            else if (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active || melee->currentPhase == MeleePhase::Recovery) {
+                const auto* wbp = DamageResolver::ResolveMeleeWeapon(reg, e);
+                MeleeTiming tm;
+                if (wbp && wbp->hasMoveset) {
+                    auto it = wbp->moveset.nodes.find(melee->currentAttackNode);
+                    if (it != wbp->moveset.nodes.end()) tm = DamageResolver::EffectiveTiming(it->second, melee->currentAttack, melee->currentAttackNode);
+                }
+                const float rec = tm.recovery + melee->whiffPenalty;
+                const float total = std::max(0.05f, tm.windup + tm.active + rec);
+                const float before = melee->currentPhase == MeleePhase::Windup ? 0.0f : (melee->currentPhase == MeleePhase::Active ? tm.windup : tm.windup + tm.active);
+                const float t = std::clamp((before + melee->stateTimer) / total, 0.0f, 1.0f);
+                const RifleAnimState st = melee->currentAttack == MeleeAttackType::Light ? RifleAnimState::MeleeLight
+                    : (melee->currentAttack == MeleeAttackType::Heavy ? RifleAnimState::MeleeHeavy : RifleAnimState::MeleeNormal);
+                if (use(st, t)) return;
+            }
+        }
+        if (QuadrupedAmount(reg, e) > 0.5f) use(RifleAnimState::Charge, -1.0f);
     }
 
     // Pose procedurali di un'unita' (giocatore, bot, orda) sopra la clip in corso: accovacciato, arrampicata,
@@ -3775,18 +3820,25 @@ namespace SunEngine {
         PoseLib::Climb(pose, poseTime, climb);
 
         // Feral Pig lanciato: a quattro zampe (le mani a terra le mette ApplyQuadrupedIK dopo la clip)
-        if (const float quad = QuadrupedAmount(reg, e); quad > 0.0f)
+        if (const float quad = QuadrupedAmount(reg, e); quad > 0.0f && !controller.HasClip(RifleAnimState::Charge))
             PoseLib::Quadruped(pose, quad, reg.get<MomentumComponent>(e).gallop, thigh, shin);
 
-        // Mischia: fasi dell'attacco dalla macchina a stati della mischia
+        // Mischia: fasi dell'attacco dalla macchina a stati della mischia (se la razza ha la sua clip per
+        // quell'azione, nell'animset.json, la fa la clip: vedi SetActionClip)
         if (const auto* melee = reg.try_get<MeleeStateComponent>(e)) {
-            if (melee->currentPhase == MeleePhase::Stunned) PoseLib::Stunned(pose, 1.0f);
+            const RifleAnimState meleeClip = melee->currentAttack == MeleeAttackType::Light ? RifleAnimState::MeleeLight
+                : (melee->currentAttack == MeleeAttackType::Heavy ? RifleAnimState::MeleeHeavy : RifleAnimState::MeleeNormal);
+            if (melee->currentPhase == MeleePhase::Stunned) { if (!controller.HasClip(RifleAnimState::Stunned)) PoseLib::Stunned(pose, 1.0f); }
             else if (melee->currentAttack == MeleeAttackType::Parry) {
+                if (controller.HasClip(RifleAnimState::Parry)) {}
+                else {
                 const float t = melee->stateTimer;
                 const float end = DamageResolver::ParryEnd(*melee);
                 PoseLib::Parry(pose, t < 0.08f ? t / 0.08f : (t < 0.28f ? 1.0f : std::max(0.0f, (end - t) / (end - 0.28f))));
+                }
             }
-            else if (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active || melee->currentPhase == MeleePhase::Recovery) {
+            else if ((melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active || melee->currentPhase == MeleePhase::Recovery)
+                     && !controller.HasClip(meleeClip)) {
                 const auto* wbp = DamageResolver::ResolveMeleeWeapon(reg, e);
                 MeleeTiming tm;
                 if (wbp && wbp->hasMoveset) {
@@ -4223,7 +4275,6 @@ namespace SunEngine {
                     // le clip che mancano nella cartella dell'artista si prendono da quelle del gioco
                     if (!clips.empty()) body.animLoaded = body.controller.LoadClips(clips, info.modelPath, &body.model, info.animsDir.empty() ? std::string() : gameClips);
                     SUN_CORE_INFO("Corpo {0}: modello d'autore {1} (animazioni: {2})", label, info.modelPath, clips);
-                    body.hitboxes = BuildBoneHitboxes(body.model);   // hitbox misurate sul modello dell'artista
                     return;
                 }
                 SUN_CORE_WARN("Corpo {0}: modello d'autore in {1} non caricato, uso quello del gioco", label, folder);
@@ -4277,8 +4328,6 @@ namespace SunEngine {
             SculptBoarBody(body.model, &body.boar);
             SUN_CORE_INFO("Corpo {0}: uomo-cinghiale ({1} parti di testa)", label, body.boar.parts.parts.size());
         }
-        // Hitbox dalla mesh (BoneHitboxes.h): misurate sul corpo finale e mosse dalle ossa
-        if (body.modelLoaded) body.hitboxes = BuildBoneHitboxes(body.model);
         const std::string animsDir = FindValidDir("Animations");
         if (!body.modelLoaded || animsDir.empty()) return;
         const std::string ownDir = animsDir + animFolder + "/";
@@ -4328,6 +4377,22 @@ namespace SunEngine {
         return b.modelLoaded && b.animLoaded;
     }
 
+    // Hitbox di un'unita' (BoneHitboxes.h): misurate sul suo corpo, con i blocchi del suo scheletro a cubi e le parti
+    // rigide che indossa (testa del vrepigh, elmo, spallacci, piastre; non la stoffa). Una misura per combinazione.
+    const BoneHitboxTemplate& GameLayer::HitboxTemplateFor(AnimatedBodyKind kind, const SkeletonData& skel, const SkinnedModelInstanceComponent& sk) {
+        size_t h = std::hash<int>()(static_cast<int>(kind));
+        auto mix = [&](size_t v) { h ^= v + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2); };
+        for (const auto& b : skel.blocks) mix(std::hash<std::string>()(b.name));
+        std::vector<const std::vector<SkinnedVertex>*> extra;
+        if (sk.extraParts) for (const auto& g : sk.extraParts->parts) if (g.mesh) { extra.push_back(&g.mesh->vertices); mix(reinterpret_cast<size_t>(g.mesh)); }
+        for (const auto& g : sk.garments) if (g.mesh && g.metallic >= 0.3f) { extra.push_back(&g.mesh->vertices); mix(reinterpret_cast<size_t>(g.mesh)); }
+        auto it = m_HitboxTemplates.find(h);
+        if (it != m_HitboxTemplates.end()) return it->second;
+        std::vector<std::string> names;
+        for (const auto& b : skel.blocks) names.push_back(b.name);
+        return m_HitboxTemplates.emplace(h, BuildBoneHitboxes(AnimatedBodyModel(kind), names, extra)).first->second;
+    }
+
     SkinnedModel& GameLayer::AnimatedBodyModel(AnimatedBodyKind kind) {
         if (kind == AnimatedBodyKind::Human || kind == AnimatedBodyKind::Count) return m_SkinnedTestModel;
         return Body(kind).model;
@@ -4363,7 +4428,9 @@ namespace SunEngine {
         if (modelReady) {
             BuildPlayerPose(deltaTime, controller);   // azioni senza clip, sopra la clip in corso
             controller.SetProceduralPose(&m_PlayerPose);
-            controller.Update(deltaTime, input);
+            RifleAnimInput withAction = input;
+            SetActionClip(m_PlayerEntity, controller, withAction);
+            controller.Update(deltaTime, withAction);
             if (deltaTime > 0.0f) m_PlayerPoseFresh = true;
         }
 
@@ -4432,11 +4499,11 @@ namespace SunEngine {
         // Testa del vrepigh e hitbox mosse dalle ossa del corpo animato
         {
             auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
-            const bool raceBody = kind != AnimatedBodyKind::Human && kind != AnimatedBodyKind::Count;
+            const bool knownBody = kind != AnimatedBodyKind::Count;
             inst.extraParts = (kind == AnimatedBodyKind::Ork && !Body(kind).boar.parts.parts.empty()) ? &Body(kind).boar.parts : nullptr;
             if (auto* skel = reg.try_get<SkeletonComponent>(m_PlayerEntity)) {
-                if (!raceBody) skel->data.driven = false;
-                else DriveBoneHitboxes(Body(kind).hitboxes,
+                if (!knownBody) skel->data.driven = false;
+                else DriveBoneHitboxes(HitboxTemplateFor(kind, skel->data, inst),
                     [&](const std::string& n, glm::mat4& m) { return controller.GetBoneModelTransform(n, m); },
                     vt.GetTransform(), pt.Position, skel->data);
             }

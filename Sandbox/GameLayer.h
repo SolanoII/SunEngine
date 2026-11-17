@@ -683,6 +683,10 @@ namespace SunEngine {
         // A quattro zampe (Feral Pig lanciato): mani a terra davanti alle spalle, al passo del galoppo
         void ApplyQuadrupedIK(entt::entity unit, RifleAnimationController& ctrl, ProceduralPose& pose, const TransformComponent& visualT);
         static float QuadrupedAmount(entt::registry& reg, entt::entity unit);   // 0 in piedi, 1 a quattro zampe
+        // Animazioni separate per razza (animset.json): stile con i ritocchi del file, azioni con la loro clip
+        const RaceMotionProfile& RaceProfileFor(AnimatedBodyKind kind);
+        std::unordered_map<int, RaceMotionProfile> m_RaceProfiles;
+        void SetActionClip(entt::entity e, const RifleAnimationController& c, RifleAnimInput& in);
         // Leggi dell'impugnatura (WeaponHold.h) sul corpo animato: posa l'arma rispetto alle spalle. basis = rotazione.
         bool SolveHoldOnBody(RifleAnimationController& ctrl, const TransformComponent& visualT, float bodyYawDeg,
             const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis);
@@ -694,6 +698,9 @@ namespace SunEngine {
             const glm::vec3* gripRightWorld, const glm::vec3* gripLeftWorld);
         bool AnimatedBodyReady(AnimatedBodyKind kind) const;
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
+        // Hitbox misurate sul corpo + scheletro a cubi + parti rigide indossate (BoneHitboxes.h), in cache
+        const BoneHitboxTemplate& HitboxTemplateFor(AnimatedBodyKind kind, const SkeletonData& skel, const SkinnedModelInstanceComponent& sk);
+        std::unordered_map<size_t, BoneHitboxTemplate> m_HitboxTemplates;
         RifleAnimationController& AnimatedBodyController(AnimatedBodyKind kind);
         RifleAnimationController& ActiveAnimController();   // controller del modello animato in uso
         bool PlaceWeaponOnAnimatedHand(bool leftHand, TransformComponent& weaponTransform, const BlockModel* model = nullptr,
@@ -752,7 +759,6 @@ namespace SunEngine {
             bool modelLoaded = false;
             bool animLoaded = false;
             BoarHead boar;                  // muso, zanne e occhi del vrepigh (solo corpo ork procedurale)
-            BoneHitboxTemplate hitboxes;    // hitbox misurate sulla mesh, mosse dalle ossa
         };
         AnimatedBody m_AnimatedBodies[static_cast<int>(AnimatedBodyKind::Count)];   // [Human] inutilizzato
         AnimatedBody& Body(AnimatedBodyKind kind) { return m_AnimatedBodies[static_cast<int>(kind)]; }

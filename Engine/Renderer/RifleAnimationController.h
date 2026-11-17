@@ -1,5 +1,8 @@
 #pragma once
 #include <filesystem>
+#include <fstream>
+#include <string>
+#include <nlohmann/json.hpp>
 #include "Animation.h"
 #include "Animator.h"
 #include "../ECS/RifleLocomotionState.h"
@@ -20,15 +23,31 @@ namespace SunEngine {
         bool shotFired = false;  // un colpo e' partito in QUESTO frame (fronte di salita del cooldown)
         float groundSpeed = 0.0f;     // velocita' orizzontale reale del personaggio (m/s); <=0 = ignora
         float vaultDuration = 0.0f;   // durata dello scavalcamento in corso (s); adatta la clip di salto
+        // Azione con una sua clip (mischia, parata, urlo...): -1 = nessuna. actionTime 0..1 = punto dell'azione
+        // (la clip segue il gioco fotogramma per fotogramma); < 0 = la clip va per conto suo (stordito, carica).
+        int action = -1;              // RifleAnimState come intero
+        float actionTime = -1.0f;
     };
 
     class RifleAnimationController {
     public:
         // fallbackDir: dove cercare le clip che mancano in animsDir (es. un artista che ha rifatto solo la camminata).
         // Ogni clip puo' essere .fbx, .glb o .gltf.
-        bool LoadClips(const std::string& animsDir, const std::string& modelPath, SkinnedModel* model, const std::string& fallbackDir = std::string()) {
+        //
+        // Insieme di animazioni di una razza: Animations/<cartella>/animset.json (facoltativo) dice quale file usare
+        // per ogni movimento ("clips": {"walk": "walking", "melee_heavy": "colpo pesante"...}), da quale cartella
+        // prendere quelli che mancano ("fallback": "Human") e lo stile procedurale della razza ("style", RaceMotion.h).
+        // Le azioni (melee_light, melee_normal, melee_heavy, parry, stunned, roar, charge) sono facoltative: se il
+        // file c'e' la clip prende il posto della posa procedurale.
+        bool LoadClips(const std::string& animsDir, const std::string& modelPath, SkinnedModel* model, std::string fallbackDir = std::string()) {
             bool allOk = true;
-            auto clip = [&](const char* name) {
+            m_Set = AnimSet::Load(animsDir);
+            if (fallbackDir.empty() && !m_Set.fallback.empty()) {
+                std::filesystem::path parent = std::filesystem::path(animsDir).parent_path().parent_path();
+                fallbackDir = (parent / m_Set.fallback).string() + "/";
+            }
+            auto clip = [&](const char* key) {
+                const std::string name = m_Set.Name(key);
                 std::error_code ec;
                 for (const std::string& dir : { animsDir, fallbackDir }) {
                     if (dir.empty()) continue;
@@ -39,12 +58,17 @@ namespace SunEngine {
                 }
                 return animsDir + name + ".fbx";   // non c'e': il messaggio d'errore indica il nome atteso
             };
+            auto optional = [&](RifleAnimState st, const char* key) {
+                std::error_code ec;
+                const std::string p = clip(key);
+                if (std::filesystem::exists(p, ec)) LoadClip(st, p, model);
+            };
 
             // Idle: "rifle aiming idle.fbx" (fucile alzato, stesso set delle altre clip). La idle integrata
             // nel file master ha il fucile abbassato: usata come idle faceva "abbassare e rialzare" il
             // fucile a ogni sparo. Resta come ripiego se il file non c'e'.
             {
-                const std::string aimIdlePath = clip("rifle aiming idle");
+                const std::string aimIdlePath = clip("aim_idle");
                 std::error_code ec;
                 if (std::filesystem::exists(aimIdlePath, ec)) {
                     allOk &= LoadClip(RifleAnimState::AimIdle, aimIdlePath, model);
@@ -55,24 +79,32 @@ namespace SunEngine {
                 }
             }
 
-            allOk &= LoadClip(RifleAnimState::WalkStart, clip("start walking"), model);
-            allOk &= LoadClip(RifleAnimState::Walk, clip("walking"), model);
-            allOk &= LoadClip(RifleAnimState::WalkStop, clip("stop walking"), model);
-            allOk &= LoadClip(RifleAnimState::WalkBackStart, clip("start walking backwards"), model);
-            allOk &= LoadClip(RifleAnimState::WalkBack, clip("walking backwards"), model);
-            allOk &= LoadClip(RifleAnimState::WalkBackStop, clip("walk backwards stop"), model);
-            allOk &= LoadClip(RifleAnimState::StrafeLeft, clip("strafe (2)"), model);
-            allOk &= LoadClip(RifleAnimState::StrafeRight, clip("strafe"), model);
-            allOk &= LoadClip(RifleAnimState::Sprint, clip("rifle run"), model);
-            allOk &= LoadClip(RifleAnimState::JumpForward, clip("jump forward"), model);
-            allOk &= LoadClip(RifleAnimState::JumpBackward, clip("jump backward"), model);
-            allOk &= LoadClip(RifleAnimState::Firing, clip("firing rifle"), model);
+            allOk &= LoadClip(RifleAnimState::WalkStart, clip("walk_start"), model);
+            allOk &= LoadClip(RifleAnimState::Walk, clip("walk"), model);
+            allOk &= LoadClip(RifleAnimState::WalkStop, clip("walk_stop"), model);
+            allOk &= LoadClip(RifleAnimState::WalkBackStart, clip("walk_back_start"), model);
+            allOk &= LoadClip(RifleAnimState::WalkBack, clip("walk_back"), model);
+            allOk &= LoadClip(RifleAnimState::WalkBackStop, clip("walk_back_stop"), model);
+            allOk &= LoadClip(RifleAnimState::StrafeLeft, clip("strafe_left"), model);
+            allOk &= LoadClip(RifleAnimState::StrafeRight, clip("strafe_right"), model);
+            allOk &= LoadClip(RifleAnimState::Sprint, clip("sprint"), model);
+            allOk &= LoadClip(RifleAnimState::JumpForward, clip("jump_forward"), model);
+            allOk &= LoadClip(RifleAnimState::JumpBackward, clip("jump_backward"), model);
+            allOk &= LoadClip(RifleAnimState::Firing, clip("firing"), model);
             // Accovacciato: clip facoltative (se mancano il modello animato resta in piedi, le hitbox si abbassano comunque)
             {
                 std::error_code ec;
-                if (std::filesystem::exists(clip("crouch idle"), ec)) LoadClip(RifleAnimState::CrouchIdle, clip("crouch idle"), model);
-                if (std::filesystem::exists(clip("crouch walking"), ec)) LoadClip(RifleAnimState::CrouchWalk, clip("crouch walking"), model);
+                if (std::filesystem::exists(clip("crouch_idle"), ec)) LoadClip(RifleAnimState::CrouchIdle, clip("crouch_idle"), model);
+                if (std::filesystem::exists(clip("crouch_walk"), ec)) LoadClip(RifleAnimState::CrouchWalk, clip("crouch_walk"), model);
             }
+
+            optional(RifleAnimState::MeleeLight, "melee_light");
+            optional(RifleAnimState::MeleeNormal, "melee_normal");
+            optional(RifleAnimState::MeleeHeavy, "melee_heavy");
+            optional(RifleAnimState::Parry, "parry");
+            optional(RifleAnimState::Stunned, "stunned");
+            optional(RifleAnimState::Roar, "roar");
+            optional(RifleAnimState::Charge, "charge");
 
             auto it = Clips().find(m_CurrentState);
             if (it != Clips().end()) {
@@ -92,6 +124,20 @@ namespace SunEngine {
         }
 
         void Update(float deltaTime, const RifleAnimInput& in) {
+            // Azione con la sua clip: ha la precedenza su tutto (mischia, parata, urlo, stordito, carica)
+            if (in.action >= 0 && Clips().count(static_cast<RifleAnimState>(in.action))) {
+                const RifleAnimState st = static_cast<RifleAnimState>(in.action);
+                const bool looped = st == RifleAnimState::Stunned || st == RifleAnimState::Charge;
+                // si riparte quando cambia l'azione o quando il punto dell'azione torna indietro (colpo nuovo)
+                const bool restart = st != m_CurrentState || (in.actionTime >= 0.0f && in.actionTime + 0.2f < m_LastActionTime);
+                if (restart) { m_Animator.PlayAnimation(&Clips().at(st), 0.08f, looped); m_CurrentState = st; m_StateAge = 0.0f; }
+                m_LastActionTime = in.actionTime;
+                if (in.actionTime >= 0.0f) { m_Animator.SetNormalizedTime(in.actionTime); m_Animator.SetPlaybackRate(0.0f); }
+                else m_Animator.SetPlaybackRate(m_StyleRate);
+                m_Animator.UpdateAnimation(deltaTime);
+                return;
+            }
+            m_LastActionTime = -1.0f;
             RifleAnimState desired = DetermineState(in);
 
             // Fuoco: la clip e' UN colpo di rinculo che parte e torna all'idle. Va rilanciata a ogni
@@ -139,6 +185,7 @@ namespace SunEngine {
         // con un suo Animator (tempo, blend e posa propri). src deve restare vivo finche' si usa questo controller.
         void ShareClipsFrom(RifleAnimationController& src) {
             m_SharedClips = &src.Clips();
+            m_Set = src.m_Set;
             m_ModelScale = src.m_ModelScale; m_MinRate = src.m_MinRate; m_MaxRate = src.m_MaxRate;
             auto it = Clips().find(m_CurrentState);
             if (it != Clips().end()) m_Animator.PlayAnimation(&it->second);
@@ -161,6 +208,10 @@ namespace SunEngine {
         void SetProceduralPose(const ProceduralPose* pose) { m_Animator.SetProceduralPose(pose); }
         // Clip vere da accovacciato caricate? (altrimenti l'accovacciamento lo fa la posa procedurale)
         bool HasCrouchClips() const { return Clips().count(RifleAnimState::CrouchIdle) > 0; }
+        // Clip di un movimento caricata? (le azioni con la clip non usano la posa procedurale)
+        bool HasClip(RifleAnimState s) const { return Clips().count(s) > 0; }
+        // Stile della razza scritto nell'animset.json ("style"): vuoto = quello del codice
+        const nlohmann::json& StyleOverrides() const { return m_Set.style; }
         RifleAnimState GetCurrentState() const { return m_CurrentState; }
 
     private:
@@ -228,6 +279,42 @@ namespace SunEngine {
 
             return RifleAnimState::AimIdle;
         }
+
+        // animset.json della cartella delle animazioni
+        struct AnimSet {
+            std::unordered_map<std::string, std::string> clips;   // movimento -> nome del file (senza estensione)
+            std::string fallback;                                // cartella di ripiego (accanto a questa)
+            nlohmann::json style;                                // ritocchi allo stile della razza
+            std::string Name(const char* key) const {
+                auto it = clips.find(key);
+                if (it != clips.end() && !it->second.empty()) return it->second;
+                static const std::unordered_map<std::string, std::string> def = {
+                    { "aim_idle", "rifle aiming idle" }, { "walk_start", "start walking" }, { "walk", "walking" }, { "walk_stop", "stop walking" },
+                    { "walk_back_start", "start walking backwards" }, { "walk_back", "walking backwards" }, { "walk_back_stop", "walk backwards stop" },
+                    { "strafe_left", "strafe (2)" }, { "strafe_right", "strafe" }, { "sprint", "rifle run" }, { "jump_forward", "jump forward" },
+                    { "jump_backward", "jump backward" }, { "firing", "firing rifle" }, { "crouch_idle", "crouch idle" }, { "crouch_walk", "crouch walking" },
+                    { "melee_light", "melee light" }, { "melee_normal", "melee normal" }, { "melee_heavy", "melee heavy" }, { "parry", "parry" },
+                    { "stunned", "stunned" }, { "roar", "roar" }, { "charge", "charge" } };
+                auto d = def.find(key);
+                return d != def.end() ? d->second : std::string(key);
+            }
+            static AnimSet Load(const std::string& dir) {
+                AnimSet s;
+                std::ifstream f(dir + "animset.json");
+                if (!f) return s;
+                try {
+                    nlohmann::json j; f >> j;
+                    if (j.contains("clips") && j["clips"].is_object())
+                        for (auto it = j["clips"].begin(); it != j["clips"].end(); ++it) if (it.value().is_string()) s.clips[it.key()] = it.value().get<std::string>();
+                    s.fallback = j.value("fallback", std::string());
+                    if (j.contains("style") && j["style"].is_object()) s.style = j["style"];
+                }
+                catch (const std::exception& e) { SUN_CORE_WARN("animset.json in {0} non valido: {1}", dir, e.what()); }
+                return s;
+            }
+        };
+        AnimSet m_Set;
+        float m_LastActionTime = -1.0f;
 
         std::unordered_map<RifleAnimState, Animation> m_OwnClips;
         std::unordered_map<RifleAnimState, Animation>* m_SharedClips = nullptr;   // clip di un altro controller (stesso corpo)

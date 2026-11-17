@@ -458,7 +458,8 @@ namespace SunEngine {
 
     // ------------------------------------------------------------------------------------------------------------
     // Costruisce il pezzo 'kind' sul corpo. false = pezzo sconosciuto o corpo senza le ossa che servono.
-    inline bool BuildTeutonicGarment(const SkinnedModel& model, const std::string& kind, GarmentShell& out) {
+    // tier: 0 leggera, 1 media, 2 pesante (misure e spessori dei pezzi); vanguard: falda chiusa anche davanti
+    inline bool BuildTeutonicGarment(const SkinnedModel& model, const std::string& kind, GarmentShell& out, int tier = 1, bool vanguard = false) {
         using namespace TeutonicDetail;
         using namespace Sdf;
         Body B;
@@ -472,6 +473,7 @@ namespace SunEngine {
         const unsigned clothMask = torsoMask | (1u << G_LegL) | (1u << G_LegR);
         const int idHips = B.Id("Hips"), idUpL = B.Id("LeftUpLeg"), idUpR = B.Id("RightUpLeg");
         const size_t firstV = out.vertices.size(), firstI = out.indices.size();
+        const float cs = tier <= 0 ? 0.85f : (tier >= 2 ? 1.22f : 1.0f);   // scala dei pezzi per peso
 
         // Stoffa e falde: pesi del corpo sopra le anche, sotto divisi fra bacino e cosce
         // split: larghezza del passaggio fra le due meta' (piccola = spacco davanti, come le sopravvesti da cavallo)
@@ -541,11 +543,136 @@ namespace SunEngine {
             return !out.indices.empty();
         }
 
+        // --- Vanguard Armor generica: elmo, piastra del petto, nucleo, zaino --------------------------------------
+        // tier 0 leggera (Phobos: elmo a celata con la coda, piastra sottile, zaino piatto), 1 media (Difensore:
+        // elmo tondo con visiera a T e cresta, zaino con due scarichi), 2 pesante (Gravis: elmo grosso e incassato
+        // con griglia e dischi vocali, piastra doppia, zaino grande a quattro scarichi)
+        if (kind == "vanguard_helm" || kind == "vanguard_helm_eyes") {
+            glm::vec3 lo, hi; B.Box(G_Head, lo, hi);
+            const glm::vec3 c = (lo + hi) * 0.5f, e = (hi - lo) * 0.5f;
+            const float m = Hb * (0.010f + 0.004f * tier);
+            const float rx = e.x * 1.04f + m, rz = e.z * 1.04f + m, ry = e.y * 1.06f + m;
+            const float yEye = c.y + e.y * 0.18f;
+            const float yBot = lo.y - e.y * (0.05f + 0.12f * tier);
+            const float t = Hb * (0.006f + 0.0015f * tier);
+            const int idHead = B.Id("Head");
+            auto outer = [=](const glm::vec3& p) {
+                float d = Ellipsoid(p, c + glm::vec3(0.0f, e.y * 0.06f, 0.0f), glm::vec3(rx, ry, rz));
+                d = SInter(d, p.z - (c.z + rz * 0.93f), Hb * 0.006f);                       // faccia piatta
+                // mento e guance chiusi
+                d = SUnion(d, Ellipsoid(p, c + glm::vec3(0.0f, -e.y * 0.55f, rz * 0.12f), glm::vec3(rx * 0.86f, e.y * 0.62f, rz * 0.86f)), Hb * 0.01f);
+                // paranuca (celata: lunga coda all'indietro)
+                if (tier <= 1) {
+                    const float tail = tier == 0 ? 1.0f : 0.55f;
+                    d = SUnion(d, Ellipsoid(p, c + glm::vec3(0.0f, -e.y * 0.35f, -rz * (0.55f + 0.3f * tail)), glm::vec3(rx * 0.9f, e.y * 0.32f, rz * (0.45f + 0.25f * tail))), Hb * 0.01f);
+                }
+                if (tier >= 2) {   // dischi vocali ai lati
+                    for (float s : { -1.0f, 1.0f })
+                        d = SUnion(d, Ellipsoid(p, c + glm::vec3(s * rx * 0.97f, -e.y * 0.15f, rz * 0.05f), glm::vec3(rx * 0.14f, e.y * 0.32f, e.y * 0.32f)), Hb * 0.004f);
+                }
+                return std::max(d, yBot - p.y);
+            };
+            if (kind == "vanguard_helm_eyes") {
+                auto eyes = [=](const glm::vec3& p) {
+                    if (tier == 0)   // una linea di luce sola, da parte a parte
+                        return Ellipsoid(p, glm::vec3(c.x, yEye, c.z + rz * 0.80f), glm::vec3(rx * 0.55f, e.y * 0.03f, rz * 0.06f));
+                    float d = 1e9f;
+                    for (float s : { -1.0f, 1.0f }) d = std::min(d, Ellipsoid(p, glm::vec3(c.x + s * rx * 0.30f, yEye, c.z + rz * 0.80f), glm::vec3(rx * 0.17f, e.y * 0.045f, rz * 0.06f)));
+                    return d;
+                };
+                AddSdf(out, eyes, c - glm::vec3(rx, e.y * 0.2f, -rz * 0.5f), c + glm::vec3(rx, e.y * 0.5f, rz * 1.1f), Hb * 0.0025f, [&](const glm::vec3&) { return One(idHead); }, Hb);
+                return !out.indices.empty();
+            }
+            auto helm = [=](const glm::vec3& p) {
+                const float o = outer(p);
+                float d = std::max(o, -(o + t));
+                d = std::max(d, -(p.y - yBot + t));                                           // aperto sotto
+                auto raised = [&](float region, float h) { return std::max(region, std::max(o - t * h, -(o + t))); };
+                if (tier == 1) d = std::min(d, raised(std::max(std::fabs(p.x - c.x) - rx * 0.05f, c.y - p.y), 0.9f));   // cresta
+                if (tier >= 1 && p.z > c.z) d = std::min(d, raised(std::fabs(p.y - (yEye + e.y * 0.12f)) - e.y * (0.04f + 0.02f * tier), 1.0f));   // arcata
+                // visiera: feritoia, a T per la media, griglia per la pesante
+                d = std::max(d, -RoundBox(p, glm::vec3(c.x, yEye, c.z + rz), glm::vec3(rx * (tier == 0 ? 0.62f : 0.55f), e.y * 0.035f, rz * 0.6f), e.y * 0.01f));
+                if (tier == 1) d = std::max(d, -RoundBox(p, glm::vec3(c.x, yEye - e.y * 0.33f, c.z + rz), glm::vec3(rx * 0.05f, e.y * 0.28f, rz * 0.6f), e.y * 0.01f));
+                if (tier >= 2) for (int k = 0; k < 3; ++k)
+                    d = std::max(d, -RoundBox(p, glm::vec3(c.x, yEye - e.y * (0.32f + 0.13f * k), c.z + rz), glm::vec3(rx * 0.32f, e.y * 0.028f, rz * 0.6f), e.y * 0.008f));
+                return d;
+            };
+            const glm::vec3 L(c.x - rx * 1.35f, yBot - Hb * 0.01f, c.z - rz * 1.9f), Hh(c.x + rx * 1.35f, c.y + ry * 1.2f, c.z + rz * 1.3f);
+            AddSdf(out, helm, L, Hh, Hb * 0.0028f, [&](const glm::vec3&) { return One(idHead); }, Hb);
+            return !out.indices.empty();
+        }
+        if (kind == "vanguard_breastplate" || kind == "vanguard_core" || kind == "vanguard_backpack") {
+            const float yArm = (B.P("LeftArm").y + B.P("RightArm").y) * 0.5f;
+            const float y0 = yBelt - H * 0.02f, yNeckBase = neck.y - H * 0.08f;
+            const RingTable rt = BuildRings(B, B.cx, B.cz, y0 - H * 0.05f, neck.y, 16, 36, torsoMask);
+            const float off = Hb * (0.012f + 0.006f * tier), t = Hb * (0.006f + 0.002f * tier);
+            const float yCore = hips.y + H * 0.72f;
+            const float shoulderHalf = std::fabs(B.P("LeftArm").x - B.P("RightArm").x) * 0.5f;
+            const int idSpine2 = B.Id("Spine2") >= 0 ? B.Id("Spine2") : B.Id("Spine1");
+            if (kind == "vanguard_breastplate") {
+                auto yTop = [=](float a) {   // alta davanti e dietro (fino alla goletta), bassa sotto le ascelle
+                    const float k = std::pow(std::fabs(std::cos(a)), 1.5f);
+                    return glm::mix(yArm - H * 0.12f, yNeckBase, k);
+                };
+                auto f = [=](const glm::vec3& p) {
+                    const float a = Ang(p.x, p.z, rt.cx, rt.cz);
+                    const float rad = std::hypot(p.x - rt.cx, p.z - rt.cz);
+                    const float yt = yTop(a);
+                    const float yy = std::clamp(p.y, y0, yt);
+                    float rc = rt.At(a, yy) + off;
+                    const float front = Sm(1.2f, 0.4f, std::fabs(a));
+                    rc += Hb * 0.006f * std::exp(-(a / 0.10f) * (a / 0.10f)) * Sm(y0, yCore, yy);   // costola centrale
+                    // lame dell'addome: denti di sega (ognuna sopra quella sotto)
+                    const float yChest = hips.y + H * 0.55f;
+                    if (yy < yChest) rc += Hb * (0.004f + 0.002f * tier) * (1.0f - std::fmod((yy - y0) / (H * 0.085f), 1.0f)) * front;
+                    if (tier >= 2) rc += Hb * 0.006f * front * Sm(yChest, yCore, yy);           // petto doppio
+                    return std::max(std::fabs(rad - rc) - t * 0.5f, std::max(y0 - p.y, p.y - yt));
+                };
+                const float R = Hb * 0.22f;
+                AddSdf(out, f, glm::vec3(B.cx - R, y0 - Hb * 0.01f, B.cz - R), glm::vec3(B.cx + R, yNeckBase + Hb * 0.01f, B.cz + R), Hb * 0.0034f,
+                       [&](const glm::vec3& p) { return B.WeightsOf(B.Nearest(p, torsoMask)); }, Hb);
+                return !out.indices.empty();
+            }
+            if (kind == "vanguard_core") {
+                // nucleo di Vanguardio al centro del petto
+                const float r0 = rt.At(0.0f, yCore) + off + t * 0.5f + Hb * (tier >= 2 ? 0.006f : 0.0f) + Hb * 0.006f;
+                const glm::vec3 cc(B.cx, yCore, B.cz + r0);
+                const float rr = Hb * (0.011f + 0.002f * tier);
+                auto f = [=](const glm::vec3& p) { return Ellipsoid(p, cc, glm::vec3(rr, rr, rr * 0.55f)); };
+                AddSdf(out, f, cc - glm::vec3(rr * 2.0f), cc + glm::vec3(rr * 2.0f), rr * 0.12f, [&](const glm::vec3&) { return One(idSpine2); }, Hb);
+                return !out.indices.empty();
+            }
+            // zaino (generatore): sulla schiena, scarichi in alto
+            const float yc = hips.y + H * (0.74f + 0.02f * tier);
+            const float w = shoulderHalf * (0.55f + 0.12f * tier), h = H * (0.34f + 0.1f * tier), dp = H * (0.12f + 0.05f * tier);
+            const glm::vec3 C(B.cx, yc, B.cz - rt.At(3.14159f, yc) - off - t - dp * 0.5f);
+            auto f = [=](const glm::vec3& p) {
+                float d = RoundBox(p, C, glm::vec3(w, h * 0.5f, dp * 0.5f), dp * 0.22f);
+                // prese d'aria sul retro
+                for (int k = 0; k < 3; ++k)
+                    d = std::max(d, -RoundBox(p, C + glm::vec3(0.0f, h * (0.18f - 0.16f * k), -dp * 0.5f), glm::vec3(w * 0.6f, h * 0.03f, dp * 0.12f), h * 0.01f));
+                if (tier >= 1) {   // scarichi
+                    const int n = tier >= 2 ? 2 : 1;
+                    for (float s : { -1.0f, 1.0f }) for (int k = 0; k < n; ++k) {
+                        const float x = s * w * (0.62f - 0.3f * k);
+                        const glm::vec3 a = C + glm::vec3(x, h * 0.4f, -dp * 0.1f), b = a + glm::vec3(0.0f, H * (0.13f - 0.03f * k), -dp * 0.2f);
+                        const float r = Hb * (0.012f + 0.004f * tier) * (1.0f - 0.25f * k);
+                        float cyl = std::max(Capsule(p, a, b, r), -Capsule(p, a, b + (b - a) * 0.2f, r * 0.6f));
+                        d = std::min(d, cyl);
+                    }
+                }
+                return d;
+            };
+            const glm::vec3 ext(w * 1.2f, h * 0.6f + H * 0.2f, dp * 1.2f);
+            AddSdf(out, f, C - ext, C + ext, Hb * 0.0035f, [&](const glm::vec3&) { return One(idSpine2); }, Hb);
+            return !out.indices.empty();
+        }
+
         // --- Goletta -------------------------------------------------------------------------------------------
         if (kind == "teutonic_gorget") {
             const float y0 = neck.y - H * 0.16f, y1 = neck.y + H * 0.12f;
             const RingTable rt = BuildRings(B, neck.x, neck.z, y0, y1, 12, 32, torsoMask);
-            const float t = Hb * 0.008f, off = Hb * 0.03f;   // sopra la corazza
+            const float t = Hb * 0.008f * cs, off = Hb * 0.03f * cs;   // sopra la corazza
             auto f = [=](const glm::vec3& p) {
                 const float a = Ang(p.x, p.z, rt.cx, rt.cz);
                 const float rad = std::hypot(p.x - rt.cx, p.z - rt.cz);
@@ -648,7 +775,9 @@ namespace SunEngine {
             const float R = Hb * 0.2f;
             const glm::vec3 L(B.cx - R, y0 - Hb * 0.01f, B.cz - R), Hh(B.cx + R, y1 + Hb * 0.01f, B.cz + R);
             if (kind == "teutonic_belt") {
-                const float hb = H * 0.045f, t = Hb * 0.0045f, off = overPlate + Hb * 0.012f;   // sopra la sopravveste
+                const float hb = H * 0.045f, t = Hb * 0.0045f;
+                // teutonica: sopra la sopravveste; Vanguard: sopra la piastra del petto
+                const float off = vanguard ? Hb * (0.022f + 0.008f * tier) : overPlate + Hb * 0.012f;
                 auto f = [=](const glm::vec3& p) {
                     const float a = Ang(p.x, p.z, rt.cx, rt.cz);
                     const float rad = std::hypot(p.x - rt.cx, p.z - rt.cz);
@@ -671,19 +800,21 @@ namespace SunEngine {
             }
             else {
                 // tre file di lame, ognuna sopra la successiva; niente davanti (c'e' la sopravveste)
-                const float rowH = H * 0.12f, t = Hb * 0.0075f, off = overPlate * 0.9f;        // sopra i cosciali
+                const float rowH = H * 0.12f, t = Hb * 0.0075f * cs, off = overPlate * 0.9f * cs;   // sopra i cosciali
+                const int rows = tier <= 0 ? 2 : 3;
+                const float frontGap = vanguard ? 0.06f : 0.62f;   // Vanguard: chiusa davanti (spacco stretto al centro)
                 auto f = [=](const glm::vec3& p) {
                     const float a = Ang(p.x, p.z, rt.cx, rt.cz);
                     const float rad = std::hypot(p.x - rt.cx, p.z - rt.cz);
                     const float aa = std::fabs(a);
-                    if (aa < 0.62f) return 1e9f;                                 // davanti libero
+                    if (aa < frontGap) return 1e9f;                              // davanti libero
                     float d = 1e9f;
-                    for (int k = 0; k < 3; ++k) {
+                    for (int k = 0; k < rows; ++k) {
                         const float yt = yBelt - H * 0.05f - k * rowH * 0.78f, yb = yt - rowH;
                         const float yy = std::clamp(p.y, yb, yt);
                         const float rc = rt.At(a, yy) + off + k * t * 1.5f + (yt - yy) * 0.18f;   // svasate in basso
                         float s = std::max(std::fabs(rad - rc) - t * 0.5f, std::max(yb - p.y, p.y - yt));
-                        s = std::max(s, 0.66f - aa);                                              // bordo davanti
+                        s = std::max(s, frontGap + 0.04f - aa);                                   // bordo davanti
                         s = std::max(s, -(3.1f - aa) + 0.02f);                                    // spacco dietro
                         d = std::min(d, s);
                     }
@@ -707,7 +838,8 @@ namespace SunEngine {
 
         if (kind.rfind("teutonic_pauldron", 0) == 0) {
             const glm::vec3 sh = P("Arm"), el = P("ForeArm");
-            const float rA = B.LimbRadius(gArm, sh, el, 0.0f, 0.35f);
+            const float rA = B.LimbRadius(gArm, sh, el, 0.0f, 0.35f) * cs;
+            const int lames = tier + 1;                                                 // leggero 1, medio 2, pesante 3
             const glm::vec3 out3(ss, 0.0f, 0.0f);
             const glm::vec3 C = sh + out3 * rA * 0.25f + glm::vec3(0.0f, rA * 0.35f, 0.0f);
             const glm::vec3 R(rA * 1.55f, rA * 1.25f, rA * 1.55f);
@@ -724,7 +856,7 @@ namespace SunEngine {
                 const float lip = std::max(std::fabs(q.y + rA * 0.55f + ox * 0.35f - rA * 0.07f) - rA * 0.07f, std::max(o - t * 0.8f, -(o + t * 1.6f)));
                 d = std::min(d, std::max(lip, -(ox + rA * 0.9f)));
                 // due lame sotto, solo all'esterno
-                for (int k = 0; k < 2; ++k) {
+                for (int k = 0; k < lames; ++k) {
                     const glm::vec3 Ck = C + glm::vec3(ss * rA * 0.12f * (k + 1), -rA * (0.55f + 0.4f * k), 0.0f);
                     const glm::vec3 Rk = R * (1.0f + 0.04f * (k + 1));
                     const float ok = Ellipsoid(p, Ck, Rk);
@@ -737,7 +869,7 @@ namespace SunEngine {
                 return d;
             };
             const int idArm = I("Arm"), idPd = B.Id((S + "Pauldron").c_str()) >= 0 ? B.Id((S + "Pauldron").c_str()) : B.Id("Spine2");
-            AddSdf(out, f, C - R * 1.6f, C + R * 1.6f, rA * 0.075f, [&](const glm::vec3& p) {
+            AddSdf(out, f, C - R * 1.6f - glm::vec3(0.0f, rA * 0.4f * lames, 0.0f), C + R * 1.6f, rA * 0.075f, [&](const glm::vec3& p) {
                 const float low = Sm(C.y, C.y - rA * 0.9f, p.y);                         // le lame seguono di piu' il braccio
                 return Two(idArm, 0.55f + 0.3f * low, idPd, 0.45f - 0.3f * low);
             }, Hb);
@@ -746,7 +878,7 @@ namespace SunEngine {
         }
         if (kind.rfind("teutonic_couter", 0) == 0) {
             const glm::vec3 sh = P("Arm"), el = P("ForeArm"), wr = P("Hand");
-            const float rF = B.LimbRadius(gArm, el, wr, 0.0f, 0.2f);
+            const float rF = B.LimbRadius(gArm, el, wr, 0.0f, 0.2f) * std::sqrt(cs);
             const glm::vec3 a = glm::normalize(el - sh);
             const glm::vec3 back(0.0f, 0.0f, -1.0f);                                    // il gomito punta indietro in posa a T
             const glm::vec3 C = el + back * rF * 0.35f;
@@ -769,7 +901,7 @@ namespace SunEngine {
         if (kind.rfind("teutonic_cuff", 0) == 0) {
             const glm::vec3 el = P("ForeArm"), wr = P("Hand");
             const float L = glm::length(el - wr);
-            const float rW = B.LimbRadius(gArm, wr, el, 0.08f, 0.25f);
+            const float rW = B.LimbRadius(gArm, wr, el, 0.08f, 0.25f) * std::sqrt(cs);
             const glm::vec3 dir = glm::normalize(el - wr);
             const glm::vec3 a = wr + dir * L * 0.02f, b = wr + dir * L * 0.36f;
             const float t = rW * 0.14f;
@@ -791,7 +923,7 @@ namespace SunEngine {
         }
         if (kind.rfind("teutonic_knee", 0) == 0) {
             const glm::vec3 up = P("UpLeg"), kn = P("Leg"), ft = P("Foot");
-            const float rL = B.LimbRadius(gLeg, kn, ft, 0.0f, 0.15f);
+            const float rL = B.LimbRadius(gLeg, kn, ft, 0.0f, 0.15f) * std::sqrt(cs);
             const glm::vec3 C = kn + glm::vec3(0.0f, 0.0f, rL * 0.3f);
             const float t = rL * 0.15f;
             auto f = [=](const glm::vec3& p) {
@@ -818,8 +950,21 @@ namespace SunEngine {
     }
 
     // Pezzi costruiti sul corpo, per nome ("procedural" nei JSON delle armature)
+    // "vanguard_<pezzo>[_light|_medium|_heavy][_l|_r]": armatura generica delle Vanguard, tre pesi. Goletta,
+    // cinturone, falda, spallacci, cubitiere, polsini e ginocchielli sono quelli dell'armatura teutonica in scala.
     inline bool BuildProceduralGarment(const SkinnedModel& body, const std::string& kind, GarmentShell& out) {
         if (kind.rfind("teutonic_", 0) == 0) return BuildTeutonicGarment(body, kind, out);
-        return false;
+        if (kind.rfind("vanguard_", 0) != 0) return false;
+        std::vector<std::string> tok;
+        for (size_t a = 9, b; a <= kind.size(); a = b + 1) { b = kind.find('_', a); if (b == std::string::npos) b = kind.size(); tok.push_back(kind.substr(a, b - a)); }
+        int tier = 1; std::string side, piece;
+        for (const auto& t : tok) {
+            if (t == "light") tier = 0; else if (t == "medium") tier = 1; else if (t == "heavy") tier = 2;
+            else if (t == "l" || t == "r") side = "_" + t;
+            else piece += (piece.empty() ? "" : "_") + t;
+        }
+        static const char* shared[] = { "gorget", "belt", "tassets", "pauldron", "couter", "cuff", "knee" };
+        for (const char* s : shared) if (piece == s) return BuildTeutonicGarment(body, "teutonic_" + piece + side, out, tier, true);
+        return BuildTeutonicGarment(body, "vanguard_" + piece + side, out, tier, true);
     }
 }
