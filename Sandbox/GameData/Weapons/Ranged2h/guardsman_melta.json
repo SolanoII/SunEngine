@@ -24,6 +24,7 @@
   "recoil_force": 1.5,
   "heat_capacity": 100.0,
   "projectile_type": "laser",
+  "ammo_type": "cariche_fusione",
   "is_beam": true,
   "primary_color": [
     1.0,

@@ -417,6 +417,14 @@ namespace SunEngine {
         float cooldown = 0.0f;         // fra un prelievo e l'altro dei bot
     };
 
+    // Munizioni lasciate a terra da chi muore: il 10% dei colpi massimi di ogni sua arma, per tipo di munizione.
+    // Le raccoglie passandoci sopra chiunque abbia un'arma dello stesso tipo e la riserva non piena.
+    struct AmmoDropComponent {
+        std::string ammoType;
+        int rounds = 0;
+        float timeLeft = 90.0f;   // poi sparisce
+    };
+
     // Rinforzi chiamati col vox caster: arrivano dopo 'timer' secondi accanto a chi li ha chiamati (li crea GameLayer)
     struct SummonRequestComponent {
         struct Pending { std::string unitId; float timer = 5.0f; };

@@ -146,6 +146,9 @@ namespace SunEngine {
         float heat_recoil_multiplier = 1.0f;
 
         ProjectileType projectile_type = ProjectileType::Laser;
+        // Tipo di munizione ("ammo_type"): chi muore lascia a terra il 10% dei colpi massimi delle sue armi, e li
+        // raccoglie solo chi ha un'arma dello stesso tipo. Se manca nel JSON viene dal projectile_type (vedi AmmoTypes).
+        std::string ammo_type;
         bool is_beam = true;
         glm::vec4 primary_color = glm::vec4(1.0f, 0.40f, 0.05f, 0.95f);
         glm::vec4 core_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);

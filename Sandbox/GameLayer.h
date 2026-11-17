@@ -439,6 +439,7 @@ namespace SunEngine {
         // --- Campo da tiro (Testing Lobby): manichini in T-pose con tutti gli scheletri ---
         void SpawnTrainingDummies();               // dai "training_dummies" della mappa caricata
         void UpdateTrainingDummies(float deltaTime);
+        void RenderAmmoDropLabels();               // tipo e colpi sopra le munizioni lasciate dai caduti
         void RenderTrainingDummyLabels();          // nome, salute e danno sopra ogni manichino
 
         // --- Profilo locale (impostazioni, valute, exp, roster) ---

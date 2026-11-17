@@ -4207,6 +4207,42 @@ namespace SunEngine {
         }
     }
 
+    // Munizioni a terra entro 14 m: tipo e colpi sopra la scatoletta. Accese se servono alle tue armi (riserva non
+    // piena), spente se non sono del tuo tipo o hai gia' tutto.
+    void GameLayer::RenderAmmoDropLabels() {
+        auto& reg = m_Scene.GetRegistry();
+        auto drops = reg.view<AmmoDropComponent, TransformComponent>();
+        if (drops.begin() == drops.end() || !reg.valid(m_PlayerEntity)) return;
+        const auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity);
+        const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
+        const auto* ammo = reg.try_get<AmmoComponent>(m_PlayerEntity);
+        if (!pt) return;
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        for (auto d : drops) {
+            const auto& ad = drops.get<AmmoDropComponent>(d);
+            const glm::vec3 p = drops.get<TransformComponent>(d).Position;
+            const float dist = glm::distance(pt->Position, p);
+            if (dist > 14.0f || ad.rounds <= 0) continue;
+            const glm::vec3 anchor = p + glm::vec3(0.0f, 0.45f, 0.0f);
+            if ((vp * glm::vec4(anchor, 1.0f)).w <= 0.05f) continue;
+            bool useful = false;
+            if (inv && ammo && !ammo->infinite)
+                for (int i = 0; i < 2; ++i)
+                    if (const auto* w = Ammo::RangedAt(*inv, i); w && w->ammo_type == ad.ammoType && ammo->reserve[i] < ammo->maxReserve[i]) useful = true;
+            const float fade = std::clamp((14.0f - dist) / 4.0f, 0.0f, 1.0f);
+            const glm::vec4 c = AmmoTypes::Color(ad.ammoType);
+            const ImU32 col = useful ? IM_COL32(static_cast<int>(150 + 105 * c.r), static_cast<int>(150 + 105 * c.g), static_cast<int>(150 + 105 * c.b), static_cast<int>(255 * fade))
+                                     : IM_COL32(150, 150, 150, static_cast<int>(150 * fade));
+            char txt[96];
+            std::snprintf(txt, sizeof(txt), "%s  %d", AmmoTypes::Name(ad.ammoType).c_str(), ad.rounds);
+            const glm::vec2 sp = WorldToScreen(anchor, vp, m_WindowWidth, m_WindowHeight);
+            const ImVec2 ts = ImGui::CalcTextSize(txt);
+            dl->AddText(ImVec2(sp.x - ts.x * 0.5f + 1.0f, sp.y + 1.0f), IM_COL32(0, 0, 0, static_cast<int>(180 * fade)), txt);
+            dl->AddText(ImVec2(sp.x - ts.x * 0.5f, sp.y), col, txt);
+        }
+    }
+
     void GameLayer::RenderTrainingDummyLabels() {
         auto& reg = m_Scene.GetRegistry();
         auto view = reg.view<TrainingDummyComponent, HealthComponent, TransformComponent>();
@@ -5126,6 +5162,7 @@ namespace SunEngine {
             for (auto e : m_Scene.GetRegistry().view<BarricadeTag>()) leftovers.push_back(e);
             for (auto e : m_Scene.GetRegistry().view<HealZoneComponent>()) leftovers.push_back(e);
             for (auto e : m_Scene.GetRegistry().view<AmmoCrateComponent>()) leftovers.push_back(e);
+            for (auto e : m_Scene.GetRegistry().view<AmmoDropComponent>()) leftovers.push_back(e);
             for (auto e : leftovers) if (m_Scene.GetRegistry().valid(e)) m_Scene.DestroyEntity(e);
         }
 
@@ -6432,6 +6469,7 @@ namespace SunEngine {
                 RenderDamageVignette();
                 RenderVfxTexts();
                 RenderTrainingDummyLabels();
+                RenderAmmoDropLabels();
                 RenderHitMarkers();
                 RenderAmmoHUD();
                 RenderPlayerStatusHUD();

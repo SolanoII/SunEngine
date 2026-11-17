@@ -263,6 +263,19 @@ namespace SunEngine {
                 else if (typeStr == "psychic") bp.projectile_type = ProjectileType::Psychic;
                 else if (typeStr == "bolt") bp.projectile_type = ProjectileType::Bolt;
                 else bp.projectile_type = ProjectileType::Laser;
+                // Tipo di munizione: dal JSON, altrimenti dalla famiglia del proiettile
+                bp.ammo_type = j.value("ammo_type", std::string());
+                if (bp.ammo_type.empty()) {
+                    if (typeStr == "ballistic") bp.ammo_type = "proiettili";
+                    else if (typeStr == "bolt") bp.ammo_type = "proiettili_pesanti";
+                    else if (typeStr == "plasma") bp.ammo_type = "celle_scarica";
+                    else if (typeStr == "explosive") bp.ammo_type = "esplosivi";
+                    else if (typeStr == "flamer") bp.ammo_type = "carburante";
+                    else if (typeStr == "continuous_beam" || typeStr == "melta") bp.ammo_type = "cariche_fusione";
+                    else if (typeStr == "grav") bp.ammo_type = "celle_grav";
+                    else if (typeStr == "psychic") bp.ammo_type = "cristalli_psi";
+                    else bp.ammo_type = "celle_impulsi";
+                }
 
                 if (j.contains("primary_color") && j["primary_color"].is_array() && j["primary_color"].size() >= 3) {
                     bp.primary_color.r = j["primary_color"][0].get<float>();

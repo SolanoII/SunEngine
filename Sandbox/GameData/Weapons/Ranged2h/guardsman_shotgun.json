@@ -25,6 +25,7 @@
   "recoil_force": 0.6,
   "heat_capacity": 100.0,
   "projectile_type": "ballistic",
+  "ammo_type": "cartucce",
   "is_beam": false,
   "primary_color": [
     1.0,

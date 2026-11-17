@@ -25,6 +25,9 @@
 // Mantello mimetico ("camo_cloak"): click sinistro per effect_duration secondi il corpo diventa un liquido trasparente
 //   (CloakComponent); i nemici IA non lo vedono oltre 6 m. Sparare o colpire in mischia lo interrompe.
 // Auspex ("auspex"): in mano mostra un sonar coi nemici entro equipment_range metri (lo disegna GameLayer).
+// Munizioni dai caduti: chi muore lascia a terra, per ogni tipo di munizione delle sue armi ("ammo_type"), il 10% dei
+//   colpi massimi (caricatore + riserva piena). Chi ci passa sopra con un'arma dello stesso tipo le raccoglie da solo
+//   (fino a riempire la riserva; il resto rimane a terra). Spariscono dopo 90 secondi. Per rifornirsi bisogna avanzare.
 // Vox caster ("vox_caster"): click sinistro e equipment_use_time secondi di chiamata (ci si puo' muovere), poi
 //   dopo summon_delay secondi arriva un rinforzo summon_unit che segue chi l'ha chiamato (lo crea GameLayer).
 #include "Components.h"
@@ -40,9 +43,38 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "TurretCore.h"
 
 namespace SunEngine {
+
+    // Tipi di munizione ("ammo_type" delle armi): nome da mostrare e colore della scatoletta a terra
+    namespace AmmoTypes {
+        inline std::string Name(const std::string& t) {
+            if (t == "proiettili") return "proiettili";
+            if (t == "cartucce") return "cartucce";
+            if (t == "proiettili_pesanti") return "proiettili pesanti";
+            if (t == "celle_impulsi") return "celle a impulsi";
+            if (t == "celle_scarica") return "celle a scarica";
+            if (t == "cariche_fusione") return "cariche di fusione";
+            if (t == "carburante") return "carburante";
+            if (t == "esplosivi") return "razzi e granate";
+            if (t == "celle_grav") return "celle gravitazionali";
+            if (t == "cristalli_psi") return "cristalli psionici";
+            return t;
+        }
+        inline glm::vec4 Color(const std::string& t) {
+            if (t == "proiettili") return { 0.62f, 0.5f, 0.22f, 1.0f };          // ottone
+            if (t == "cartucce") return { 0.55f, 0.16f, 0.12f, 1.0f };           // rosso scuro
+            if (t == "proiettili_pesanti") return { 0.32f, 0.33f, 0.36f, 1.0f }; // acciaio
+            if (t == "celle_impulsi") return { 0.25f, 0.45f, 0.62f, 1.0f };      // azzurro
+            if (t == "celle_scarica") return { 0.35f, 0.62f, 0.75f, 1.0f };      // ciano
+            if (t == "cariche_fusione") return { 0.75f, 0.42f, 0.12f, 1.0f };    // arancio
+            if (t == "carburante") return { 0.45f, 0.38f, 0.12f, 1.0f };         // tanica
+            if (t == "esplosivi") return { 0.3f, 0.36f, 0.2f, 1.0f };            // verde militare
+            return { 0.45f, 0.4f, 0.48f, 1.0f };
+        }
+    }
 
     namespace Ammo {
 
@@ -186,6 +218,7 @@ namespace SunEngine {
             UpdateCrates(scene, dt);
             UpdateCloaks(scene, dt);
             UpdateBoostsAndAuras(scene, dt);
+            UpdateAmmoDrops(scene, dt, models);
             auto view = reg.view<AmmoComponent, InventoryComponent, TransformComponent>(entt::exclude<CorpseComponent>);
             for (auto e : view) {
                 auto& a = view.get<AmmoComponent>(e);
@@ -686,6 +719,98 @@ namespace SunEngine {
             if (nearCrate != entt::null && !reg.valid(nearCrate)) nearCrate = entt::null;
         }
 
+        // Munizioni dai caduti -------------------------------------------------------------------------------
+        static constexpr float kDropShare = 0.10f;    // 10% dei colpi massimi
+        static constexpr float kDropReach = 1.6f;     // metri: si raccolgono passandoci sopra
+
+        // Chi e' appena morto lascia le munizioni (una volta sola: torna in lista quando rientra vivo)
+        void UpdateAmmoDrops(Scene& scene, float dt, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            for (auto it = m_DroppedDead.begin(); it != m_DroppedDead.end();) {
+                const auto* h = reg.valid(*it) ? reg.try_get<HealthComponent>(*it) : nullptr;
+                if (!h || (h->currentHealth > 0.0f && !reg.all_of<CorpseComponent>(*it))) it = m_DroppedDead.erase(it);
+                else ++it;
+            }
+            auto units = reg.view<AmmoComponent, InventoryComponent, TransformComponent, HealthComponent>();
+            for (auto e : units) {
+                const bool dead = units.get<HealthComponent>(e).currentHealth <= 0.0f || reg.all_of<CorpseComponent>(e);
+                if (!dead || m_DroppedDead.count(e)) continue;
+                m_DroppedDead.insert(e);
+                DropAmmo(scene, e, models);
+            }
+
+            // Raccolta e scadenza
+            auto drops = reg.view<AmmoDropComponent, TransformComponent>();
+            std::vector<entt::entity> gone;
+            for (auto d : drops) {
+                auto& ad = drops.get<AmmoDropComponent>(d);
+                ad.timeLeft -= dt;
+                if (ad.timeLeft <= 0.0f || ad.rounds <= 0) { gone.push_back(d); continue; }
+                const glm::vec3 dp = drops.get<TransformComponent>(d).Position;
+                for (auto u : units) {
+                    if (ad.rounds <= 0) break;
+                    if (units.get<HealthComponent>(u).currentHealth <= 0.0f || reg.all_of<CorpseComponent>(u)) continue;
+                    const glm::vec3 up = units.get<TransformComponent>(u).Position;
+                    if (glm::length(glm::vec2(up.x - dp.x, up.z - dp.z)) > kDropReach || std::fabs(up.y - dp.y) > 2.5f) continue;
+                    TakeDrop(reg, u, ad);
+                }
+                if (ad.rounds <= 0) gone.push_back(d);
+            }
+            for (auto d : gone) if (reg.valid(d)) scene.DestroyEntity(d);
+        }
+
+        // Una scatoletta per tipo di munizione ai piedi del caduto (armi dello stesso tipo si sommano)
+        void DropAmmo(Scene& scene, entt::entity e, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            const auto& a = reg.get<AmmoComponent>(e);
+            const auto& inv = reg.get<InventoryComponent>(e);
+            std::vector<std::pair<std::string, int>> byType;
+            for (int i = 0; i < 2; ++i) {
+                const auto* w = Ammo::RangedAt(inv, i);
+                if (!w || w->ammo_type.empty()) continue;
+                const int maxRounds = w->magazine_size + std::max(0, a.maxReserve[i]);
+                const int n = std::max(1, static_cast<int>(std::lround(maxRounds * kDropShare)));
+                auto it = std::find_if(byType.begin(), byType.end(), [&](const auto& p) { return p.first == w->ammo_type; });
+                if (it != byType.end()) it->second += n; else byType.emplace_back(w->ammo_type, n);
+            }
+            if (byType.empty()) return;
+            const auto& t = reg.get<TransformComponent>(e);
+            glm::vec3 base(t.Position.x, FootY(reg, e), t.Position.z);
+            for (size_t k = 0; k < byType.size(); ++k) {
+                const float ang = t.Rotation.y * 0.0174533f + 2.1f * static_cast<float>(k) + 0.6f;
+                glm::vec3 pos = base + glm::vec3(std::sin(ang), 0.0f, std::cos(ang)) * (0.45f + 0.25f * static_cast<float>(k));
+                if (const auto g = GetGroundHeightAt(scene, pos, pos.y + 0.6f, 0.05f)) pos.y = *g;
+                const glm::vec4 col = AmmoTypes::Color(byType[k].first);
+                const entt::entity d = Explosives::MakeVisual(scene, pos, t.Rotation.y + 37.0f * static_cast<float>(k), "ammo_drop", models, col, glm::vec3(0.28f, 0.16f, 0.2f));
+                if (!models || !models->Find("ammo_drop")) reg.get<TransformComponent>(d).Position.y += 0.08f;   // cubo: appoggiato a terra
+                reg.emplace<AmmoDropComponent>(d, AmmoDropComponent{ byType[k].first, byType[k].second, 90.0f });
+            }
+        }
+
+        // Colpi dalla scatoletta alle armi dello stesso tipo: prima quella in mano, poi l'altra; fino alla riserva piena
+        void TakeDrop(entt::registry& reg, entt::entity u, AmmoDropComponent& ad) {
+            auto* a = reg.try_get<AmmoComponent>(u);
+            const auto* inv = reg.try_get<InventoryComponent>(u);
+            if (!a || !inv || a->infinite) return;
+            const int held = Ammo::HeldRangedIndex(*inv);
+            const int order[2] = { held == 1 ? 1 : 0, held == 1 ? 0 : 1 };
+            int got = 0;
+            std::string weaponName;
+            for (int idx : order) {
+                const auto* w = Ammo::RangedAt(*inv, idx);
+                if (!w || w->ammo_type != ad.ammoType || ad.rounds <= 0) continue;
+                const int room = a->maxReserve[idx] - a->reserve[idx];
+                if (room <= 0) continue;
+                const int n = std::min(room, ad.rounds);
+                a->reserve[idx] += n;
+                ad.rounds -= n;
+                got += n;
+                if (weaponName.empty()) weaponName = w->displayName;
+            }
+            if (got > 0 && reg.all_of<PlayerTag>(u))
+                Feedback(*a, "+" + std::to_string(got) + " " + AmmoTypes::Name(ad.ammoType) + " raccolti (" + weaponName + ")");
+        }
+
         // Vox caster: chiamata di equipment_use_time secondi, poi il rinforzo e' in arrivo (SummonRequestComponent)
         void UpdateVoxCaster(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slot, bool pressed, float dt) {
             auto& reg = scene.GetRegistry();
@@ -828,6 +953,7 @@ namespace SunEngine {
             const glm::vec3 d = reg.get<TransformComponent>(a).Position - reg.get<TransformComponent>(b).Position;
             return glm::length(glm::vec2(d.x, d.z));
         }
+        std::unordered_set<entt::entity> m_DroppedDead;   // morti che hanno gia' lasciato le munizioni
         static void Feedback(AmmoComponent& a, const std::string& text) { a.feedback = text; a.feedbackTimer = 2.0f; }
         static std::string NameOf(entt::registry& reg, entt::entity e) {
             if (const auto* b = reg.try_get<BotBrainComponent>(e)) if (!b->displayName.empty()) return b->displayName;

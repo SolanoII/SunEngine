@@ -36,6 +36,7 @@
   "spread_auto_multiplier": 1.0,
   "suppression_value": 8,
   "projectile_type": "ballistic",
+  "ammo_type": "cartucce",
   "is_beam": false,
   "projectile_speed": 90.0,
   "projectile_length": 0.25,
