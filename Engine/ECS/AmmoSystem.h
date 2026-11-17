@@ -25,6 +25,9 @@
 // Mantello mimetico ("camo_cloak"): click sinistro per effect_duration secondi il corpo diventa un liquido trasparente
 //   (CloakComponent); i nemici IA non lo vedono oltre 6 m. Sparare o colpire in mischia lo interrompe.
 // Auspex ("auspex"): in mano mostra un sonar coi nemici entro equipment_range metri (lo disegna GameLayer).
+// In rete (vedi AidEvents.h): zaino di cibo, cassa di munizioni e scatola data a un compagno arrivano anche ai
+//   compagni degli altri computer; qui si cura, si rifornisce e si raccoglie solo cio' che questo computer simula
+//   (mai le copie NetGhostComponent, che ricevono l'aiuto dal loro proprietario).
 // Munizioni dai caduti: chi muore lascia a terra, per ogni tipo di munizione delle sue armi ("ammo_type"), il 10% dei
 //   colpi massimi (caricatore + riserva piena). Chi ci passa sopra con un'arma dello stesso tipo le raccoglie da solo
 //   (fino a riempire la riserva; il resto rimane a terra). Spariscono dopo 90 secondi. Per rifornirsi bisogna avanzare.
@@ -38,6 +41,7 @@
 #include "../AssetManager/BlueprintManager.h"
 #include "BlockModel.h"
 #include "ExplosiveSystem.h"
+#include "AidEvents.h"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cmath>
@@ -312,11 +316,15 @@ namespace SunEngine {
                     a.useTimer -= dt;
                     if (a.useTimer <= 0.0f) {
                         a.useTimer = 0.0f; a.useSlot = -1;
-                        const int got = Ammo::Refill(reg, a.useTarget);
+                        // Compagno simulato su un altro computer: le munizioni gliele da' il suo proprietario
+                        const bool remote = a.useTarget != e && reg.all_of<NetGhostComponent>(a.useTarget);
+                        const int got = remote ? 0 : Ammo::Refill(reg, a.useTarget);
+                        if (remote) EmitAid({ AidKind::AmmoRefill, e, a.useTarget });
                         EmitXp(e, a.useTarget == e ? XpCategory::AmmoSelf : XpCategory::AmmoAlly,
                                a.useTarget == e ? XpValues::AmmoSelf : XpValues::AmmoAlly);
                         a.equipmentUses[slotIdx] = std::max(0, a.equipmentUses[slotIdx] - 1);
-                        if (a.useTarget == e) Feedback(a, "Munizioni recuperate: +" + std::to_string(got));
+                        if (remote) Feedback(a, "Munizioni date a " + NameOf(reg, a.useTarget));
+                        else if (a.useTarget == e) Feedback(a, "Munizioni recuperate: +" + std::to_string(got));
                         else {
                             Feedback(a, "Munizioni date a " + NameOf(reg, a.useTarget) + ": +" + std::to_string(got));
                             if (auto* ta = reg.try_get<AmmoComponent>(a.useTarget)) {
@@ -345,7 +353,8 @@ namespace SunEngine {
                         Feedback(a, "Nessun compagno entro " + std::to_string(static_cast<int>(held->equipment_range)) + " m");
                         continue;
                     }
-                    if (Ammo::Missing(reg, target) <= 0) { Feedback(a, NameOf(reg, target) + " ha gia' tutte le munizioni"); continue; }
+                    // (della copia di un compagno in rete non si sanno le munizioni vere: si da' e basta)
+                    if (!reg.all_of<NetGhostComponent>(target) && Ammo::Missing(reg, target) <= 0) { Feedback(a, NameOf(reg, target) + " ha gia' tutte le munizioni"); continue; }
                 }
                 a.useTarget = target;
                 a.useSlot = inv.currentSlot;
@@ -637,6 +646,7 @@ namespace SunEngine {
             if (const auto* team = reg.try_get<TeamComponent>(e)) crate.team = team->team;
             crate.charges = crate.maxCharges = bp.crate_charges;
             reg.emplace<AmmoCrateComponent>(c, crate);
+            EmitAid({ AidKind::CratePlaced, e, entt::null, c, 0, crate.charges, bp.id });
             a.equipmentUses[slotIdx] -= 1;
             Feedback(a, "Cassa di munizioni a terra: E vicino per un caricatore (" + std::to_string(crate.charges) + " in tutto)");
         }
@@ -656,6 +666,7 @@ namespace SunEngine {
             const int got = std::min(room, w->magazine_size);
             a->reserve[idx] += got;
             crate.charges -= 1;
+            if (crate.netKey != 0) EmitAid({ AidKind::CrateTaken, e, entt::null, entt::null, crate.netKey, crate.charges });
             if (crate.owner != e && reg.valid(crate.owner)) EmitXp(crate.owner, XpCategory::AmmoAlly, XpValues::AmmoAlly);
             else EmitXp(e, XpCategory::AmmoSelf, XpValues::AmmoSelf);
             if (feedback) Feedback(*a, "+" + std::to_string(got) + " colpi per " + w->displayName + " (cassa: " +
@@ -699,6 +710,7 @@ namespace SunEngine {
             auto units = reg.view<AmmoComponent, InventoryComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
             for (auto u : units) {
                 if (units.get<HealthComponent>(u).currentHealth <= 0.0f || reg.all_of<TurretMountComponent>(u)) continue;
+                if (reg.all_of<NetGhostComponent>(u)) continue;   // copia: prende chi la simula
                 const bool isPlayer = reg.all_of<PlayerTag>(u);
                 if (!isPlayer && !reg.all_of<WeaponTriggerComponent>(u)) continue;
                 const entt::entity c = nearest(u);
@@ -750,6 +762,7 @@ namespace SunEngine {
                 for (auto u : units) {
                     if (ad.rounds <= 0) break;
                     if (units.get<HealthComponent>(u).currentHealth <= 0.0f || reg.all_of<CorpseComponent>(u)) continue;
+                    if (reg.all_of<NetGhostComponent>(u)) continue;   // copia: raccoglie chi la simula
                     const glm::vec3 up = units.get<TransformComponent>(u).Position;
                     if (glm::length(glm::vec2(up.x - dp.x, up.z - dp.z)) > kDropReach || std::fabs(up.y - dp.y) > 2.5f) continue;
                     TakeDrop(reg, u, ad);
@@ -839,14 +852,28 @@ namespace SunEngine {
             auto& reg = scene.GetRegistry();
             if (a.equipmentUses[slotIdx] <= 0) { Feedback(a, "Zaino di cibo gia' usato"); return; }
             const auto& t = reg.get<TransformComponent>(e);
+            int team = -1;
+            if (const auto* tc = reg.try_get<TeamComponent>(e)) team = tc->team;
+            const entt::entity z = SpawnHealZone(scene, glm::vec3(t.Position.x, FootY(reg, e), t.Position.z), t.Rotation.y, bp.id, e, team,
+                                                 bp.equipment_range, bp.heal_per_second, std::max(0.5f, bp.effect_duration), models);
+            EmitAid({ AidKind::HealZone, e, entt::null, z, 0, 0, bp.id });
+            a.equipmentUses[slotIdx] -= 1;
+            Feedback(a, "Zaino di cibo a terra: cura per " + std::to_string(static_cast<int>(reg.get<HealZoneComponent>(z).duration)) + " s");
+        }
+
+    public:
+        // Zaino di cibo a terra (anche la copia di quello posato da un compagno su un altro computer: owner = null)
+        entt::entity SpawnHealZone(Scene& scene, const glm::vec3& pos, float yaw, const std::string& modelId, entt::entity owner, int team,
+                                   float radius, float healPerSecond, float duration, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
             const entt::entity z = scene.CreateEntity();
             auto& zt = reg.emplace<TransformComponent>(z);
-            zt.Position = glm::vec3(t.Position.x, FootY(reg, e), t.Position.z);
-            zt.Rotation = glm::vec3(0.0f, t.Rotation.y, 0.0f);
+            zt.Position = pos;
+            zt.Rotation = glm::vec3(0.0f, yaw, 0.0f);
             reg.emplace<MeshComponent>(z, 0u);
             auto& c = reg.emplace<ColorComponent>(z);
             c.Color = glm::vec4(0.45f, 0.35f, 0.20f, 1.0f); c.BaseColor = c.Color;
-            if (const BlockModel* model = models ? models->Find(bp.id) : nullptr) {   // stesso modello tenuto in mano
+            if (const BlockModel* model = models ? models->Find(modelId) : nullptr) {   // stesso modello tenuto in mano
                 reg.emplace<BlockModelComponent>(z, BlockModelComponent{ model });
                 zt.Scale = glm::vec3(1.0f);
             }
@@ -855,16 +882,45 @@ namespace SunEngine {
                 zt.Position.y += 0.15f;
             }
             HealZoneComponent zone;
-            zone.owner = e;
-            if (const auto* team = reg.try_get<TeamComponent>(e)) zone.team = team->team;
-            zone.radius = bp.equipment_range;
-            zone.healPerSecond = bp.heal_per_second;
-            zone.duration = zone.timeLeft = std::max(0.5f, bp.effect_duration);
+            zone.owner = owner;
+            zone.team = team;
+            zone.radius = radius;
+            zone.healPerSecond = healPerSecond;
+            zone.duration = zone.timeLeft = duration;
             reg.emplace<HealZoneComponent>(z, zone);
-            a.equipmentUses[slotIdx] -= 1;
-            Feedback(a, "Zaino di cibo a terra: cura per " + std::to_string(static_cast<int>(zone.duration)) + " s");
+            return z;
         }
 
+        // Cassa posata da un compagno su un altro computer: stessa cassa (netKey), si usa anche da qui
+        entt::entity SpawnCrateCopy(Scene& scene, std::uint64_t netKey, const glm::vec3& pos, float yaw, const std::string& modelId,
+                                    const glm::vec4& color, int team, int charges, int maxCharges, const BlockModelLibrary* models) {
+            auto& reg = scene.GetRegistry();
+            const entt::entity c = Explosives::MakeVisual(scene, pos, yaw, modelId, models, color, glm::vec3(0.6f, 0.35f, 0.4f));
+            if (!models || !models->Find(modelId)) reg.get<TransformComponent>(c).Position.y += 0.175f;   // cubo: appoggiato a terra
+            AmmoCrateComponent crate;
+            crate.team = team;
+            crate.charges = charges;
+            crate.maxCharges = std::max(charges, maxCharges);
+            crate.netKey = netKey;
+            reg.emplace<AmmoCrateComponent>(c, crate);
+            return c;
+        }
+
+        // Un compagno ha preso un caricatore dalla cassa: restano 'charges' cariche (0 = sparisce)
+        void SetCrateCharges(Scene& scene, std::uint64_t netKey, int charges) {
+            auto& reg = scene.GetRegistry();
+            entt::entity gone = entt::null;
+            for (auto c : reg.view<AmmoCrateComponent>()) {
+                auto& cc = reg.get<AmmoCrateComponent>(c);
+                if (cc.netKey != netKey) continue;
+                cc.charges = std::min(cc.charges, charges);
+                if (cc.charges <= 0) gone = c;
+                break;
+            }
+            if (gone != entt::null) scene.DestroyEntity(gone);
+        }
+
+    private:
         // Granata: giocatore = lungo la mira (raggio del mirino se c'e'), bot = parabola verso il bersaglio (giveTarget)
         void ThrowGrenade(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slotIdx,
                           entt::entity target, const BlockModelLibrary* models) {
@@ -933,6 +989,7 @@ namespace SunEngine {
                 for (auto u : units) {
                     auto& h = units.get<HealthComponent>(u);
                     if (h.currentHealth <= 0.0f || h.currentHealth >= h.maxHealth) continue;
+                    if (reg.all_of<NetGhostComponent>(u)) continue;   // copia: la cura la applica chi la simula
                     const bool ally = zone.team >= 0 ? (reg.all_of<TeamComponent>(u) && reg.get<TeamComponent>(u).team == zone.team) : (u == zone.owner);
                     if (!ally) continue;
                     const glm::vec3 d = units.get<TransformComponent>(u).Position - c;

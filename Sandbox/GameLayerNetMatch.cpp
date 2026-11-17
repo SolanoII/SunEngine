@@ -48,7 +48,10 @@ namespace SunEngine {
             NM_VsJoin = 'J',      // Vs Bot gia' avviato: posso entrare? (all'host, nel riscaldamento)
             NM_VsLineup = 'F',    // host: roster aggiornato (qualcuno ha preso il posto di un bot), per chi l'ha chiesto e per tutti
             NM_VsJoinNo = 'N',    // host: troppo tardi o niente posti, aspetta la prossima partita
+            NM_Aid = 'A',         // aiuto a chi e' vicino o a un compagno: ognuno lo applica a cio' che simula lui
         };
+        // tipi di aiuto (NM_Aid)
+        enum AidMsg : std::uint8_t { AM_HealZone = 1, AM_CratePlaced = 2, AM_CrateTaken = 3, AM_AmmoRefill = 4, AM_WarCry = 5 };
         constexpr std::uint8_t kSnapMagic = 0xA7;   // istantanea della partita (Party::PublishSnapshot)
         constexpr float kStateRate = 1.0f / 20.0f, kEnemyRate = 1.0f / 15.0f, kSnapRate = 1.5f, kUnitResend = 3.0f;
         constexpr int kEnemiesPerPacket = 40;       // sotto la dimensione di un pacchetto UDP
@@ -286,7 +289,7 @@ namespace SunEngine {
     // ------------------------------------------------------------------------------------------------
     void GameLayer::UpdateNetMatch(float realDt) {
         const bool inParty = m_Party.GetState() == Net::PartyState::InParty;
-        if (!m_Net.active) NetShotQueue().clear();
+        if (!m_Net.active) { NetShotQueue().clear(); AidEventLog().clear(); }
 
         // avvio ricevuto dal capo: dal garage si entra subito
         if (m_Net.startPending) {
@@ -366,6 +369,7 @@ namespace SunEngine {
         if (m_Net.authority) NetHostTick(realDt); else { NetGhostTick(realDt); PlayerHitLog().clear(); }
         NetUpdatePuppets(realDt);
         if (m_VsBotActive) NetVsBotTick(realDt);
+        NetSendAids();
 
         // i miei colpi e quelli dei bot che simulo: agli altri solo l'effetto (scia, lampo, suono)
         auto& shots = NetShotQueue();
@@ -406,6 +410,70 @@ namespace SunEngine {
             }
             shots.clear();
         }
+    }
+
+    // Aiuti dati da cio' che simulo io (il mio giocatore e, se sono l'host, i bot): agli altri computer, che li
+    // applicano alle loro unita' vere (zaino di cibo e cassa compaiono anche li', le munizioni arrivano a chi le riceve)
+    void GameLayer::NetSendAids() {
+        auto& reg = m_Scene.GetRegistry();
+        auto& log = AidEventLog();
+        for (const AidEvent& ev : log) {
+            if (ev.kind != AidKind::CrateTaken && (!reg.valid(ev.source) || reg.all_of<NetGhostComponent>(ev.source))) continue;
+            Writer w; w.U8(NM_Aid); w.U32(m_Net.matchId);
+            switch (ev.kind) {
+            case AidKind::HealZone: {
+                if (!reg.valid(ev.object)) continue;
+                const auto* z = reg.try_get<HealZoneComponent>(ev.object);
+                if (!z) continue;
+                const auto& t = reg.get<TransformComponent>(ev.object);
+                glm::vec3 pos = t.Position;
+                if (!reg.all_of<BlockModelComponent>(ev.object)) pos.y -= 0.15f;   // cubo: era stato alzato
+                w.U8(AM_HealZone); WV(w, pos); WF(w, t.Rotation.y); w.Str(ev.itemId);
+                w.U8(static_cast<std::uint8_t>(z->team + 1)); WF(w, z->radius); WF(w, z->healPerSecond); WF(w, z->timeLeft);
+                break;
+            }
+            case AidKind::CratePlaced: {
+                if (!reg.valid(ev.object)) continue;
+                auto* c = reg.try_get<AmmoCrateComponent>(ev.object);
+                if (!c) continue;
+                c->netKey = (static_cast<std::uint64_t>(m_Party.SelfId()) * 0x9E3779B97F4A7C15ull) ^ (++m_Net.aidSerial);
+                if (c->netKey == 0) c->netKey = 1;
+                const auto& t = reg.get<TransformComponent>(ev.object);
+                glm::vec3 pos = t.Position;
+                if (!reg.all_of<BlockModelComponent>(ev.object)) pos.y -= 0.175f;
+                glm::vec4 col(0.5f);
+                if (const auto* cc = reg.try_get<ColorComponent>(ev.object)) col = cc->BaseColor;
+                w.U8(AM_CratePlaced); w.U64(c->netKey); WV(w, pos); WF(w, t.Rotation.y); w.Str(ev.itemId);
+                w.U8(static_cast<std::uint8_t>(c->team + 1)); w.U8(static_cast<std::uint8_t>(std::clamp(c->charges, 0, 255)));
+                w.U8(static_cast<std::uint8_t>(std::clamp(c->maxCharges, 0, 255)));
+                for (int k = 0; k < 4; ++k) w.U8(static_cast<std::uint8_t>(std::clamp(col[k], 0.0f, 1.0f) * 255.0f));
+                break;
+            }
+            case AidKind::CrateTaken:
+                if (ev.netKey == 0 || (reg.valid(ev.source) && reg.all_of<NetGhostComponent>(ev.source))) continue;
+                w.U8(AM_CrateTaken); w.U64(ev.netKey); w.U8(static_cast<std::uint8_t>(std::clamp(ev.charges, 0, 255)));
+                break;
+            case AidKind::AmmoRefill: {
+                if (!reg.valid(ev.target)) continue;
+                w.U8(AM_AmmoRefill);
+                if (const auto* rp = reg.try_get<NetRemotePlayerComponent>(ev.target)) { w.U8(1); w.U64(rp->owner); }
+                else if (const auto* ne = reg.try_get<NetEntityComponent>(ev.target); ne && ne->netId != 0) { w.U8(2); w.U32(ne->netId); }
+                else continue;
+                break;
+            }
+            default: continue;
+            }
+            m_Party.SendToAll(w.b.data(), w.b.size(), true);
+        }
+        log.clear();
+    }
+
+    // Gruuk urlato qui: a tutti, che lo applicano a cio' che simulano (vedi ApplyWarCry)
+    void GameLayer::NetSendWarCry(const glm::vec3& pos, int team, float radius, float duration, float mult) {
+        if (!m_Net.active || m_GameState != GameState::Gameplay) return;
+        Writer w; w.U8(NM_Aid); w.U32(m_Net.matchId);
+        w.U8(AM_WarCry); WV(w, pos); w.U8(static_cast<std::uint8_t>(team + 1)); WF(w, radius); WF(w, duration); WF(w, mult);
+        m_Party.SendToAll(w.b.data(), w.b.size(), true);
     }
 
     // La mia unita': posizione, mira, salute, gesti (20 volte al secondo); com'e' fatta quando cambia
@@ -785,6 +853,59 @@ namespace SunEngine {
         if (!r.ok || !m_Net.active || matchId != m_Net.matchId || m_GameState != GameState::Gameplay) return;
 
         switch (type) {
+        case NM_Aid: {   // aiuto da un compagno: lo applico solo a cio' che simulo io
+            const int kind = r.U8();
+            std::string giver = "Un compagno";
+            if (auto it = m_Net.remotes.find(from); it != m_Net.remotes.end() && !it->second.name.empty()) giver = it->second.name;
+            if (kind == AM_HealZone) {
+                const glm::vec3 pos = RV(r); const float yaw = RF(r); const std::string item = r.Str();
+                const int team = static_cast<int>(r.U8()) - 1;
+                const float radius = std::clamp(RF(r), 0.5f, 30.0f), hps = std::clamp(RF(r), 0.0f, 500.0f), left = std::clamp(RF(r), 0.1f, 120.0f);
+                if (!r.ok) break;
+                m_EquipmentSystem.SpawnHealZone(m_Scene, pos, yaw, item, entt::null, team, radius, hps, left, &m_BlockModels);
+            }
+            else if (kind == AM_CratePlaced) {
+                const std::uint64_t key = r.U64(); const glm::vec3 pos = RV(r); const float yaw = RF(r); const std::string item = r.Str();
+                const int team = static_cast<int>(r.U8()) - 1; const int charges = r.U8(), maxCharges = r.U8();
+                glm::vec4 col; for (int k = 0; k < 4; ++k) col[k] = r.U8() / 255.0f;
+                if (!r.ok || key == 0 || charges <= 0) break;
+                bool have = false;
+                for (auto c : reg.view<AmmoCrateComponent>()) if (reg.get<AmmoCrateComponent>(c).netKey == key) have = true;
+                if (!have) m_EquipmentSystem.SpawnCrateCopy(m_Scene, key, pos, yaw, item, col, team, charges, maxCharges, &m_BlockModels);
+            }
+            else if (kind == AM_CrateTaken) {
+                const std::uint64_t key = r.U64(); const int charges = r.U8();
+                if (!r.ok || key == 0) break;
+                m_EquipmentSystem.SetCrateCharges(m_Scene, key, charges);
+            }
+            else if (kind == AM_AmmoRefill) {
+                const int tk = r.U8();
+                entt::entity target = entt::null;
+                if (tk == 1) { const std::uint64_t peer = r.U64(); if (r.ok && peer == m_Party.SelfId()) target = m_PlayerEntity; }
+                else if (tk == 2) {
+                    const std::uint32_t id = r.U32();
+                    if (r.ok && m_Net.authority) if (auto it = m_Net.enemies.find(id); it != m_Net.enemies.end()) target = it->second.e;
+                }
+                if (target == entt::null || !reg.valid(target) || reg.all_of<NetGhostComponent>(target) || reg.all_of<CorpseComponent>(target)) break;
+                if (const auto* hp = reg.try_get<HealthComponent>(target); !hp || hp->currentHealth <= 0.0f) break;
+                const int got = Ammo::Refill(reg, target);
+                if (auto* a = reg.try_get<AmmoComponent>(target); a && target == m_PlayerEntity) {
+                    a->feedback = got > 0 ? "Munizioni ricevute da " + giver + ": +" + std::to_string(got) : giver + " ti ha dato munizioni (eri gia' al massimo)";
+                    a->feedbackTimer = 2.5f;
+                }
+            }
+            else if (kind == AM_WarCry) {
+                const glm::vec3 pos = RV(r); const int team = static_cast<int>(r.U8()) - 1;
+                const float radius = std::clamp(RF(r), 0.0f, 40.0f), dur = std::clamp(RF(r), 0.0f, 30.0f), mult = std::clamp(RF(r), 1.0f, 2.0f);
+                if (!r.ok) break;
+                ApplyWarCry(pos, team, radius, dur, mult);
+                // la copia di chi urla: braccia aperte, fauci spalancate e la sua voce
+                if (auto it = m_Net.remotes.find(from); it != m_Net.remotes.end() && reg.valid(it->second.puppet))
+                    reg.emplace_or_replace<WarCryShoutComponent>(it->second.puppet);
+                PlayGruukVoice(pos);
+            }
+            break;
+        }
         case NM_Leave: {
             auto it = m_Net.remotes.find(from);
             if (it != m_Net.remotes.end()) { NetDestroyPuppet(it->second); m_Net.remotes.erase(it); }

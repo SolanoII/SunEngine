@@ -605,6 +605,7 @@ namespace SunEngine {
             std::string squadKey;                   // stato della mia squadra gia' mandato
             std::uint32_t vsRosterMatch = 0;        // partita a cui appartiene vsRoster
             std::uint32_t joinRequestMatch = 0;     // Vs Bot gia' avviato: ho chiesto all'host di entrare in questa partita
+            std::uint32_t aidSerial = 0;            // numera le casse di munizioni che poso (identificativo in rete)
         } m_Net;
         void NetLeaderStartVsBot(int tierIdx);      // il capo avvia il Vs Bot per tutta la squadra
         void NetVsBotTick(float realDt);            // roster (host) e la mia squadra (tutti)
@@ -955,6 +956,10 @@ namespace SunEngine {
         static constexpr float kGruukCooldown = 30.0f;   // secondi
         static constexpr const char* kGruukUnit = "orks_zhelvar";
         void UpdateGruuk(float deltaTime, bool canInput);
+        int ApplyWarCry(const glm::vec3& pos, int team, float radius, float duration, float mult);   // a cio' che simulo io
+        void PlayGruukVoice(const glm::vec3& pos);
+        void NetSendWarCry(const glm::vec3& pos, int team, float radius, float duration, float mult);
+        void NetSendAids();                         // aiuti dati qui (zaino, cassa, munizioni a un compagno) agli altri computer
         void RenderGruukHud(float x, float y);
         int m_OrderActive = -1;                    // 0 Take AIM!, 1 Take Cover, 2 MOVE MOVE MOVE!, 3 Fix Bayonets!
         float m_OrderTimer = 0.0f;

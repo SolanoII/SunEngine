@@ -3439,31 +3439,61 @@ namespace SunEngine {
         if (!pressed || m_GruukCooldown > 0.0f) return;
 
         const glm::vec3 me = reg.get<TransformComponent>(m_PlayerEntity).Position;
-        const auto* myTeam = reg.try_get<TeamComponent>(m_PlayerEntity);
-        auto give = [&](entt::entity e) {
-            auto& w = reg.get_or_emplace<WarCryComponent>(e);
-            w.timeLeft = kGruukDuration;
-            w.mult = 1.0f + kGruukSpeed;
-        };
-        give(m_PlayerEntity);
+        const int team = reg.all_of<TeamComponent>(m_PlayerEntity) ? reg.get<TeamComponent>(m_PlayerEntity).team : 0;
+        ApplyWarCry(me, team, kGruukRadius, kGruukDuration, 1.0f + kGruukSpeed);   // io e i bot che simulo
+        NetSendWarCry(me, team, kGruukRadius, kGruukDuration, 1.0f + kGruukSpeed);  // in rete: i compagni lo prendono dai loro computer
+        // quanti l'hanno sentito: anche i compagni degli altri computer (le loro copie qui)
         int heard = 0;
-        if (myTeam) {
-            auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent>);
-            for (auto o : mates) {
-                if (o == m_PlayerEntity || mates.get<TeamComponent>(o).team != myTeam->team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
-                const glm::vec3 op = mates.get<TransformComponent>(o).Position;
-                if (glm::length(glm::vec2(op.x - me.x, op.z - me.z)) > kGruukRadius) continue;
-                give(o);
-                ++heard;
-            }
+        auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent>);
+        for (auto o : mates) {
+            if (mates.get<TeamComponent>(o).team != team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+            const glm::vec3 op = mates.get<TransformComponent>(o).Position;
+            if (glm::length(glm::vec2(op.x - me.x, op.z - me.z)) <= kGruukRadius) ++heard;
         }
         reg.emplace_or_replace<WarCryShoutComponent>(m_PlayerEntity);
         m_GruukCooldown = kGruukCooldown;
         m_GruukHeard = heard;
         m_GruukMsg = 3.0f;
-        // voce piu' bassa e roca di quella degli altri Vrepigh
-        PlayOrkVoiceAtPos(me, me, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice, 0.68f, 0.76f);
+        PlayGruukVoice(me);
         SUN_CORE_INFO("Gruuk! ({0} alleati)", heard);
+    }
+
+    // Gruuk a 'pos': +mult di velocita' per 'duration' secondi a chi della squadra 'team' e' entro 'radius' metri, ma
+    // solo a cio' che simula questo computer (il mio giocatore; se faccio da host, o gioco da solo, anche i bot). Le
+    // copie dei compagni di rete lo ricevono dal loro computer (NM_Aid). Ritorna quanti ne ha toccati.
+    int GameLayer::ApplyWarCry(const glm::vec3& pos, int team, float radius, float duration, float mult) {
+        auto& reg = m_Scene.GetRegistry();
+        int n = 0;
+        auto give = [&](entt::entity e) {
+            auto& w = reg.get_or_emplace<WarCryComponent>(e);
+            w.timeLeft = std::max(w.timeLeft, duration);
+            w.mult = std::max(w.mult, mult);
+            ++n;
+        };
+        auto inRange = [&](entt::entity e) {
+            const glm::vec3 p = reg.get<TransformComponent>(e).Position;
+            return glm::length(glm::vec2(p.x - pos.x, p.z - pos.z)) <= radius;
+        };
+        if (reg.valid(m_PlayerEntity) && !reg.all_of<CorpseComponent>(m_PlayerEntity)) {
+            const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
+            const int myTeam = reg.all_of<TeamComponent>(m_PlayerEntity) ? reg.get<TeamComponent>(m_PlayerEntity).team : 0;
+            if (hp && hp->currentHealth > 0.0f && myTeam == team && inRange(m_PlayerEntity)) give(m_PlayerEntity);
+        }
+        if (NetIsAuthority()) {
+            auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent, NetGhostComponent>);
+            for (auto o : mates) {
+                if (mates.get<TeamComponent>(o).team != team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                if (inRange(o)) give(o);
+            }
+        }
+        return n;
+    }
+
+    // Voce del Gruuk: piu' bassa e roca di quella degli altri Vrepigh
+    void GameLayer::PlayGruukVoice(const glm::vec3& pos) {
+        glm::vec3 listener = pos;
+        if (const auto* pt = m_Scene.GetRegistry().try_get<TransformComponent>(m_PlayerEntity)) listener = pt->Position;
+        PlayOrkVoiceAtPos(pos, listener, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice, 0.68f, 0.76f);
     }
 
     // Selettore radiale degli ordini al centro dello schermo: 4 voci (su, destra, giu', sinistra)

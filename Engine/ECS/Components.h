@@ -415,6 +415,7 @@ namespace SunEngine {
         int charges = 3;
         int maxCharges = 3;
         float cooldown = 0.0f;         // fra un prelievo e l'altro dei bot
+        std::uint64_t netKey = 0;      // partita in rete: stessa cassa su tutti i computer (0 = solo qui)
     };
 
     // Munizioni lasciate a terra da chi muore: il 10% dei colpi massimi di ogni sua arma, per tipo di munizione.
