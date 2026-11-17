@@ -7,6 +7,7 @@
 //     nemico del padrone ci passa entro trigger_radius metri.
 // L'esplosione colpisce i nemici del padrone entro explosion_radius: explosion_damage al centro, 40% al bordo,
 // con la penetrazione armor_penetration dell'oggetto. Niente fuoco amico, come per le armi.
+#include "MoraleSystem.h"
 #include "Components.h"
 #include "VfxEvents.h"
 #include "BlockModel.h"
@@ -119,6 +120,8 @@ namespace SunEngine {
             // Palla di fuoco, onda d'urto, fumo e detriti (ParticleSystem). vfx = false: la disegna chi l'ha
             // causata quando il colpo arriva (es. il razzo in volo)
             if (vfx) { VfxEvent e; e.kind = VfxKind::Explosion; e.pos = center + glm::vec3(0.0f, 0.3f, 0.0f); e.scale = radius; EmitVfx(e); }
+            // Morale: artiglieria ed esplosioni scuotono chi e' vicino (non la squadra di chi l'ha causata)
+            { MoraleShock ms; ms.a = ms.b = center; ms.shooter = owner; ms.team = team; ms.explosion = true; ms.radius = radius; EmitMoraleShock(ms); }
             return hit;
         }
 

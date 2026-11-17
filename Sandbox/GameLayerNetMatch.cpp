@@ -1094,6 +1094,17 @@ namespace SunEngine {
                 t.isBeam = (fl & 1) != 0; t.hitSomething = (fl & 2) != 0; t.hitUnit = (fl & 4) != 0;
                 const entt::entity te = m_Scene.CreateEntity();
                 reg.emplace<TrailRequestComponent>(te, t);
+                // Morale: i colpi pesanti e le esplosioni degli altri spaventano anche cio' che simulo io
+                if (shooter != entt::null && reg.valid(shooter)) {
+                    const WeaponBlueprint* wbp = nullptr;
+                    if (const auto* wid = reg.try_get<WeaponBlueprintId>(shooter)) wbp = BlueprintManager::Get().GetWeapon(wid->id);
+                    if (wbp && static_cast<float>(wbp->suppression_value) >= Morale::kHeavyWeapon)
+                        EmitMoraleShock({ t.start, t.end, shooter, -1, static_cast<float>(wbp->suppression_value) });
+                    if (t.fx == static_cast<int>(WeaponFx::Explosive) && t.hitSomething) {
+                        MoraleShock ms; ms.a = ms.b = t.end; ms.shooter = shooter; ms.explosion = true; ms.radius = std::max(1.0f, t.impactScale);
+                        EmitMoraleShock(ms);
+                    }
+                }
                 if (fl & 8) {   // primo proiettile del colpo: lampo alla bocca e suono
                     glm::vec3 dir = t.end - t.start;
                     dir = glm::length(dir) > 1e-4f ? glm::normalize(dir) : glm::vec3(0.0f, 0.0f, -1.0f);
@@ -1272,6 +1283,7 @@ namespace SunEngine {
         UpdateTrainingDummies(deltaTime);
         m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
         m_MeleeCombat.Update(m_Scene, deltaTime);
+        m_MoraleSystem.Update(m_Scene, deltaTime);
         // ondate attorno a chi e' ancora in piedi
         glm::vec3 center(0.0f); bool found = false;
         if (const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity); hp && hp->currentHealth > 0.0f && !reg.all_of<CorpseComponent>(m_PlayerEntity)) {

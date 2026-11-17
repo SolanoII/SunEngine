@@ -1,3 +1,4 @@
+#include "MoraleSystem.h"
 #include "BotAISystem.h"
 #include "FeralCharge.h"
 #include "DamageResolver.h"
@@ -393,6 +394,16 @@ namespace SunEngine {
         const glm::vec3 enemyBase = m_Base[myTeam == 1 ? 0 : 1];
 
         if (brain.target == entt::null) {
+            // In rotta e nessun nemico in vista: non avanza, ripiega verso la propria base finche' non si riprende
+            if (const auto* mc = reg.try_get<MoraleComponent>(self); mc && mc->zone == MoraleZone::Rout) {
+                brain.intent = BotIntent::Reposition;
+                brain.moveSpeedFactor = 1.0f;
+                if (!brain.hasMoveGoal || HorizontalDist(brain.moveGoal, myBase) > 6.0f) {
+                    brain.moveGoal = navQuery.GetNearestValidPoint(myBase);
+                    brain.hasMoveGoal = true; brain.pathTimer = 0.0f;
+                }
+                return;
+            }
             // Nessun nemico noto: avanza verso il centro (con uno spostamento laterale proprio) e poi verso la base nemica
             brain.intent = BotIntent::Advance;
             brain.moveSpeedFactor = 1.0f;
@@ -509,6 +520,17 @@ namespace SunEngine {
             break;
         }
 
+        // Morale in rotta: si scappa lontano dai nemici visti (si spara solo se capita), niente cariche
+        if (const auto* mc = reg.try_get<MoraleComponent>(self); mc && mc->zone == MoraleZone::Rout) {
+            const bool keep = prevIntent == BotIntent::Reposition && brain.hasMoveGoal && HorizontalDist(t.Position, brain.moveGoal) > 1.2f && brain.stuckTimer < 1.2f;
+            brain.intent = BotIntent::Reposition;
+            brain.moveSpeedFactor = 1.0f;
+            if (!keep) {
+                brain.moveGoal = PickPoint(scene, navQuery, self, threats, targetPos, std::max(25.0f, range), 0);
+                brain.hasMoveGoal = true; brain.pathTimer = 0.0f;
+            }
+        }
+
         // Rinforzo evocato: non si allontana piu' di 14 m dal padrone (tranne a contatto in mischia)
         if (followOwner && ownerDist > 14.0f && brain.intent != BotIntent::Melee) {
             brain.intent = BotIntent::Reposition;
@@ -558,6 +580,7 @@ namespace SunEngine {
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
                     if (const auto* cry = reg.try_get<WarCryComponent>(self)) speed *= cry->mult;                   // Gruuk
+                    speed *= Morale::FleeSpeedMult(reg, self, dir);                                                   // in rotta: scappa piu' in fretta
                     t.Position += dir / dist * std::min(dist, speed * dt);
                     brain.isMoving = true;
                 }
@@ -614,7 +637,7 @@ namespace SunEngine {
         brain.aimErrorTimer -= dt;
         if (brain.aimErrorTimer <= 0.0f) {
             brain.aimErrorTimer = Random::Range(0.25f, 0.5f);
-            const float skill = std::clamp(stats.accuracySkill / 100.0f, 0.0f, 1.0f);
+            const float skill = std::clamp(stats.accuracySkill * stats.moraleCombatMult / 100.0f, 0.0f, 1.0f);
             float spread = glm::mix(4.0f, 0.5f, skill);
             if (brain.isMoving) spread *= 1.6f;
             spread *= 1.0f + std::min(1.5f, brain.recentDamage / std::max(1.0f, stats.maxHealth) * 3.0f);
@@ -661,7 +684,7 @@ namespace SunEngine {
             if (mode == "semi" || mode == "single" || mode == "burst") {
                 if (brain.pauseTimer <= 0.0f) {
                     trigger.fire = true;   // un frame premuto: fronte di salita = un colpo (o una raffica)
-                    const float skill = std::clamp(stats.accuracySkill / 100.0f, 0.0f, 1.0f);
+                    const float skill = std::clamp(stats.accuracySkill * stats.moraleCombatMult / 100.0f, 0.0f, 1.0f);
                     const float minInterval = w->rate_of_fire > 0.0f ? 60.0f / w->rate_of_fire : 0.2f;
                     brain.pauseTimer = std::max(minInterval, glm::mix(0.6f, 0.22f, skill)) * Random::Range(0.9f, 1.3f);
                 }
@@ -1062,7 +1085,7 @@ namespace SunEngine {
             // Combo: durante la fase attiva prova a concatenare il colpo successivo (piu' probabile se bravo in mischia)
             if (melee->currentPhase == MeleePhase::Active && melee->bufferedInput.empty() && melee->currentAttack != MeleeAttackType::Parry) {
                 const auto& stats = reg.get<UnitStatsComponent>(self);
-                if (Random::Chance(std::clamp(stats.meleeSkill / 130.0f, 0.0f, 0.8f) * dt * 6.0f)) {
+                if (Random::Chance(std::clamp(stats.meleeSkill * stats.moraleCombatMult / 130.0f, 0.0f, 0.8f) * dt * 6.0f)) {
                     melee->bufferedInput = "F_CLICK";
                     melee->inputBufferTimer = 0.3f;
                 }
@@ -1090,7 +1113,7 @@ namespace SunEngine {
         melee->currentPhase = MeleePhase::Windup;
         melee->stateTimer = 0.0f;
         melee->hasHitInThisAttack = false;
-        brain.meleeCooldown = glm::mix(1.6f, 0.6f, std::clamp(stats.meleeSkill / 100.0f, 0.0f, 1.0f));
+        brain.meleeCooldown = glm::mix(1.6f, 0.6f, std::clamp(stats.meleeSkill * stats.moraleCombatMult / 100.0f, 0.0f, 1.0f));
     }
 
     void BotAISystem::TryParry(Scene& scene, entt::entity self, BotBrainComponent& brain) {
@@ -1115,11 +1138,11 @@ namespace SunEngine {
             // pesante si anticipa con un colpo veloce (la parata verrebbe rotta). Serve un attimo per reagire e chi e'
             // poco abile in mischia sbaglia lettura piu' spesso. Un solo tentativo per attacco.
             auto& stats = reg.get<UnitStatsComponent>(self);
-            const float skill = std::clamp(stats.meleeSkill / 100.0f, 0.0f, 1.0f);
+            const float skill = std::clamp(stats.meleeSkill * stats.moraleCombatMult / 100.0f, 0.0f, 1.0f);
             if (am.stateTimer < glm::mix(0.2f, 0.06f, skill)) return;   // tempo di reazione
             brain.parryCooldown = 1.2f;
             const bool heavyIncoming = am.currentAttack == MeleeAttackType::Heavy;
-            const bool readRight = Random::Chance(std::clamp(stats.meleeSkill / 120.0f, 0.15f, 0.8f));
+            const bool readRight = Random::Chance(std::clamp(stats.meleeSkill * stats.moraleCombatMult / 120.0f, 0.15f, 0.8f));
             const bool doParry = heavyIncoming ? !readRight : readRight;
             if (doParry) {
                 if (stats.stamina >= 10.0f) {

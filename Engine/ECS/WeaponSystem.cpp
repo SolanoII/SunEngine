@@ -4,6 +4,7 @@
 // 2. GLFW_INCLUDE_NONE evita che GLFW includa OpenGL (glad è già il loader).
 #define NOMINMAX
 #define GLFW_INCLUDE_NONE
+#include "MoraleSystem.h"
 #include <algorithm>
 #include <cmath>
 #include "WeaponSystem.h"
@@ -745,6 +746,9 @@ namespace SunEngine {
             case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
             default: break;
             }
+            // Arma pesante: chi e' vicino alla traiettoria e' sotto il fuoco (morale)
+            if (static_cast<float>(wpBP.suppression_value) >= Morale::kHeavyWeapon)
+                EmitMoraleShock({ barrelOrigin, hitPoint, shooter, ps.team, static_cast<float>(wpBP.suppression_value) });
             // partita in rete: la scia del mio colpo la vedono anche gli altri
             // (anche i bot simulati qui, in rete hanno un numero: gli altri li vedono sparare)
             if (NetShotQueue().size() < 512 && (scene.GetRegistry().all_of<PlayerTag>(shooter) ||

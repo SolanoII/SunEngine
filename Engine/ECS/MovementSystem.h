@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "MoraleSystem.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -586,6 +587,7 @@ public:
 
                 glm::mat4 rotMat = glm::rotate(glm::mat4(1.0f), glm::radians(transform.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
                 glm::vec3 worldMove = glm::vec3(rotMat * glm::vec4(moveDir, 0.0f));
+                moveSpeed *= Morale::FleeSpeedMult(scene.GetRegistry(), entity, worldMove);   // in rotta: +30% allontanandosi dal nemico
 
                 glm::vec3 nextPosX = transform.Position;
                 nextPosX.x += worldMove.x * moveSpeed * deltaTime;

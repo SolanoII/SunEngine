@@ -92,6 +92,8 @@ namespace SunEngine {
                 }
                 bp.blocks_headshot_bonus = j.value("blocks_headshot_bonus", false);
                 bp.aim_bonus = j.value("aim_bonus", 0.0f);
+                bp.morale_cap_bonus = j.value("morale_cap_bonus", 0.0f);
+                bp.morale_start_bonus = j.value("morale_start_bonus", 0.0f);
 
                 ParseSkin(j, bp.skinBlockColors, bp.skinParts, &bp.garments);
 
@@ -191,6 +193,8 @@ namespace SunEngine {
                 bp.equipment_cooldown = j.value("equipment_cooldown", 0.0f);
                 bp.move_speed_bonus = j.value("move_speed_bonus", 0.0f);
                 bp.morale_bonus = j.value("morale_bonus", 0.0f);
+                bp.morale_cap_bonus = j.value("morale_cap_bonus", 0.0f);
+                bp.morale_start_bonus = j.value("morale_start_bonus", 0.0f);
                 bp.explode_on_impact = j.value("explode_on_impact", false);
                 bp.structure_damage_multiplier = j.value("structure_damage_multiplier", 1.0f);
                 bp.structure_health = j.value("structure_health", 250.0f);

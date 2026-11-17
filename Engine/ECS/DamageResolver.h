@@ -193,7 +193,7 @@ namespace SunEngine {
                 defenderMelee->currentAttackNode = "";
                 defenderMelee->stunTimer = kGuardBreakStun;
                 defenderMelee->parrySucceeded = false;
-                defenderStats.stamina = std::max(0.0f, defenderStats.stamina - attackerStats.strength * 0.6f);
+                defenderStats.stamina = std::max(0.0f, defenderStats.stamina - attackerStats.strength * attackerStats.moraleCombatMult * 0.6f);
                 guardBroken = true;
                 { VfxEvent e; e.kind = VfxKind::GuardBreak; e.pos = fxPos; EmitVfx(e); }
                 EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "GUARDIA ROTTA!", glm::vec4(1.0f, 0.35f, 0.2f, 1.0f));
@@ -204,7 +204,7 @@ namespace SunEngine {
                 defenderMelee->parrySucceeded = true;
                 { VfxEvent e; e.kind = VfxKind::Parry; e.pos = fxPos; EmitVfx(e); }
                 EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "PARATA!", glm::vec4(1.0f, 0.9f, 0.5f, 1.0f));
-                float staminaDamage = attackerStats.strength * 0.45f;
+                float staminaDamage = attackerStats.strength * attackerStats.moraleCombatMult * 0.45f;
                 defenderStats.stamina = std::max(0.0f, defenderStats.stamina - staminaDamage);
                 defenderMelee->parrySuccessTimer = 0.25f;
 
@@ -251,7 +251,7 @@ namespace SunEngine {
                 }
             }
 
-            float rawDamage = (attackerStats.strength * 0.4f) + (weaponBaseDamage * nodeMult);
+            float rawDamage = (attackerStats.strength * attackerStats.moraleCombatMult * 0.4f) + (weaponBaseDamage * nodeMult);
             if (const auto* buff = reg.try_get<FactionBuffComponent>(attacker)) rawDamage *= buff->meleeDamageMult;   // WAAAGH!
             int ap = weaponBP ? weaponBP->armor_penetration : 10;
 

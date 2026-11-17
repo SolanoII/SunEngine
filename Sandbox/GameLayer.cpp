@@ -3681,6 +3681,54 @@ namespace SunEngine {
             dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + bh), Ui::U32(Ui::Col::Steel, 0.9f), 0.0f, 0, 1.0f);
             y += bh + 8.0f;
             if (st->staminaExhausted) { dl->AddText(ImVec2(x, y), IM_COL32(230, 130, 60, 255), "Senza fiato"); y += 16.0f; }
+            // Morale: barra fino al tetto, tacche alle soglie (60/40/20% della statistica), zona e ultimo motivo
+            if (const auto* mo = reg.try_get<MoraleComponent>(m_PlayerEntity)) {
+                if (mo->unbreakable || mo->amoral) {
+                    dl->AddText(ImVec2(x, y), mo->amoral ? Ui::U32(Ui::Col::Ash) : Ui::U32(Ui::Col::Gold), mo->amoral ? "AMORALE" : "MORALE INCROLLABILE");
+                    y += 18.0f;
+                }
+                else {
+                    const float top = std::max(mo->base, mo->cap + mo->auraCap);
+                    const float frac = std::clamp(mo->current / std::max(1.0f, top), 0.0f, 1.0f);
+                    const float t = static_cast<float>(ImGui::GetTime());
+                    ImU32 col;
+                    switch (mo->zone) {
+                    case MoraleZone::High: col = IM_COL32(170, 210, 235, 255); break;
+                    case MoraleZone::Medium: col = Ui::U32(Ui::Col::Gold, 0.95f); break;
+                    case MoraleZone::Low: col = Ui::U32(Ui::Col::Rust); break;
+                    default: { const int p = static_cast<int>(170 + 85 * std::sin(t * 9.0f)); col = IM_COL32(p, 30, 30, 255); break; }
+                    }
+                    const float mh = 8.0f;
+                    dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + mh), IM_COL32(14, 12, 12, 205));
+                    if (frac > 0.0f) dl->AddRectFilled(ImVec2(x + 1.0f, y + 1.0f), ImVec2(x + (w - 1.0f) * frac, y + mh - 1.0f), col);
+                    for (float p : { 0.6f, 0.4f, 0.2f }) {   // soglie delle zone
+                        const float tx = x + w * std::clamp(p * mo->base / std::max(1.0f, top), 0.0f, 1.0f);
+                        dl->AddLine(ImVec2(tx, y - 1.0f), ImVec2(tx, y + mh + 1.0f), IM_COL32(230, 225, 210, 150), 1.0f);
+                    }
+                    if (mo->start < top - 0.5f) {   // fin dove si recupera da soli
+                        const float sx = x + w * std::clamp(mo->start / top, 0.0f, 1.0f);
+                        dl->AddLine(ImVec2(sx, y - 3.0f), ImVec2(sx, y + mh + 3.0f), Ui::U32(Ui::Col::Bone), 2.0f);
+                    }
+                    dl->AddRect(ImVec2(x, y), ImVec2(x + w, y + mh), Ui::U32(Ui::Col::Steel, 0.9f), 0.0f, 0, 1.0f);
+                    y += mh + 4.0f;
+                    char mt[96];
+                    std::snprintf(mt, sizeof(mt), "Morale %s  %.0f / %.0f  (%.0f%%)", Morale::ZoneName(mo->zone), mo->current, mo->base, Morale::Percent(*mo) * 100.0f);
+                    dl->AddText(ImVec2(x + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 200), mt);
+                    dl->AddText(ImVec2(x, y), col, mt); y += 16.0f;
+                    if (mo->zone != MoraleZone::High) {
+                        const char* eff = mo->zone == MoraleZone::Medium ? "-5% tiro, mischia e forza"
+                                        : (mo->zone == MoraleZone::Low ? "-15% tiro, mischia e forza" : "-50% tiro, mischia e forza  |  +30% velocita' allontanandoti dal nemico");
+                        dl->AddText(ImVec2(x + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 200), eff);
+                        dl->AddText(ImVec2(x, y), IM_COL32(235, 215, 190, 240), eff); y += 16.0f;
+                    }
+                    if (mo->causeTimer > 0.0f && std::fabs(mo->lastDelta) >= 0.5f) {
+                        char ct[96];
+                        std::snprintf(ct, sizeof(ct), "%s  %+.0f", mo->lastCause.c_str(), mo->lastDelta);
+                        dl->AddText(ImVec2(x + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 200), ct);
+                        dl->AddText(ImVec2(x, y), mo->lastDelta < 0.0f ? IM_COL32(255, 140, 110, 235) : IM_COL32(150, 220, 150, 235), ct); y += 16.0f;
+                    }
+                }
+            }
             // Slancio (Feral Pig): cresce correndo dritto; oltre la tacca si puo' caricare con le zanne
             if (st->momentumBonus > 0.0f) {
                 const auto* mom = reg.try_get<MomentumComponent>(m_PlayerEntity);
@@ -3716,7 +3764,7 @@ namespace SunEngine {
             dl->AddText(ImVec2(x, y), IM_COL32(120, 200, 255, 255), t); y += 16.0f;
         }
         if (const auto* aura = reg.try_get<MoraleAuraComponent>(m_PlayerEntity)) {
-            char t[64]; std::snprintf(t, sizeof(t), "Insegna imperiale: morale +%d%%", static_cast<int>(std::lround(aura->bonus * 100.0f)));
+            char t[64]; std::snprintf(t, sizeof(t), "Insegna imperiale: tetto del morale +%d", static_cast<int>(std::lround(aura->bonus * 100.0f)));
             dl->AddText(ImVec2(x, y), IM_COL32(255, 215, 90, 255), t); y += 16.0f;
         }
         if (const auto* cry = reg.try_get<WarCryComponent>(m_PlayerEntity)) {
@@ -5178,6 +5226,7 @@ namespace SunEngine {
         // Fuori dalla partita niente squig in giro (garage, editor)
         if (m_GameState != GameState::Gameplay) {
             XpEventLog().clear();   // eventi rimasti fuori partita: non contano
+            m_MoraleSystem.Clear(m_Scene);   // il morale riparte dal valore di partenza a ogni partita
             m_Feel.Reset();
             m_SquigSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
@@ -5562,6 +5611,7 @@ namespace SunEngine {
             UpdateTrainingDummies(deltaTime);
             m_WeightSystem.Update(m_Scene, deltaTime);
             m_HealthRegen.Update(m_Scene, deltaTime);
+            m_MoraleSystem.Update(m_Scene, deltaTime);   // morale: compagni caduti, fuoco pesante, ferite, cure
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
             UpdateSummons(deltaTime);
@@ -7555,6 +7605,18 @@ namespace SunEngine {
                 ImGui::Spacing();
                 ImGui::Text("Toughness (Resistenza): %.0f/100", toughnessVal);
                 ImGui::ProgressBar(toughnessVal / 100.0f, ImVec2(-1, 10), "");
+            }
+            if (currentBp) {   // morale: 100 incrollabile, 0 amorale
+                const float mor = std::clamp(currentBp->morale, 0.0f, 100.0f);
+                ImGui::Spacing();
+                if (mor >= 100.0f) ImGui::Text("Morale: 100/100 (incrollabile)");
+                else if (mor <= 0.0f) ImGui::Text("Morale: 0 (creatura amorale)");
+                else ImGui::Text("Morale: %.0f/100", mor);
+                ImGui::ProgressBar(mor / 100.0f, ImVec2(-1, 10), "");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Cala vedendo cadere i compagni, sotto il fuoco di armi pesanti ed esplosioni, e quando sei ferito.\n"
+                                      "Risale fuori dal combattimento, curandoti e vedendo cadere i nemici.\n"
+                                      "Alto (60%%+) nessun effetto | Medio -5%% | Basso -15%% | In rotta (sotto 20%%) -50%%, +30%% velocita' in fuga.");
             }
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
@@ -9755,6 +9817,7 @@ namespace SunEngine {
         UpdateHitFeedback(deltaTime);
         m_WeightSystem.Update(m_Scene, deltaTime);
         m_HealthRegen.Update(m_Scene, deltaTime);
+        m_MoraleSystem.Update(m_Scene, deltaTime);
         if (m_VsBotWarmup <= 0.0f) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
         m_MeleeCombat.Update(m_Scene, deltaTime);
         m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);

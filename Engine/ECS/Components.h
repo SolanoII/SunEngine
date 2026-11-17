@@ -292,6 +292,7 @@ namespace SunEngine {
         float weightCapacity = 60.0f;
         float currentWeight = 0.0f;
         float damageTakenMult = 1.0f;   // danni subiti (0.85 = -15%, ordine "Take Cover")
+        float moraleCombatMult = 1.0f;  // morale (MoraleSystem.h): tiro, mischia e forza x questo (1 / 0.95 / 0.85 / 0.5)
         // Corsa e fiato: mentre si corre la stamina scende (di piu' con piu' peso addosso) e non si rigenera;
         // a stamina finita si e' senza fiato finche' non torna a 20.
         bool sprinting = false;
@@ -388,6 +389,29 @@ namespace SunEngine {
         float timeLeft = 0.0f;
         float bonus = 0.1f;
     };
+    // Morale (vedi MoraleSystem.h). Punti flat confrontati con la statistica dell'unita' ("morale", 0..100).
+    enum class MoraleZone : std::uint8_t { High = 0, Medium, Low, Rout };
+    struct MoraleComponent {
+        float base = 0.0f;          // statistica dell'unita' (0..100): la percentuale si calcola su questa
+        float cap = 0.0f;           // tetto: base + bonus flat di equipaggiamento e abilita' (mai superato)
+        float start = 0.0f;         // valore di partenza: base + bonus flat degli oggetti (mai oltre il tetto)
+        float current = 0.0f;       // punti attuali
+        MoraleZone zone = MoraleZone::High;
+        bool unbreakable = false;   // statistica 100: niente lo scalfisce
+        bool amoral = false;        // statistica 0: creatura amorale (per ora: niente la scalfisce)
+        bool wasDead = false;
+        float prevHp = -1.0f;
+        float suppressTimer = 0.0f, suppressRate = 0.0f;   // sotto il fuoco di armi pesanti: punti persi al secondo
+        float scanTimer = 0.0f;
+        bool enemyInSight = false;  // un nemico vivo in vista (vicino): non si e' fuori dal combattimento
+        bool hasThreat = false;     // nemico piu' vicino visto (per la rotta: ci si allontana da li')
+        glm::vec3 threatPos{ 0.0f };
+        float auraCap = 0.0f;       // tetto in piu' finche' si e' vicini a un'insegna (aiuto)
+        // per l'HUD: ultimo motivo e quanto e' cambiato
+        std::string lastCause;
+        float lastDelta = 0.0f, causeTimer = 0.0f, zoneTimer = 0.0f;
+    };
+
     // Gruuk (urlo del vecchio zhelvar): chi lo sente vicino corre piu' in fretta, velocita' x mult per timeLeft
     // secondi. A parte dagli altri buff, cosi' si somma alla HUNGRY! e allo zaino energetico senza cancellarli.
     struct WarCryComponent {

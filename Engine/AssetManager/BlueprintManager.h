@@ -236,6 +236,9 @@ namespace SunEngine {
         float move_speed_bonus = 0.0f;
         // Insegna ("insignia"): passiva, morale +morale_bonus a chi della squadra e' entro equipment_range metri (anche chi la porta)
         float morale_bonus = 0.0f;
+        // Morale (MoraleSystem.h), punti flat finche' l'oggetto e' nella dotazione: tetto in piu' e valore di partenza in piu'
+        float morale_cap_bonus = 0.0f;
+        float morale_start_bonus = 0.0f;
         float companion_health = 30.0f;      // lo squig si puo' uccidere: poca salute...
         float companion_evasion = 0.30f;     // ...ma schiva il 30% dei colpi
 
@@ -352,6 +355,9 @@ namespace SunEngine {
         // Strati sul modello animato (texture/mesh sopra il corpo, vedi GarmentShell.h). Se ci sono, i pezzi
         // a cubi agganciati alle ossa ("bone" negli skin_parts) non vengono usati sul modello animato.
         std::vector<GarmentDef> garments;
+        // Morale (MoraleSystem.h), punti flat finche' e' indossata: tetto in piu' e valore di partenza in piu'
+        float morale_cap_bonus = 0.0f;
+        float morale_start_bonus = 0.0f;
     };
 
     class BlueprintManager {

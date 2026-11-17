@@ -7,6 +7,7 @@
 #include "Engine/ECS/MovementSystem.h"
 #include "Engine/ECS/WeightSystem.h"
 #include "Engine/ECS/HealthRegenSystem.h"
+#include "Engine/ECS/MoraleSystem.h"
 #include "Engine/Renderer/BodyFit.h"
 #include "Engine/Renderer/ExtraBones.h"
 #include "Engine/Renderer/RaceMotion.h"
@@ -723,6 +724,7 @@ namespace SunEngine {
         MovementSystem m_MovementSystem;
         WeightSystem m_WeightSystem;
         HealthRegenSystem m_HealthRegen;   // vita che torna dopo 7 s fuori dal combattimento
+        MoraleSystem m_MoraleSystem;       // morale delle unita' (MoraleSystem.h)
         HordeAISystem m_HordeAI;
         BotAISystem m_BotAI;
         MeleeCombatSystem m_MeleeCombat;

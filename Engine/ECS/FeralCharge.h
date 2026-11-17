@@ -92,7 +92,7 @@ namespace SunEngine {
                 auto& defStats = reg.get<UnitStatsComponent>(best);
                 auto& defT = reg.get<TransformComponent>(best);
                 const float before = defHealth.currentHealth;
-                const float raw = stats.chargeDamage * (0.6f + 0.4f * m.value) * (0.7f + stats.strength / 100.0f);
+                const float raw = stats.chargeDamage * (0.6f + 0.4f * m.value) * (0.7f + stats.strength * stats.moraleCombatMult / 100.0f);
                 DamageResolver::ResolveHit(raw, 2, HitboxLocation::Torso, defStats, defHealth);
                 const glm::vec3 push(fwd.x, 0.0f, fwd.y);
                 // Il colpito barcolla e arretra (gli attacchi pesanti in corso si interrompono)
