@@ -3980,7 +3980,7 @@ namespace SunEngine {
                 if (type == "scrap_barricade" || type == "slit_wall") textRight(type == "slit_wall" ? "Costruzione muro... (resta fermo)" : "Costruzione barricata... (resta fermo)", baseSize, yellow);
                 else if (type == "turret") textRight("Montaggio... (resta fermo)", baseSize, yellow);
                 else if (type == "medkit") textRight("Medicazione...", baseSize, yellow);
-                else if (type == "vox_caster") textRight("Chiamata col Communication Device...", baseSize, yellow);
+                else if (type == "vox_caster") textRight("Chiamata col Comunicatore da Campo...", baseSize, yellow);
                 else textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
             }
             if (type == "ammo_box")

@@ -1,6 +1,6 @@
 {
   "id": "guardsman_frag",
-  "displayName": "Granata Frag",
+  "displayName": "Granata a Frammentazione",
   "comment": "Dotazione base del Fante del Regno: granata a frammentazione. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4,5 m di raggio). 1 per partita.",
   "faction": "Imperium",
   "allowed_units": [

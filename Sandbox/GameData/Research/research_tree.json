@@ -364,7 +364,7 @@
         {
           "id": "ig_conscript_item_frag",
           "item": "conscript_frag",
-          "name": "Granata Frag",
+          "name": "Granata a Frammentazione",
           "tier": 1,
           "col": 1,
           "row": 3,
@@ -535,7 +535,7 @@
         {
           "id": "ig_guardsman_item_vox",
           "item": "guardsman_vox_caster",
-          "name": "Communication Device",
+          "name": "Comunicatore da Campo",
           "tier": 3,
           "col": 3,
           "row": 17,
@@ -1141,6 +1141,28 @@
           "purchase_cost": 50000
         },
         {
+          "id": "sm_scout_item_shotgun",
+          "item": "scout_shotgun",
+          "name": "Fucile a Pompa Vanguardio",
+          "tier": 2,
+          "col": 2,
+          "row": 16,
+          "parent": "sm_scout",
+          "research_cost": 12000,
+          "purchase_cost": 20000
+        },
+        {
+          "id": "sm_scout_item_chainsword",
+          "item": "scout_chainsword",
+          "name": "Spada a Denti Meccanici da Esploratore",
+          "tier": 2,
+          "col": 2,
+          "row": 17,
+          "parent": "sm_scout",
+          "research_cost": 15000,
+          "purchase_cost": 25000
+        },
+        {
           "id": "sm_firstborn_item_heavy_bolter",
           "item": "firstborn_heavy_bolter",
           "name": "Mitragliatrice a Proiettili Pesanti Rinforzata",
@@ -1172,6 +1194,17 @@
           "parent": "sm_firstborn",
           "research_cost": 25000,
           "purchase_cost": 50000
+        },
+        {
+          "id": "sm_firstborn_item_auto_bolt_rifle",
+          "item": "firstborn_auto_bolt_rifle",
+          "name": "Fucile Automatico a Proiettili Pesanti",
+          "tier": 3,
+          "col": 3,
+          "row": 23,
+          "parent": "sm_firstborn",
+          "research_cost": 30000,
+          "purchase_cost": 55000
         },
         {
           "id": "sm_sworn_brother",
