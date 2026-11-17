@@ -935,6 +935,14 @@ namespace SunEngine {
         // Guardia imperiale: "Follow Orders"
         float m_OrdersAssistAccum = 0.0f;          // aiuti ai compagni dall'ultimo frame (munizioni, cure, strutture)
         float m_CohesionDelay = 10.0f;             // dopo ogni schieramento la coesione non carica per 10 s
+        // Giuramento di Sangue di Konrad (Vanguard, tasto V)
+        bool m_OathActive = false;
+        float m_OathTime = 0.0f;        // secondi da quando e' acceso
+        float m_OathAutoOff = 0.0f;     // >0: messaggio "si e' spento da solo"
+        float m_OathDrainPending = 0.0f;   // vita spesa dal giuramento dall'ultimo fotogramma (non fa sanguinare lo schermo)
+        static constexpr float kOathDrain = 0.02f;   // vita massima al secondo
+        static constexpr float kOathLock = 3.0f;     // secondi prima di poterlo togliere
+        void UpdateBloodOath(float deltaTime, bool alive, bool keyPressed);
         int m_OrderActive = -1;                    // 0 Take AIM!, 1 Take Cover, 2 MOVE MOVE MOVE!, 3 Fix Bayonets!
         float m_OrderTimer = 0.0f;
         bool m_RadialOpen = false;

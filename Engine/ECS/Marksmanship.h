@@ -16,6 +16,10 @@ namespace SunEngine {
     //    deviazione casuale, che sparisce man mano che la mira si assesta.
     namespace Marksmanship {
         inline float Skill01(const UnitStatsComponent& s) { return std::clamp(s.accuracySkill / 100.0f, 0.0f, 1.0f); }
+        // Con un potenziamento della capacita' di tiro (es. Giuramento di Sangue di Konrad: +15%)
+        inline float Skill01(const UnitStatsComponent& s, const FactionBuffComponent* buff) {
+            return std::clamp(s.accuracySkill * (buff ? buff->accuracyMult : 1.0f) / 100.0f, 0.0f, 1.0f);
+        }
 
         // Moltiplicatore del rinculo dell'arma: 100 -> 0,03 (un pixel), 75 -> ~0,6, 50 -> ~1,3, 30 -> ~1,9
         inline float KickMult(float s) { return 0.03f + 2.9f * std::pow(1.0f - s, 1.2f); }

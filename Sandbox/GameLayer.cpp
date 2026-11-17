@@ -3180,6 +3180,7 @@ namespace SunEngine {
         m_CohesionDelay = 10.0f;
         m_RadialOpen = false;
         m_RadialVec = glm::vec2(0.0f);
+        m_OathActive = false; m_OathTime = 0.0f; m_OathAutoOff = 0.0f;
         PlayerDamageDealtAccum() = 0.0f;
         auto& reg = m_Scene.GetRegistry();
         if (reg.valid(m_PlayerEntity) && reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
@@ -3379,8 +3380,45 @@ namespace SunEngine {
             }
             return;
         }
-        // Altre fazioni: nessun buff
         m_RadialOpen = false;
+        // Vanguard: Konrad ha il Giuramento di Sangue (V)
+        if (faction == "spacemarines") UpdateBloodOath(deltaTime, alive, keyPressed);
+    }
+
+    // Giuramento di Sangue (solo Konrad, tasto V): finche' e' attivo +10% velocita', +15% velocita' d'attacco (colpi in
+    // mischia e cadenza), +10% danni in mischia, +15% capacita' di tiro, +20% velocita' di ricarica, ma costa il 2% della
+    // vita massima al secondo. Acceso, non si spegne per 3 secondi; se il prossimo morso di vita lo ucciderebbe si spegne da
+    // solo (anche dentro i 3 secondi).
+    void GameLayer::UpdateBloodOath(float deltaTime, bool alive, bool keyPressed) {
+        auto& reg = m_Scene.GetRegistry();
+        m_OathAutoOff = std::max(0.0f, m_OathAutoOff - deltaTime);
+        const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
+        const bool konrad = uid && uid->id == "spacemarines_sworn_brother";
+        auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
+        auto stop = [&](const char* why) {
+            if (!m_OathActive) return;
+            m_OathActive = false; m_OathTime = 0.0f;
+            if (reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
+            SUN_CORE_INFO("Giuramento di Sangue spento ({0})", why);
+        };
+        if (!konrad || !alive || !hp) { stop("unita' o vita"); return; }
+        const float drainPerSecond = kOathDrain * hp->maxHealth;
+        if (keyPressed) {
+            if (!m_OathActive) {
+                if (hp->currentHealth - drainPerSecond * deltaTime > 1.0f) { m_OathActive = true; m_OathTime = 0.0f; SUN_CORE_INFO("Giuramento di Sangue!"); }
+            }
+            else if (m_OathTime >= kOathLock) stop("tolto dal giocatore");
+        }
+        if (!m_OathActive) return;
+        m_OathTime += deltaTime;
+        const float bite = drainPerSecond * deltaTime;
+        if (hp->currentHealth - bite <= 1.0f) { stop("la vita non basta"); m_OathAutoOff = 2.5f; return; }
+        hp->currentHealth -= bite;
+        m_OathDrainPending += bite;
+        auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
+        b = FactionBuffComponent{};
+        b.moveSpeedMult = 1.10f; b.meleeSpeedMult = 1.15f; b.fireRateMult = 1.15f; b.meleeDamageMult = 1.10f;
+        b.accuracyMult = 1.15f; b.reloadSpeedMult = 1.20f;
     }
 
     // Selettore radiale degli ordini al centro dello schermo: 4 voci (su, destra, giu', sinistra)
@@ -3431,7 +3469,10 @@ namespace SunEngine {
         const float W = ds.x, H = ds.y;
         const float maxHp = std::max(1.0f, h->maxHealth);
 
-        // Colpo subito: lampo proporzionale al danno e nuove macchie sui bordi
+        // Colpo subito: lampo proporzionale al danno e nuove macchie sui bordi. La vita spesa dal Giuramento di
+        // Sangue non conta come colpo (lo schermo non sanguina a ogni secondo)
+        const float oathSpent = m_OathDrainPending; m_OathDrainPending = 0.0f;
+        if (m_LastPlayerHp >= 0.0f) m_LastPlayerHp -= oathSpent;
         if (m_LastPlayerHp >= 0.0f && h->currentHealth < m_LastPlayerHp - 0.5f) {
             const float frac = (m_LastPlayerHp - h->currentHealth) / maxHp;
             m_DamageFlash = std::min(1.0f, m_DamageFlash + std::clamp(frac * 4.0f, 0.3f, 1.0f));
@@ -3644,6 +3685,33 @@ namespace SunEngine {
                 }
                 if (m_FactionEnemyBehind) dl->AddText(ImVec2(x, ly), IM_COL32(255, 90, 70, 255), "Non voltare le spalle al nemico!");
             }
+            return;
+        }
+        if (m_FactionBuffFaction == "spacemarines") {
+            const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
+            if (!uid || uid->id != "spacemarines_sworn_brother") return;
+            // Giuramento di Sangue: rosso che pulsa quando e' acceso, lucchetto per i primi 3 secondi
+            const float size = 28.0f;
+            const float t = static_cast<float>(ImGui::GetTime());
+            const float pulse = m_OathActive ? 0.7f + 0.3f * std::sin(t * 6.0f) : 1.0f;
+            const ImU32 col = m_OathActive ? IM_COL32(static_cast<int>(255 * pulse), static_cast<int>(40 * pulse), 40, 255) : IM_COL32(200, 196, 188, 230);
+            const char* title = "GIURAMENTO DI SANGUE";
+            dl->AddText(font, size, ImVec2(x + 2.0f, y + 2.0f), IM_COL32(0, 0, 0, 200), title);
+            dl->AddText(font, size, ImVec2(x, y), col, title);
+            const ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, 0.0f, title);
+            char info[96];
+            if (m_OathActive && m_OathTime < kOathLock) std::snprintf(info, sizeof(info), "ATTIVO - si puo' togliere tra %.1f s", kOathLock - m_OathTime);
+            else if (m_OathActive) std::snprintf(info, sizeof(info), "ATTIVO - [V] per toglierlo");
+            else std::snprintf(info, sizeof(info), "[V] per giurare");
+            dl->AddText(ImVec2(x + ts.x + 11.0f, y + size * 0.5f - 6.0f), IM_COL32(0, 0, 0, 200), info);
+            dl->AddText(ImVec2(x + ts.x + 10.0f, y + size * 0.5f - 7.0f), col, info);
+            float ly = y + size + 2.0f;
+            if (m_OathActive) {
+                dl->AddText(ImVec2(x, ly), IM_COL32(255, 190, 170, 235), "+10% velocita'  +15% velocita' d'attacco  +10% danni in mischia  +15% tiro  +20% ricarica"); ly += 16.0f;
+                char d[64]; std::snprintf(d, sizeof(d), "-%.0f%% della vita al secondo", kOathDrain * 100.0f);
+                dl->AddText(ImVec2(x, ly), IM_COL32(255, 80, 70, 255), d);
+            }
+            else if (m_OathAutoOff > 0.0f) dl->AddText(ImVec2(x, ly), IM_COL32(255, 120, 90, 255), "Il giuramento si e' spento: non ti resta abbastanza sangue");
             return;
         }
         if (m_FactionBuffFaction != "orks") return;

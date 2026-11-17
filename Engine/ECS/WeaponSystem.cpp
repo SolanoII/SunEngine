@@ -241,7 +241,7 @@ namespace SunEngine {
             // Preparazione del tiro: fermi la mira si assesta (piu' in fretta con buona capacita' di tiro e
             // accovacciati); dal fianco si arriva al massimo a meta' strada, muovendosi poco, correndo per niente.
             {
-                const float skill = Marksmanship::Skill01(stats);
+                const float skill = Marksmanship::Skill01(stats, scene.GetRegistry().try_get<FactionBuffComponent>(entity));
                 float speed = 0.0f;
                 if (wState.hasLastPos && deltaTime > 0.0f) {
                     const glm::vec2 d(trans.Position.x - wState.lastPos.x, trans.Position.z - wState.lastPos.z);
@@ -530,7 +530,7 @@ namespace SunEngine {
 
         // Stabilita' del tiratore: accovacciato (fino a -35%), ordine "Take AIM!", insegna imperiale vicina,
         // elmetto con visiera. Riduce rinculo, ventaglio, deviazione e colpi di striscio.
-        const float skill = Marksmanship::Skill01(stats);
+        const float skill = Marksmanship::Skill01(stats, orderBuff);
         float steadyMult = 1.0f;
         if (const auto* cr = scene.GetRegistry().try_get<CrouchComponent>(shooter))
             steadyMult *= 1.0f - 0.35f * std::clamp(cr->amount, 0.0f, 1.0f);

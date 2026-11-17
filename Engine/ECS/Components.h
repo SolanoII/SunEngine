@@ -739,6 +739,7 @@ namespace SunEngine {
         float spreadMult = 1.0f;        // dispersione dei colpi (0.7 = -30%)
         float staminaRegenMult = 1.0f;  // recupero della stamina
         bool ignoreSlows = false;       // immune ai rallentamenti (peso, mira)
+        float accuracyMult = 1.0f;      // capacita' di tiro (1.15 = +15%: rinculo, mira che si assesta, precisione)
         float stunImmuneTimer = 0.0f;   // >0: non puo' essere stordito
     };
 
