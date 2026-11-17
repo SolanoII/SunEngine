@@ -949,11 +949,182 @@ namespace SunEngine {
         return false;
     }
 
+    // ------------------------------------------------------------------------------------------------------------
+    // Il vecchio zhelvar (padre di Kragh, "Il peso delle pietre"): pezzi costruiti sul corpo del Vrepigh
+    //   zhelvar_necklace_cord    cordone di tendine intrecciato alla base del collo, che scende sul petto
+    //   zhelvar_necklace_stones  i tash che non puo' piu' mangiare, appesi al cordone (schegge sfaccettate)
+    //   zhelvar_skar             placche ossee cresciute con la pietra: spine sulle spalle e sulla gobba
+    inline bool BuildZhelvarGarment(const SkinnedModel& model, const std::string& kind, GarmentShell& out) {
+        using namespace TeutonicDetail;
+        using namespace Sdf;
+        Body B;
+        if (!B.Init(model)) return false;
+        const float Hb = B.Hb;
+        const glm::vec3 hips = B.P("Hips"), neck = B.P("Neck");
+        const float H = std::max(1e-3f, neck.y - hips.y);
+        const unsigned torsoMask = (1u << G_Torso) | (1u << G_Neck);
+        const unsigned upperMask = torsoMask | (1u << G_ArmL) | (1u << G_ArmR);
+
+        if (kind == "zhelvar_necklace_cord" || kind == "zhelvar_necklace_stones") {
+            // Linea del cordone: dietro passa sopra la gobba subito sotto la testa, ai lati scende sui trapezi, davanti
+            // pende sul petto sotto il mento; sempre appena fuori dalla pelle. (Il Vrepigh e' curvo: il collo sta piu'
+            // in basso della gobba, quindi la collana non e' un anello orizzontale.)
+            const float tune[3] = { 0.06f, 0.02f, 1.3f };   // abbassamento davanti (in H), dietro (in Hb), forma della curva
+            float yBack = -1e9f;
+            for (size_t i = 0; i < B.verts.size(); ++i) {
+                if (!(torsoMask & (1u << B.group[i]))) continue;
+                const glm::vec3& p = B.verts[i]->Position;
+                if (std::hypot(p.x - neck.x, p.z - (neck.z - Hb * 0.04f)) < Hb * 0.035f) yBack = std::max(yBack, p.y);
+            }
+            if (yBack < -1e8f) yBack = neck.y;
+            yBack -= Hb * tune[1];
+            const float yFront = neck.y - H * tune[0];
+            const float yLo = std::min(yFront, yBack) - H * 0.1f, yHi = std::max(yFront, yBack) + H * 0.05f;
+            const RingTable rt = BuildRings(B, neck.x, neck.z, yLo, yHi, 24, 40, torsoMask);
+            const float off = Hb * 0.010f;
+            // Pesi rigidi su petto e collo: copiati dal corpo, i vertici vicini alle clavicole prenderebbero le
+            // braccia e il cordone si stirerebbe a ogni respiro
+            const int idChest = B.Id("Spine2") >= 0 ? B.Id("Spine2") : B.Id("Spine1"), idNeck = B.Id("Neck");
+            auto neckWeights = [&](const glm::vec3& p) {
+                (void)p;   // quasi tutto sul petto: col collo il cordone si alzerebbe sulla gobba quando la testa va avanti
+                return Two(idChest, 0.92f, idNeck, 0.08f);
+            };
+            auto curve = [&](float a) {
+                const float f = std::pow(0.5f + 0.5f * std::cos(a), tune[2]);   // 1 davanti, 0 dietro
+                const float y = glm::mix(yBack, yFront, f);
+                const float r = rt.At(a, y) + off;
+                return glm::vec3(rt.cx + std::sin(a) * r, y, rt.cz + std::cos(a) * r);
+            };
+            if (kind == "zhelvar_necklace_cord") {
+                constexpr int N = 48;
+                std::vector<glm::vec3> pts(N);
+                glm::vec3 lo(1e9f), hi(-1e9f);
+                for (int i = 0; i < N; ++i) {
+                    pts[i] = curve(-3.14159265f + 6.2831853f * i / N);
+                    lo = glm::min(lo, pts[i]); hi = glm::max(hi, pts[i]);
+                }
+                const float rc = Hb * 0.0045f;
+                auto f = [&](const glm::vec3& p) {
+                    float d = 1e9f;
+                    for (int i = 0; i < N; ++i) d = std::min(d, Capsule(p, pts[i], pts[(i + 1) % N], rc));
+                    return d;
+                };
+                AddSdf(out, f, lo - glm::vec3(rc * 3.0f), hi + glm::vec3(rc * 3.0f), Hb * 0.0032f, neckWeights, Hb);
+                return !out.indices.empty();
+            }
+            // Pietre: nove schegge sul davanti, la piu' grande al centro, piegate un po' a caso
+            struct Stone { glm::vec3 c, t, n; float rx, ry, rz, tilt; };
+            std::vector<Stone> st;
+            glm::vec3 lo(1e9f), hi(-1e9f);
+            constexpr int K = 9;
+            for (int i = 0; i < K; ++i) {
+                const float u = (i - (K - 1) * 0.5f) / ((K - 1) * 0.5f);   // -1..1
+                const float a = u * 1.15f;
+                const float h = std::fabs(std::sin(i * 12.9898f) * 43758.5453f);
+                const float rnd = h - std::floor(h);                        // 0..1, sempre lo stesso per pietra
+                Stone s;
+                s.n = glm::vec3(std::sin(a), 0.0f, std::cos(a));
+                s.t = glm::vec3(std::cos(a), 0.0f, -std::sin(a));
+                s.ry = Hb * (0.015f + 0.010f * (1.0f - std::fabs(u)) + 0.005f * rnd);
+                s.rx = s.ry * (0.48f + 0.2f * rnd);
+                s.rz = s.ry * 0.42f;
+                s.tilt = (rnd - 0.5f) * 0.7f;
+                s.c = curve(a) - glm::vec3(0.0f, s.ry * 0.85f, 0.0f) + s.n * (s.rz * 0.6f);
+                st.push_back(s);
+                lo = glm::min(lo, s.c - glm::vec3(s.ry * 1.5f)); hi = glm::max(hi, s.c + glm::vec3(s.ry * 1.5f));
+            }
+            auto f = [&](const glm::vec3& p) {
+                float d = 1e9f;
+                for (const Stone& s : st) {
+                    const glm::vec3 q = p - s.c;
+                    float u = glm::dot(q, s.t), v = q.y;
+                    const float w = glm::dot(q, s.n);
+                    const float cu = std::cos(s.tilt), su = std::sin(s.tilt);
+                    const float ru = cu * u - su * v, rv = su * u + cu * v;
+                    // ottaedro allungato (scheggia sfaccettata), stretto in cima dove passa il cordone
+                    const float o = (std::fabs(ru) / s.rx + std::fabs(rv) / s.ry + std::fabs(w) / s.rz - 1.0f) * std::min(s.rx, s.rz) * 0.55f;
+                    d = std::min(d, o);
+                }
+                return d;
+            };
+            AddSdf(out, f, lo, hi, Hb * 0.0022f, neckWeights, Hb);
+            return !out.indices.empty();
+        }
+
+        if (kind == "zhelvar_skar") {
+            // Cima del corpo sopra (x, z): vertice piu' alto di busto e braccia li' attorno
+            auto topY = [&](float x, float z, float r) {
+                float y = -1e9f;
+                for (size_t i = 0; i < B.verts.size(); ++i) {
+                    if (!(upperMask & (1u << B.group[i]))) continue;
+                    const glm::vec3& p = B.verts[i]->Position;
+                    if (std::hypot(p.x - x, p.z - z) < r) y = std::max(y, p.y);
+                }
+                return y;
+            };
+            // Dorso dietro (x, y): z piu' piccola del busto li' attorno (il davanti e' +z)
+            auto backZ = [&](float x, float y, float r) {
+                float z = 1e9f;
+                for (size_t i = 0; i < B.verts.size(); ++i) {
+                    if (!(torsoMask & (1u << B.group[i]))) continue;
+                    const glm::vec3& p = B.verts[i]->Position;
+                    if (std::hypot(p.x - x, p.y - y) < r) z = std::min(z, p.z);
+                }
+                return z;
+            };
+            struct Spike { glm::vec3 a, b; float ra, rb; Weights w; };
+            std::vector<Spike> sp;
+            const glm::vec3 up(0.0f, 1.0f, 0.0f), back(0.0f, 0.0f, -1.0f);
+            for (const char* side : { "Left", "Right" }) {
+                const glm::vec3 C = B.P((std::string(side) + "Shoulder").c_str()), S = B.P((std::string(side) + "Arm").c_str());
+                const glm::vec3 out3 = glm::normalize(glm::vec3(S.x - C.x, 0.0f, 0.0f) + glm::vec3(1e-4f, 0.0f, 0.0f));
+                const float t[3] = { 0.30f, 0.58f, 0.86f };
+                const float len[3] = { 0.050f, 0.068f, 0.056f };
+                for (int k = 0; k < 3; ++k) {
+                    glm::vec3 base = glm::mix(C, S, t[k]);
+                    base.z -= Hb * 0.012f;                                       // un filo verso la schiena
+                    const float y = topY(base.x, base.z, Hb * 0.025f);
+                    if (y < -1e8f) continue;
+                    base.y = y - Hb * 0.008f;                                    // radice dentro la pelle
+                    const glm::vec3 dir = glm::normalize(up + back * 0.55f + out3 * (0.15f + 0.2f * k));
+                    const float L = Hb * len[k];
+                    sp.push_back({ base, base + dir * L, Hb * 0.014f, Hb * 0.0025f, B.WeightsOf(B.Nearest(base, upperMask)) });
+                }
+            }
+            // Due spine sulla gobba, in fila lungo la schiena
+            for (int k = 0; k < 2; ++k) {
+                const float y = glm::mix(B.P("Spine2").y, neck.y, 0.15f + 0.45f * k);
+                const float z = backZ(B.cx, y, Hb * 0.03f);
+                if (z > 1e8f) continue;
+                const glm::vec3 base(B.cx, y, z + Hb * 0.008f);
+                const glm::vec3 dir = glm::normalize(back + up * 0.6f);
+                sp.push_back({ base, base + dir * Hb * (0.05f - 0.012f * k), Hb * 0.015f, Hb * 0.0025f, B.WeightsOf(B.Nearest(base, torsoMask)) });
+            }
+            if (sp.empty()) return false;
+            glm::vec3 lo(1e9f), hi(-1e9f);
+            for (const auto& s : sp) { lo = glm::min(lo, glm::min(s.a, s.b) - glm::vec3(s.ra * 1.6f)); hi = glm::max(hi, glm::max(s.a, s.b) + glm::vec3(s.ra * 1.6f)); }
+            auto f = [&](const glm::vec3& p) {
+                float d = 1e9f;
+                for (const auto& s : sp) d = std::min(d, RoundCone(p, s.a, s.b, s.ra, s.rb));
+                return d;
+            };
+            AddSdf(out, f, lo, hi, Hb * 0.0026f, [&](const glm::vec3& p) {
+                size_t best = 0; float bd = 1e9f;
+                for (size_t i = 0; i < sp.size(); ++i) { const float d = Capsule(p, sp[i].a, sp[i].b, 0.0f); if (d < bd) { bd = d; best = i; } }
+                return sp[best].w;
+            }, Hb);
+            return !out.indices.empty();
+        }
+        return false;
+    }
+
     // Pezzi costruiti sul corpo, per nome ("procedural" nei JSON delle armature)
+    // "zhelvar_<pezzo>": collana e skar del vecchio zhelvar (vedi sopra).
     // "vanguard_<pezzo>[_light|_medium|_heavy][_l|_r]": armatura generica delle Vanguard, tre pesi. Goletta,
     // cinturone, falda, spallacci, cubitiere, polsini e ginocchielli sono quelli dell'armatura teutonica in scala.
     inline bool BuildProceduralGarment(const SkinnedModel& body, const std::string& kind, GarmentShell& out) {
         if (kind.rfind("teutonic_", 0) == 0) return BuildTeutonicGarment(body, kind, out);
+        if (kind.rfind("zhelvar_", 0) == 0) return BuildZhelvarGarment(body, kind, out);
         if (kind.rfind("vanguard_", 0) != 0) return false;
         std::vector<std::string> tok;
         for (size_t a = 9, b; a <= kind.size(); a = b + 1) { b = kind.find('_', a); if (b == std::string::npos) b = kind.size(); tok.push_back(kind.substr(a, b - a)); }

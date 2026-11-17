@@ -2045,6 +2045,26 @@
             0.3,
             1
           ]
+        },
+        {
+          "id": "ork_zhelvar",
+          "unit": "orks_zhelvar",
+          "name": "Il Vecchio (Zhelvar)",
+          "tier": 4,
+          "col": 4,
+          "row": 1.5,
+          "premium": true,
+          "premium_cost": 900,
+          "row_label": "IL PESO DELLE PIETRE",
+          "default_name": "Il Vecchio",
+          "color": [
+            0.42,
+            0.3,
+            0.5,
+            1
+          ],
+          "research_cost": 0,
+          "purchase_cost": 0
         }
       ]
     }

@@ -503,6 +503,21 @@ namespace SunEngine {
                 if (m.timeLeft <= 0.0f) ended.push_back(e);
             }
             for (auto e : ended) reg.remove<MoraleAuraComponent>(e);
+            ended.clear();
+            // Gruuk: spinta di chi l'ha sentito e posa di chi l'ha urlato
+            for (auto e : reg.view<WarCryComponent>()) {
+                auto& w = reg.get<WarCryComponent>(e);
+                w.timeLeft -= dt;
+                if (w.timeLeft <= 0.0f || reg.all_of<CorpseComponent>(e)) ended.push_back(e);
+            }
+            for (auto e : ended) reg.remove<WarCryComponent>(e);
+            ended.clear();
+            for (auto e : reg.view<WarCryShoutComponent>()) {
+                auto& s = reg.get<WarCryShoutComponent>(e);
+                s.time += dt;
+                if (s.time >= s.duration || reg.all_of<CorpseComponent>(e)) ended.push_back(e);
+            }
+            for (auto e : ended) reg.remove<WarCryShoutComponent>(e);
             // Insegne: chi la porta (vivo) rinnova l'aura a se' e ai compagni vicini
             auto holders = reg.view<InventoryComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
             for (auto h : holders) {

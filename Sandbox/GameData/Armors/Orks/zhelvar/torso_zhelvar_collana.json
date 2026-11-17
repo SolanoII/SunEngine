@@ -1,0 +1,57 @@
+{
+  "id": "torso_zhelvar_collana",
+  "displayName": "Collana di Tash",
+  "comment": "Solo il vecchio zhelvar: i tash che non puo' piu' mangiare, infilati in un cordone di tendine e portati al collo (\"Da quando non posso piu' portarle dentro\"), e le skar, le placche ossee cresciute in decenni di pietra, sulle spalle e sulla gobba. Pezzi costruiti sul corpo (Engine/Renderer/TeutonicArmor.h, zhelvar_*).",
+  "allowed_units": [
+    "orks_zhelvar"
+  ],
+  "location": "Torso",
+  "faction": "Orks",
+  "armor_rating": 12,
+  "coverage": 0.7,
+  "max_durability": 90.0,
+  "weight": 3.0,
+  "point_cost": 3,
+  "skin_blocks": {},
+  "skin_parts": [],
+  "garments": [
+    {
+      "id": "zhelvar_cord",
+      "procedural": "zhelvar_necklace_cord",
+      "color": [
+        0.22,
+        0.15,
+        0.1,
+        1
+      ],
+      "roughness": 0.85,
+      "metallic": 0.0
+    },
+    {
+      "id": "zhelvar_stones",
+      "procedural": "zhelvar_necklace_stones",
+      "color": [
+        0.3,
+        0.12,
+        0.42,
+        1
+      ],
+      "roughness": 0.18,
+      "metallic": 0.15,
+      "detail": 0,
+      "emissive": 0.6
+    },
+    {
+      "id": "zhelvar_skar",
+      "procedural": "zhelvar_skar",
+      "color": [
+        0.66,
+        0.6,
+        0.48,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.0
+    }
+  ]
+}

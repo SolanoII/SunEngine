@@ -388,6 +388,17 @@ namespace SunEngine {
         float timeLeft = 0.0f;
         float bonus = 0.1f;
     };
+    // Gruuk (urlo del vecchio zhelvar): chi lo sente vicino corre piu' in fretta, velocita' x mult per timeLeft
+    // secondi. A parte dagli altri buff, cosi' si somma alla HUNGRY! e allo zaino energetico senza cancellarli.
+    struct WarCryComponent {
+        float timeLeft = 0.0f;
+        float mult = 1.0f;
+    };
+    // Su chi sta urlando il Gruuk: per 'time' secondi petto in fuori, braccia aperte, fauci spalancate
+    struct WarCryShoutComponent {
+        float time = 0.0f;
+        float duration = 1.3f;
+    };
 
     // Mimetismo (camo cloak degli scout): il corpo diventa un liquido trasparente che rifrange cio' che ha dietro.
     // amount 0..1 (transizione morbida). Sulle entita' solo visive (arma in mano, modello animato) lo copia GameLayer.

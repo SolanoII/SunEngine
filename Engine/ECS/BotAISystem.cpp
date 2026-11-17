@@ -557,6 +557,7 @@ namespace SunEngine {
                     if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
+                    if (const auto* cry = reg.try_get<WarCryComponent>(self)) speed *= cry->mult;                   // Gruuk
                     t.Position += dir / dist * std::min(dist, speed * dt);
                     brain.isMoving = true;
                 }

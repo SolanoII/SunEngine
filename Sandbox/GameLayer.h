@@ -943,6 +943,18 @@ namespace SunEngine {
         static constexpr float kOathDrain = 0.02f;   // vita massima al secondo
         static constexpr float kOathLock = 3.0f;     // secondi prima di poterlo togliere
         void UpdateBloodOath(float deltaTime, bool alive, bool keyPressed);
+        // Gruuk del vecchio zhelvar (Vrepigh, tasto G): urlo che da' +20% di velocita' per 6 s a chi gli e' vicino
+        bool m_GruukKeyWasDown = true;
+        float m_GruukCooldown = 0.0f;   // secondi prima di poter urlare di nuovo
+        int m_GruukHeard = 0;           // alleati raggiunti dall'ultimo urlo (per l'HUD)
+        float m_GruukMsg = 0.0f;        // >0: mostra quanti l'hanno sentito
+        static constexpr float kGruukSpeed = 0.20f;      // +20% velocita' di movimento
+        static constexpr float kGruukDuration = 6.0f;    // secondi
+        static constexpr float kGruukRadius = 15.0f;     // metri
+        static constexpr float kGruukCooldown = 30.0f;   // secondi
+        static constexpr const char* kGruukUnit = "orks_zhelvar";
+        void UpdateGruuk(float deltaTime, bool canInput);
+        void RenderGruukHud(float x, float y);
         int m_OrderActive = -1;                    // 0 Take AIM!, 1 Take Cover, 2 MOVE MOVE MOVE!, 3 Fix Bayonets!
         float m_OrderTimer = 0.0f;
         bool m_RadialOpen = false;

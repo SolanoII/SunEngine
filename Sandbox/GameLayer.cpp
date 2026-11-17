@@ -1350,6 +1350,7 @@ namespace SunEngine {
         // il giocatore: niente stati a meta'
         ClearPlayerDeathState();
         reg.remove<VaultComponent, TurretMountComponent, SpeedBoostComponent, MoraleAuraComponent, HitMarkerComponent, ActionPoseComponent>(m_PlayerEntity);
+        reg.remove<WarCryComponent, WarCryShoutComponent>(m_PlayerEntity);
         if (auto* cloak = reg.try_get<CloakComponent>(m_PlayerEntity)) { cloak->amount = 0.0f; cloak->timeLeft = 0.0f; }
         if (auto* crouch = reg.try_get<CrouchComponent>(m_PlayerEntity)) crouch->amount = 0.0f;
         if (auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity)) {
@@ -3306,6 +3307,8 @@ namespace SunEngine {
             }
         }
 
+        UpdateGruuk(deltaTime, alive && !m_IsPaused && m_GameState == GameState::Gameplay);
+
         if (faction == "orks") {
             if (m_WaaaghTimer > 0.0f) {
                 m_WaaaghTimer -= deltaTime;
@@ -3419,6 +3422,48 @@ namespace SunEngine {
         b = FactionBuffComponent{};
         b.moveSpeedMult = 1.10f; b.meleeSpeedMult = 1.15f; b.fireRateMult = 1.15f; b.meleeDamageMult = 1.10f;
         b.accuracyMult = 1.15f; b.reloadSpeedMult = 1.20f;
+    }
+
+    // Gruuk (solo il vecchio zhelvar, padre di Kragh; tasto G): il canto gutturale con cui i branchi si richiamano.
+    // Lui e gli alleati entro 15 m corrono il 20% piu' in fretta per 6 secondi; poi 30 secondi prima di poterlo
+    // rifare. E' a parte dalla HUNGRY! (tasto V), che il vecchio ha come ogni Vrepigh: i due si sommano.
+    void GameLayer::UpdateGruuk(float deltaTime, bool canInput) {
+        auto& reg = m_Scene.GetRegistry();
+        m_GruukCooldown = std::max(0.0f, m_GruukCooldown - deltaTime);
+        m_GruukMsg = std::max(0.0f, m_GruukMsg - deltaTime);
+        const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
+        const bool elder = uid && uid->id == kGruukUnit;
+        const bool keyDown = canInput && elder && Input::IsKeyPressed(GLFW_KEY_G);
+        const bool pressed = keyDown && !m_GruukKeyWasDown;
+        m_GruukKeyWasDown = keyDown;
+        if (!pressed || m_GruukCooldown > 0.0f) return;
+
+        const glm::vec3 me = reg.get<TransformComponent>(m_PlayerEntity).Position;
+        const auto* myTeam = reg.try_get<TeamComponent>(m_PlayerEntity);
+        auto give = [&](entt::entity e) {
+            auto& w = reg.get_or_emplace<WarCryComponent>(e);
+            w.timeLeft = kGruukDuration;
+            w.mult = 1.0f + kGruukSpeed;
+        };
+        give(m_PlayerEntity);
+        int heard = 0;
+        if (myTeam) {
+            auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent>);
+            for (auto o : mates) {
+                if (o == m_PlayerEntity || mates.get<TeamComponent>(o).team != myTeam->team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
+                const glm::vec3 op = mates.get<TransformComponent>(o).Position;
+                if (glm::length(glm::vec2(op.x - me.x, op.z - me.z)) > kGruukRadius) continue;
+                give(o);
+                ++heard;
+            }
+        }
+        reg.emplace_or_replace<WarCryShoutComponent>(m_PlayerEntity);
+        m_GruukCooldown = kGruukCooldown;
+        m_GruukHeard = heard;
+        m_GruukMsg = 3.0f;
+        // voce piu' bassa e roca di quella degli altri Vrepigh
+        PlayOrkVoiceAtPos(me, me, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice, 0.68f, 0.76f);
+        SUN_CORE_INFO("Gruuk! ({0} alleati)", heard);
     }
 
     // Selettore radiale degli ordini al centro dello schermo: 4 voci (su, destra, giu', sinistra)
@@ -3644,7 +3689,11 @@ namespace SunEngine {
             char t[64]; std::snprintf(t, sizeof(t), "Insegna imperiale: morale +%d%%", static_cast<int>(std::lround(aura->bonus * 100.0f)));
             dl->AddText(ImVec2(x, y), IM_COL32(255, 215, 90, 255), t); y += 16.0f;
         }
-        if (reg.any_of<SpeedBoostComponent, MoraleAuraComponent>(m_PlayerEntity)) y += 4.0f;
+        if (const auto* cry = reg.try_get<WarCryComponent>(m_PlayerEntity)) {
+            char t[64]; std::snprintf(t, sizeof(t), "Gruuk: +%d%% velocita'  %.0f s", static_cast<int>(std::lround((cry->mult - 1.0f) * 100.0f)), std::ceil(cry->timeLeft));
+            dl->AddText(ImVec2(x, y), IM_COL32(200, 150, 255, 255), t); y += 16.0f;
+        }
+        if (reg.any_of<SpeedBoostComponent, MoraleAuraComponent, WarCryComponent>(m_PlayerEntity)) y += 4.0f;
 
         if (m_FactionBuffFaction == "imperium") {
             // "FOLLOW ORDERS": le lettere si accendono d'oro da sinistra a destra man mano che la barra si carica
@@ -3746,6 +3795,38 @@ namespace SunEngine {
             "+15% velocita'  +40% ricarica  +20% colpi in mischia  +15% danni in mischia");
         else if (m_FactionFightIdle > 5.0f && m_WaaaghPoints > 0.0f)
             dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(255, 120, 80, 240), "Niente rissa: la fame HUNGRY! si sta spegnendo!");
+        RenderGruukHud(x, y + size + 22.0f);
+    }
+
+    // Gruuk sotto la HUNGRY!: pronto (viola acceso) o in ricarica, e quanti alleati l'hanno sentito
+    void GameLayer::RenderGruukHud(float x, float y) {
+        auto& reg = m_Scene.GetRegistry();
+        const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
+        if (!uid || uid->id != kGruukUnit) return;
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        ImFont* font = ImGui::GetFont();
+        const float size = 26.0f;
+        const bool ready = m_GruukCooldown <= 0.0f;
+        const float pulse = ready ? 0.8f + 0.2f * std::sin(static_cast<float>(ImGui::GetTime()) * 5.0f) : 1.0f;
+        const ImU32 col = ready ? IM_COL32(static_cast<int>(190 * pulse), static_cast<int>(120 * pulse), 255, 255) : IM_COL32(120, 110, 130, 220);
+        const char* title = "GRUUK";
+        dl->AddText(font, size, ImVec2(x + 2.0f, y + 2.0f), IM_COL32(0, 0, 0, 200), title);
+        dl->AddText(font, size, ImVec2(x, y), col, title);
+        const ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, 0.0f, title);
+        char info[96];
+        if (ready) std::snprintf(info, sizeof(info), "PRONTO: premi [G]");
+        else std::snprintf(info, sizeof(info), "di nuovo tra %.0f s", std::ceil(m_GruukCooldown));
+        dl->AddText(ImVec2(x + ts.x + 11.0f, y + size * 0.5f - 6.0f), IM_COL32(0, 0, 0, 200), info);
+        dl->AddText(ImVec2(x + ts.x + 10.0f, y + size * 0.5f - 7.0f), col, info);
+        float ly = y + size + 2.0f;
+        char d[96];
+        std::snprintf(d, sizeof(d), "+%.0f%% velocita' per %.0f s a te e agli alleati entro %.0f m", kGruukSpeed * 100.0f, kGruukDuration, kGruukRadius);
+        dl->AddText(ImVec2(x, ly), IM_COL32(200, 185, 220, 220), d); ly += 16.0f;
+        if (m_GruukMsg > 0.0f) {
+            if (m_GruukHeard > 0) std::snprintf(d, sizeof(d), "Il branco ti ha sentito: %d %s", m_GruukHeard, m_GruukHeard == 1 ? "alleato" : "alleati");
+            else std::snprintf(d, sizeof(d), "Nessun alleato abbastanza vicino da sentirti");
+            dl->AddText(ImVec2(x, ly), IM_COL32(220, 170, 255, 255), d);
+        }
     }
 
     // Animazioni procedurali del modello animato (ProceduralPose.h): accovacciato (se mancano le clip),
@@ -3806,6 +3887,7 @@ namespace SunEngine {
         const bool heavy = melee && melee->currentAttack == MeleeAttackType::Heavy &&
             (melee->currentPhase == MeleePhase::Windup || melee->currentPhase == MeleePhase::Active);
         in.roar = heavy || (buff && buff->moveSpeedMult > 1.01f) || (in.sprinting && kind != AnimatedBodyKind::Human);
+        if (reg.all_of<WarCryShoutComponent>(e)) in.roar = true;   // Gruuk: fauci spalancate
         const float rate = ApplyRaceMotion(pose, RaceProfileFor(kind), slot.state, in);
         controller.SetStyleRate(rate);
     }
@@ -3877,6 +3959,16 @@ namespace SunEngine {
 
         // Modo di muoversi della razza: postura, passo, testa, respiro, ossa in piu' (sotto le azioni)
         ApplyRaceStyle(e, pose, controller, thigh + shin, deltaTime);
+
+        // Gruuk: petto in fuori, testa all'indietro, braccia aperte e alzate (entra in 0,25 s, esce nell'ultimo 0,35)
+        if (const auto* shout = reg.try_get<WarCryShoutComponent>(e)) {
+            const float k = PoseLib::Smooth(std::min(1.0f, shout->time / 0.25f)) * PoseLib::Smooth(std::clamp((shout->duration - shout->time) / 0.35f, 0.0f, 1.0f));
+            pose.Rotate("Spine1", PoseLib::Rx(-10.0f * k));
+            pose.Rotate("Spine2", PoseLib::Rx(-8.0f * k));
+            pose.Rotate("Head", PoseLib::Rx(-18.0f * k));
+            pose.Rotate("LeftArm", PoseLib::Rz(40.0f * k) * PoseLib::Rx(-20.0f * k));
+            pose.Rotate("RightArm", PoseLib::Rz(-40.0f * k) * PoseLib::Rx(-20.0f * k));
+        }
 
         // Accovacciato (solo se non ci sono le clip "crouch idle/walking")
         if (const auto* crouch = reg.try_get<CrouchComponent>(e); crouch && !controller.HasCrouchClips())

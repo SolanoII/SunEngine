@@ -554,6 +554,7 @@ public:
             moveSpeed *= 1.0f - 0.5f * crouch.amount;   // accovacciato: meta' velocita'
             if (const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity)) moveSpeed *= buff->moveSpeedMult;   // WAAAGH!
             if (const auto* boost = scene.GetRegistry().try_get<SpeedBoostComponent>(entity)) moveSpeed *= boost->mult;          // zaino energetico
+            if (const auto* cry = scene.GetRegistry().try_get<WarCryComponent>(entity)) moveSpeed *= cry->mult;              // Gruuk
 
             glm::vec3 moveDir{ 0.0f };
             if (Input::IsKeyPressed(GLFW_KEY_W)) moveDir.z -= 1.0f;
