@@ -10,6 +10,8 @@
   "has_underbarrel": false,
   "is_melee": false,
   "magazine_size": 40,
+  "suppression_value": 4,
+  "suppression_slow": 0.06,
   "reload_time_sec": 2.2,
   "fire_modes": [
     "semi"

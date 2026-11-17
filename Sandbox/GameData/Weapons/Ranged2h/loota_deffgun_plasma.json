@@ -34,6 +34,7 @@
   "spread_base": 0.05,
   "spread_auto_multiplier": 1.0,
   "suppression_value": 10,
+  "suppression_slow": 0.15,
   "projectile_type": "plasma",
   "is_beam": false,
   "projectile_speed": 70.0,

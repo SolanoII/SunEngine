@@ -391,6 +391,9 @@ namespace SunEngine {
     };
     // Morale (vedi MoraleSystem.h). Punti flat confrontati con la statistica dell'unita' ("morale", 0..100).
     enum class MoraleZone : std::uint8_t { High = 0, Medium, Low, Rout };
+    // Unita' in rotta (fugge): triangolo giallo con il punto esclamativo sopra la testa. Sulle copie di rete lo mette
+    // chi le simula (stato del giocatore, roster dei bot).
+    struct RoutIndicatorTag {};
     struct MoraleComponent {
         float base = 0.0f;          // statistica dell'unita' (0..100): la percentuale si calcola su questa
         float cap = 0.0f;           // tetto: base + bonus flat di equipaggiamento e abilita' (mai superato)
@@ -401,7 +404,14 @@ namespace SunEngine {
         bool amoral = false;        // statistica 0: creatura amorale (per ora: niente la scalfisce)
         bool wasDead = false;
         float prevHp = -1.0f;
-        float suppressTimer = 0.0f, suppressRate = 0.0f;   // sotto il fuoco di armi pesanti: punti persi al secondo
+        int tier = 1;               // grado dell'unita' (albero di ricerca): pesa sui compagni e sui nemici che la vedono cadere
+        float recentDamage = 0.0f;  // salute persa di recente (frazione della massima, si smaltisce in ~2,5 s): ferite pesanti e rapide
+        // Soppressione: si accumula coi colpi che passano vicini (suppression_value dell'arma) e cala da sola; oltre la
+        // resistenza dell'unita' (suppression_threshold) si e' soppressi: piu' lenti (suppression_slow dell'arma) e il morale cala
+        float suppression = 0.0f;
+        float pendingSlow = 0.0f, slowTimer = 0.0f;   // rallentamento dell'arma piu' pesante che ti sta sparando addosso
+        bool suppressed = false;
+        float slow = 0.0f;                            // rallentamento in corso (0.30 = -30% velocita')
         float scanTimer = 0.0f;
         bool enemyInSight = false;  // un nemico vivo in vista (vicino): non si e' fuori dal combattimento
         bool hasThreat = false;     // nemico piu' vicino visto (per la rotta: ci si allontana da li')

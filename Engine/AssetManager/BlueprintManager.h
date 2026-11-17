@@ -140,7 +140,8 @@ namespace SunEngine {
         float recoil_force = 0.0f;
         float shake_intensity = 0.0f;
         float fov_kick = 0.0f;
-        int suppression_value = 0;
+        int suppression_value = 0;           // soppressione per colpo (MoraleSystem.h)
+        float suppression_slow = 0.0f;       // rallentamento di chi e' soppresso da quest'arma (0.30 = -30% velocita')
         float handling_speed = 0.0f;
         float heat_capacity = 100.0f;
         float heat_recoil_multiplier = 1.0f;

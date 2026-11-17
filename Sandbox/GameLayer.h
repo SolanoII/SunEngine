@@ -440,7 +440,8 @@ namespace SunEngine {
         // --- Campo da tiro (Testing Lobby): manichini in T-pose con tutti gli scheletri ---
         void SpawnTrainingDummies();               // dai "training_dummies" della mappa caricata
         void UpdateTrainingDummies(float deltaTime);
-        void RenderAmmoDropLabels();               // tipo e colpi sopra le munizioni lasciate dai caduti
+        void RenderAmmoDropLabels();
+        void RenderRoutMarkers();                  // triangolo giallo sopra le unita' in rotta               // tipo e colpi sopra le munizioni lasciate dai caduti
         void RenderTrainingDummyLabels();          // nome, salute e danno sopra ogni manichino
 
         // --- Profilo locale (impostazioni, valute, exp, roster) ---
@@ -564,7 +565,7 @@ namespace SunEngine {
             std::uint32_t unitVer = 0, puppetVer = 0, stateUnitVer = 0;
             entt::entity puppet = entt::null;       // la sua copia qui
             float sinceHeard = 99.0f;               // secondi dall'ultimo stato ricevuto
-            bool hasState = false, alive = false, aiming = false, crouch = false, sprint = false;
+            bool hasState = false, alive = false, aiming = false, crouch = false, sprint = false, rout = false;
             glm::vec3 pos{ 0.0f };
             float yaw = 0.0f, aimYaw = 0.0f, aimPitch = 0.0f, health = 100.0f;
             int slot = 0, team = 0;

@@ -3,6 +3,7 @@
 #include "HordeAISystem.h"
 #include "CombatVFX.h"
 #include "RaycastUtils.h"          // <-- AGGIUNGI
+#include "MoraleSystem.h"
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
@@ -259,7 +260,7 @@ namespace SunEngine {
                         horde.currentPath.erase(horde.currentPath.begin());
                     }
                     else {
-                        trans.Position += glm::normalize(dirToWaypoint) * moveSpeed * deltaTime;
+                        trans.Position += glm::normalize(dirToWaypoint) * moveSpeed * Morale::MoveMult(reg, ork, dirToWaypoint) * deltaTime;   // soppressione
                     }
                 }
             }

@@ -3728,6 +3728,24 @@ namespace SunEngine {
                         dl->AddText(ImVec2(x, y), mo->lastDelta < 0.0f ? IM_COL32(255, 140, 110, 235) : IM_COL32(150, 220, 150, 235), ct); y += 16.0f;
                     }
                 }
+                // Soppressione: barra fino alla resistenza (oltre la tacca si e' soppressi e piu' lenti)
+                if (mo->suppression > 0.5f) {
+                    const float thr = std::max(1.0f, st->suppressionThreshold);
+                    const float sf = std::clamp(mo->suppression / (thr * 1.5f), 0.0f, 1.0f);
+                    const float sh = 5.0f;
+                    dl->AddRectFilled(ImVec2(x, y), ImVec2(x + w, y + sh), IM_COL32(14, 12, 12, 205));
+                    dl->AddRectFilled(ImVec2(x + 1.0f, y + 1.0f), ImVec2(x + (w - 1.0f) * sf, y + sh - 1.0f),
+                                      mo->suppressed ? IM_COL32(235, 120, 40, 255) : IM_COL32(200, 190, 170, 200));
+                    const float tx = x + w / 1.5f;   // la resistenza
+                    dl->AddLine(ImVec2(tx, y - 2.0f), ImVec2(tx, y + sh + 2.0f), Ui::U32(Ui::Col::Bone), 1.5f);
+                    y += sh + 4.0f;
+                    if (mo->suppressed) {
+                        char sup[96];
+                        std::snprintf(sup, sizeof(sup), "SOPPRESSO: -%.0f%% velocita'", mo->slow * 100.0f);
+                        dl->AddText(ImVec2(x + 1.0f, y + 1.0f), IM_COL32(0, 0, 0, 200), sup);
+                        dl->AddText(ImVec2(x, y), IM_COL32(255, 150, 70, 255), sup); y += 16.0f;
+                    }
+                }
             }
             // Slancio (Feral Pig): cresce correndo dritto; oltre la tacca si puo' caricare con le zanne
             if (st->momentumBonus > 0.0f) {
@@ -4287,6 +4305,35 @@ namespace SunEngine {
 
     // Munizioni a terra entro 14 m: tipo e colpi sopra la scatoletta. Accese se servono alle tue armi (riserva non
     // piena), spente se non sono del tuo tipo o hai gia' tutto.
+    // Unita' in rotta (fuggono): triangolo giallo con il punto esclamativo nero sopra la testa, entro 80 m
+    void GameLayer::RenderRoutMarkers() {
+        auto& reg = m_Scene.GetRegistry();
+        auto view = reg.view<RoutIndicatorTag, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+        if (view.begin() == view.end()) return;
+        glm::vec3 camRef(0.0f);
+        if (const auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) camRef = pt->Position;
+        const glm::mat4 vp = m_Camera.GetViewProjection();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        for (auto e : view) {
+            if (e == m_PlayerEntity || view.get<HealthComponent>(e).currentHealth <= 0.0f) continue;
+            const auto& t = view.get<TransformComponent>(e);
+            const float dist = glm::distance(camRef, t.Position);
+            if (dist > 80.0f) continue;
+            float top = 2.0f;
+            if (const auto* col = reg.try_get<ColliderComponent>(e)) top = (col->localCenterOffset.y + col->halfExtents.y) * t.Scale.y;
+            const glm::vec3 anchor = t.Position + glm::vec3(0.0f, top + 0.55f, 0.0f);
+            if ((vp * glm::vec4(anchor, 1.0f)).w <= 0.05f) continue;
+            const glm::vec2 sp = WorldToScreen(anchor, vp, m_WindowWidth, m_WindowHeight);
+            const float s = std::clamp(420.0f / std::max(1.0f, dist), 9.0f, 22.0f);
+            const ImVec2 a(sp.x, sp.y - s), b(sp.x - s * 1.12f, sp.y + s * 0.85f), c(sp.x + s * 1.12f, sp.y + s * 0.85f);
+            dl->AddTriangleFilled(a, b, c, IM_COL32(255, 205, 0, 245));
+            dl->AddTriangle(a, b, c, IM_COL32(20, 16, 10, 255), std::max(1.5f, s * 0.12f));
+            const float th = std::max(2.0f, s * 0.22f);
+            dl->AddLine(ImVec2(sp.x, sp.y - s * 0.45f), ImVec2(sp.x, sp.y + s * 0.22f), IM_COL32(15, 12, 8, 255), th);
+            dl->AddCircleFilled(ImVec2(sp.x, sp.y + s * 0.52f), th * 0.6f, IM_COL32(15, 12, 8, 255));
+        }
+    }
+
     void GameLayer::RenderAmmoDropLabels() {
         auto& reg = m_Scene.GetRegistry();
         auto drops = reg.view<AmmoDropComponent, TransformComponent>();
@@ -6550,6 +6597,7 @@ namespace SunEngine {
                 RenderVfxTexts();
                 RenderTrainingDummyLabels();
                 RenderAmmoDropLabels();
+                RenderRoutMarkers();
                 RenderHitMarkers();
                 RenderAmmoHUD();
                 RenderPlayerStatusHUD();
@@ -6880,6 +6928,12 @@ namespace SunEngine {
         }
         m_ResearchTree.EnsureRootsResearched(m_Profile);
         m_ResearchTree.MigrateProfile(m_Profile);   // id rinominati e rami riordinati
+        {   // gradi delle unita' per il morale (una morte pesa in base al grado di chi cade)
+            std::unordered_map<std::string, int> tiers;
+            for (const auto& faction : m_ResearchTree.GetFactions())
+                for (const auto& n : faction.nodes) if (!n.unitId.empty()) tiers[n.unitId] = n.tier;
+            m_MoraleSystem.SetUnitTiers(std::move(tiers));
+        }
         if (m_PlayerRoster.empty()) BuildStarterRoster();
         std::vector<std::string> owned;
         for (const auto& u : m_PlayerRoster) owned.push_back(u.blueprintId);
@@ -7614,9 +7668,13 @@ namespace SunEngine {
                 else ImGui::Text("Morale: %.0f/100", mor);
                 ImGui::ProgressBar(mor / 100.0f, ImVec2(-1, 10), "");
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Cala vedendo cadere i compagni, sotto il fuoco di armi pesanti ed esplosioni, e quando sei ferito.\n"
-                                      "Risale fuori dal combattimento, curandoti e vedendo cadere i nemici.\n"
+                    ImGui::SetTooltip("Cala vedendo cadere i compagni (di piu' se sono di grado alto), quando sei soppresso e per le ferite gravi e rapide.\n"
+                                      "Risale fuori dal combattimento, curandoti e vedendo cadere i nemici (di piu' se sono di grado alto).\n"
                                       "Alto (60%%+) nessun effetto | Medio -5%% | Basso -15%% | In rotta (sotto 20%%) -50%%, +30%% velocita' in fuga.");
+                ImGui::Text("Resistenza alla soppressione: %d", currentBp->suppression_threshold);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Soppressione che puoi subire prima di rallentare. Oltre, ti muovi piu' lento quanto dice l'arma\n"
+                                      "che ti spara addosso (mitra poco, mitragliatrici molto, lanciafiamme e lanciarazzi di piu') e il morale cala.");
             }
             ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 

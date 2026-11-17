@@ -222,6 +222,7 @@ namespace SunEngine {
                 bp.shake_intensity = j.value("shake_intensity", 0.0f);
                 bp.fov_kick = j.value("fov_kick", 0.0f);
                 bp.suppression_value = j.value("suppression_value", 0);
+                bp.suppression_slow = std::clamp(j.value("suppression_slow", 0.0f), 0.0f, 0.8f);
                 bp.handling_speed = j.value("handling_speed", 0.0f);
                 bp.projectile_speed = j.value("projectile_speed", 100.0f);
                 bp.projectile_length = j.value("projectile_length", 0.5f);

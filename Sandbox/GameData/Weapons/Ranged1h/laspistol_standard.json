@@ -27,6 +27,7 @@
 	"spread_base": 0.18,
 	"spread_auto_multiplier": 1.1,
 	"suppression_value": 2,
+	"suppression_slow": 0.03,
 	"projectile_type": "laser",
 	"is_beam": true,
 	"projectile_speed": 180.0,

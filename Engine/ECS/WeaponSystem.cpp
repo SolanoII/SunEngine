@@ -497,6 +497,10 @@ namespace SunEngine {
             }
         }
 
+        // Soppressione del raggio continuo: quanto colpi al secondo x durata del fotogramma
+        if (wpBP.suppression_value > 0)
+            EmitMoraleShock({ barrelOrigin, hitPoint, shooter, Explosives::TeamOf(scene.GetRegistry(), shooter),
+                              static_cast<float>(wpBP.suppression_value) * std::max(1.0f, wpBP.rate_of_fire / 60.0f) * deltaTime, wpBP.suppression_slow });
         entt::entity meltaBeamEntity = scene.CreateEntity();
         auto& beamTrail = scene.GetRegistry().emplace<TrailRequestComponent>(meltaBeamEntity);
         beamTrail.start = barrelOrigin;
@@ -746,9 +750,9 @@ namespace SunEngine {
             case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
             default: break;
             }
-            // Arma pesante: chi e' vicino alla traiettoria e' sotto il fuoco (morale)
-            if (static_cast<float>(wpBP.suppression_value) >= Morale::kHeavyWeapon)
-                EmitMoraleShock({ barrelOrigin, hitPoint, shooter, ps.team, static_cast<float>(wpBP.suppression_value) });
+            // Soppressione: chi e' vicino alla traiettoria (o colpito) la subisce (MoraleSystem.h)
+            if (wpBP.suppression_value > 0)
+                EmitMoraleShock({ barrelOrigin, hitPoint, shooter, ps.team, static_cast<float>(wpBP.suppression_value), wpBP.suppression_slow });
             // partita in rete: la scia del mio colpo la vedono anche gli altri
             // (anche i bot simulati qui, in rete hanno un numero: gli altri li vedono sparare)
             if (NetShotQueue().size() < 512 && (scene.GetRegistry().all_of<PlayerTag>(shooter) ||
@@ -846,6 +850,10 @@ namespace SunEngine {
 
     void WeaponSystem::FireFlamer(Scene& scene, entt::entity shooter, const WeaponBlueprint& wpBP,
         const glm::vec3& origin, const glm::vec3& dir) {
+        // Soppressione: il getto del lanciafiamme spaventa chi ci sta davanti
+        if (wpBP.suppression_value > 0)
+            EmitMoraleShock({ origin, origin + dir * wpBP.range_effective, shooter, Explosives::TeamOf(scene.GetRegistry(), shooter),
+                              static_cast<float>(wpBP.suppression_value), wpBP.suppression_slow });
         auto view = scene.GetRegistry().view<TransformComponent, UnitStatsComponent, HealthComponent>(
             entt::exclude<CorpseComponent>
         );

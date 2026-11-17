@@ -580,7 +580,7 @@ namespace SunEngine {
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
                     if (const auto* cry = reg.try_get<WarCryComponent>(self)) speed *= cry->mult;                   // Gruuk
-                    speed *= Morale::FleeSpeedMult(reg, self, dir);                                                   // in rotta: scappa piu' in fretta
+                    speed *= Morale::MoveMult(reg, self, dir);                                                        // soppresso: piu' lento; in rotta: scappa piu' in fretta
                     t.Position += dir / dist * std::min(dist, speed * dt);
                     brain.isMoving = true;
                 }

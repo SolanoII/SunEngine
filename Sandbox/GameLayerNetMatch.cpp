@@ -518,6 +518,7 @@ namespace SunEngine {
         if (m_PlayerAimingNow) flags |= 2;
         if (const auto* cr = reg.try_get<CrouchComponent>(m_PlayerEntity); cr && cr->amount > 0.5f) flags |= 4;
         if (const auto* st = reg.try_get<UnitStatsComponent>(m_PlayerEntity); st && st->sprinting) flags |= 8;
+        if (reg.all_of<RoutIndicatorTag>(m_PlayerEntity)) flags |= 16;   // in rotta: gli altri vedono il triangolo
         int slot = 0;
         if (const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity)) slot = inv->currentSlot;
         const auto* melee = reg.try_get<MeleeStateComponent>(m_PlayerEntity);
@@ -616,7 +617,8 @@ namespace SunEngine {
                     if (en.kind == 1) {
                         int team = 0;
                         if (const auto* tc = reg.try_get<TeamComponent>(en.e)) team = tc->team == 1 ? 1 : 0;
-                        w.U8(en.player); w.U8(en.slot); w.U8(static_cast<std::uint8_t>((en.aiming ? 1 : 0) | (team ? 2 : 0))); w.U8(static_cast<std::uint8_t>(std::clamp(en.weaponSlot, 0, 6)));
+                        const bool rout = reg.all_of<RoutIndicatorTag>(en.e);   // in rotta: triangolo anche sugli altri computer
+                        w.U8(en.player); w.U8(en.slot); w.U8(static_cast<std::uint8_t>((en.aiming ? 1 : 0) | (team ? 2 : 0) | (rout ? 4 : 0))); w.U8(static_cast<std::uint8_t>(std::clamp(en.weaponSlot, 0, 6)));
                     }
                 }
                 m_Party.SendToAll(w.b.data(), w.b.size(), false);
@@ -701,6 +703,8 @@ namespace SunEngine {
             if (auto* st = reg.try_get<UnitStatsComponent>(r.puppet)) st->sprinting = r.sprint;
             if (auto* tc = reg.try_get<TeamComponent>(r.puppet); tc && tc->team != r.team) tc->team = r.team;   // ha cambiato squadra (Vs Bot)
             reg.get_or_emplace<CrouchComponent>(r.puppet).amount = r.crouch ? 1.0f : 0.0f;
+            if (r.rout) reg.emplace_or_replace<RoutIndicatorTag>(r.puppet);
+            else if (reg.all_of<RoutIndicatorTag>(r.puppet)) reg.remove<RoutIndicatorTag>(r.puppet);
             if (auto* inv = reg.try_get<InventoryComponent>(r.puppet); inv && inv->currentSlot != r.slot) {
                 inv->currentSlot = r.slot;
                 reg.get_or_emplace<WeaponBlueprintId>(r.puppet).id = inv->GetActiveWeaponId();
@@ -939,6 +943,7 @@ namespace SunEngine {
             rm.seq = seq; rm.hasState = true; rm.sinceHeard = 0.0f;
             rm.pos = pos; rm.yaw = yaw; rm.aimYaw = aimYaw; rm.aimPitch = aimPitch;
             rm.health = health; rm.alive = (flags & 1) != 0; rm.aiming = (flags & 2) != 0; rm.crouch = (flags & 4) != 0; rm.sprint = (flags & 8) != 0;
+            rm.rout = (flags & 16) != 0;
             rm.slot = slot; rm.stateUnitVer = uver;
             (void)maxHealth;
             if (rm.name.empty()) for (const auto& mb : m_Party.Members()) if (mb.id == from) rm.name = mb.name;
@@ -1002,6 +1007,8 @@ namespace SunEngine {
                 if (kind == 1) {   // mira, squadra e arma in mano del bot
                     if (auto* brain = reg.try_get<BotBrainComponent>(en.e)) brain->isAiming = (bflags & 1) != 0;
                     if (auto* tc = reg.try_get<TeamComponent>(en.e)) tc->team = (bflags & 2) ? 1 : 0;
+                    if ((bflags & 4) != 0) reg.emplace_or_replace<RoutIndicatorTag>(en.e);
+                    else if (reg.all_of<RoutIndicatorTag>(en.e)) reg.remove<RoutIndicatorTag>(en.e);
                     if (auto* inv = reg.try_get<InventoryComponent>(en.e); inv && inv->currentSlot != wslot) {
                         inv->currentSlot = wslot;
                         reg.get_or_emplace<WeaponBlueprintId>(en.e).id = inv->GetActiveWeaponId();
@@ -1098,8 +1105,8 @@ namespace SunEngine {
                 if (shooter != entt::null && reg.valid(shooter)) {
                     const WeaponBlueprint* wbp = nullptr;
                     if (const auto* wid = reg.try_get<WeaponBlueprintId>(shooter)) wbp = BlueprintManager::Get().GetWeapon(wid->id);
-                    if (wbp && static_cast<float>(wbp->suppression_value) >= Morale::kHeavyWeapon)
-                        EmitMoraleShock({ t.start, t.end, shooter, -1, static_cast<float>(wbp->suppression_value) });
+                    if (wbp && wbp->suppression_value > 0)
+                        EmitMoraleShock({ t.start, t.end, shooter, -1, static_cast<float>(wbp->suppression_value), wbp->suppression_slow });
                     if (t.fx == static_cast<int>(WeaponFx::Explosive) && t.hitSomething) {
                         MoraleShock ms; ms.a = ms.b = t.end; ms.shooter = shooter; ms.explosion = true; ms.radius = std::max(1.0f, t.impactScale);
                         EmitMoraleShock(ms);

@@ -34,6 +34,7 @@
   "spread_base": 0.24,
   "spread_auto_multiplier": 1.3,
   "suppression_value": 6,
+  "suppression_slow": 0.08,
   "projectile_type": "ballistic",
   "is_beam": false,
   "projectile_speed": 130.0,

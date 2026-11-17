@@ -45,6 +45,7 @@
   ],
   "spare_magazines": 2,
   "suppression_value": 14,
+  "suppression_slow": 0.3,
   "comment": "Sbloccabile dello scout: arma pesante per il fuoco di soppressione, raffiche di cartucce bolt. Pesa e rallenta. 50 colpi e 100 di riserva.",
   "allowed_units": [
     "spacemarines_scout"

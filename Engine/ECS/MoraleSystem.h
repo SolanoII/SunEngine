@@ -15,12 +15,17 @@
 //   Statistiche di combattimento: capacita' di tiro, abilita' in mischia, forza (danni e fatica in mischia).
 //
 // Cosa lo abbassa (punti flat):
-//   - vedere cadere un compagno (entro 35 m, in vista): -10 per compagno
-//   - posizione soppressa da armi pesanti (suppression_value >= 8: mitragliatrici pesanti, armi a proiettili pesanti
-//     rinforzate, lanciarazzi, lanciagranate...): un colpo che passa entro 3 m tiene sotto il fuoco per 0,7 s, e
-//     sotto il fuoco si perdono suppression_value x 0,35 punti al secondo (mitragliatrice pesante da 14: ~5 al secondo)
-//   - artiglieria ed esplosioni: -10 dentro il raggio, -6 fino al doppio del raggio
-//   - essere ferito: 25 punti per tutta la salute massima persa (un colpo da un quinto della salute: -5)
+//   - vedere cadere un compagno (entro 35 m, in vista): 10 punti x il peso del suo grado rispetto al proprio
+//     (2^(grado del caduto - proprio grado), da 0,1 a 4): tre Pighcib che cadono pesano poco su una Vanguard Armor,
+//     una Vanguard Armor che cade pesa molto su chi le sta attorno. Lo stesso peso vale per i nemici che si vedono cadere.
+//   - soppressione: ogni colpo che passa entro 3 m (o ti colpisce) aggiunge il suppression_value dell'arma; la soppressione
+//     cala da sola (20 al secondo + il 25%). Oltre la resistenza dell'unita' (suppression_threshold) si e' soppressi:
+//     piu' lenti del suppression_slow dell'arma piu' pesante che ti spara addosso (nerfa le cariche in mischia, come chi
+//     sbarcava sotto le mitragliatrici) e il morale cala di 1 + 8 x rallentamento punti al secondo.
+//     Esplosioni: +25 di soppressione nel raggio (+12 fino al doppio), rallentamento del 40%, e -10 / -6 di morale.
+//   - ferite: conta quanta salute si perde e quanto in fretta. La salute persa negli ultimi ~2,5 s (frazione della
+//     massima) sotto il 6% non pesa nulla (un Pighcib che graffia una Vanguard Armor); oltre, ogni ferita toglie
+//     30 x frazione persa x gravita', con gravita' da 0 (6%) a 1 (31% in poco tempo) fino a 1,6.
 // Cosa lo rialza, fino al valore di partenza:
 //   - fuori dal combattimento (5 s senza colpi subiti o sparati e nessun nemico in vista): +1,5 al secondo
 //   - curarsi: 15 punti per tutta la salute massima recuperata
@@ -30,7 +35,7 @@
 // Oggetti (armature e dotazione, nei JSON): "morale_cap_bonus" alza il tetto, "morale_start_bonus" il valore di partenza.
 //
 // In rete ogni computer calcola il morale solo di cio' che simula (il suo giocatore e, se e' l'host, i bot): i colpi
-// degli altri arrivano come scie (NetShotQueue) e anche quelli tengono sotto il fuoco.
+// degli altri arrivano come scie (NetShotQueue) e anche quelli sopprimono. Chi e' in rotta lo dice a tutti (triangolo giallo).
 #include "Components.h"
 #include "RaycastUtils.h"
 #include "../Scene/Scene.h"
@@ -43,28 +48,34 @@
 
 namespace SunEngine {
 
-    // Colpi che tengono sotto il fuoco (armi pesanti) ed esplosioni: chi spara/esplode non pesa sulla sua squadra
+    // Colpi che passano vicini (soppressione) ed esplosioni: chi spara/esplode non pesa sulla sua squadra
     struct MoraleShock {
         glm::vec3 a{ 0.0f }, b{ 0.0f };   // traiettoria (o centro dell'esplosione in a)
         entt::entity shooter = entt::null;
         int team = -1;                    // squadra di chi ha sparato, se non c'e' piu' (-1 = nessuna)
-        float value = 0.0f;               // suppression_value dell'arma
+        float value = 0.0f;               // soppressione portata (suppression_value dell'arma)
+        float slow = 0.0f;                // rallentamento di chi e' soppresso (suppression_slow dell'arma)
         bool explosion = false;
         float radius = 0.0f;
     };
     inline std::vector<MoraleShock>& MoraleShockLog() { static std::vector<MoraleShock> log; return log; }
-    inline void EmitMoraleShock(const MoraleShock& s) { if (MoraleShockLog().size() < 2048) MoraleShockLog().push_back(s); }
+    inline void EmitMoraleShock(const MoraleShock& s) { if (MoraleShockLog().size() < 4096) MoraleShockLog().push_back(s); }
 
     namespace Morale {
-        inline constexpr float kHeavyWeapon = 8.0f;        // suppression_value da cui un'arma tiene sotto il fuoco
         inline constexpr float kSuppressReach = 3.0f;      // metri dalla traiettoria
-        inline constexpr float kSuppressTime = 0.7f;
-        inline constexpr float kSuppressPerValue = 0.35f;  // punti al secondo per punto di suppression_value
+        inline constexpr float kSuppressDecayFlat = 20.0f, kSuppressDecayPct = 0.25f;   // al secondo
+        inline constexpr float kSlowHold = 1.5f;           // il rallentamento dell'arma resta per 1,5 s dall'ultimo colpo
+        inline constexpr float kSuppressMoraleBase = 1.0f, kSuppressMoraleSlow = 8.0f;  // morale al secondo da soppressi
+        inline constexpr float kExplosionSuppress = 25.0f, kExplosionSuppressNear = 12.0f, kExplosionSlow = 0.40f;
         inline constexpr float kAllyDeath = 10.0f;
-        inline constexpr float kEnemyDeath = 4.0f;
+        inline constexpr float kEnemyDeath = 5.0f;
         inline constexpr float kSeeDeathRange = 35.0f;
         inline constexpr float kExplosionHit = 10.0f, kExplosionNear = 6.0f;
-        inline constexpr float kWoundScale = 25.0f;        // per tutta la salute massima persa
+        inline constexpr float kWoundScale = 30.0f;        // per tutta la salute massima persa, a gravita' 1
+        inline constexpr float kWoundFree = 0.06f;         // salute persa di recente sotto cui la ferita non pesa
+        inline constexpr float kWoundFull = 0.25f;         // ...oltre la soglia: gravita' 1 dopo un altro 25%
+        inline constexpr float kWoundMaxSeverity = 1.6f;
+        inline constexpr float kWoundMemory = 2.5f;        // secondi (smaltimento della salute persa di recente)
         inline constexpr float kHealScale = 15.0f;         // per tutta la salute massima recuperata
         inline constexpr float kRestDelay = 5.0f;          // secondi fuori dal combattimento
         inline constexpr float kRestPerSecond = 1.5f;
@@ -96,6 +107,8 @@ namespace SunEngine {
             default: return "ALTO";
             }
         }
+        // Peso di una morte vista: grado del caduto rispetto al proprio
+        inline float TierWeight(int deadTier, int myTier) { return std::clamp(std::pow(2.0f, static_cast<float>(deadTier - myTier)), 0.1f, 4.0f); }
         // In rotta e ci si sta allontanando dal nemico visto piu' vicino: +30% di velocita'
         inline float FleeSpeedMult(entt::registry& reg, entt::entity e, const glm::vec3& moveDirWorld) {
             const auto* m = reg.try_get<MoraleComponent>(e);
@@ -104,6 +117,12 @@ namespace SunEngine {
             glm::vec3 d = moveDirWorld; d.y = 0.0f;
             if (glm::length(away) < 1e-3f || glm::length(d) < 1e-3f) return 1.0f;
             return glm::dot(glm::normalize(away), glm::normalize(d)) > 0.25f ? kRoutFleeSpeed : 1.0f;
+        }
+        // Velocita' per il morale: soppressione (piu' lenti) e fuga in rotta (piu' veloci allontanandosi)
+        inline float MoveMult(entt::registry& reg, entt::entity e, const glm::vec3& moveDirWorld) {
+            const auto* m = reg.try_get<MoraleComponent>(e);
+            if (!m) return 1.0f;
+            return (1.0f - (m->suppressed ? m->slow : 0.0f)) * FleeSpeedMult(reg, e, moveDirWorld);
         }
     }
 
@@ -116,6 +135,9 @@ namespace SunEngine {
             std::vector<entt::entity> all;
             for (auto e : reg.view<MoraleComponent>()) all.push_back(e);
             for (auto e : all) reg.remove<MoraleComponent>(e);
+            all.clear();
+            for (auto e : reg.view<RoutIndicatorTag>()) all.push_back(e);
+            for (auto e : all) reg.remove<RoutIndicatorTag>(e);
             for (auto e : reg.view<UnitStatsComponent>()) reg.get<UnitStatsComponent>(e).moraleCombatMult = 1.0f;
         }
 
@@ -132,58 +154,62 @@ namespace SunEngine {
                 const bool alive = hp.currentHealth > 0.0f && !reg.all_of<CorpseComponent>(e);
                 auto* m = reg.try_get<MoraleComponent>(e);
                 if (!m) { if (!alive) continue; m = &reg.emplace<MoraleComponent>(e); Init(reg, e, *m); }
-                else if (alive && (m->wasDead || std::fabs(m->base - std::clamp(st.morale, 0.0f, 100.0f)) > 0.01f)) Init(reg, e, *m);   // rientro o altra unita'
+                else if (alive && (m->wasDead || std::fabs(m->base - std::clamp(st.morale, 0.0f, 100.0f)) > 0.01f || m->tier != TierOf(reg, e))) Init(reg, e, *m);   // rientro o altra unita'
                 m->wasDead = !alive;
             }
 
-            // 2) Morti viste: compagni (giu') e nemici (su). Si seguono tutte le unita', anche le copie di rete.
-            std::vector<std::pair<glm::vec3, int>> deaths;
+            // 2) Morti viste: compagni (giu') e nemici (su), pesate col grado. Si seguono tutte le unita', anche le copie di rete.
+            struct Death { glm::vec3 pos; int team, tier; };
+            std::vector<Death> deaths;
             for (auto e : units) {
                 const auto& hp = units.get<HealthComponent>(e);
                 const bool alive = hp.currentHealth > 0.0f && !reg.all_of<CorpseComponent>(e);
                 auto it = m_Tracked.find(e);
-                if (alive) { m_Tracked[e] = TeamOf(reg, e); continue; }
-                if (it != m_Tracked.end()) { deaths.push_back({ units.get<TransformComponent>(e).Position, it->second }); m_Tracked.erase(it); }
+                if (alive) { if (it == m_Tracked.end()) m_Tracked[e] = { TeamOf(reg, e), TierOf(reg, e) }; else it->second.team = TeamOf(reg, e); continue; }
+                if (it != m_Tracked.end()) { deaths.push_back({ units.get<TransformComponent>(e).Position, it->second.team, it->second.tier }); m_Tracked.erase(it); }
             }
             for (auto it = m_Tracked.begin(); it != m_Tracked.end();) { if (!reg.valid(it->first)) it = m_Tracked.erase(it); else ++it; }
 
             auto observers = reg.view<MoraleComponent, UnitStatsComponent, HealthComponent, TransformComponent>(entt::exclude<CorpseComponent>);
-            for (const auto& [pos, team] : deaths) {
+            for (const Death& dd : deaths) {
                 for (auto o : observers) {
                     auto& m = observers.get<MoraleComponent>(o);
                     if (observers.get<HealthComponent>(o).currentHealth <= 0.0f || m.unbreakable || m.amoral) continue;
                     const glm::vec3 op = observers.get<TransformComponent>(o).Position;
-                    if (glm::distance(op, pos) > Morale::kSeeDeathRange) continue;
-                    if (!HasLineOfSight(scene, Eye(reg, o), pos + glm::vec3(0.0f, 0.9f, 0.0f), o)) continue;
-                    if (team == TeamOf(reg, o)) Lose(m, Morale::kAllyDeath, "Compagno caduto");
-                    else Gain(m, Morale::kEnemyDeath, m.start, "Nemico abbattuto");
+                    if (glm::distance(op, dd.pos) > Morale::kSeeDeathRange) continue;
+                    if (!HasLineOfSight(scene, Eye(reg, o), dd.pos + glm::vec3(0.0f, 0.9f, 0.0f), o)) continue;
+                    const float w = Morale::TierWeight(dd.tier, m.tier);
+                    if (dd.team == TeamOf(reg, o)) Lose(m, Morale::kAllyDeath * w, "Compagno caduto");
+                    else Gain(m, Morale::kEnemyDeath * w, m.start, "Nemico abbattuto");
                 }
             }
 
-            // 3) Sotto il fuoco di armi pesanti ed esplosioni
+            // 3) Soppressione (colpi che passano vicini) ed esplosioni. Anche le unita' incrollabili rallentano:
+            //    il morale non cala, ma la soppressione dipende dalla resistenza, non dal morale.
             for (const MoraleShock& s : MoraleShockLog()) {
                 for (auto o : observers) {
                     auto& m = observers.get<MoraleComponent>(o);
-                    if (observers.get<HealthComponent>(o).currentHealth <= 0.0f || m.unbreakable || m.amoral) continue;
+                    if (observers.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                     if (o == s.shooter) continue;
                     const int shooterTeam = (s.shooter != entt::null && reg.valid(s.shooter)) ? TeamOf(reg, s.shooter) : s.team;
                     if (TeamOf(reg, o) == shooterTeam) continue;   // la propria squadra non spaventa
                     const glm::vec3 chest = observers.get<TransformComponent>(o).Position + glm::vec3(0.0f, 0.6f, 0.0f);
+                    auto addSlow = [&](float sl) { if (sl >= m.pendingSlow || m.slowTimer <= 0.0f) m.pendingSlow = sl; m.slowTimer = Morale::kSlowHold; };
                     if (s.explosion) {
                         const float d = glm::distance(chest, s.a);
                         const float r = std::max(0.5f, s.radius);
-                        if (d <= r) Lose(m, Morale::kExplosionHit, "Esplosione");
-                        else if (d <= 2.0f * r) Lose(m, Morale::kExplosionNear, "Esplosione vicina");
+                        if (d <= r) { m.suppression += Morale::kExplosionSuppress; addSlow(std::max(s.slow, Morale::kExplosionSlow)); if (!m.unbreakable && !m.amoral) Lose(m, Morale::kExplosionHit, "Esplosione"); }
+                        else if (d <= 2.0f * r) { m.suppression += Morale::kExplosionSuppressNear; addSlow(std::max(s.slow, Morale::kExplosionSlow)); if (!m.unbreakable && !m.amoral) Lose(m, Morale::kExplosionNear, "Esplosione vicina"); }
                     }
-                    else if (DistToSegment(chest, s.a, s.b) <= Morale::kSuppressReach) {
-                        m.suppressTimer = Morale::kSuppressTime;
-                        m.suppressRate = std::max(m.suppressRate, s.value * Morale::kSuppressPerValue);
+                    else if (s.value > 0.0f && DistToSegment(chest, s.a, s.b) <= Morale::kSuppressReach) {
+                        m.suppression += s.value;
+                        addSlow(s.slow);
                     }
                 }
             }
             MoraleShockLog().clear();
 
-            // 4) Ferite, cure, fuoco, riposo, insegne; zona ed effetti
+            // 4) Ferite, cure, soppressione, riposo, insegne; zona ed effetti
             for (auto o : observers) {
                 auto& m = observers.get<MoraleComponent>(o);
                 auto& st = observers.get<UnitStatsComponent>(o);
@@ -192,23 +218,34 @@ namespace SunEngine {
                 m.causeTimer = std::max(0.0f, m.causeTimer - dt);
                 m.zoneTimer = std::max(0.0f, m.zoneTimer - dt);
                 ScanThreat(scene, o, m, st, dt);
+                // Soppressione: cala da sola; oltre la resistenza si e' soppressi
+                const float threshold = std::max(1.0f, st.suppressionThreshold);
+                m.suppression = std::clamp(m.suppression - (Morale::kSuppressDecayFlat + Morale::kSuppressDecayPct * m.suppression) * dt, 0.0f, threshold * 2.5f);
+                m.slowTimer = std::max(0.0f, m.slowTimer - dt);
+                if (m.slowTimer <= 0.0f && m.suppression <= threshold) m.pendingSlow = 0.0f;
+                m.suppressed = m.suppressed ? m.suppression > threshold * 0.75f : m.suppression > threshold;   // si esce sotto il 75%: niente sfarfallio
+                m.slow = m.suppressed ? m.pendingSlow : 0.0f;
+                SetRoutTag(reg, o, false);
                 if (m.unbreakable || m.amoral) {
                     m.current = m.start; m.zone = MoraleZone::High; st.moraleCombatMult = 1.0f;
-                    m.prevHp = hp.currentHealth; m.suppressTimer = 0.0f;
+                    m.prevHp = hp.currentHealth; m.recentDamage = 0.0f;
                     continue;
                 }
+                // Ferite: quanto si perde e quanto in fretta
                 const float maxHp = std::max(1.0f, hp.maxHealth);
+                m.recentDamage *= std::exp(-dt / Morale::kWoundMemory);
                 if (m.prevHp >= 0.0f) {
                     const float d = hp.currentHealth - m.prevHp;
-                    if (d < -0.01f) Lose(m, Morale::kWoundScale * (-d) / maxHp, "Ferito");
+                    if (d < -0.01f) {
+                        const float frac = (-d) / maxHp;
+                        m.recentDamage += frac;
+                        const float severity = std::clamp((m.recentDamage - Morale::kWoundFree) / Morale::kWoundFull, 0.0f, Morale::kWoundMaxSeverity);
+                        Lose(m, Morale::kWoundScale * frac * severity, "Ferito");
+                    }
                     else if (d > 0.01f) Gain(m, Morale::kHealScale * d / maxHp, m.start, "Cure");
                 }
                 m.prevHp = hp.currentHealth;
-                if (m.suppressTimer > 0.0f) {
-                    m.suppressTimer -= dt;
-                    Lose(m, m.suppressRate * dt, "Sotto il fuoco pesante");
-                    if (m.suppressTimer <= 0.0f) m.suppressRate = 0.0f;
-                }
+                if (m.suppressed) Lose(m, (Morale::kSuppressMoraleBase + Morale::kSuppressMoraleSlow * m.slow) * dt, "Soppresso");
                 // Aiuto: insegna vicina (tetto in piu' finche' ci si sta vicini)
                 m.auraCap = 0.0f;
                 if (const auto* aura = reg.try_get<MoraleAuraComponent>(o)) {
@@ -216,17 +253,32 @@ namespace SunEngine {
                     Gain(m, Morale::kAuraPerSecond * dt, m.cap + m.auraCap, "Insegna");
                 }
                 // Fuori dal combattimento: piano piano fino al valore di partenza
-                if (st.outOfCombatTime >= Morale::kRestDelay && m.suppressTimer <= 0.0f && !m.enemyInSight)
+                if (st.outOfCombatTime >= Morale::kRestDelay && m.suppression <= 0.0f && !m.enemyInSight)
                     Gain(m, Morale::kRestPerSecond * dt, m.start, "Riposo");
                 m.current = std::clamp(m.current, 0.0f, m.cap + m.auraCap);
                 const MoraleZone z = Morale::ZoneFor(m);
                 if (z != m.zone) { m.zone = z; m.zoneTimer = 3.0f; }
                 st.moraleCombatMult = Morale::CombatMult(m.zone);
+                SetRoutTag(reg, o, m.zone == MoraleZone::Rout && (reg.all_of<BotBrainComponent>(o) || reg.all_of<PlayerTag>(o)));
             }
         }
 
+        // Gradi delle unita' (albero di ricerca): id del blueprint -> grado
+        void SetUnitTiers(std::unordered_map<std::string, int> tiers) { m_Tiers = std::move(tiers); }
+        int TierOf(entt::registry& reg, entt::entity e) const {
+            if (const auto* id = reg.try_get<UnitBlueprintId>(e)) {
+                auto it = m_Tiers.find(id->id);
+                if (it != m_Tiers.end()) return it->second;
+                if (const auto* bp = BlueprintManager::Get().GetUnit(id->id)) {   // fuori dall'albero: dal costo in punti
+                    const int pc = bp->point_cost;
+                    return pc <= 5 ? 1 : pc <= 12 ? 2 : pc <= 25 ? 3 : pc <= 45 ? 4 : pc <= 70 ? 5 : 6;
+                }
+            }
+            return reg.all_of<HordeAgentComponent>(e) ? 3 : 2;
+        }
+
         // Valori iniziali: statistica, bonus flat degli oggetti indossati e in dotazione
-        static void Init(entt::registry& reg, entt::entity e, MoraleComponent& m) {
+        void Init(entt::registry& reg, entt::entity e, MoraleComponent& m) const {
             const auto& st = reg.get<UnitStatsComponent>(e);
             float capBonus = 0.0f, startBonus = 0.0f;
             const auto& bm = BlueprintManager::Get();
@@ -249,11 +301,19 @@ namespace SunEngine {
             m.cap = m.base + std::max(0.0f, capBonus);
             m.start = std::min(m.cap, m.base + std::max(0.0f, startBonus));
             m.current = m.start;
+            m.tier = TierOf(reg, e);
             if (const auto* hp = reg.try_get<HealthComponent>(e)) m.prevHp = hp->currentHealth;
         }
 
     private:
-        std::unordered_map<entt::entity, int> m_Tracked;   // unita' vive -> squadra (per accorgersi di chi cade)
+        struct Tracked { int team = 0, tier = 1; };
+        std::unordered_map<entt::entity, Tracked> m_Tracked;   // unita' vive -> squadra e grado (per accorgersi di chi cade)
+        std::unordered_map<std::string, int> m_Tiers;
+        static void SetRoutTag(entt::registry& reg, entt::entity e, bool on) {
+            const bool has = reg.all_of<RoutIndicatorTag>(e);
+            if (on && !has) reg.emplace<RoutIndicatorTag>(e);
+            else if (!on && has) reg.remove<RoutIndicatorTag>(e);
+        }
 
     public:
         // Squadra per il morale: quella dell'unita'; l'orda fa squadra a se'; chi non ne ha sta con il giocatore
