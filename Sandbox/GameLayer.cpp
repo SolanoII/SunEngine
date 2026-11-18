@@ -7090,8 +7090,152 @@ namespace SunEngine {
             const ImVec2 p = ImGui::GetCursorScreenPos();
             ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(p.x, p.y - 5.0f), ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y - 4.0f), Ui::U32(Ui::Col::Brass, 0.45f));
         }
-        if (current) DrawResearchFactionTree(*current);
+        // Sezioni della fazione (es. Ordo Domus Humilitatis nelle Vanguard Armor): menu a tendina sopra l'albero
+        static std::unordered_map<std::string, std::string> s_Section;   // fazione -> sezione aperta (vuoto = albero)
+        const ResearchSection* section = nullptr;
+        if (current && !current->sections.empty()) {
+            std::string& open = s_Section[current->id];
+            for (const auto& sec : current->sections) if (sec.id == open) section = &sec;
+            std::string treeLabel = "ALBERO DELLE " + current->name;
+            ImGui::SetNextItemWidth(340.0f);
+            if (ImGui::BeginCombo("##sezione", section ? section->name.c_str() : treeLabel.c_str())) {
+                if (ImGui::Selectable(treeLabel.c_str(), section == nullptr)) { open.clear(); section = nullptr; }
+                for (const auto& sec : current->sections)
+                    if (ImGui::Selectable(sec.name.c_str(), section == &sec)) { open = sec.id; section = &sec; }
+                ImGui::EndCombo();
+            }
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
+            ImGui::TextColored(Ui::Col::Ash, "Sezione");
+            ImGui::Spacing();
+        }
+        if (section) { if (DrawResearchSection(*section)) s_Section[current->id].clear(); }
+        else if (current) DrawResearchFactionTree(*current);
         ImGui::End();
+    }
+
+    // Gerarchia di un ordine (sola consultazione): una colonna per divisione, una riga per grado dal piu' alto al
+    // piu' basso, il grado piu' alto unito da un filo (triumvirato) e una riga in fondo per chi non ha cariche.
+    bool GameLayer::DrawResearchSection(const ResearchSection& section) {
+        bool backToTree = false;
+        ImGui::BeginChild("##sezione_ricerca", ImVec2(0.0f, 0.0f), false);
+        Ui::Title(section.name.c_str());
+        if (!section.intro.empty()) {
+            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + std::min(980.0f, ImGui::GetContentRegionAvail().x));
+            ImGui::TextColored(Ui::Col::Bone, "%s", section.intro.c_str());
+            ImGui::PopTextWrapPos();
+        }
+        ImGui::Spacing();
+        const int nDiv = static_cast<int>(section.divisions.size());
+        if (nDiv == 0) { ImGui::EndChild(); return false; }
+
+        int topTier = 1, lowTier = 99;
+        for (const auto& d : section.divisions) for (const auto& r : d.ranks) { topTier = std::max(topTier, r.tier); lowTier = std::min(lowTier, r.tier); }
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImFont* fh = Ui::FontHeading();
+        ImFont* fs = Ui::FontSmall();
+        const float labelW = 120.0f, gap = 18.0f, padIn = 12.0f, vGap = 16.0f;
+        const float avail = ImGui::GetContentRegionAvail().x - 14.0f;
+        const float colW = std::max(220.0f, (avail - labelW - gap * static_cast<float>(nDiv - 1)) / static_cast<float>(nDiv));
+        const float textW = colW - padIn * 2.0f;
+        ImVec2 origin = ImGui::GetCursorScreenPos();
+        auto colX = [&](int c) { return origin.x + labelW + static_cast<float>(c) * (colW + gap); };
+        auto divCol = [&](const ResearchDivision& d, float a) { return ImVec4(d.color[0], d.color[1], d.color[2], a); };
+
+        // intestazioni delle divisioni
+        float y = origin.y;
+        float headH = 0.0f;
+        for (int c = 0; c < nDiv; ++c) {
+            const auto& d = section.divisions[c];
+            const ImVec2 ns = fh->CalcTextSizeA(fh->FontSize, FLT_MAX, 0.0f, d.name.c_str());
+            const ImVec2 rs = fs->CalcTextSizeA(fs->FontSize, FLT_MAX, textW, d.role.c_str());
+            dl->AddText(fh, fh->FontSize, ImVec2(colX(c) + (colW - ns.x) * 0.5f, y), Ui::U32(divCol(d, 1.0f)), d.name.c_str());
+            dl->AddText(fs, fs->FontSize, ImVec2(colX(c) + (colW - std::min(rs.x, textW)) * 0.5f, y + ns.y + 2.0f), Ui::U32(Ui::Col::Ash), d.role.c_str(), nullptr, textW);
+            dl->AddRectFilled(ImVec2(colX(c), y + ns.y + rs.y + 8.0f), ImVec2(colX(c) + colW, y + ns.y + rs.y + 9.0f), Ui::U32(divCol(d, 0.6f)));
+            headH = std::max(headH, ns.y + rs.y + 14.0f);
+        }
+        y += headH + 6.0f;
+
+        // una riga per grado
+        std::vector<float> topCenters;   // centro alto/basso delle carte del grado piu' alto (filo del triumvirato)
+        std::vector<float> prevBottom(nDiv, -1.0f);
+        for (int tier = topTier; tier >= lowTier; --tier) {
+            // altezza della riga: la carta piu' alta
+            float rowH = 0.0f;
+            bool any = false;
+            for (int c = 0; c < nDiv; ++c)
+                for (const auto& r : section.divisions[c].ranks) {
+                    if (r.tier != tier) continue;
+                    any = true;
+                    float h = padIn * 2.0f + fh->FontSize;
+                    if (!r.text.empty()) h += 6.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, textW, r.text.c_str()).y;
+                    if (!r.member.empty()) h += 34.0f;
+                    rowH = std::max(rowH, h);
+                }
+            if (!any) continue;
+            rowH = std::max(rowH, 64.0f);
+            // grado a sinistra
+            char gl[32];
+            std::snprintf(gl, sizeof(gl), "GRADO %s", Ui::Roman(tier));
+            dl->AddText(fh, fh->FontSize, ImVec2(origin.x, y + rowH * 0.5f - fh->FontSize * (tier == topTier && !section.topLabel.empty() ? 1.0f : 0.5f)), Ui::U32(Ui::Col::Gold), gl);
+            if (tier == topTier && !section.topLabel.empty())
+                dl->AddText(fs, fs->FontSize, ImVec2(origin.x, y + rowH * 0.5f + 2.0f), Ui::U32(Ui::Col::Brass), section.topLabel.c_str());
+            for (int c = 0; c < nDiv; ++c) {
+                const auto& d = section.divisions[c];
+                for (const auto& r : d.ranks) {
+                    if (r.tier != tier) continue;
+                    const ImVec2 a(colX(c), y), b(colX(c) + colW, y + rowH);
+                    if (prevBottom[c] >= 0.0f)   // filo dalla carica sopra
+                        dl->AddLine(ImVec2(a.x + colW * 0.5f, prevBottom[c]), ImVec2(a.x + colW * 0.5f, a.y), Ui::U32(divCol(d, 0.55f)), 2.0f);
+                    Ui::ChamferRect(dl, a, b, 10.0f, Ui::U32(Ui::Col::Iron, 0.95f), Ui::U32(divCol(d, tier == topTier ? 0.95f : 0.55f)), tier == topTier ? 2.0f : 1.0f);
+                    float ty = a.y + padIn;
+                    dl->AddText(fh, fh->FontSize, ImVec2(a.x + padIn, ty), Ui::U32(Ui::Col::Bone), r.title.c_str());
+                    ty += fh->FontSize + 6.0f;
+                    if (!r.text.empty()) {
+                        dl->AddText(fs, fs->FontSize, ImVec2(a.x + padIn, ty), Ui::U32(Ui::Col::Ash), r.text.c_str(), nullptr, textW);
+                        ty += fs->CalcTextSizeA(fs->FontSize, FLT_MAX, textW, r.text.c_str()).y + 6.0f;
+                    }
+                    if (!r.member.empty()) {   // personaggio noto: si va a vedere nell'albero
+                        ImGui::SetCursorScreenPos(ImVec2(a.x + padIn, b.y - padIn - 26.0f));
+                        ImGui::PushID(r.title.c_str());
+                        std::string lbl = r.member + "  >";
+                        if (Ui::Button(lbl.c_str(), ImVec2(textW, 26.0f), Ui::Btn::Ghost) && !r.memberNode.empty()) {
+                            m_ResearchSelectedNode = r.memberNode;
+                            backToTree = true;
+                        }
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Mostra %s nell'albero", r.member.c_str());
+                        ImGui::PopID();
+                    }
+                    prevBottom[c] = b.y;
+                    if (tier == topTier) topCenters.push_back(a.y + rowH * 0.5f);
+                }
+            }
+            // triumvirato: filo che unisce le carte del grado piu' alto
+            if (tier == topTier && nDiv > 1) {
+                const float ly = y + rowH * 0.5f;
+                for (int c = 0; c + 1 < nDiv; ++c)
+                    dl->AddLine(ImVec2(colX(c) + colW, ly), ImVec2(colX(c + 1), ly), Ui::U32(Ui::Col::Gold, 0.85f), 2.0f);
+            }
+            y += rowH + vGap;
+        }
+
+        // in fondo: chi non ha cariche (Fratelli Serventi)
+        if (!section.footerTitle.empty() || !section.footer.empty()) {
+            const float fw = colX(nDiv - 1) + colW - colX(0);
+            const float fth = section.footer.empty() ? 0.0f : fs->CalcTextSizeA(fs->FontSize, FLT_MAX, fw - padIn * 2.0f, section.footer.c_str()).y;
+            const float h = padIn * 2.0f + fh->FontSize + 6.0f + fth;
+            y += 6.0f;
+            Ui::ChamferRect(dl, ImVec2(colX(0), y), ImVec2(colX(0) + fw, y + h), 10.0f, Ui::U32(Ui::Col::IronLight, 0.8f), Ui::U32(Ui::Col::Steel), 1.0f);
+            dl->AddText(fh, fh->FontSize, ImVec2(colX(0) + padIn, y + padIn), Ui::U32(Ui::Col::Brass), section.footerTitle.c_str());
+            if (!section.footer.empty())
+                dl->AddText(fs, fs->FontSize, ImVec2(colX(0) + padIn, y + padIn + fh->FontSize + 6.0f), Ui::U32(Ui::Col::Ash), section.footer.c_str(), nullptr, fw - padIn * 2.0f);
+            y += h;
+        }
+        ImGui::SetCursorScreenPos(origin);
+        ImGui::Dummy(ImVec2(labelW + static_cast<float>(nDiv) * colW + static_cast<float>(nDiv - 1) * gap, y - origin.y + 20.0f));
+        ImGui::EndChild();
+        return backToTree;
     }
 
     void GameLayer::DrawResearchFactionTree(const ResearchFaction& faction) {

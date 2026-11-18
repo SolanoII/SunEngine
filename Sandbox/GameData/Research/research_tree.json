@@ -636,6 +636,129 @@
         0.55,
         0.95
       ],
+      "sections": [
+        {
+          "id": "ordo_domus_humilitatis",
+          "name": "ORDO DOMUS HUMILITATIS",
+          "comment": "Sezione di sola consultazione dentro la scheda delle Vanguard Armor: la gerarchia dell'Ordine, nessuna unita' da ricercare. Divisioni in colonne, cariche dal grado piu' alto al piu' basso.",
+          "intro": "L'Ordine e' retto da un triumvirato fra tre divisioni: i Cavalieri, dotati di armatura, si occupano dell'attacco; i Sacerdoti, di cui alcune delle cariche piu' alte portano l'armatura, del supporto e dell'approvvigionamento; fra le due sta la linea dei Battle Priest, che si occupa della difesa.",
+          "top_label": "TRIUMVIRATO",
+          "divisions": [
+            {
+              "name": "CAVALIERI",
+              "role": "Attacco",
+              "color": [
+                0.86,
+                0.84,
+                0.78
+              ],
+              "ranks": [
+                {
+                  "tier": 10,
+                  "title": "Hochmeister",
+                  "text": "E' la massima autorita' dell'Ordine."
+                },
+                {
+                  "tier": 9,
+                  "title": "Großkomtur",
+                  "text": "Secondo in comando e sostituto del Gran Maestro in sua assenza."
+                },
+                {
+                  "tier": 8,
+                  "title": "Ordensmarschall",
+                  "text": "Comandante supremo delle forze militari sul campo."
+                },
+                {
+                  "tier": 7,
+                  "title": "Landmeister",
+                  "text": "Governa ampie zone della galassia.",
+                  "member": "Konrad von Eber",
+                  "member_node": "sm_sworn_brother"
+                },
+                {
+                  "tier": 6,
+                  "title": "Landkomtur",
+                  "text": "Governa piccole zone della galassia."
+                }
+              ]
+            },
+            {
+              "name": "BATTLE PRIEST",
+              "role": "Difesa - cariche sia da cavaliere che da sacerdote",
+              "color": [
+                0.78,
+                0.66,
+                0.42
+              ],
+              "ranks": [
+                {
+                  "tier": 10,
+                  "title": "Gran Chappelan",
+                  "text": ""
+                },
+                {
+                  "tier": 9,
+                  "title": "Chappelan",
+                  "text": ""
+                },
+                {
+                  "tier": 8,
+                  "title": "Prior",
+                  "text": ""
+                },
+                {
+                  "tier": 7,
+                  "title": "Komtur",
+                  "text": ""
+                },
+                {
+                  "tier": 6,
+                  "title": "Balivo",
+                  "text": ""
+                }
+              ]
+            },
+            {
+              "name": "SACERDOTI",
+              "role": "Supporto e approvvigionamento",
+              "color": [
+                0.62,
+                0.56,
+                0.8
+              ],
+              "ranks": [
+                {
+                  "tier": 10,
+                  "title": "Großspittler",
+                  "text": "Sovrintende a tutte le riunioni del Gran Maestro perche' le decisioni prese siano conformi all'Ordine. E' il custode del libro delle leggi dell'Ordine."
+                },
+                {
+                  "tier": 9,
+                  "title": "Ordenstrappier",
+                  "text": "Incaricato della manutenzione e dell'assegnazione delle armature e della sacralita' di tutte le macchine dell'Ordine."
+                },
+                {
+                  "tier": 8,
+                  "title": "Ordenstressler",
+                  "text": "Incaricato della distribuzione delle risorse dell'Ordine all'interno della flotta e della distribuzione della carita'."
+                },
+                {
+                  "tier": 7,
+                  "title": "Bishop",
+                  "text": ""
+                },
+                {
+                  "tier": 6,
+                  "title": "Pfarrer",
+                  "text": ""
+                }
+              ]
+            }
+          ],
+          "footer_title": "FRATELLI SERVENTI",
+          "footer": "Tutti coloro che non hanno ancora un'armatura o non sono adatti a portarne una. Non possono intraprendere la via del sacerdozio perche' non hanno risvegliato i poteri."
+        }
+      ],
       "nodes": [
         {
           "id": "sm_aspirant",

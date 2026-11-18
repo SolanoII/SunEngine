@@ -56,11 +56,37 @@ namespace SunEngine {
         std::string rowLabel;
     };
 
+    // Sezioni di sola consultazione dentro una fazione ("sections"), es. la gerarchia dell'Ordo Domus Humilitatis
+    // nella scheda delle Vanguard Armor: divisioni in colonne, cariche dal grado piu' alto al piu' basso.
+    struct ResearchRank {
+        int tier = 1;
+        std::string title;
+        std::string text;          // compiti (puo' essere vuoto)
+        std::string member;        // personaggio noto con questa carica (es. Konrad von Eber)
+        std::string memberNode;    // suo nodo nell'albero, per andarlo a vedere
+    };
+    struct ResearchDivision {
+        std::string name;
+        std::string role;
+        std::array<float, 3> color{ 0.8f, 0.8f, 0.8f };
+        std::vector<ResearchRank> ranks;
+    };
+    struct ResearchSection {
+        std::string id;
+        std::string name;
+        std::string intro;
+        std::string topLabel;      // etichetta del grado piu' alto (es. TRIUMVIRATO)
+        std::vector<ResearchDivision> divisions;
+        std::string footerTitle;   // riga in fondo, sotto tutte le divisioni
+        std::string footer;
+    };
+
     struct ResearchFaction {
         std::string id;
         std::string name;
         std::array<float, 3> accent{ 0.8f, 0.8f, 0.8f };
         std::vector<ResearchNode> nodes;
+        std::vector<ResearchSection> sections;
     };
 
     enum class ResearchStatus {
@@ -97,6 +123,34 @@ namespace SunEngine {
                         for (int i = 0; i < 3; ++i) f.accent[i] = jf["accent"][i].get<float>();
                     }
                     if (f.id.empty()) return fail("fazione senza 'id'");
+                    for (const auto& js : jf.value("sections", nlohmann::json::array())) {
+                        ResearchSection sec;
+                        sec.id = js.value("id", std::string());
+                        sec.name = js.value("name", sec.id);
+                        sec.intro = js.value("intro", std::string());
+                        sec.topLabel = js.value("top_label", std::string());
+                        sec.footerTitle = js.value("footer_title", std::string());
+                        sec.footer = js.value("footer", std::string());
+                        for (const auto& jd : js.value("divisions", nlohmann::json::array())) {
+                            ResearchDivision d;
+                            d.name = jd.value("name", std::string());
+                            d.role = jd.value("role", std::string());
+                            if (jd.contains("color") && jd["color"].is_array() && jd["color"].size() >= 3)
+                                for (int i = 0; i < 3; ++i) d.color[i] = jd["color"][i].get<float>();
+                            for (const auto& jr : jd.value("ranks", nlohmann::json::array())) {
+                                ResearchRank r;
+                                r.tier = jr.value("tier", 1);
+                                r.title = jr.value("title", std::string());
+                                r.text = jr.value("text", std::string());
+                                r.member = jr.value("member", std::string());
+                                r.memberNode = jr.value("member_node", std::string());
+                                d.ranks.push_back(std::move(r));
+                            }
+                            sec.divisions.push_back(std::move(d));
+                        }
+                        if (sec.id.empty()) return fail("sezione senza 'id' nella fazione " + f.id);
+                        f.sections.push_back(std::move(sec));
+                    }
                     for (const auto& jn : jf.value("nodes", nlohmann::json::array())) {
                         ResearchNode n;
                         n.id = jn.value("id", std::string());

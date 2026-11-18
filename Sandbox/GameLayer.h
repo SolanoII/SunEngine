@@ -476,6 +476,7 @@ namespace SunEngine {
         void BuildStarterRoster();   // profilo nuovo: un'unita' iniziale per ramo dell'albero di ricerca
         void RenderResearchUI();
         void DrawResearchFactionTree(const ResearchFaction& faction);
+        bool DrawResearchSection(const ResearchSection& section);   // gerarchia di sola consultazione; true = torna all'albero
         void RenderShopUI();
         bool PurchaseResearchedUnit(const ResearchNode& node);
 
