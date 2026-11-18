@@ -1873,6 +1873,7 @@ namespace SunEngine {
                 if (t.blueprintId.rfind("orks_", 0) == 0)   // Vrepighs e Pighcib non piu' verdi
                     t.armorColor = MigrateGreenSkin(t.armorColor, t.blueprintId == "orks_gretchin");
                 t.facePreset = u.value("facePreset", 0);
+                t.rebuildUntil = u.value("rebuildUntil", static_cast<int64_t>(0));
                 // Armi non piu' presenti nei blueprint (es. "laspistol_m-g", mai esistita): torno al default
                 auto weaponOr = [&](const char* key, const std::string& def) {
                     std::string id = u.value(key, def);
@@ -1951,6 +1952,7 @@ namespace SunEngine {
             u["blueprintId"] = t.blueprintId;
             u["armorColor"] = { t.armorColor.r, t.armorColor.g, t.armorColor.b, t.armorColor.a };
             u["facePreset"] = t.facePreset;
+            if (t.rebuildUntil > 0) u["rebuildUntil"] = t.rebuildUntil;
             u["primaryWeaponId"] = t.primaryWeaponId;
             u["secondaryWeaponId"] = t.secondaryWeaponId;
             u["meleeWeaponId"] = t.meleeWeaponId;
@@ -5403,6 +5405,7 @@ namespace SunEngine {
                 m_CurrentSquadMemberIdx < static_cast<int>(m_ActiveSquad.size())) {
                 m_ActiveSquad[m_CurrentSquadMemberIdx].isAlive = false;
                 m_ActiveSquad[m_CurrentSquadMemberIdx].currentHealth = 0.0f;
+                if (!m_Story.active) MarkSpecialFallen(m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex);   // personaggio speciale: si ricostruisce
             }
 
             // Attiva ragdoll anche per il player (feedback visivo).
@@ -5662,7 +5665,7 @@ namespace SunEngine {
 
             m_HordeAI.Update(m_Scene, m_NavQuery, deltaTime);
             UpdateSummons(deltaTime);
-            if ((m_VsBotActive || HasSummons()) && !(m_VsBotActive && m_VsBotWarmup > 0.0f)) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
+            if ((m_VsBotActive || HasSummons() || StoryUsesBots()) && !(m_VsBotActive && m_VsBotWarmup > 0.0f)) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
             m_MeleeCombat.Update(m_Scene, deltaTime);
             // Compagni squig (seguono il padrone e attaccano quello a cui spara) e riparazione con la chiave inglese
             if (!m_SquigSkeletonLoaded) {   // un solo tentativo: se manca il file lo squig resta un cubo
@@ -7606,6 +7609,8 @@ namespace SunEngine {
             else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
 
             std::string btnText = m_PlayerRoster[i].customName + "\n(" + m_PlayerRoster[i].blueprintId + ")  EXP " + std::to_string(m_PlayerRoster[i].exp);
+            if (const int64_t left = RebuildSecondsLeft(m_PlayerRoster[i]); left > 0)   // personaggio speciale caduto
+                btnText = m_PlayerRoster[i].customName + "\nIN RICOSTRUZIONE  " + std::to_string(left / 60) + ":" + (left % 60 < 10 ? "0" : "") + std::to_string(left % 60);
             if (Ui::PlainButton(btnText.c_str(), ImVec2(-1, 50))) {
                 m_SelectedVaultIndex = i;
                 ApplyUnitVisuals(m_PlayerRoster[i]);
@@ -7704,7 +7709,8 @@ namespace SunEngine {
             ImGui::Text("Granate: [Slot Vuoto]");
             ImGui::Text("Oggetto Supporto: [Slot Vuoto]");
 
-            ImGui::SetCursorPosY(io.DisplaySize.y - 180.0f);
+            RenderRebuildPanel(m_SelectedVaultIndex);
+            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 8.0f, io.DisplaySize.y - 180.0f));   // in fondo, o sotto il pannello di ricostruzione
             ImGui::Separator(); ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.34f, 0.17f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.34f, 0.17f, 1.0f));
@@ -8475,7 +8481,19 @@ namespace SunEngine {
             if (isInSquad) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.34f, 0.17f, 0.9f));
             else ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.20f, 0.20f, 0.6f));
 
+            const int64_t rebuildLeft = RebuildSecondsLeft(m_PlayerRoster[i]);
             std::string btnText = isInSquad ? "[IN SQUADRA] " + label : "[RISERVA] " + label;
+            if (rebuildLeft > 0) {   // personaggio speciale caduto: non si schiera finche' non e' ricostruito
+                btnText = "[RICOSTRUZIONE " + std::to_string(rebuildLeft / 60) + ":" + (rebuildLeft % 60 < 10 ? "0" : "") + std::to_string(rebuildLeft % 60) + "] " + label;
+                if (isInSquad && m_SelectedSquadIndices.size() > 1) { m_SelectedSquadIndices.erase(it); isInSquad = false; }
+                ImGui::BeginDisabled();
+                Ui::PlainButton(btnText.c_str(), ImVec2(-1, 40));
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Personaggio speciale caduto: si ricostruisce col tempo, oppure subito pagando energia (Garage).");
+                ImGui::PopStyleColor();
+                continue;
+            }
             if (Ui::PlainButton(btnText.c_str(), ImVec2(-1, 40))) {
                 if (isInSquad) {
                     if (m_SelectedSquadIndices.size() > 1) {
@@ -8578,6 +8596,7 @@ namespace SunEngine {
     // Ingresso in partita con la squadra scelta, sulla mappa e nella modalita' selezionate (da solo o in squadra:
     // spawnSlot = mio posto fra i compagni, per non comparire uno sopra l'altro)
     void GameLayer::StartDeployment(int spawnSlot) {
+        if (!m_Story.active) PruneRebuildingFromSquad();   // i personaggi speciali in ricostruzione restano a casa
         if (m_SelectedSquadIndices.empty()) return;
 
         auto view = m_Scene.GetRegistry().view<ColliderComponent>(entt::exclude<PlayerTag>);
@@ -9347,6 +9366,10 @@ namespace SunEngine {
 
     bool GameLayer::StartVsBotMatch(int tierIdx) {
         m_VsBotMessage.clear();
+        if (PruneRebuildingFromSquad() > 0 && m_SelectedSquadIndices.empty()) {
+            m_VsBotMessage = "Tutte le unita' della squadra sono in ricostruzione.";
+            return false;
+        }
         if (tierIdx < 0 || tierIdx > 2 || m_SelectedSquadIndices.empty()) return false;
         const VsBotQueueTier& tier = kVsBotTiers[tierIdx];
         const int squadPoints = CalculateSquadPoints();
@@ -9366,7 +9389,7 @@ namespace SunEngine {
         // Costo di un candidato = unita' con la sua dotazione base (punti battaglia)
         for (const auto& [id, bp] : BlueprintManager::Get().GetUnits()) {
             const ResearchNode* rn = m_ResearchTree.FindNodeByUnit(id);
-            if (rn && rn->premium) continue;   // le unita' d'elite (Konrad) non le usano i bot: sono personaggi unici
+            if (!rn || rn->premium) continue;   // le unita' d'elite (Konrad) e i personaggi delle storie (Kragh, Gorvakh) non le usano i bot
             if (m_ResearchTree.IsHiddenUnit(id)) continue;   // oltre il grado mostrato nell'albero: la storia non c'e' ancora arrivata
             all.push_back({ id, MakeBotUnit(id, 1).CalculateBattlePoints(), VsBotFactionOf(id), bp.max_per_squad });
         }
@@ -9709,6 +9732,7 @@ namespace SunEngine {
                     dead = !hp || hp->currentHealth <= 0.0f || reg.all_of<CorpseComponent>(s.entity);
                 }
                 if (dead) {
+                    if (p.local && !m_Story.active) MarkSpecialFallen(s.rosterIdx);   // personaggio speciale: si ricostruisce
                     m_VsBotUnits.erase(s.entity);
                     s.state = VsBotSlotState::Fallen;
                     s.entity = entt::null;

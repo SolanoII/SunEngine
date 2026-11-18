@@ -1,0 +1,157 @@
+{
+  "id": "kragh_claws",
+  "displayName": "Artigli di Kragh",
+  "comment": "Solo Kragh: mani artigliate indurite da anni di pietra. Rapidi, x2 alle spalle; il colpo pesante spezza le guardie.",
+  "faction": "Orks",
+  "allowed_units": [
+    "orks_kragh"
+  ],
+  "is_melee": true,
+  "hand_type": "OneHanded",
+  "slot_type": "Melee",
+  "weight_kg": 0.0,
+  "point_cost": 0,
+  "base_damage": 46.0,
+  "melee_reach": 1.8,
+  "backstab_multiplier": 2.0,
+  "default_melee_type": "Light",
+  "weapon_scale": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "hold_offset": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "primary_color": [
+    0.55,
+    0.52,
+    0.46,
+    1.0
+  ],
+  "moveset": {
+    "entry_node": "normal_1",
+    "nodes": {
+      "heavy_1": {
+        "damage_multiplier": 1.85,
+        "stamina_cost": 12.6,
+        "timings": {
+          "windup": 0.166,
+          "active": 0.11,
+          "recovery": 0.166
+        },
+        "combo_window": {
+          "start": 0.11,
+          "end": 0.322
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "C": "low_1"
+        }
+      },
+      "normal_1": {
+        "damage_multiplier": 1.0,
+        "stamina_cost": 6.3,
+        "timings": {
+          "windup": 0.074,
+          "active": 0.11,
+          "recovery": 0.129
+        },
+        "combo_window": {
+          "start": 0.074,
+          "end": 0.276
+        },
+        "transitions": {
+          "F_CLICK": "normal_2",
+          "LMB": "normal_2",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "normal_2": {
+        "damage_multiplier": 1.15,
+        "stamina_cost": 7.2,
+        "timings": {
+          "windup": 0.083,
+          "active": 0.12,
+          "recovery": 0.138
+        },
+        "combo_window": {
+          "start": 0.074,
+          "end": 0.294
+        },
+        "transitions": {
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1",
+          "C": "low_1"
+        }
+      },
+      "low_1": {
+        "damage_multiplier": 0.8,
+        "stamina_cost": 4.5,
+        "timings": {
+          "windup": 0.055,
+          "active": 0.092,
+          "recovery": 0.11
+        },
+        "combo_window": {
+          "start": 0.055,
+          "end": 0.23
+        },
+        "transitions": {
+          "C": "low_2",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "low_2": {
+        "damage_multiplier": 0.85,
+        "stamina_cost": 5.0,
+        "timings": {
+          "windup": 0.055,
+          "active": 0.092,
+          "recovery": 0.11
+        },
+        "combo_window": {
+          "start": 0.055,
+          "end": 0.23
+        },
+        "transitions": {
+          "C": "low_3",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      },
+      "low_3": {
+        "damage_multiplier": 1.05,
+        "stamina_cost": 5.9,
+        "timings": {
+          "windup": 0.064,
+          "active": 0.11,
+          "recovery": 0.129
+        },
+        "combo_window": {
+          "start": 0.064,
+          "end": 0.258
+        },
+        "transitions": {
+          "C": "low_1",
+          "F_CLICK": "normal_1",
+          "LMB": "normal_1",
+          "F_HOLD": "heavy_1",
+          "RMB": "heavy_1"
+        }
+      }
+    }
+  }
+}

@@ -109,6 +109,9 @@ namespace SunEngine {
         std::string armorRightLegId = "leg_r_guardsman_recruit";
 
         int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni orco ucciso)
+        // Personaggi speciali (unita' d'elite): caduti in partita restano in ricostruzione fino a quest'ora
+        // (secondi unix, 0 = pronto). Si puo' accorciare pagando energia (vedi GameLayerRebuild.cpp)
+        int64_t rebuildUntil = 0;
 
         // Dotazione base del blueprint ("default_loadout"): armi ed equipaggiamento con cui arriva l'unita'.
         // Le unita' senza dotazione base (da definire) tengono le armi di sempre.
@@ -228,6 +231,7 @@ namespace SunEngine {
     // 2 = Konrad von Eber (ondate, dopo 5 minuti arriva il capo).
     struct StoryState {
         bool active = false;
+        int story = 0;                       // 0 Primo Incontro, 1 Il peso delle pietre
         int chapter = 0;
         int result = 0;                      // 0 in corso, 1 obiettivo raggiunto, 2 caduto, 3 fine della linea (Ordan)
         float time = 0.0f;                   // secondi dall'inizio del capitolo
@@ -237,6 +241,13 @@ namespace SunEngine {
         entt::entity boss = entt::null;
         bool bossSpawned = false, bossDown = false;
         bool newRecord = false;
+        // Il peso delle pietre
+        bool bossPhase = false;              // Gorvakh chiama a se' la pietra (sotto il 70%)
+        float pointProgress[3] = { 0.0f, 0.0f, 0.0f };   // sbarco: punti di raccolta dei glatt
+        bool pointDone[3] = { false, false, false };
+        int pointsDone = 0;
+        std::vector<entt::entity> belokh;    // ultima difesa: Konrad e i suoi compagni
+        bool addedTeam = false;              // il giocatore non aveva squadra: va tolta all'uscita
     };
 
     // 5v5: ogni giocatore (tu o un'IA) porta la sua squadra; quando l'unita' in campo cade rientra con un'altra.
@@ -334,6 +345,14 @@ namespace SunEngine {
         void OnWindowResize(int width, int height) override;   // FIX #6
         void ApplyUnitVisuals(const TrainedUnit& unit);
         int CalculateSquadPoints() const;
+        // Ricostruzione dei personaggi speciali (GameLayerRebuild.cpp)
+        int SpecialTierOf(const TrainedUnit& u) const;              // grado del personaggio speciale, 0 = unita' normale
+        int64_t RebuildSecondsLeft(const TrainedUnit& u) const;     // 0 = pronto
+        int64_t RebuildEnergyCost(const TrainedUnit& u) const;      // energia per ricostruirlo subito
+        void MarkSpecialFallen(int rosterIdx);                      // caduto in partita: parte la ricostruzione
+        bool RebuildNow(int rosterIdx);                             // paga l'energia e lo rimette in servizio
+        int PruneRebuildingFromSquad();                             // toglie dalla squadra chi e' in ricostruzione
+        void RenderRebuildPanel(int rosterIdx);                     // garage: tempo che manca e "ricostruisci ora"
         void CheckUnitDeaths();
         void UpdateHitFeedback(float deltaTime);
 
@@ -655,6 +674,13 @@ namespace SunEngine {
         void StoryVoice(const char* key);   // battuta del personaggio (una volta per capitolo), in basso sullo schermo
         void RenderEliteXpTransfer(const ResearchFaction& faction, const ResearchNode& elite, float width);   // punti speciali delle unita' d'elite
         void StartStoryChapter(int chapter);
+        // Il peso delle pietre: personaggi guidati dall'IA, preparazione e obiettivi dei capitoli
+        entt::entity SpawnStoryBot(const std::string& unitId, const std::string& name, int team, const glm::vec3& pos, float yaw,
+                                   const glm::vec3* guardPost = nullptr, float leash = 16.0f);
+        void SetupStoryChapter();
+        void UpdateStoryStones(float deltaTime, const glm::vec3& playerPos);
+        void StoryFinishWin();
+        bool StoryUsesBots() const;   // capitoli con bot (squadre, IA dei bot)
         void UpdateStory(float deltaTime, const glm::vec3& playerPos);
         void RenderStoryHUD();
         void RenderStoryEnd();

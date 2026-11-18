@@ -4,7 +4,8 @@
   "comment": "Dotazione base dell'Vrepigh Vrepigh: granata a manico, come quelle della prima guerra mondiale. In mano (tasto 4), click sinistro la lancia verso il mirino: scoppia appena tocca qualcosa (terreno, muro o un nemico). 130 danni al centro, 4 metri di raggio. 1 per partita.",
   "faction": "Orks",
   "allowed_units": [
-    "orks_boy"
+    "orks_boy",
+    "orks_kragh"
   ],
   "slot_type": "equipment",
   "equipment_type": "grenade",

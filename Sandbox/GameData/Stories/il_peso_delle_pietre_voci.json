@@ -1,0 +1,131 @@
+{
+  "_nota": "Voci dei capitoli giocabili de Il peso delle pietre (stesso formato di primo_incontro_voci.json). 'prologo' prima di entrare in campo, 'voci' durante la partita (ognuna una volta sola), 'vittoria' e 'caduta' alla fine. 'racconto' = capitoli del racconto che offrono 'Gioca questo momento'; 'leggi' = capitolo aperto da 'Leggi cosa è successo'.",
+  "capitoli": [
+    {
+      "racconto": [5, 6, 7],
+      "leggi": 8,
+      "prologo": [
+        "Gorvakh voleva le sue pietre, i suoi guerrieri e il suo posto.",
+        "Kragh non si inginocchiò.",
+        "«Se vuoi le mie pietre, vieni a prenderle.»",
+        "Nella sala dell'altare nessuno parlava. Gli artigli bastavano."
+      ],
+      "voci": {
+        "inizio": [
+          "«Combatti.»",
+          "Gorvakh non arretra. Aspetta. Conosce il modo di combattere di Kragh."
+        ],
+        "gorvakh_ferito": [
+          "Il sangue cola lungo il pelo del superiore. Può essere ferito. Può sanguinare."
+        ],
+        "gorvakh_pietra": [
+          "«Hai mangiato bene.» Le vene di Gorvakh si gonfiano: la pietra che ha accumulato per anni risponde.",
+          "Un passo indietro. Uno soltanto, ma nella sala lo hanno visto tutti."
+        ],
+        "ferito": [
+          "Il fianco brucia. Kragh scuote il capo e torna sotto."
+        ],
+        "grave": [
+          "Il pavimento si avvicina. «Non hai ancora vinto.»"
+        ]
+      },
+      "vittoria": [
+        "Gorvakh guardò il proprio braccio, e per la prima volta da anni qualcuno lo aveva fatto sanguinare davanti a tutti.",
+        "Nella sala nessuno rise. Ma ognuno dei guerrieri sulle pareti si ricordò di quel passo indietro.",
+        "Nel racconto, poi, Gorvakh chiamò a sé la pietra."
+      ],
+      "caduta": [
+        "Il piede di Gorvakh sulla schiena. La sala in silenzio.",
+        "«A chi appartengono le tue pietre?»",
+        "«A te.»"
+      ]
+    },
+    {
+      "racconto": [22, 23],
+      "leggi": 24,
+      "prologo": [
+        "Vespera IV. Le navi di rottami comparvero sulle piattaforme dei glatt e le schiacciarono.",
+        "Morg al primo settore, Varka al secondo. Kragh scende con il resto del vargh.",
+        "I glatt hanno tre punti di raccolta, dietro le loro difese. Lì ammassano chi fugge e chi combatte.",
+        "Spezzare quei tre punti significa spezzare la loro resistenza."
+      ],
+      "voci": {
+        "inizio": [
+          "«Non lasciateli respirare!»",
+          "Il vargh si riversa fuori dai rottami."
+        ],
+        "prima_uccisione": [
+          "Piccoli. Si rialzano sempre, ma non tutti."
+        ],
+        "uccisioni_10": [
+          "Per la prima volta da quando Gorvakh lo ha umiliato, Kragh sente che la spedizione può riuscire."
+        ],
+        "punto_1": [
+          "Il primo punto di raccolta brucia. I glatt arretrano verso gli altri due."
+        ],
+        "punto_2": [
+          "Ne resta uno solo. I glatt lo difenderanno con tutto quello che hanno."
+        ],
+        "ferito": [
+          "Un colpo dei piccoli. Kragh mostra le zanne e avanza."
+        ],
+        "grave": [
+          "Troppo sangue. Ma Gorvakh lo aspetta, e non tornerà a mani vuote."
+        ]
+      },
+      "vittoria": [
+        "I tre punti di raccolta dei glatt erano caduti.",
+        "Eppure la resistenza non cedeva come avrebbe dovuto: continuava a raccogliersi verso la Terza Serra.",
+        "Fu allora che il dubbio prese forma."
+      ],
+      "caduta": [
+        "Kragh cadde tra le piattaforme di Vespera IV, lontano dal territorio che credeva di possedere.",
+        "Gorvakh non avrebbe nemmeno dovuto sporcarsi gli artigli."
+      ]
+    },
+    {
+      "racconto": [26, 27],
+      "leggi": 27,
+      "prologo": [
+        "Tre figure tra le strutture della Terza Serra, e una luce bianca al centro di ogni petto.",
+        "I belokh. Kragh li credeva una storia per i cuccioli.",
+        "Il vecchio si para davanti a lui. «Non puoi batterle. Ma posso darti il tempo di vivere.»",
+        "Tre guerrieri del vargh restano con lui. Ruk è già sulla passerella. Bisogna reggere il tempo della ritirata."
+      ],
+      "voci": {
+        "inizio": [
+          "«Da questo momento guido io il fronte.»",
+          "Il vecchio raddrizza la schiena. La collana di tash gli batte sul petto."
+        ],
+        "belokh": [
+          "La figura con la lama scura si stacca dalle altre e viene avanti camminando, senza correre."
+        ],
+        "gruuk": [
+          "Il gruuk riempie il corridoio, il canto più antico dei branchi. I zhelvar rispondono uno dopo l'altro."
+        ],
+        "minuto": [
+          "Un minuto. Kragh dovrebbe essere oltre le prime vasche."
+        ],
+        "ultimi_30": [
+          "Ancora un poco. Ogni passo che le corazze fanno qui è un passo che non fanno dietro a Kragh."
+        ],
+        "ferito": [
+          "Il sangue scende lungo il braccio. Il vecchio non grida."
+        ],
+        "grave": [
+          "Le pietre al collo pesano. Non più di quanto abbiano pesato dentro."
+        ]
+      },
+      "vittoria": [
+        "Il vecchio aveva retto il fronte il tempo necessario.",
+        "Morg trascinò Kragh oltre l'ultima curva, e la Terza Serra scomparve alla sua vista.",
+        "Dietro di loro il gruuk si spense una voce alla volta."
+      ],
+      "caduta": [
+        "La lama entrò sotto la mandibola, dove finivano le skar e cominciava la collana.",
+        "I tash rotolarono tra i detriti come semi sparsi.",
+        "Era caduto troppo presto: le corazze bianche erano ancora sulla strada della ritirata."
+      ]
+    }
+  ]
+}

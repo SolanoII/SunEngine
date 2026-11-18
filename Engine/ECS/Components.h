@@ -942,6 +942,12 @@ namespace SunEngine {
         Melee        // a contatto: colpisce
     };
 
+    // Bot di presidio (PVE-STORY): resta al suo posto; insegue un nemico al massimo per 'leash' metri, poi torna
+    struct BotGuardPostComponent {
+        glm::vec3 pos{ 0.0f };
+        float leash = 16.0f;
+    };
+
     struct BotBrainComponent {
         BotRole role = BotRole::Versatile;
         BotIntent intent = BotIntent::Advance;

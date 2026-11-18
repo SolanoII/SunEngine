@@ -1,10 +1,15 @@
 // PVE-STORY: le storie di The Sun's Darkest Hours da rigiocare, fuori dal sistema delle squadre.
 // Ogni capitolo si gioca con un personaggio fisso della storia, sulla sua mappa, con il suo obiettivo.
 //
-// Primo Incontro (Anno 999 del Calendario Regale, Vespera IV, Terza Serra), mappa "warzone_sector4":
+// I. Primo Incontro (Anno 999 del Calendario Regale, Vespera IV, Terza Serra), mappa "warzone_sector4":
 //   0  Martus Kell      fuga dalla serra centrale (A) al magazzino nord (B): arrivarci vivo
 //   1  Sergente Ordan   rifugio del livello tre, stanza chiusa: ondate dall'anticamera fino alla fine (record)
 //   2  Konrad von Eber  ondate nei campi; dopo 5 minuti arriva il capo con la collana di frammenti: abbatterlo
+// II. Il peso delle pietre (Anno 999, il territorio di Gorvakh e poi Vespera IV):
+//   0  Kragh            duello nella sala dell'altare ("caverna_gorvakh"), solo artigli: Gorvakh sotto il 50%
+//   1  Kragh            sbarco nella Terza Serra con il vargh: distruggere i tre punti di raccolta dei glatt
+//                        (una cinquantina di difensori di grado II, 5-7 di guardia a ogni punto)
+//   2  Il Vecchio       con tre guerrieri del vargh contro Konrad e i suoi due compagni: reggere 2 minuti
 //
 // Il garage del giocatore viene messo da parte all'inizio del capitolo e rimesso a posto all'uscita (EndStory),
 // e intanto il salvataggio del profilo usa la copia messa da parte (vedi SaveProfileIfChanged).
@@ -14,6 +19,7 @@
 #include "Engine/Core/Logger/Log.h"
 #include "Engine/ECS/Components.h"
 #include "Engine/ECS/Tags.h"
+#include "Engine/ECS/VfxEvents.h"
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <algorithm>
@@ -45,7 +51,9 @@ namespace SunEngine {
             std::vector<Chapter> chapters;
             bool loaded = false;
         };
-        StoryText s_PrimoIncontro;
+        constexpr int kStoryCount = 2;
+        StoryText s_Texts[kStoryCount];
+        int s_Story = 0;                 // storia scelta nella scheda PVE-STORY
         bool s_Reading = false;          // scheda PVE-STORY: false = capitoli giocabili, true = racconto
         int s_ReadChapter = -1;          // -1 = riprendi da dove si era arrivati (profilo)
         bool s_ReadScrollTop = false;
@@ -60,8 +68,8 @@ namespace SunEngine {
             std::vector<int> playFrom;   // capitoli del racconto (numerati da 1) con "Gioca questo momento"
             int readAfter = 0;           // capitolo del racconto (da 1) per "Leggi cosa e' successo"
         };
-        ChapterVoice s_Voices[3];
-        bool s_VoicesLoaded = false;
+        ChapterVoice s_Voices[kStoryCount][3];
+        bool s_VoicesLoaded[kStoryCount] = {};
         struct Subtitle { std::string text; float total = 0.0f, left = 0.0f; };
         std::vector<Subtitle> s_Subtitles;         // battute in coda (in basso, una alla volta)
         std::set<std::string> s_VoiceFired;        // battute gia' dette in questo capitolo
@@ -70,11 +78,13 @@ namespace SunEngine {
         bool s_SkipWasDown = true;
 
         void PlainPunctuation(std::string& s);
-        void LoadVoices() {
-            if (s_VoicesLoaded) return;
-            s_VoicesLoaded = true;
-            std::ifstream in(FindValidDir("Stories") + "primo_incontro_voci.json", std::ios::binary);
-            if (!in) { SUN_CORE_WARN("PVE-STORY: voci dei capitoli non trovate (primo_incontro_voci.json)"); return; }
+        const char* const kVoiceFiles[kStoryCount] = { "primo_incontro_voci.json", "il_peso_delle_pietre_voci.json" };
+        void LoadVoices(int story) {
+            story = std::clamp(story, 0, kStoryCount - 1);
+            if (s_VoicesLoaded[story]) return;
+            s_VoicesLoaded[story] = true;
+            std::ifstream in(FindValidDir("Stories") + kVoiceFiles[story], std::ios::binary);
+            if (!in) { SUN_CORE_WARN("PVE-STORY: voci dei capitoli non trovate ({0})", kVoiceFiles[story]); return; }
             try {
                 const nlohmann::json j = nlohmann::json::parse(in);
                 auto list = [](const nlohmann::json& a) {
@@ -85,7 +95,7 @@ namespace SunEngine {
                 const auto& chapters = j.at("capitoli");
                 for (size_t i = 0; i < chapters.size() && i < 3; ++i) {
                     const auto& c = chapters[i];
-                    ChapterVoice& v = s_Voices[i];
+                    ChapterVoice& v = s_Voices[story][i];
                     v.prologue = list(c.value("prologo", nlohmann::json::array()));
                     v.win = list(c.value("vittoria", nlohmann::json::array()));
                     v.fall = list(c.value("caduta", nlohmann::json::array()));
@@ -175,6 +185,8 @@ namespace SunEngine {
         constexpr const char* kStoryMap = "warzone_sector4";   // Vespera IV - Terza Serra
         constexpr float kKonradBossTime = 300.0f;               // 5 minuti
         constexpr float kOrdanHoldTime = 60.0f;                 // Ordan: la porta va tenuta almeno un minuto (i civili passano)
+        constexpr float kVecchioHoldTime = 120.0f;              // il Vecchio: 2 minuti, il tempo della ritirata
+        constexpr float kGorvakhGoal = 0.5f;                    // duello: Gorvakh sotto meta' della sua vita
 
         struct StoryChapter {
             const char* name;
@@ -182,21 +194,69 @@ namespace SunEngine {
             const char* quote;
             const char* objective;
             glm::vec3 start;
+            const char* map;
+            const char* doneKey;
         };
-        const StoryChapter kChapters[3] = {
-            { "Martus Kell", "Laborator della Terza Serra, milizia planetaria",
-              "\"Kell! Apri gli occhi!\"",
-              "La linea e' caduta. Attraversa la serra e raggiungi il magazzino nord, vivo. Non fermarti: i Vrepighs ti inseguono.",
-              { 2.0f, 0.5f, -50.0f } },   // dentro la serra centrale, fra due filari
-            { "Sergente Ordan", "Sergente della milizia di Vespera IV",
-              "\"Qualcuno deve chiudere quella porta.\"",
-              "Tieni la porta del rifugio almeno 1 minuto: e' il tempo che serve ai civili per fuggire nel condotto. Poi resisti finche' puoi.",
-              { 2.0f, 0.5f, 94.0f } },
-            { "Konrad von Eber", "Ordo Domus Humilitatis",
-              "\"Allora non possiamo lasciare che raggiungano i rifugi.\"",
-              "Ferma l'assalto alla Terza Serra. Dopo 5 minuti arriva il loro capo, quello con la collana di frammenti viola: abbattilo.",
-              { 0.0f, 0.5f, 20.0f } },
+        struct StoryDef {
+            const char* id;            // file del racconto (<id>.txt) e segno di lettura (read_<id>)
+            const char* menuName;
+            const char* title;
+            const char* when;
+            const char* blurb;
+            const char* mapLine;
+            StoryChapter chapters[3];
         };
+        const StoryDef kStories[kStoryCount] = {
+            { "primo_incontro", "I. Primo Incontro", "PRIMO INCONTRO",
+              "Anno 999 del Calendario Regale  -  Vespera IV, pianeta agricolo  -  Dominio di Aurel",
+              "\"La prima cosa che capii fu che il cielo stava cadendo.\" Le piattaforme orbitali precipitano sulla "
+              "Terza Serra e i Vrepighs attraversano i campi. La milizia dei Laboratores tiene la strada di servizio, "
+              "i civili scendono nei rifugi, e nessuno sta venendo a salvarli. O almeno cosi' credono.",
+              "Mappa: Vespera IV - Terza Serra",
+              {
+                { "Martus Kell", "Laborator della Terza Serra, milizia planetaria",
+                  "\"Kell! Apri gli occhi!\"",
+                  "La linea e' caduta. Attraversa la serra e raggiungi il magazzino nord, vivo. Non fermarti: i Vrepighs ti inseguono.",
+                  { 2.0f, 0.5f, -50.0f }, kStoryMap, "martus_done" },   // dentro la serra centrale, fra due filari
+                { "Sergente Ordan", "Sergente della milizia di Vespera IV",
+                  "\"Qualcuno deve chiudere quella porta.\"",
+                  "Tieni la porta del rifugio almeno 1 minuto: e' il tempo che serve ai civili per fuggire nel condotto. Poi resisti finche' puoi.",
+                  { 2.0f, 0.5f, 94.0f }, kStoryMap, "ordan_done" },
+                { "Konrad von Eber", "Ordo Domus Humilitatis",
+                  "\"Allora non possiamo lasciare che raggiungano i rifugi.\"",
+                  "Ferma l'assalto alla Terza Serra. Dopo 5 minuti arriva il loro capo, quello con la collana di frammenti viola: abbattilo.",
+                  { 0.0f, 0.5f, 20.0f }, kStoryMap, "konrad_done" },
+              } },
+            { "il_peso_delle_pietre", "II. Il peso delle pietre", "IL PESO DELLE PIETRE",
+              "Anno 999 del Calendario Regale  -  Il territorio di Gorvakh, poi Vespera IV",
+              "Kragh ha mangiato pietre che altri non osavano toccare e ha piegato interi branchi. Poi Gorvakh lo convoca "
+              "e pretende le sue pietre, i suoi guerrieri e una spedizione su un mondo dei glatt. Dalla parte dei Vrepighs, "
+              "la storia della Terza Serra e del vecchio che porta al collo i tash che non puo' piu' mangiare.",
+              "Mappe: la caverna di Gorvakh, Vespera IV - Terza Serra",
+              {
+                { "Kragh", "Capo del vargh - grado V",
+                  "\"Se vuoi le mie pietre, vieni a prenderle.\"",
+                  "Duello nella sala dell'altare, solo artigli. Porta Gorvakh (grado VI) sotto meta' della sua vita prima che lui spezzi te.",
+                  { 0.0f, 0.5f, 11.0f }, "caverna_gorvakh", "kragh_duel_done" },
+                { "Kragh", "Lo sbarco su Vespera IV",
+                  "\"Non lasciateli respirare!\"",
+                  "Con il vargh, sfonda le difese dei glatt e distruggi i loro tre punti di raccolta: abbatti chi li difende e resta accanto al punto finche' non cede.",
+                  { -12.0f, 0.5f, -88.0f }, kStoryMap, "kragh_landing_done" },
+                { "Il Vecchio", "Zhelvar, padre di Kragh",
+                  "\"Da questo momento guido io il fronte.\"",
+                  "Le tre corazze bianche bloccano la Terza Serra. Con tre guerrieri del vargh tieni il fronte per 2 minuti: e' il tempo della ritirata. [G] Gruuk.",
+                  { -22.0f, 0.5f, -46.0f }, kStoryMap, "vecchio_done" },   // dietro il blocco di cemento: le corazze arrivano da nord
+              } },
+        };
+        // capitolo in corso (o scelto nel menu)
+        const StoryChapter& ChapterOf(int story, int chapter) { return kStories[std::clamp(story, 0, kStoryCount - 1)].chapters[std::clamp(chapter, 0, 2)]; }
+
+        // Il peso delle pietre: punti di raccolta dei glatt (sbarco) e oggetti di scena da togliere a fine capitolo
+        const glm::vec3 kGatherPoints[3] = { { -46.0f, 0.0f, 70.0f }, { 26.0f, 0.0f, 72.0f }, { 56.0f, 0.0f, 18.0f } };
+        constexpr float kGatherRadius = 4.5f;     // dove deve stare il vargh
+        constexpr float kGatherClear = 10.0f;     // nessun glatt vivo cosi' vicino
+        constexpr float kGatherTime = 4.0f;       // secondi per abbatterlo
+        std::vector<entt::entity> s_Props[3];     // casse, tenda e antenna di ogni punto
         // Martus: il magazzino nord (porta a sud, z = 95)
         const glm::vec3 kMartusGoal{ -40.0f, 0.0f, 89.0f };
         constexpr float kMartusGoalRadius = 4.5f;
@@ -204,8 +264,18 @@ namespace SunEngine {
         const glm::vec3 kOrdanBreach[3] = { { -1.5f, 0.5f, 82.0f }, { 2.0f, 0.5f, 81.5f }, { 5.5f, 0.5f, 82.0f } };
 
         // Il personaggio del capitolo, come unita' giocabile (armi e armature della storia)
-        TrainedUnit MakeStoryUnit(int chapter) {
+        TrainedUnit MakeStoryUnit(int story, int chapter) {
             TrainedUnit u;
+            if (story == 1) {
+                if (chapter == 2) { u = TrainedUnit{ "Il Vecchio", "orks_zhelvar", glm::vec4(0.42f, 0.30f, 0.50f, 1.0f) }; u.ApplyDefaultLoadout(); return u; }
+                u = TrainedUnit{ "Kragh", "orks_kragh", glm::vec4(0.36f, 0.24f, 0.30f, 1.0f) };
+                u.ApplyDefaultLoadout();
+                if (chapter == 0) {   // duello: solo artigli
+                    u.primaryWeaponId.clear(); u.secondaryWeaponId.clear();
+                    for (auto& e : u.equipmentSlots) e.clear();
+                }
+                return u;
+            }
             if (chapter == 0) {
                 u = TrainedUnit{ "Martus Kell", "imperium_conscript", glm::vec4(0.80f, 0.62f, 0.52f, 1.0f) };
                 u.ApplyDefaultLoadout();
@@ -274,17 +344,22 @@ namespace SunEngine {
         ImGui::SetNextWindowSize(ImVec2(w, io.DisplaySize.y - 100.0f));
         ImGui::Begin("PVE-STORY", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 
-        // a sinistra le storie (per ora una), a destra quella scelta
+        // a sinistra le storie, a destra quella scelta (capitoli da giocare o racconto da leggere)
         ImGui::BeginChild("##storie", ImVec2(230.0f, 0.0f), true);
         Ui::Heading("STORIE");
-        ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.88f, 0.52f, 0.24f, 0.55f));
-        ImGui::Selectable("I. Primo Incontro", true);
-        ImGui::PopStyleColor();
-        // la storia si gioca (capitoli) oppure si legge (racconto completo)
-        ImGui::Indent(12.0f);
-        if (ImGui::Selectable("Gioca i capitoli", !s_Reading)) s_Reading = false;
-        if (ImGui::Selectable("Leggi il racconto", s_Reading)) { s_Reading = true; s_ReadScrollTop = true; }
-        ImGui::Unindent(12.0f);
+        for (int k = 0; k < kStoryCount; ++k) {
+            ImGui::PushID(k);
+            if (k == s_Story) ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.88f, 0.52f, 0.24f, 0.55f));
+            if (ImGui::Selectable(kStories[k].menuName, k == s_Story) && k != s_Story) { s_Story = k; s_ReadChapter = -1; s_ReadScrollTop = true; }
+            if (k == s_Story) ImGui::PopStyleColor();
+            if (k == s_Story) {
+                ImGui::Indent(12.0f);
+                if (ImGui::Selectable("Gioca i capitoli", !s_Reading)) s_Reading = false;
+                if (ImGui::Selectable("Leggi il racconto", s_Reading)) { s_Reading = true; s_ReadScrollTop = true; }
+                ImGui::Unindent(12.0f);
+            }
+            ImGui::PopID();
+        }
         ImGui::Spacing();
         ImGui::TextColored(Ui::Col::Ash, "Altre storie: in arrivo.");
         ImGui::Spacing(); Ui::Divider(); ImGui::Spacing();
@@ -300,35 +375,35 @@ namespace SunEngine {
             return;
         }
 
+        const StoryDef& sd = kStories[s_Story];
         ImGui::BeginChild("##storia", ImVec2(0.0f, 0.0f), false);
-        Ui::Title("PRIMO INCONTRO");
-        ImGui::TextColored(Ui::Col::Brass, "Anno 999 del Calendario Regale  -  Vespera IV, pianeta agricolo  -  Dominio di Aurel");
+        Ui::Title(sd.title);
+        ImGui::TextColored(Ui::Col::Brass, "%s", sd.when);
         ImGui::Spacing();
-        ImGui::TextWrapped("\"La prima cosa che capii fu che il cielo stava cadendo.\" Le piattaforme orbitali precipitano sulla "
-                           "Terza Serra e i Vrepighs attraversano i campi. La milizia dei Laboratores tiene la strada di servizio, "
-                           "i civili scendono nei rifugi, e nessuno sta venendo a salvarli. O almeno cosi' credono.");
-        ImGui::TextColored(Ui::Col::Ash, "Mappa: Vespera IV - Terza Serra");
+        ImGui::TextWrapped("%s", sd.blurb);
+        ImGui::TextColored(Ui::Col::Ash, "%s", sd.mapLine);
         ImGui::Spacing(); Ui::Divider(); ImGui::Spacing();
 
         const auto& st = m_Profile.story;
         const float cardW = std::max(220.0f, (ImGui::GetContentRegionAvail().x - 2.0f * ImGui::GetStyle().ItemSpacing.x) / 3.0f);
         int start = -1;
         for (int c = 0; c < 3; ++c) {
+            const StoryChapter& ch = sd.chapters[c];
             if (c > 0) ImGui::SameLine();
             ImGui::PushID(c);
             ImGui::BeginChild("##capitolo", ImVec2(cardW, 0.0f), true);
             ImGui::TextColored(Ui::Col::Gold, "CAPITOLO %s", Ui::Roman(c + 1));
-            Ui::TextIn(Ui::FontHeading(), Ui::Col::Bone, kChapters[c].name);
-            ImGui::TextColored(Ui::Col::Ash, "%s", kChapters[c].role);
+            Ui::TextIn(Ui::FontHeading(), Ui::Col::Bone, ch.name);
+            ImGui::TextColored(Ui::Col::Ash, "%s", ch.role);
             ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Text, Ui::Col::Brass);
-            ImGui::TextWrapped("%s", kChapters[c].quote);
+            ImGui::TextWrapped("%s", ch.quote);
             ImGui::PopStyleColor();
             ImGui::Spacing();
             ImGui::TextColored(Ui::Col::Gold, "OBIETTIVO");
-            ImGui::TextWrapped("%s", kChapters[c].objective);
+            ImGui::TextWrapped("%s", ch.objective);
             ImGui::Spacing();
-            if (c == 1) {
+            if (s_Story == 0 && c == 1) {
                 const int bestK = st.is_object() ? st.value("ordan_best_kills", 0) : 0;
                 const float bestT = st.is_object() ? st.value("ordan_best_time", 0.0f) : 0.0f;
                 const bool held = st.is_object() && st.value("ordan_done", false);
@@ -336,7 +411,7 @@ namespace SunEngine {
                 else ImGui::TextColored(Ui::Col::Ash, "Non ancora completato");
             }
             else {
-                const bool done = st.is_object() && st.value(c == 0 ? "martus_done" : "konrad_done", false);
+                const bool done = st.is_object() && st.value(ch.doneKey, false);
                 if (done) ImGui::TextColored(Ui::Col::Verdigris, "Completato");
                 else ImGui::TextColored(Ui::Col::Ash, "Non ancora completato");
             }
@@ -352,19 +427,21 @@ namespace SunEngine {
     }
 
     // Galleria: il racconto completo da leggere. A sinistra l'indice dei capitoli, a destra la pagina (colonna
-    // stretta, corpo grande). L'ultimo capitolo aperto resta nel profilo (story.read_primo_incontro).
+    // stretta, corpo grande). L'ultimo capitolo aperto resta nel profilo (story.read_<id della storia>).
     void GameLayer::RenderStoryReader() {
-        StoryText& tx = s_PrimoIncontro;
-        LoadStoryText(tx, "primo_incontro.txt");
+        const StoryDef& sd = kStories[s_Story];
+        StoryText& tx = s_Texts[s_Story];
+        LoadStoryText(tx, (std::string(sd.id) + ".txt").c_str());
+        const std::string readKey = std::string("read_") + sd.id;
         ImGui::BeginChild("##racconto", ImVec2(0.0f, 0.0f), false);
         if (tx.chapters.empty()) {
-            Ui::Title("PRIMO INCONTRO");
-            ImGui::TextColored(Ui::Col::Ash, "Il racconto non e' stato trovato (GameData/Stories/primo_incontro.txt).");
+            Ui::Title(sd.title);
+            ImGui::TextColored(Ui::Col::Ash, "Il racconto non e' stato trovato (GameData/Stories/%s.txt).", sd.id);
             ImGui::EndChild();
             return;
         }
         const int count = static_cast<int>(tx.chapters.size());
-        if (s_ReadChapter < 0) s_ReadChapter = m_Profile.story.is_object() ? m_Profile.story.value("read_primo_incontro", 0) : 0;
+        if (s_ReadChapter < 0) s_ReadChapter = m_Profile.story.is_object() ? m_Profile.story.value(readKey, 0) : 0;
         s_ReadChapter = std::clamp(s_ReadChapter, 0, count - 1);
         int go = s_ReadChapter;
 
@@ -427,15 +504,15 @@ namespace SunEngine {
         ImGui::SetCursorPosX(left);
         ImGui::TextColored(Ui::Col::Ash, "Capitolo %d di %d", s_ReadChapter + 1, count);
         // Racconto e partita legati: questo capitolo si puo' rivivere con il suo personaggio
-        LoadVoices();
+        LoadVoices(s_Story);
         int play = -1;
         for (int g = 0; g < 3; ++g)
-            for (int n : s_Voices[g].playFrom) if (n == s_ReadChapter + 1) play = g;
+            for (int n : s_Voices[s_Story][g].playFrom) if (n == s_ReadChapter + 1) play = g;
         int startPlay = -1;
         if (play >= 0) {
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
             ImGui::SetCursorPosX(left);
-            ImGui::TextColored(Ui::Col::Brass, "Questo momento si puo' rivivere: %s.", kChapters[play].name);
+            ImGui::TextColored(Ui::Col::Brass, "Questo momento si puo' rivivere: %s.", sd.chapters[play].name);
             ImGui::SetCursorPosX(left);
             if (Ui::Button("GIOCA QUESTO MOMENTO", ImVec2(colW, 42.0f), Ui::Btn::Primary)) startPlay = play;
         }
@@ -448,8 +525,143 @@ namespace SunEngine {
             s_ReadChapter = std::clamp(go, 0, count - 1);
             s_ReadScrollTop = true;
             if (!m_Profile.story.is_object()) m_Profile.story = nlohmann::json::object();
-            m_Profile.story["read_primo_incontro"] = s_ReadChapter;   // il segno resta nel profilo
+            m_Profile.story[readKey] = s_ReadChapter;   // il segno resta nel profilo
             SaveProfileIfChanged();
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Il peso delle pietre: personaggi dei capitoli e punti di raccolta
+    // ---------------------------------------------------------------------------------------------------------
+    namespace {
+        // Cubo di scena (senza collisioni): casse, tende, antenne dei punti di raccolta
+        entt::entity StoryProp(Scene& scene, const glm::vec3& pos, const glm::vec3& size, const glm::vec4& color, float yaw = 0.0f) {
+            auto& reg = scene.GetRegistry();
+            const entt::entity e = scene.CreateEntity();
+            auto& t = reg.emplace<TransformComponent>(e);
+            t.Position = pos + glm::vec3(0.0f, size.y * 0.5f, 0.0f);
+            t.Scale = size;
+            t.Rotation = glm::vec3(0.0f, yaw, 0.0f);
+            reg.emplace<MeshComponent>(e, 0u);
+            auto& c = reg.emplace<ColorComponent>(e);
+            c.Color = color; c.BaseColor = color;
+            return e;
+        }
+        void ClearStoryProps(Scene& scene) {
+            auto& reg = scene.GetRegistry();
+            for (auto& v : s_Props) {
+                for (auto e : v) if (reg.valid(e)) scene.DestroyEntity(e);
+                v.clear();
+            }
+        }
+    }
+
+    // Unita' della storia guidata dall'IA (compagni del vargh, glatt, corazze bianche)
+    entt::entity GameLayer::SpawnStoryBot(const std::string& unitId, const std::string& name, int team, const glm::vec3& pos, float yaw,
+                                          const glm::vec3* guardPost, float leash) {
+        TrainedUnit u{ name, unitId, glm::vec4(1.0f) };
+        u.armorColor = unitId.rfind("orks", 0) == 0 ? glm::vec4(0.40f, 0.32f, 0.28f, 1.0f) : glm::vec4(0.62f, 0.60f, 0.52f, 1.0f);
+        u.ApplyDefaultLoadout();
+        const entt::entity e = SpawnBot(u, team, pos, yaw, -1);
+        if (e == entt::null) return e;
+        m_VsBotUnits.erase(e);   // non e' un'unita' di una squadra del Vs Bot
+        if (guardPost) m_Scene.GetRegistry().emplace_or_replace<BotGuardPostComponent>(e, BotGuardPostComponent{ *guardPost, leash });
+        return e;
+    }
+
+    void GameLayer::SetupStoryChapter() {
+        auto& reg = m_Scene.GetRegistry();
+        if (m_Story.story != 1) return;
+        const int chapter = m_Story.chapter;
+        // il personaggio e' della squadra 0, gli avversari della 1 (le uccisioni contano contro la 1)
+        m_VsBotMyTeam = 0;
+        if (!reg.all_of<TeamComponent>(m_PlayerEntity)) { reg.emplace<TeamComponent>(m_PlayerEntity, TeamComponent{ 0 }); m_Story.addedTeam = true; }
+        else reg.get<TeamComponent>(m_PlayerEntity).team = 0;
+        const glm::vec3 me = ChapterOf(1, chapter).start;
+
+        if (chapter == 0) {
+            // Gorvakh davanti all'altare: resta nella sala
+            const glm::vec3 post(0.0f, 0.5f, -6.0f);
+            m_Story.boss = SpawnStoryBot("orks_gorvakh", "Gorvakh", 1, post, 180.0f, &post, 40.0f);   // guarda verso Kragh
+            m_BotAI.SetTeamBases(me, post);
+        }
+        else if (chapter == 1) {
+            m_BotAI.SetTeamBases(glm::vec3(0.0f, 0.0f, -90.0f), glm::vec3(0.0f, 0.0f, 66.0f));
+            // il vargh: scende dai rottami con Kragh
+            const char* vargh[12] = { "orks_boy", "orks_boy", "orks_boy", "orks_boy", "orks_shoota_boy", "orks_shoota_boy",
+                                      "orks_shoota_boy", "orks_boy", "orks_yoof", "orks_yoof", "orks_shoota_boy", "orks_boy" };
+            for (int i = 0; i < 12; ++i) {
+                const glm::vec3 p = me + glm::vec3(-10.0f + 2.2f * static_cast<float>(i % 6) + 8.0f, 0.0f, -2.0f - 2.5f * static_cast<float>(i / 6));
+                SpawnStoryBot(vargh[i], i < 6 ? "Guerriero di Morg" : "Guerriero del vargh", 0, p, 180.0f);
+            }
+            // i glatt: una cinquantina di grado II. 6 di guardia a ogni punto di raccolta...
+            int n = 0;
+            for (int k = 0; k < 3; ++k) {
+                for (int i = 0; i < 6; ++i) {
+                    const float a = 6.2831853f * static_cast<float>(i) / 6.0f + 0.4f * static_cast<float>(k);
+                    const glm::vec3 p = kGatherPoints[k] + glm::vec3(std::cos(a) * 6.5f, 0.5f, std::sin(a) * 6.5f);
+                    SpawnStoryBot("imperium_whiteshield", "Guardia del punto", 1, p, 0.0f, &p, 12.0f); ++n;
+                }
+            }
+            // ...e il resto sulle linee di difesa: avamposti nei campi e la linea della strada di servizio
+            const glm::vec3 outposts[4] = { { -45.0f, 0.5f, 4.0f }, { -14.0f, 0.5f, 10.0f }, { 16.0f, 0.5f, 4.0f }, { 46.0f, 0.5f, 10.0f } };
+            for (const auto& o : outposts)
+                for (int i = 0; i < 4; ++i) {
+                    const glm::vec3 p = o + glm::vec3(-3.0f + 2.0f * static_cast<float>(i), 0.0f, (i % 2) * 1.5f);
+                    SpawnStoryBot("imperium_whiteshield", "Difensore", 1, p, 0.0f, &p, 18.0f); ++n;
+                }
+            for (int i = 0; i < 10; ++i) {
+                float x = -56.0f + 12.0f * static_cast<float>(i);
+                if (x > -10.0f && x < 14.0f) x += 26.0f;   // non dentro il rifugio
+                const glm::vec3 p(x, 0.5f, 58.0f);
+                SpawnStoryBot("imperium_whiteshield", "Difensore della linea", 1, p, 0.0f, &p, 16.0f); ++n;
+            }
+            for (int k = 0; k < 3; ++k)   // strade che portano ai punti
+                for (int i = 0; i < 2; ++i) {
+                    const glm::vec3 p = kGatherPoints[k] + glm::vec3(i == 0 ? -12.0f : 12.0f, 0.5f, -14.0f);
+                    SpawnStoryBot("imperium_whiteshield", "Sentinella", 1, p, 0.0f, &p, 16.0f); ++n;
+                }
+            SUN_CORE_INFO("PVE-STORY: sbarco, {0} glatt in campo", n);
+            // i punti di raccolta: casse di provviste, tenda, antenna con la luce
+            ClearStoryProps(m_Scene);
+            for (int k = 0; k < 3; ++k) {
+                const glm::vec3 c = kGatherPoints[k];
+                s_Props[k].push_back(StoryProp(m_Scene, c + glm::vec3(-1.6f, 0.0f, 0.4f), glm::vec3(2.4f, 1.6f, 3.2f), glm::vec4(0.32f, 0.36f, 0.24f, 1.0f), 8.0f));   // tenda
+                s_Props[k].push_back(StoryProp(m_Scene, c + glm::vec3(1.2f, 0.0f, -0.6f), glm::vec3(1.0f, 0.8f, 1.0f), glm::vec4(0.42f, 0.33f, 0.20f, 1.0f), 20.0f));  // casse
+                s_Props[k].push_back(StoryProp(m_Scene, c + glm::vec3(1.4f, 0.8f, -0.5f), glm::vec3(0.8f, 0.6f, 0.8f), glm::vec4(0.40f, 0.31f, 0.19f, 1.0f), 35.0f));
+                s_Props[k].push_back(StoryProp(m_Scene, c + glm::vec3(2.2f, 0.0f, 1.0f), glm::vec3(1.0f, 0.8f, 1.0f), glm::vec4(0.38f, 0.30f, 0.18f, 1.0f), -10.0f));
+                s_Props[k].push_back(StoryProp(m_Scene, c + glm::vec3(0.4f, 0.0f, 1.8f), glm::vec3(0.18f, 4.5f, 0.18f), glm::vec4(0.25f, 0.25f, 0.27f, 1.0f)));       // antenna
+                s_Props[k].push_back(StoryProp(m_Scene, c + glm::vec3(0.4f, 4.5f, 1.8f), glm::vec3(0.35f, 0.35f, 0.35f), glm::vec4(0.95f, 0.75f, 0.2f, 1.0f)));
+            }
+        }
+        else {
+            m_BotAI.SetTeamBases(glm::vec3(-22.0f, 0.0f, -60.0f), glm::vec3(0.0f, 0.0f, 40.0f));
+            // tre guerrieri del vargh restano con il vecchio
+            for (int i = 0; i < 3; ++i) {
+                const glm::vec3 p = me + glm::vec3(-3.0f + 3.0f * static_cast<float>(i), 0.0f, -2.5f);
+                SpawnStoryBot("orks_boy", "Zhelvar", 0, p, 180.0f, &p, 14.0f);
+            }
+            // le tre corazze bianche arrivano dal rifugio, a piedi: Konrad avanti con la lama scura (niente armi
+            // da fuoco, come nel racconto), Adelheid e Dietrich dietro con i fucili. Tirano nel fumo contro un
+            // bersaglio che corre: mira, cadenza e colpi di lama ridotti, altrimenti nessun grado IV reggerebbe due minuti
+            m_Story.belokh.clear();
+            auto belokh = [&](TrainedUnit u, const glm::vec3& p) {
+                const entt::entity e = SpawnBot(u, 1, p, 0.0f, -1);
+                if (e == entt::null) return;
+                m_VsBotUnits.erase(e);
+                auto& b = m_Scene.GetRegistry().get_or_emplace<FactionBuffComponent>(e);
+                b.accuracyMult = 0.5f; b.spreadMult = 1.8f; b.fireRateMult = 0.6f; b.meleeDamageMult = 0.6f;
+                m_Story.belokh.push_back(e);
+            };
+            TrainedUnit konrad = MakeStoryUnit(0, 2);
+            konrad.primaryWeaponId.clear(); konrad.secondaryWeaponId.clear();
+            belokh(konrad, glm::vec3(0.0f, 0.5f, 34.0f));
+            TrainedUnit adel{ "Adelheid Voss", "spacemarines_battle_brother", glm::vec4(0.86f, 0.84f, 0.78f, 1.0f) };
+            adel.ApplyDefaultLoadout();
+            belokh(adel, glm::vec3(-6.0f, 0.5f, 40.0f));
+            TrainedUnit diet{ "Dietrich Falken", "spacemarines_battle_brother", glm::vec4(0.80f, 0.79f, 0.74f, 1.0f) };
+            diet.ApplyDefaultLoadout();
+            belokh(diet, glm::vec3(6.0f, 0.5f, 40.0f));
         }
     }
 
@@ -458,50 +670,61 @@ namespace SunEngine {
     // ---------------------------------------------------------------------------------------------------------
     void GameLayer::StartStoryChapter(int chapter) {
         chapter = std::clamp(chapter, 0, 2);
+        const int story = std::clamp(s_Story, 0, kStoryCount - 1);
         if (!m_Story.active) {   // il garage si mette da parte una volta sola (anche quando si rigioca)
             m_StoryBackupRoster = m_PlayerRoster;
             m_StoryBackupSquad = m_SelectedSquadIndices;
             m_StoryBackupMap = m_SelectedMapId;
             m_StoryBackupEvent = m_SelectedEventIndex;
         }
-        m_PlayerRoster = { MakeStoryUnit(chapter) };
+        ClearStoryProps(m_Scene);
+        const StoryChapter& ch = ChapterOf(story, chapter);
+        m_PlayerRoster = { MakeStoryUnit(story, chapter) };
         m_SelectedSquadIndices = { 0 };
-        m_SelectedMapId = kStoryMap;
+        m_SelectedMapId = ch.map;
         m_SelectedEventIndex = 3;   // come il Sandbox: niente ondate della sopravvivenza, le ondate le fa il capitolo
 
+        const bool addedTeamBefore = m_Story.addedTeam;
         m_Story = StoryState{};
         m_Story.active = true;
+        m_Story.story = story;
         m_Story.chapter = chapter;
+        m_Story.addedTeam = addedTeamBefore;
         StartDeployment(0);
         if (m_GameState != GameState::Gameplay) { EndStory(); return; }   // non e' partito
 
         // il personaggio parte dal punto del suo capitolo
         auto& reg = m_Scene.GetRegistry();
         if (auto* t = reg.try_get<TransformComponent>(m_PlayerEntity)) {
-            t->Position = kChapters[chapter].start;
+            t->Position = ch.start;
+            if (story == 1 && chapter == 1) t->AimYaw = 180.0f;   // sbarco: verso sud, dove sono i glatt
             m_PhysicsSystem.SetBodyPosition(m_Scene, m_PlayerEntity, t->Position);
         }
         m_Story.kills0 = m_KillCount;
         m_Story.spawnTimer = chapter == 1 ? 6.0f : 4.0f;   // un attimo per guardarsi intorno
         m_Story.waveSize = chapter == 0 ? 2 : 1;
-        m_PartyToasts.push_back({ std::string(kChapters[chapter].name) + ": " + kChapters[chapter].objective, 6.0f });
+        SetupStoryChapter();
+        m_PartyToasts.push_back({ std::string(ch.name) + ": " + ch.objective, 6.0f });
         // Voce del personaggio: prologo sullo schermo scuro (la partita aspetta), poi le battute in campo
-        LoadVoices();
+        LoadVoices(story);
         s_Subtitles.clear();
         s_VoiceFired.clear();
         s_OutroTime = -1.0f;
         s_SkipWasDown = true;
-        if (!s_Voices[chapter].prologue.empty()) {
+        if (!s_Voices[story][chapter].prologue.empty()) {
             s_IntroTime = 0.0f;
-            s_IntroTotal = LinesTotal(s_Voices[chapter].prologue);
+            s_IntroTotal = LinesTotal(s_Voices[story][chapter].prologue);
             m_IsPaused = true;
         }
         else s_IntroTime = -1.0f;
-        SUN_CORE_INFO("PVE-STORY: Primo Incontro, capitolo {0} ({1})", chapter + 1, kChapters[chapter].name);
+        SUN_CORE_INFO("PVE-STORY: {0}, capitolo {1} ({2})", kStories[story].title, chapter + 1, ch.name);
     }
+
+    bool GameLayer::StoryUsesBots() const { return m_Story.active && m_Story.story == 1; }
 
     void GameLayer::UpdateStory(float deltaTime, const glm::vec3& playerPos) {
         if (!m_Story.active || m_Story.result != 0) return;
+        if (m_Story.story == 1) { UpdateStoryStones(deltaTime, playerPos); return; }
         auto& reg = m_Scene.GetRegistry();
         m_Story.time += deltaTime;
 
@@ -550,7 +773,8 @@ namespace SunEngine {
                 else if (f < 0.55f) StoryVoice("ferito");
             }
             if (chapter == 0) {
-                const float total = glm::length(glm::vec2(kChapters[0].start.x - kMartusGoal.x, kChapters[0].start.z - kMartusGoal.z));
+                const glm::vec3 st = ChapterOf(0, 0).start;
+                const float total = glm::length(glm::vec2(st.x - kMartusGoal.x, st.z - kMartusGoal.z));
                 const float left = glm::length(glm::vec2(playerPos.x - kMartusGoal.x, playerPos.z - kMartusGoal.z));
                 if (left < 28.0f) StoryVoice("vicino");
                 else if (left < total * 0.55f) StoryVoice("meta");
@@ -615,16 +839,107 @@ namespace SunEngine {
             }
         }
 
-        if (m_Story.result != 0) {   // fine del capitolo: la simulazione si ferma sotto la schermata
-            if (!s_Voices[chapter].win.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(s_Voices[chapter].win); s_SkipWasDown = true; }
-            m_IsPaused = true;
-            if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        if (m_Story.result != 0) StoryFinishWin();
+    }
+
+    // Fine vittoriosa: le ultime righe, la simulazione si ferma sotto la schermata
+    void GameLayer::StoryFinishWin() {
+        const auto& v = s_Voices[m_Story.story][std::clamp(m_Story.chapter, 0, 2)];
+        if (!v.win.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(v.win); s_SkipWasDown = true; }
+        m_IsPaused = true;
+        if (GLFWwindow* window = glfwGetCurrentContext()) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    // Il peso delle pietre: obiettivi dei tre capitoli
+    void GameLayer::UpdateStoryStones(float deltaTime, const glm::vec3& playerPos) {
+        auto& reg = m_Scene.GetRegistry();
+        m_Story.time += deltaTime;
+        const int chapter = m_Story.chapter;
+        StoryVoice("inizio");
+        if (const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity); hp && hp->maxHealth > 0.0f) {
+            const float f = hp->currentHealth / hp->maxHealth;
+            if (f < 0.25f) StoryVoice("grave");
+            else if (f < 0.55f) StoryVoice("ferito");
         }
+        auto alive = [&](entt::entity e) {
+            const auto* h = reg.valid(e) ? reg.try_get<HealthComponent>(e) : nullptr;
+            return h && h->currentHealth > 0.0f && !reg.all_of<CorpseComponent>(e);
+        };
+
+        if (chapter == 0) {
+            // Duello: Gorvakh sotto meta' della sua vita. Sotto il 70% chiama a se' la pietra (vene viola, colpi piu' pesanti)
+            const auto* hp = reg.valid(m_Story.boss) ? reg.try_get<HealthComponent>(m_Story.boss) : nullptr;
+            const float f = hp && hp->maxHealth > 0.0f ? hp->currentHealth / hp->maxHealth : 0.0f;
+            if (f < 0.85f) StoryVoice("gorvakh_ferito");
+            if (f < 0.70f && !m_Story.bossPhase && alive(m_Story.boss)) {
+                m_Story.bossPhase = true;
+                StoryVoice("gorvakh_pietra");
+                auto& b = reg.get_or_emplace<FactionBuffComponent>(m_Story.boss);
+                b.meleeDamageMult = 1.15f; b.meleeSpeedMult = 1.10f;
+                if (auto* c = reg.try_get<ColorComponent>(m_Story.boss)) { c->Color = glm::mix(c->BaseColor, glm::vec4(0.45f, 0.18f, 0.6f, 1.0f), 0.35f); c->BaseColor = c->Color; }
+                m_PartyToasts.push_back({ "Gorvakh chiama a se' la pietra: colpi piu' pesanti", 3.5f });
+            }
+            if (!alive(m_Story.boss) || f < kGorvakhGoal) {
+                m_Story.result = 1;
+                m_Profile.story["kragh_duel_done"] = true;
+                ApplyMatchXp(1.0f, "Gorvakh e' stato ferito davanti a tutti");
+            }
+        }
+        else if (chapter == 1) {
+            // Sbarco: i punti di raccolta cedono se il vargh ci sta accanto e intorno non c'e' piu' un glatt vivo
+            const int kills = m_KillCount - m_Story.kills0;
+            if (kills >= 1) StoryVoice("prima_uccisione");
+            if (kills >= 10) StoryVoice("uccisioni_10");
+            for (int k = 0; k < 3; ++k) {
+                if (m_Story.pointDone[k]) continue;
+                const glm::vec3 c = kGatherPoints[k];
+                bool vargh = false, glatt = false;
+                auto units = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent>);
+                for (auto u : units) {
+                    if (units.get<HealthComponent>(u).currentHealth <= 0.0f) continue;
+                    const glm::vec3 up = units.get<TransformComponent>(u).Position;
+                    const float d = glm::length(glm::vec2(up.x - c.x, up.z - c.z));
+                    const int team = units.get<TeamComponent>(u).team;
+                    if (team == 0 && d <= kGatherRadius) vargh = true;
+                    if (team == 1 && d <= kGatherClear) glatt = true;
+                }
+                if (vargh && !glatt) m_Story.pointProgress[k] += deltaTime;
+                else m_Story.pointProgress[k] = std::max(0.0f, m_Story.pointProgress[k] - deltaTime * 0.5f);
+                if (m_Story.pointProgress[k] >= kGatherTime) {
+                    m_Story.pointDone[k] = true;
+                    ++m_Story.pointsDone;
+                    VfxEvent ev; ev.kind = VfxKind::Explosion; ev.pos = c + glm::vec3(0.0f, 0.6f, 0.0f); ev.scale = 3.5f; EmitVfx(ev);
+                    for (auto e : s_Props[k]) if (auto* col = reg.try_get<ColorComponent>(e)) { col->Color = glm::vec4(0.07f, 0.06f, 0.05f, 1.0f); col->BaseColor = col->Color; }
+                    m_PartyToasts.push_back({ "Punto di raccolta distrutto (" + std::to_string(m_Story.pointsDone) + " su 3)", 3.5f });
+                    if (m_Story.pointsDone == 1) StoryVoice("punto_1");
+                    if (m_Story.pointsDone == 2) StoryVoice("punto_2");
+                }
+            }
+            if (m_Story.pointsDone >= 3) {
+                m_Story.result = 1;
+                m_Profile.story["kragh_landing_done"] = true;
+                ApplyMatchXp(1.0f, "I tre punti di raccolta dei glatt sono caduti");
+            }
+        }
+        else {
+            // Ultima difesa: 2 minuti contro le corazze bianche
+            if (m_Story.time > 3.0f) StoryVoice("belokh");
+            if (m_Story.time > 60.0f) StoryVoice("minuto");
+            if (m_Story.time > kVecchioHoldTime - 30.0f) StoryVoice("ultimi_30");
+            if (reg.all_of<WarCryShoutComponent>(m_PlayerEntity)) StoryVoice("gruuk");
+            if (m_Story.time >= kVecchioHoldTime) {
+                m_Story.result = 1;
+                m_Profile.story["vecchio_done"] = true;
+                ApplyMatchXp(1.0f, "Il vecchio ha retto il fronte: la ritirata e' passata");
+            }
+        }
+        (void)playerPos;
+        if (m_Story.result != 0) StoryFinishWin();
     }
 
     void GameLayer::StoryOnPlayerDeath() {
         if (!m_Story.active || m_Story.result != 0) return;
-        if (m_Story.chapter == 1) {
+        if (m_Story.story == 0 && m_Story.chapter == 1) {
             // Ordan: e' la fine che conosciamo. Se ha tenuto la porta almeno un minuto i civili sono passati (3),
             // altrimenti e' caduto troppo presto (2). Conta comunque quanto ha tenuto.
             m_Story.result = m_Story.time >= kOrdanHoldTime ? 3 : 2;
@@ -642,12 +957,15 @@ namespace SunEngine {
         }
         else {
             m_Story.result = 2;
-            ApplyMatchXp(0.5f, m_Story.chapter == 0 ? "Martus e' caduto prima del magazzino" : "Konrad e' caduto");
+            const char* why = "Il personaggio e' caduto";
+            if (m_Story.story == 0) why = m_Story.chapter == 0 ? "Martus e' caduto prima del magazzino" : "Konrad e' caduto";
+            else why = m_Story.chapter == 0 ? "Gorvakh ha spezzato Kragh" : (m_Story.chapter == 1 ? "Kragh e' caduto su Vespera IV" : "Il vecchio e' caduto troppo presto");
+            ApplyMatchXp(0.5f, why);
         }
         // le ultime righe del personaggio, prima della schermata di fine
-        LoadVoices();
+        LoadVoices(m_Story.story);
         {
-            const auto& v = s_Voices[m_Story.chapter];
+            const auto& v = s_Voices[m_Story.story][m_Story.chapter];
             const auto& lines = m_Story.result == 3 ? v.win : v.fall;
             if (!lines.empty()) { s_OutroTime = 0.0f; s_OutroTotal = LinesTotal(lines); s_SkipWasDown = true; }
         }
@@ -662,7 +980,7 @@ namespace SunEngine {
     void GameLayer::StoryVoice(const char* key) {
         if (!m_Story.active || s_VoiceFired.count(key)) return;
         s_VoiceFired.insert(key);
-        const auto& lines = s_Voices[std::clamp(m_Story.chapter, 0, 2)].lines;
+        const auto& lines = s_Voices[m_Story.story][std::clamp(m_Story.chapter, 0, 2)].lines;
         const auto it = lines.find(key);
         if (it == lines.end()) return;
         for (const auto& l : it->second) s_Subtitles.push_back({ l, ReadTime(l), ReadTime(l) });
@@ -677,8 +995,8 @@ namespace SunEngine {
         s_IntroTime += std::min(io.DeltaTime, 0.1f);
         const float fade = std::clamp((s_IntroTotal - s_IntroTime) / 1.2f, 0.0f, 1.0f);   // alla fine si apre sul campo
         ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(4, 4, 6, static_cast<int>(255.0f * (0.35f + 0.65f * fade))));
-        const std::string header = std::string("PRIMO INCONTRO  -  ") + kChapters[chapter].name;
-        DrawLines(s_Voices[chapter].prologue, s_IntroTime, fade, header.c_str());
+        const std::string header = std::string(kStories[m_Story.story].title) + "  -  " + ChapterOf(m_Story.story, chapter).name;
+        DrawLines(s_Voices[m_Story.story][chapter].prologue, s_IntroTime, fade, header.c_str());
         const char* hint = "SPAZIO: entra in campo";
         const ImVec2 hs = ImGui::CalcTextSize(hint);
         ImGui::GetForegroundDrawList()->AddText(ImVec2((io.DisplaySize.x - hs.x) * 0.5f, io.DisplaySize.y - 60.0f), Ui::U32(Ui::Col::Ash, fade), hint);
@@ -708,40 +1026,85 @@ namespace SunEngine {
             if (sub.left <= 0.0f) s_Subtitles.erase(s_Subtitles.begin());
         }
         auto& reg = m_Scene.GetRegistry();
+        const int story = m_Story.story;
         const int chapter = m_Story.chapter;
         const int kills = m_KillCount - m_Story.kills0;
         const glm::mat4 vp = m_Camera.GetViewProjection();
 
         ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 20.0f, 20.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
-        ImGui::SetNextWindowSize(ImVec2(340.0f, 0.0f));
+        ImGui::SetNextWindowSize(ImVec2(360.0f, 0.0f));
         ImGui::Begin("StoryHUD", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                                          ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs);
-        ImGui::TextColored(Ui::Col::Gold, "PRIMO INCONTRO - %s", kChapters[chapter].name);
-        ImGui::TextColored(Ui::Col::Bone, "Tempo %s    Vrepighs abbattuti %d", Clock(m_Story.time).c_str(), kills);
-        if (chapter == 0) {
-            glm::vec3 pos(0.0f);
-            if (const auto* t = reg.try_get<TransformComponent>(m_PlayerEntity)) pos = t->Position;
-            const float dist = glm::length(glm::vec2(pos.x - kMartusGoal.x, pos.z - kMartusGoal.z));
-            ImGui::TextColored(Ui::Col::Rust, "Raggiungi il magazzino nord: %.0f m", dist);
-            WorldMarker(vp, kMartusGoal + glm::vec3(0.0f, 2.5f, 0.0f), "MAGAZZINO NORD", Ui::U32(Ui::Col::Gold));
-        }
-        else if (chapter == 1) {
-            if (m_Story.time < kOrdanHoldTime) ImGui::TextColored(Ui::Col::Rust, "Tieni la porta: i civili passano tra %s", Clock(kOrdanHoldTime - m_Story.time).c_str());
-            else ImGui::TextColored(Ui::Col::Verdigris, "I civili sono passati. Resisti finche' puoi");
-            const float bestT = m_Profile.story.value("ordan_best_time", 0.0f);
-            if (bestT > 0.0f) ImGui::TextColored(Ui::Col::Ash, "Record: %d Vrepighs, %s", m_Profile.story.value("ordan_best_kills", 0), Clock(bestT).c_str());
+        ImGui::TextColored(Ui::Col::Gold, "%s - %s", kStories[story].title, ChapterOf(story, chapter).name);
+        if (story == 1) {
+            if (chapter == 0) {
+                ImGui::TextColored(Ui::Col::Bone, "Tempo %s", Clock(m_Story.time).c_str());
+                if (reg.valid(m_Story.boss)) {
+                    if (const auto* hp = reg.try_get<HealthComponent>(m_Story.boss)) {
+                        ImGui::TextColored(Ui::Col::Ember, "Gorvakh: portalo sotto meta' della sua vita");
+                        const ImVec2 at = ImGui::GetCursorScreenPos();
+                        Ui::Meter(std::clamp(hp->currentHealth / std::max(1.0f, hp->maxHealth), 0.0f, 1.0f), ImVec2(300.0f, 8.0f), Ui::Col::Ember);
+                        ImGui::GetWindowDrawList()->AddLine(ImVec2(at.x + 300.0f * kGorvakhGoal, at.y - 3.0f), ImVec2(at.x + 300.0f * kGorvakhGoal, at.y + 11.0f), Ui::U32(Ui::Col::Bone), 2.0f);
+                    }
+                    if (const auto* t = reg.try_get<TransformComponent>(m_Story.boss))
+                        WorldMarker(vp, t->Position + glm::vec3(0.0f, 3.4f, 0.0f), "GORVAKH", Ui::U32(Ui::Col::Ember));
+                }
+                ImGui::TextColored(Ui::Col::Ash, "Solo artigli: SINISTRO normale, DESTRO pesante, Q parata");
+            }
+            else if (chapter == 1) {
+                ImGui::TextColored(Ui::Col::Bone, "Tempo %s    Glatt abbattuti %d", Clock(m_Story.time).c_str(), kills);
+                ImGui::TextColored(Ui::Col::Rust, "Punti di raccolta distrutti: %d su 3", m_Story.pointsDone);
+                static const char* kNames[3] = { "PUNTO DI RACCOLTA I", "PUNTO DI RACCOLTA II", "PUNTO DI RACCOLTA III" };
+                for (int k = 0; k < 3; ++k) {
+                    if (m_Story.pointDone[k]) continue;
+                    WorldMarker(vp, kGatherPoints[k] + glm::vec3(0.0f, 5.5f, 0.0f), kNames[k], Ui::U32(Ui::Col::Gold));
+                    if (m_Story.pointProgress[k] > 0.0f) {
+                        ImGui::TextColored(Ui::Col::Ember, "%s: lo state abbattendo", kNames[k]);
+                        Ui::Meter(std::clamp(m_Story.pointProgress[k] / kGatherTime, 0.0f, 1.0f), ImVec2(300.0f, 6.0f), Ui::Col::Ember);
+                    }
+                }
+                ImGui::TextColored(Ui::Col::Ash, "Stai accanto al punto, con i glatt intorno abbattuti");
+            }
+            else {
+                const float left = std::max(0.0f, kVecchioHoldTime - m_Story.time);
+                ImGui::TextColored(Ui::Col::Rust, "Reggi il fronte: ancora %s", Clock(left).c_str());
+                Ui::Meter(std::clamp(m_Story.time / kVecchioHoldTime, 0.0f, 1.0f), ImVec2(300.0f, 6.0f), Ui::Col::Verdigris);
+                static const char* kBelokh[3] = { "KONRAD", "ADELHEID", "DIETRICH" };
+                for (size_t i = 0; i < m_Story.belokh.size() && i < 3; ++i) {
+                    const entt::entity b = m_Story.belokh[i];
+                    if (!reg.valid(b) || reg.all_of<CorpseComponent>(b)) continue;
+                    if (const auto* t = reg.try_get<TransformComponent>(b))
+                        WorldMarker(vp, t->Position + glm::vec3(0.0f, 2.9f, 0.0f), kBelokh[i], IM_COL32(235, 235, 225, 255));
+                }
+            }
         }
         else {
-            if (!m_Story.bossSpawned) {
-                ImGui::TextColored(Ui::Col::Rust, "Il loro capo arriva tra %s", Clock(kKonradBossTime - m_Story.time).c_str());
+            ImGui::TextColored(Ui::Col::Bone, "Tempo %s    Vrepighs abbattuti %d", Clock(m_Story.time).c_str(), kills);
+            if (chapter == 0) {
+                glm::vec3 pos(0.0f);
+                if (const auto* t = reg.try_get<TransformComponent>(m_PlayerEntity)) pos = t->Position;
+                const float dist = glm::length(glm::vec2(pos.x - kMartusGoal.x, pos.z - kMartusGoal.z));
+                ImGui::TextColored(Ui::Col::Rust, "Raggiungi il magazzino nord: %.0f m", dist);
+                WorldMarker(vp, kMartusGoal + glm::vec3(0.0f, 2.5f, 0.0f), "MAGAZZINO NORD", Ui::U32(Ui::Col::Gold));
             }
-            else if (reg.valid(m_Story.boss)) {
-                if (const auto* hp = reg.try_get<HealthComponent>(m_Story.boss)) {
-                    ImGui::TextColored(Ui::Col::Ember, "Il capo con la collana di frammenti");
-                    Ui::Meter(std::clamp(hp->currentHealth / std::max(1.0f, hp->maxHealth), 0.0f, 1.0f), ImVec2(300.0f, 8.0f), Ui::Col::Ember);
+            else if (chapter == 1) {
+                if (m_Story.time < kOrdanHoldTime) ImGui::TextColored(Ui::Col::Rust, "Tieni la porta: i civili passano tra %s", Clock(kOrdanHoldTime - m_Story.time).c_str());
+                else ImGui::TextColored(Ui::Col::Verdigris, "I civili sono passati. Resisti finche' puoi");
+                const float bestT = m_Profile.story.value("ordan_best_time", 0.0f);
+                if (bestT > 0.0f) ImGui::TextColored(Ui::Col::Ash, "Record: %d Vrepighs, %s", m_Profile.story.value("ordan_best_kills", 0), Clock(bestT).c_str());
+            }
+            else {
+                if (!m_Story.bossSpawned) {
+                    ImGui::TextColored(Ui::Col::Rust, "Il loro capo arriva tra %s", Clock(kKonradBossTime - m_Story.time).c_str());
                 }
-                if (const auto* t = reg.try_get<TransformComponent>(m_Story.boss))
-                    WorldMarker(vp, t->Position + glm::vec3(0.0f, 2.8f, 0.0f), "IL CAPO", Ui::U32(Ui::Col::Ember));
+                else if (reg.valid(m_Story.boss)) {
+                    if (const auto* hp = reg.try_get<HealthComponent>(m_Story.boss)) {
+                        ImGui::TextColored(Ui::Col::Ember, "Il capo con la collana di frammenti");
+                        Ui::Meter(std::clamp(hp->currentHealth / std::max(1.0f, hp->maxHealth), 0.0f, 1.0f), ImVec2(300.0f, 8.0f), Ui::Col::Ember);
+                    }
+                    if (const auto* t = reg.try_get<TransformComponent>(m_Story.boss))
+                        WorldMarker(vp, t->Position + glm::vec3(0.0f, 2.8f, 0.0f), "IL CAPO", Ui::U32(Ui::Col::Ember));
+                }
             }
         }
         ImGui::End();
@@ -749,28 +1112,44 @@ namespace SunEngine {
 
     void GameLayer::RenderStoryEnd() {
         ImGuiIO& io = ImGui::GetIO();
-        const int chapter = m_Story.chapter;
+        const int story = m_Story.story;
+        const int chapter = std::clamp(m_Story.chapter, 0, 2);
+        const auto& voices = s_Voices[story][chapter];
         // prima le ultime righe del personaggio sul campo che si oscura (SPAZIO per passare oltre)
         if (s_OutroTime >= 0.0f) {
             s_OutroTime += std::min(io.DeltaTime, 0.1f);
             const float in = std::clamp(s_OutroTime / 1.0f, 0.0f, 1.0f);
             ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), io.DisplaySize, IM_COL32(4, 4, 6, static_cast<int>(215.0f * in)));
-            const auto& v = s_Voices[std::clamp(chapter, 0, 2)];
-            DrawLines((m_Story.result == 1 || m_Story.result == 3) ? v.win : v.fall, s_OutroTime, 1.0f, nullptr);
+            DrawLines((m_Story.result == 1 || m_Story.result == 3) ? voices.win : voices.fall, s_OutroTime, 1.0f, nullptr);
             if (s_OutroTime >= s_OutroTotal || (s_OutroTime > 0.5f && SkipPressed())) s_OutroTime = -1.0f;
             return;
         }
         const int kills = m_KillCount - m_Story.kills0;
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(ImVec2(620.0f, 0.0f));
-        ImGui::Begin("PRIMO INCONTRO", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+        ImGui::Begin(kStories[story].title, nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
         const char* title = "";
         const char* text = "";
         const char* quote = "";
         ImVec4 col = Ui::Col::Gold;
-        if (chapter == 0) {
-            if (m_Story.result == 1) { title = "CE L'HAI FATTA"; text = "Martus Kell ha raggiunto il magazzino nord, vivo."; quote = "\"Siamo del Kingship\", dissi."; col = Ui::Col::Verdigris; }
+        const bool won = m_Story.result == 1 || m_Story.result == 3;
+        if (story == 1) {
+            if (chapter == 0) {
+                if (won) { title = "UN PASSO INDIETRO"; text = "Kragh ha fatto sanguinare Gorvakh davanti a tutta la sala."; col = Ui::Col::Verdigris; }
+                else { title = "SPEZZATO"; text = "Gorvakh ha tenuto Kragh a terra con un piede sulla schiena."; quote = "\"A chi appartengono le tue pietre?\""; col = Ui::Col::Ember; }
+            }
+            else if (chapter == 1) {
+                if (won) { title = "I PUNTI DI RACCOLTA SONO CADUTI"; text = "Il vargh ha spezzato le difese dei glatt su Vespera IV."; col = Ui::Col::Verdigris; }
+                else { title = "CADUTO"; text = "Kragh e' caduto tra le piattaforme di Vespera IV."; col = Ui::Col::Ember; }
+            }
+            else {
+                if (won) { title = "IL FRONTE HA RETTO"; text = "Il vecchio ha tenuto le corazze bianche il tempo della ritirata."; quote = "\"Sono tuo padre.\""; col = Ui::Col::Verdigris; }
+                else { title = "TROPPO PRESTO"; text = "Il vecchio e' caduto prima che la ritirata passasse."; col = Ui::Col::Ember; }
+            }
+        }
+        else if (chapter == 0) {
+            if (won) { title = "CE L'HAI FATTA"; text = "Martus Kell ha raggiunto il magazzino nord, vivo."; quote = "\"Siamo del Kingship\", dissi."; col = Ui::Col::Verdigris; }
             else { title = "CADUTO"; text = "Martus Kell e' caduto nella Terza Serra, prima di raggiungere il magazzino."; col = Ui::Col::Ember; }
         }
         else if (chapter == 1) {
@@ -778,13 +1157,12 @@ namespace SunEngine {
             else { title = "LA PORTA HA CEDUTO TROPPO PRESTO"; text = "Il sergente Ordan e' caduto prima che i civili raggiungessero il condotto."; col = Ui::Col::Ember; }
         }
         else {
-            if (m_Story.result == 1) { title = "LA LINEA HA RETTO"; text = "Il capo dei Vrepighs e' caduto e la sua collana di frammenti si e' spezzata."; quote = "\"Avete fatto il vostro dovere.\""; col = Ui::Col::Verdigris; }
+            if (won) { title = "LA LINEA HA RETTO"; text = "Il capo dei Vrepighs e' caduto e la sua collana di frammenti si e' spezzata."; quote = "\"Avete fatto il vostro dovere.\""; col = Ui::Col::Verdigris; }
             else { title = "CADUTO"; text = "Konrad von Eber e' caduto nella Terza Serra."; col = Ui::Col::Ember; }
         }
         Ui::Heading(title, col);
-        // le parole di Martus (o del personaggio) dal file delle voci; senza file restano quelle qui sopra
-        const bool won = m_Story.result == 1 || m_Story.result == 3;
-        const auto& closing = won ? s_Voices[std::clamp(chapter, 0, 2)].win : s_Voices[std::clamp(chapter, 0, 2)].fall;
+        // le parole del personaggio dal file delle voci; senza file restano quelle qui sopra
+        const auto& closing = won ? voices.win : voices.fall;
         if (!closing.empty()) {
             for (const auto& l : closing) {
                 if (l.rfind("- ", 0) == 0) ImGui::TextColored(Ui::Col::Brass, "%s", l.c_str());
@@ -797,12 +1175,15 @@ namespace SunEngine {
         }
         ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
         ImGui::Text("Tempo: %s", Clock(m_Story.time).c_str());
-        ImGui::Text("Vrepighs abbattuti: %d", kills);
-        if (chapter == 1 && m_Story.newRecord && m_Story.result == 3) ImGui::TextColored(Ui::Col::Gold, "Nuovo record!");
+        if (story == 1) {
+            if (chapter == 1) { ImGui::Text("Glatt abbattuti: %d", kills); ImGui::Text("Punti di raccolta distrutti: %d su 3", m_Story.pointsDone); }
+        }
+        else ImGui::Text("Vrepighs abbattuti: %d", kills);
+        if (story == 0 && chapter == 1 && m_Story.newRecord && m_Story.result == 3) ImGui::TextColored(Ui::Col::Gold, "Nuovo record!");
         ImGui::Spacing();
         RenderMatchRecap();
         ImGui::Spacing();
-        const int readChapter = s_Voices[std::clamp(chapter, 0, 2)].readAfter;
+        const int readChapter = voices.readAfter;
         const bool read = readChapter > 0 && Ui::Button("Leggi cosa e' successo", ImVec2(-1.0f, 40.0f), Ui::Btn::Primary);
         const float halfW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
         const bool again = Ui::PlainButton(won ? "Rigioca il capitolo" : "Riprova", ImVec2(halfW, 40.0f));
@@ -811,6 +1192,7 @@ namespace SunEngine {
         ImGui::End();
 
         if (read) {   // dalla partita al racconto: si apre il capitolo di questo momento
+            s_Story = story;
             StoryLeaveToMenu();
             s_Reading = true;
             s_ReadChapter = readChapter - 1;
@@ -819,6 +1201,7 @@ namespace SunEngine {
         }
 
         if (again) {
+            s_Story = story;
             ResetMatchState(true);
             StartStoryChapter(chapter);   // il garage resta da parte: si rimette a posto all'uscita
             if (m_GameState == GameState::Gameplay)
@@ -836,6 +1219,7 @@ namespace SunEngine {
             m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
             m_Scene.DestroyEntity(e);
         }
+        ClearStoryProps(m_Scene);
         ClearPlayerDeathState();
         if (auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity)) hp->currentHealth = hp->maxHealth;
         m_IsPaused = false;
@@ -847,6 +1231,9 @@ namespace SunEngine {
 
     void GameLayer::EndStory() {
         if (!m_Story.active) return;
+        auto& reg = m_Scene.GetRegistry();
+        ClearStoryProps(m_Scene);
+        if (m_Story.addedTeam && reg.valid(m_PlayerEntity) && reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
         m_PlayerRoster = m_StoryBackupRoster;
         m_SelectedSquadIndices = m_StoryBackupSquad;
         m_SelectedMapId = m_StoryBackupMap;

@@ -392,6 +392,20 @@ namespace SunEngine {
         }
         const glm::vec3 myBase = m_Base[myTeam == 1 ? 1 : 0];
         const glm::vec3 enemyBase = m_Base[myTeam == 1 ? 0 : 1];
+        // Presidio: senza nemici resta al suo posto (girato verso la zona avversaria)
+        const auto* guard = reg.try_get<BotGuardPostComponent>(self);
+        if (guard && brain.target == entt::null) {
+            brain.intent = BotIntent::Reposition;
+            brain.moveSpeedFactor = 1.0f;
+            if (HorizontalDist(t.Position, guard->pos) > 2.0f) {
+                if (!brain.hasMoveGoal || HorizontalDist(brain.moveGoal, guard->pos) > 1.5f) {
+                    brain.moveGoal = navQuery.GetNearestValidPoint(guard->pos);
+                    brain.hasMoveGoal = true; brain.pathTimer = 0.0f;
+                }
+            }
+            else brain.hasMoveGoal = false;
+            return;
+        }
 
         if (brain.target == entt::null) {
             // In rotta e nessun nemico in vista: non avanza, ripiega verso la propria base finche' non si riprende
@@ -527,6 +541,16 @@ namespace SunEngine {
             brain.moveSpeedFactor = 1.0f;
             if (!keep) {
                 brain.moveGoal = PickPoint(scene, navQuery, self, threats, targetPos, std::max(25.0f, range), 0);
+                brain.hasMoveGoal = true; brain.pathTimer = 0.0f;
+            }
+        }
+
+        // Presidio: non insegue oltre il guinzaglio (tranne a contatto in mischia); torna al suo posto
+        if (guard && HorizontalDist(t.Position, guard->pos) > guard->leash && brain.intent != BotIntent::Melee) {
+            brain.intent = BotIntent::Reposition;
+            brain.moveSpeedFactor = 1.0f;
+            if (!brain.hasMoveGoal || HorizontalDist(brain.moveGoal, guard->pos) > 3.0f) {
+                brain.moveGoal = navQuery.GetNearestValidPoint(guard->pos);
                 brain.hasMoveGoal = true; brain.pathTimer = 0.0f;
             }
         }
