@@ -2,9 +2,9 @@
   "id": "kragh_claws",
   "displayName": "Artigli di Kragh",
   "comment": "Solo Kragh: mani artigliate indurite da anni di pietra. Rapidi, x2 alle spalle; il colpo pesante spezza le guardie.",
-  "faction": "Orks",
+  "faction": "Vrepighs",
   "allowed_units": [
-    "orks_kragh"
+    "vrepighs_kragh"
   ],
   "is_melee": true,
   "hand_type": "OneHanded",

@@ -1,5 +1,5 @@
 #pragma once
-// Armi pesanti piazzabili (es. lascannon dei whiteshield): torretta NON automatica che va manovrata da un'unita'.
+// Armi pesanti piazzabili (es. impulse_cannon dei levy): torretta NON automatica che va manovrata da un'unita'.
 //  - si piazza come una struttura (equipment_type "turret": fermi, click tenuto per equipment_use_time secondi);
 //  - E vicino alla torretta per entrarci (si resta fermi dietro l'arma), E tenuto 1,5 s per uscire;
 //  - il proprietario, fuori dalla torretta, tenendo E per 5 s la smonta e la riprende (torna l'uso);

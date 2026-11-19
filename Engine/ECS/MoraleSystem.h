@@ -30,7 +30,7 @@
 //   - fuori dal combattimento (5 s senza colpi subiti o sparati e nessun nemico in vista): +1,5 al secondo
 //   - curarsi: 15 punti per tutta la salute massima recuperata
 //   - vedere cadere un nemico (entro 35 m, in vista): +4
-// Aiuti oltre il valore di partenza, fino al tetto: l'insegna imperiale vicina alza il tetto di morale_bonus x 100 e
+// Aiuti oltre il valore di partenza, fino al tetto: l'insegna del Kingship vicina alza il tetto di morale_bonus x 100 e
 //   rialza di 2 punti al secondo.
 // Oggetti (armature e dotazione, nei JSON): "morale_cap_bonus" alza il tetto, "morale_start_bonus" il valore di partenza.
 //
@@ -145,8 +145,8 @@ namespace SunEngine {
             auto& reg = scene.GetRegistry();
             if (dt <= 0.0f) { MoraleShockLog().clear(); return; }
 
-            // 1) Chi ha il morale: unita' simulate qui (non le copie di rete, non manichini e squig)
-            auto units = reg.view<UnitStatsComponent, HealthComponent, TransformComponent>(entt::exclude<TrainingDummyComponent, SquigComponent>);
+            // 1) Chi ha il morale: unita' simulate qui (non le copie di rete, non manichini e grugn)
+            auto units = reg.view<UnitStatsComponent, HealthComponent, TransformComponent>(entt::exclude<TrainingDummyComponent, GrugnComponent>);
             for (auto e : units) {
                 if (reg.all_of<NetGhostComponent>(e)) { if (reg.all_of<MoraleComponent>(e)) reg.remove<MoraleComponent>(e); continue; }
                 const auto& st = units.get<UnitStatsComponent>(e);
@@ -370,7 +370,7 @@ namespace SunEngine {
                 if (e == o || view.get<HealthComponent>(e).currentHealth <= 0.0f) continue;
                 const int t = TeamOf(reg, e);
                 if (t == myTeam) continue;
-                if (const auto* sq = reg.try_get<SquigComponent>(e); sq) continue;
+                if (const auto* sq = reg.try_get<GrugnComponent>(e); sq) continue;
                 const float d = glm::distance(me, view.get<TransformComponent>(e).Position);
                 if (d < bestD) { bestD = d; best = e; }
             }

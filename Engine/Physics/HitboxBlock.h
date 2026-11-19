@@ -18,7 +18,7 @@ namespace SunEngine {
         glm::vec3 size{ 1.0f };         // Dimensioni del blocco (X, Y, Z)
         glm::vec3 jointRotation{ 0.0f };// Rotazione autonoma dell'articolazione
         // Rotazione di RIPOSO (gradi, campo "rotation" del JSON): postura fissa del blocco, es. il torso
-        // ingobbito degli orchi. Si applica PRIMA di jointRotation, che resta libera per le animazioni.
+        // ingobbito dei vrepighs. Si applica PRIMA di jointRotation, che resta libera per le animazioni.
         glm::vec3 restRotation{ 0.0f };
     };
 

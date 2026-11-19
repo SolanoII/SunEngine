@@ -16,7 +16,7 @@
 namespace SunEngine {
 
     // Effetti visivi del combattimento:
-    //  - colpi in volo (TrailRequestComponent) disegnati in base al tipo di arma (laser, proiettile, bolt, plasma...)
+    //  - colpi in volo (TrailRequestComponent) disegnati in base al tipo di arma (laser, proiettile, heavy_round, plasma...)
     //    con impatto diverso su un'unita' o sul mondo quando arrivano;
     //  - particelle (lampi alla bocca, scintille, fumo, sangue, fiamme, esplosioni) create dagli eventi VfxEvents;
     //  - scie dei fendenti, colpi in mischia, parate, guardie rotte, interruzioni;
@@ -131,10 +131,10 @@ namespace SunEngine {
             switch (e.fx) {
             case WeaponFx::Laser:
                 Glow(p, 0.22f, 0.32f, Hdr(wc, 0.9f), 0.06f); Glow(p, 0.08f, 0.1f, glm::vec4(1.0f), 0.04f); break;
-            case WeaponFx::HotShot:
+            case WeaponFx::HighPower:
                 Glow(p, 0.32f, 0.45f, Hdr(wc, 1.0f), 0.07f); Glow(p, 0.12f, 0.12f, glm::vec4(1.0f), 0.05f);
                 Sparks(p, d, 3, 0.4f, 3.0f, 6.0f, wc, 0.15f, 0.0f); break;
-            case WeaponFx::LongLas:
+            case WeaponFx::Precision:
                 Glow(p, 0.35f, 0.5f, Hdr(wc, 1.0f), 0.1f); Ring(p, 0.15f, 0.6f, Hdr(wc, 0.8f), 0.15f); break;
             case WeaponFx::Ballistic:
             case WeaponFx::Shotgun:
@@ -155,7 +155,7 @@ namespace SunEngine {
                 Smoke(p + d * 0.1f, e.fx == WeaponFx::Ballistic ? 1 : 3, 0.12f * k, 0.45f * k, glm::vec4(0.6f, 0.58f, 0.55f, 0.35f), 0.8f, d * 0.6f + glm::vec3(0, 0.4f, 0), 0.15f);
                 break;
             }
-            case WeaponFx::Bolt:
+            case WeaponFx::HeavyRound:
                 Glow(p + d * 0.08f, 0.45f, 0.55f, glm::vec4(1.0f, 0.7f, 0.3f, 1.0f), 0.06f);
                 Sparks(p, d, 4, 0.35f, 5.0f, 9.0f, fire, 0.1f, 0.0f, 0.05f, 0.05f);
                 Smoke(p + d * 0.15f, 3, 0.15f, 0.6f, glm::vec4(0.55f, 0.53f, 0.5f, 0.4f), 1.0f, d * 0.8f + glm::vec3(0, 0.3f, 0), 0.2f);
@@ -165,14 +165,14 @@ namespace SunEngine {
                 Ring(p, 0.1f, 0.7f, glm::vec4(0.5f, 0.85f, 1.0f, 0.7f), 0.18f);
                 Smoke(p, 2, 0.1f, 0.35f, glm::vec4(0.7f, 0.85f, 1.0f, 0.18f), 0.6f, glm::vec3(0, 0.6f, 0), 0.15f);
                 break;
-            case WeaponFx::Melta:
+            case WeaponFx::Fusion:
                 Glow(p, 0.5f, 0.7f, glm::vec4(1.0f, 0.55f, 0.15f, 1.0f), 0.1f); Glow(p, 0.18f, 0.2f, glm::vec4(1.0f, 0.95f, 0.8f, 1.0f), 0.07f);
                 break;
             case WeaponFx::Explosive:
                 Glow(p, 0.4f, 0.6f, fire, 0.08f);
                 Smoke(p - d * 0.4f, 4, 0.2f, 0.9f, glm::vec4(0.55f, 0.53f, 0.5f, 0.5f), 1.2f, -d * 1.5f + glm::vec3(0, 0.3f, 0), 0.4f);   // vampata posteriore
                 break;
-            case WeaponFx::Grav:
+            case WeaponFx::Gravity:
                 Glow(p, 0.35f, 0.5f, glm::vec4(0.7f, 0.4f, 1.0f, 1.0f), 0.1f); Ring(p, 0.1f, 0.5f, glm::vec4(0.75f, 0.5f, 1.0f, 0.8f), 0.15f);
                 break;
             case WeaponFx::Flamer:
@@ -231,7 +231,7 @@ namespace SunEngine {
             const glm::vec3 back = -glm::normalize(dirIn);
             const glm::vec4 spark(1.0f, 0.8f, 0.45f, 1.0f);
             switch (fx) {
-            case WeaponFx::Laser: case WeaponFx::HotShot: case WeaponFx::LongLas: {
+            case WeaponFx::Laser: case WeaponFx::HighPower: case WeaponFx::Precision: {
                 const float k = fx == WeaponFx::Laser ? 1.0f : 1.5f;
                 Glow(pos, 0.2f * k, 0.45f * k, Hdr(wc, 1.0f), 0.12f);
                 Glow(pos, 0.12f * k, 0.15f * k, glm::vec4(1.0f, 0.9f, 0.7f, 1.0f), 0.3f, glm::vec4(0.6f, 0.15f, 0.05f, 0.0f));   // bruciatura che si spegne
@@ -250,7 +250,7 @@ namespace SunEngine {
                 }
                 break;
             }
-            case WeaponFx::Bolt:
+            case WeaponFx::HeavyRound:
                 Glow(pos, 0.3f, 1.1f, glm::vec4(1.0f, 0.8f, 0.4f, 1.0f), 0.12f);
                 for (int i = 0; i < 3; ++i) { Particle& p = Add(); p.pos = pos + RandUnit() * 0.08f; p.vel = RandUnit() * 1.2f; p.life = R(0.25f, 0.35f); p.drag = 3.0f;
                     p.size0 = 0.25f; p.size1 = 0.75f; p.col0 = glm::vec4(1.0f, 0.7f, 0.3f, 1.0f); p.col1 = glm::vec4(0.6f, 0.1f, 0.0f, 0.0f); p.shape = VR::Flame; p.rot = R(0, 6.28f); }
@@ -266,12 +266,12 @@ namespace SunEngine {
                 Smoke(pos, 2, 0.15f, 0.6f, glm::vec4(0.6f, 0.75f, 0.85f, 0.25f), 0.9f);
                 if (unit) Blood(pos, back, 3, 0.6f);
                 break;
-            case WeaponFx::Melta:
+            case WeaponFx::Fusion:
                 Glow(pos, 0.35f, 0.9f, glm::vec4(1.0f, 0.6f, 0.2f, 1.0f), 0.15f);
                 Sparks(pos, back, 6, 1.0f, 2.0f, 6.0f, glm::vec4(1.0f, 0.65f, 0.25f, 1.0f), 0.5f, 6.0f, 0.03f, 0.04f);   // gocce fuse
                 Smoke(pos, 1, 0.15f, 0.6f, glm::vec4(0.4f, 0.38f, 0.36f, 0.4f), 1.0f, glm::vec3(0, 1.0f, 0));
                 break;
-            case WeaponFx::Grav:
+            case WeaponFx::Gravity:
                 Ring(pos, 0.2f, 1.0f, glm::vec4(0.7f, 0.45f, 1.0f, 0.9f), 0.25f); Glow(pos, 0.3f, 0.6f, glm::vec4(0.7f, 0.4f, 1.0f, 0.9f), 0.15f);
                 break;
             default: break;   // lanciafiamme ed esplosivi: lo fanno i loro eventi
@@ -356,16 +356,16 @@ namespace SunEngine {
             const float after = std::max(0.0f, t.currentAge - t.travelTime);
             const float lingerLife = std::max(0.01f, t.totalLife - t.travelTime);
             switch (static_cast<WeaponFx>(t.fx)) {
-            case WeaponFx::Laser: case WeaponFx::HotShot: {
+            case WeaponFx::Laser: case WeaponFx::HighPower: {
                 if (!flying) return;
-                const bool hot = t.fx == static_cast<int>(WeaponFx::HotShot);
+                const bool hot = t.fx == static_cast<int>(WeaponFx::HighPower);
                 const float len = std::min(hot ? 3.2f : 2.4f, travelled);
                 const float w = hot ? 0.11f : 0.075f;
                 VR::Streak(pos - dir * len, pos, w, Hdr(wc, 0.0f), Hdr(wc, 1.0f));
                 VR::Billboard(pos, hot ? 0.32f : 0.24f, Hdr(wc, 0.9f), VR::Glow);
                 break;
             }
-            case WeaponFx::LongLas: {   // raggio istantaneo che si assottiglia e sparisce
+            case WeaponFx::Precision: {   // raggio istantaneo che si assottiglia e sparisce
                 const float k = std::clamp(t.currentAge / std::max(0.01f, t.totalLife), 0.0f, 1.0f);
                 const float a = 1.0f - k;
                 VR::Streak(t.start, t.end, 0.14f * (1.0f - 0.6f * k), Hdr(wc, a), Hdr(wc, a));
@@ -390,7 +390,7 @@ namespace SunEngine {
                 }
                 break;
             }
-            case WeaponFx::Bolt: {
+            case WeaponFx::HeavyRound: {
                 const float smokeA = flying ? 0.45f : 0.45f * (1.0f - std::clamp(after / lingerLife, 0.0f, 1.0f));
                 const float smokeLen = std::min(4.0f, travelled);
                 const glm::vec3 head = flying ? pos : t.end;
@@ -411,7 +411,7 @@ namespace SunEngine {
                 VR::Billboard(pos, 0.2f, glm::vec4(1.0f), VR::Glow);
                 break;
             }
-            case WeaponFx::Melta: {   // raggio di calore: spesso, nucleo bianco, aria che trema
+            case WeaponFx::Fusion: {   // raggio di calore: spesso, nucleo bianco, aria che trema
                 const float k = std::clamp(t.currentAge / std::max(0.01f, t.totalLife), 0.0f, 1.0f);
                 const float a = 1.0f - k * k;
                 const glm::vec4 c(1.0f, 0.5f, 0.12f, 1.0f);
@@ -433,7 +433,7 @@ namespace SunEngine {
                 if (flying) { VR::Billboard(pos, 0.35f, glm::vec4(1.0f, 0.65f, 0.25f, 1.0f), VR::Glow); VR::Billboard(pos, 0.12f, glm::vec4(1.0f), VR::Glow); }
                 break;
             }
-            case WeaponFx::Grav: {
+            case WeaponFx::Gravity: {
                 if (!flying) return;
                 VR::Billboard(pos, 0.5f, glm::vec4(0.7f, 0.45f, 1.0f, 0.8f), VR::Ring, true, t.currentAge * 10.0f);
                 VR::Billboard(pos, 0.25f, glm::vec4(0.8f, 0.6f, 1.0f, 0.9f), VR::Glow);

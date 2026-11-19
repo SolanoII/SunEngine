@@ -1,7 +1,7 @@
 {
   "id": "combat_shotgun_standard",
   "displayName": "Combat Shotgun",
-  "faction": "Imperium",
+  "faction": "Kingship",
   "slot_type": "primary",
   "hand_type": "TwoHanded",
   "weight_kg": 4.0,

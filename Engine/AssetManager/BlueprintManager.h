@@ -26,9 +26,9 @@ namespace SunEngine {
         Explosive,
         Flamer,
         ContinuousBeam,
-        Grav,
+        Gravity,
         Psychic,
-        Bolt            // armi bolt: cartucce enormi a razzo che esplodono nel bersaglio (scia e scoppio piu' grossi)
+        HeavyRound            // armi heavy_round: cartucce enormi a razzo che esplodono nel bersaglio (scia e scoppio piu' grossi)
     };
 
     enum class WeaponSlotType {
@@ -113,7 +113,7 @@ namespace SunEngine {
         std::string special_ability = "none";
         bool parry_blocks_ranged = false;   // la parata con quest'arma ferma anche i colpi a distanza (perfect deflect)
         float melee_reach = 1.85f;          // portata del colpo in mischia (metri, dal centro dell'attaccante)
-        float heavy_lunge_distance = 0.0f;  // attacco pesante con scatto in avanti (metri), es. lancia dello yoof
+        float heavy_lunge_distance = 0.0f;  // attacco pesante con scatto in avanti (metri), es. lancia dello feral_pig
         bool hasMoveset = false;
         MeleeMoveset moveset;
 
@@ -130,8 +130,8 @@ namespace SunEngine {
 
         int pellet_count = 1;
         float flamer_cone_angle = 30.0f;
-        float melta_range = 4.5f;
-        float melta_multiplier = 2.5f;
+        float fusion_range = 4.5f;
+        float fusion_multiplier = 2.5f;
         float damage_falloff_start = 0.0f;
         float damage_falloff_end = 0.0f;
 
@@ -162,7 +162,7 @@ namespace SunEngine {
 
         // --- Munizioni limitate ---
         // Riserva iniziale = magazine_size * spare_magazines * ammo_multiplier dell'unita'.
-        // Es. Grot Blasta: 6 colpi x 2 caricatori di scorta = 12 di riserva (18 in tutto).
+        // Es. Pighcib Blasta: 6 colpi x 2 caricatori di scorta = 12 di riserva (18 in tutto).
         int spare_magazines = 4;
 
         // --- Passive delle armi da mischia ---
@@ -182,7 +182,7 @@ namespace SunEngine {
         float repair_rate = 0.0f;            // salute riparata al secondo
         float repair_range = 2.2f;           // metri
 
-        // Compagno squig (equipment_type "squig" = morso, "squig_bomb" = carica ed esplode, uno per partita).
+        // Compagno grugn (equipment_type "grugn" = morso, "grugn_bomb" = carica ed esplode, uno per partita).
         // base_damage / armor_penetration = morso; explosion_radius / explosion_damage = esplosione.
         float companion_speed = 7.0f;
         float companion_attack_interval = 1.0f;
@@ -195,7 +195,7 @@ namespace SunEngine {
         float heal_per_second = 0.0f;
         // Medikit ("medkit"): cura istantanea di heal_amount punti salute su se stessi dopo equipment_use_time secondi
         float heal_amount = 0.0f;
-        // Arma pesante piazzabile ("turret", es. lascannon): colpo caricato tenendo il click charge_time secondi;
+        // Arma pesante piazzabile ("turret", es. impulse_cannon): colpo caricato tenendo il click charge_time secondi;
         // oltre overcharge_time la torretta perde overcharge_damage salute al secondo. structure_armor = armatura
         // della torretta (riduzione del danno, 0..1); munizioni = magazine_size + magazine_size * spare_magazines.
         float charge_time = 1.5f;
@@ -207,10 +207,10 @@ namespace SunEngine {
         // fuse_time = miccia della granata o tempo per armare la mina; throw_speed = velocita' di lancio;
         // trigger_radius = quanto vicino deve passare un nemico per far scattare la mina.
         float fuse_time = 3.0f;
-        bool explode_on_impact = false;    // granata a impatto (es. stikkbomb): scoppia appena tocca qualcosa
+        bool explode_on_impact = false;    // granata a impatto (es. nail_grenade): scoppia appena tocca qualcosa
         float ammo_capacity_bonus = 0.0f;  // zaino munizioni ("ammo_backpack"): +50% di riserva = 0.5
         // Danno delle esplosioni a strutture e mezzi (barricate, muri, veicoli, torrette): x structure_damage_multiplier.
-        // Es. granata anti-struttura del loota = 5.
+        // Es. granata anti-struttura del raider = 5.
         float structure_damage_multiplier = 1.0f;
         float structure_health = 250.0f;   // salute di barricate e muri costruiti con questo oggetto
         // Skin della dotazione sul corpo (es. zaino sulla schiena), come "skin_parts" delle armature
@@ -221,13 +221,13 @@ namespace SunEngine {
         // Lanciagranate ("launches_grenade": true): ogni colpo e' una granata (fuse_time, explode_on_impact,
         // explosion_radius / explosion_damage) sparata a projectile_speed m/s dalla canna, con la gravita'.
         bool launches_grenade = false;
-        // Melta a colpo singolo ("melta_shot": true): entro melta_range danno x melta_multiplier e +20 penetrazione
-        bool melta_shot = false;
-        // Vox caster ("vox_caster"): dopo equipment_use_time secondi di chiamata, summon_delay secondi dopo arriva
+        // Fusion a colpo singolo ("fusion_shot": true): entro fusion_range danno x fusion_multiplier e +20 penetrazione
+        bool fusion_shot = false;
+        // Radio caster ("field_radio"): dopo equipment_use_time secondi di chiamata, summon_delay secondi dopo arriva
         // un'unita' summon_unit che segue chi l'ha chiamata e combatte con lui (cerchio verde sotto i piedi).
         std::string summon_unit;
         float summon_delay = 5.0f;
-        // Colpi consumati da ogni sparo (es. hot-shot: 2). Con meno colpi di questi nel caricatore si ricarica.
+        // Colpi consumati da ogni sparo (es. ad alta potenza: 2). Con meno colpi di questi nel caricatore si ricarica.
         int ammo_per_shot = 1;
         // Cassa di munizioni ("ammo_crate"): posata a terra, E vicino = un caricatore dell'arma in mano, crate_charges volte
         int crate_charges = 3;
@@ -240,7 +240,7 @@ namespace SunEngine {
         // Morale (MoraleSystem.h), punti flat finche' l'oggetto e' nella dotazione: tetto in piu' e valore di partenza in piu'
         float morale_cap_bonus = 0.0f;
         float morale_start_bonus = 0.0f;
-        float companion_health = 30.0f;      // lo squig si puo' uccidere: poca salute...
+        float companion_health = 30.0f;      // il grugn si puo' uccidere: poca salute...
         float companion_evasion = 0.30f;     // ...ma schiva il 30% dei colpi
 
         // Unita' che possono equipaggiarla ("allowed_units"); vuoto = tutte (armi esistenti, da rivedere)
@@ -260,8 +260,8 @@ namespace SunEngine {
         std::string id;
         std::string displayName;
         // Corpo: scheletro a cubi (Skeletons/<skeleton_id>.json, vuoto = id dell'unita'), sua scala, modello
-        // animato ("human", "ork", "ogryn", "gretchin", "neophyte", "astartes"; vuoto = dedotto dall'id) e scala
-        // del modello. Es. lo yoof usa lo scheletro e il modello del boy, piu' piccoli (0.85).
+        // animato ("human", "vrepigh", "ogre", "pighcib", "candidate", "vanguard"; vuoto = dedotto dall'id) e scala
+        // del modello. Es. il feral_pig usa lo scheletro e il modello del tusker, piu' piccoli (0.85).
         std::string skeleton_id;
         float skeleton_scale = 1.0f;
         std::string animated_body;
@@ -277,7 +277,7 @@ namespace SunEngine {
         float toughness = 15.0f;
         int armor_rating = 0;
         float strength = 0.0f;
-        // Arrampicata lenta (es. gretchin): muri fino a "climb_height" metri, piu' alti di quanto scavalcherebbe,
+        // Arrampicata lenta (es. pighcib): muri fino a "climb_height" metri, piu' alti di quanto scavalcherebbe,
         // a "climb_speed" m/s. 0 = solo lo scavalcamento normale.
         float climb_height = 0.0f;
         // Slancio e carica (FeralCharge.h): "momentum_bonus" velocita' in piu' a slancio pieno, "momentum_time"
@@ -297,15 +297,15 @@ namespace SunEngine {
         float fov_degrees = 0.0f;
         float weight_capacity = 60.0f;
         float weightCapacity = 60.0f; // Alias di sicurezza per evitare errori di denominazione
-        // Vestiti sempre visibili sotto l'armatura ("base_skin": "skin_blocks" + "skin_parts"), es. calzoni degli orki
+        // Vestiti sempre visibili sotto l'armatura ("base_skin": "skin_blocks" + "skin_parts"), es. calzoni dei vrepighs
         std::vector<std::pair<std::string, glm::vec4>> baseSkinBlockColors;
         std::vector<ArmorSkinPart> baseSkinParts;
         std::vector<GarmentDef> baseGarments;   // vestiti base sul modello animato ("base_skin": {"garments": [...]})
-        // Niente armi da mischia ("no_melee", es. loota): lo slot resta vuoto e i tasti della mischia usano
-        // l'arma di riserva "melee_fallback" (es. botta col deffgun), che non si puo' equipaggiare.
+        // Niente armi da mischia ("no_melee", es. raider): lo slot resta vuoto e i tasti della mischia usano
+        // l'arma di riserva "melee_fallback" (es. botta col heavy_rifle), che non si puo' equipaggiare.
         bool no_melee = false;
         std::string melee_fallback;
-        // Solo l'equipaggiamento definito per questa unita' ("strict_loadout", es. tutti gli orki): niente armi e
+        // Solo l'equipaggiamento definito per questa unita' ("strict_loadout", es. tutti gli vrepighs): niente armi e
         // armature generiche (quelle senza "allowed_units")
         bool strict_loadout = false;
         // Munizioni di scorta del personaggio: moltiplica la riserva di ogni arma (1 = standard)
@@ -317,7 +317,7 @@ namespace SunEngine {
         std::string default_melee;
         std::string default_equipment[3];
         // Versione della dotazione base: se un'unita' salvata nel profilo ne ha una piu' vecchia, la riceve di nuovo
-        // al caricamento (es. yoof = 3: gli yoof gia' nel garage passano dal fucile laser al kit da yoof)
+        // al caricamento (es. feral_pig = 3: gli feral_pig gia' nel garage passano dal fucile laser al kit da feral_pig)
         int loadout_version = 0;
         bool has_default_armor = false;
         std::string default_armor[6];      // testa, torso, braccio sx, braccio dx, gamba sx, gamba dx ("" = scoperto)
@@ -345,12 +345,12 @@ namespace SunEngine {
             return unitRestriction.empty() || unitRestriction == unitId;
         }
         // Elmetto: finche' regge, annulla il moltiplicatore del colpo in testa (es. elmetto di ferraglia del
-        // gretchin: un colpo di lasgun in testa non lo uccide piu' al primo colpo)
+        // pighcib: un colpo di impulse_rifle in testa non lo uccide piu' al primo colpo)
         bool blocks_headshot_bonus = false;
         float aim_bonus = 0.0f;              // elmetto con visiera: dispersione dei colpi ridotta (0.1 = -10%)
 
         // Skin sul campo: colore di alcuni blocchi dello scheletro ("skin_blocks": {"Torso": [r,g,b]}) e
-        // pezzi aggiunti ("skin_parts"), es. vesti e elmetto del gretchin
+        // pezzi aggiunti ("skin_parts"), es. vesti e elmetto del pighcib
         std::vector<std::pair<std::string, glm::vec4>> skinBlockColors;
         std::vector<ArmorSkinPart> skinParts;
         // Strati sul modello animato (texture/mesh sopra il corpo, vedi GarmentShell.h). Se ci sono, i pezzi

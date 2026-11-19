@@ -544,8 +544,8 @@ namespace SunEngine {
         }
 
         // --- Vanguard Armor generica: elmo, piastra del petto, nucleo, zaino --------------------------------------
-        // tier 0 leggera (Phobos: elmo a celata con la coda, piastra sottile, zaino piatto), 1 media (Difensore:
-        // elmo tondo con visiera a T e cresta, zaino con due scarichi), 2 pesante (Gravis: elmo grosso e incassato
+        // tier 0 leggera (Ricognizione: elmo a celata con la coda, piastra sottile, zaino piatto), 1 media (Difensore:
+        // elmo tondo con visiera a T e cresta, zaino con due scarichi), 2 pesante (Pesante: elmo grosso e incassato
         // con griglia e dischi vocali, piastra doppia, zaino grande a quattro scarichi)
         if (kind == "vanguard_helm" || kind == "vanguard_helm_eyes") {
             glm::vec3 lo, hi; B.Box(G_Head, lo, hi);

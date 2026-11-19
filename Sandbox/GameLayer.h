@@ -14,7 +14,7 @@
 #include "Engine/Renderer/MuscleTone.h"
 #include "Engine/Renderer/AuthoredModel.h"
 #include "Engine/Renderer/SurfaceMaterials.h"
-#include "Engine/Renderer/SquigModel.h"
+#include "Engine/Renderer/GrugnModel.h"
 #include "Engine/ECS/HordeAISystem.h"
 #include "Engine/ECS/MeleeCombatSystem.h"
 #include "Engine/ECS/BotAISystem.h"
@@ -31,7 +31,7 @@
 #include "Engine/ECS/RenderSystem.h"
 #include "Engine/ECS/WeaponSystem.h"
 #include "Engine/ECS/AmmoSystem.h"
-#include "Engine/ECS/SquigSystem.h"
+#include "Engine/ECS/GrugnSystem.h"
 #include "Engine/ECS/RepairSystem.h"
 #include "Engine/ECS/ActionPose.h"
 #include "Engine/ECS/TurretSystem.h"
@@ -91,8 +91,8 @@ namespace SunEngine {
         glm::vec4 armorColor{ 1.0f };
         int facePreset = 0;
 
-        std::string primaryWeaponId = "lasgun_standard";
-        std::string secondaryWeaponId = "laspistol_standard";
+        std::string primaryWeaponId = "auto_rifle_mg";
+        std::string secondaryWeaponId = "impulse_pistol_standard";
         std::string meleeWeaponId = "";
         std::string equipmentSlots[3] = { "", "", "" };
         std::vector<std::string> ownedItems;   // oggetti ricercabili comprati per questa unita' (chiave inglese, trombone...)
@@ -101,14 +101,14 @@ namespace SunEngine {
             return false;
         }
 
-        std::string armorHeadId = "head_guardsman_recruit";
-        std::string armorTorsoId = "torso_guardsman_recruit";
-        std::string armorLeftArmId = "arm_l_guardsman_recruit";
-        std::string armorRightArmId = "arm_r_guardsman_recruit";
-        std::string armorLeftLegId = "leg_l_guardsman_recruit";
-        std::string armorRightLegId = "leg_r_guardsman_recruit";
+        std::string armorHeadId = "head_footman_recruit";
+        std::string armorTorsoId = "torso_footman_recruit";
+        std::string armorLeftArmId = "arm_l_footman_recruit";
+        std::string armorRightArmId = "arm_r_footman_recruit";
+        std::string armorLeftLegId = "leg_l_footman_recruit";
+        std::string armorRightLegId = "leg_r_footman_recruit";
 
-        int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni orco ucciso)
+        int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni vrepigh ucciso)
         // Personaggi speciali (unita' d'elite): caduti in partita restano in ricostruzione fino a quest'ora
         // (secondi unix, 0 = pronto). Si puo' accorciare pagando energia (vedi GameLayerRebuild.cpp)
         int64_t rebuildUntil = 0;
@@ -125,7 +125,7 @@ namespace SunEngine {
             ApplyDefaultArmor();
         }
 
-        // Toglie l'equipaggiamento che l'unita' non puo' piu' usare (es. orki: armi generiche o choppa vecchia),
+        // Toglie l'equipaggiamento che l'unita' non puo' piu' usare (es. vrepighs: armi generiche o cleaver vecchia),
         // rimettendo al suo posto quello della dotazione base. Ritorna true se ha cambiato qualcosa.
         bool SanitizeLoadout() {
             const auto& bpm = BlueprintManager::Get();
@@ -154,7 +154,7 @@ namespace SunEngine {
             return changed;
         }
 
-        // Armatura / vesti base del blueprint (es. gretchin: vesti di stracci, testa scoperta)
+        // Armatura / vesti base del blueprint (es. pighcib: vesti di stracci, testa scoperta)
         void ApplyDefaultArmor() {
             const auto* bp = BlueprintManager::Get().GetUnit(blueprintId);
             if (!bp || !bp->has_default_armor) return;
@@ -163,7 +163,7 @@ namespace SunEngine {
         }
 
         // Punti battaglia (code Vs Bot e limite della squadra): costo dell'unita' + costo di ogni equipaggiamento
-        // gia' rivisto, cioe' con "allowed_units" (armi, dotazione, armature: es. tutto il kit di gretchin e yoof).
+        // gia' rivisto, cioe' con "allowed_units" (armi, dotazione, armature: es. tutto il kit di pighcib e feral_pig).
         // Le armi e armature vecchie (senza "allowed_units") non contano finche' non vengono rifatte, cosi' le
         // unita' non ancora rivedute restano nelle loro code.
         int CalculateBattlePoints() const {
@@ -364,7 +364,7 @@ namespace SunEngine {
         void AddBotExtras(TrainedUnit& u, int& budget) const;   // oggetti ricercabili a caso, entro il budget della coda
         entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex);
         void UpdateVsBot(float deltaTime);                 // fine partita (eliminazione o tempo scaduto)
-        // Rinforzi del vox caster: arrivano dopo il ritardo, seguono chi li ha chiamati, cerchio verde sotto i piedi
+        // Rinforzi del radio: arrivano dopo il ritardo, seguono chi li ha chiamati, cerchio verde sotto i piedi
         void UpdateSummons(float deltaTime);
         entt::entity SpawnSummon(entt::entity owner, const std::string& unitId);
         void ClearSummons();
@@ -403,13 +403,13 @@ namespace SunEngine {
         float m_DamagePulseTime = 0.0f;
         void RenderTurretHUD();
         void BuildPlayerPose(float deltaTime, RifleAnimationController& controller);   // animazioni procedurali                      // in alto a sinistra: salute, stamina, buff di fazione
-        void UpdateFactionBuff(float deltaTime);           // WAAAGH! degli orki, Follow Orders della Guardia
+        void UpdateFactionBuff(float deltaTime);           // HUNGRY! dei vrepighs, Follow Orders della Guardia
         void ResetFactionBuff();
         void ApplyOrderBuff();                             // effetti dell'ordine attivo sul giocatore
         void ScanFactionEnemies();                         // nemici in vista davanti / alle spalle (per i buff)
         void RenderOrdersRadial();
         void SyncCloakVisuals();                           // mimetismo copiato su arma in mano e modello animato
-        void RenderAuspex();                               // sonar dell'auspex (scout) quando e' in mano                         // selettore radiale degli ordini (tasto V tenuto)
+        void RenderScanner();                               // sonar dell'scanner (scout) quando e' in mano                         // selettore radiale degli ordini (tasto V tenuto)
 
         // --- Esperienza di partita (punti studio) e riepilogo di fine partita ---
         struct MatchXpLine { int count = 0; int64_t xp = 0; };
@@ -436,9 +436,9 @@ namespace SunEngine {
         void UpdateAnimatedSkin();                                    // pezzi della skin sul modello animato
         std::vector<entt::entity> m_SkinPartEntities;
         GarmentLibrary m_Garments;   // vestiti/armature sul modello animato (gusci skinnati + texture), in cache
-        SquigModel m_SquigModel;     // modello skinnato dello squig (SquigModel.h)
-        std::unordered_map<entt::entity, std::unique_ptr<std::vector<glm::mat4>>> m_SquigBones;
-        void UpdateSquigVisuals();
+        GrugnModel m_GrugnModel;     // modello skinnato dello grugn (GrugnModel.h)
+        std::unordered_map<entt::entity, std::unique_ptr<std::vector<glm::mat4>>> m_GrugnBones;
+        void UpdateGrugnVisuals();
         // Pelle della razza sul modello animato
         static const char* BodyLabelOf(int kind);
         void ApplySkinStyle(SkinnedModelInstanceComponent& sk, int kind);
@@ -484,8 +484,8 @@ namespace SunEngine {
         RifleAnimInput BuildPlayerAnimInput(bool isAiming, float deltaTime);
         void UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input);
         bool IsAnimatedPlayerActive();
-        // Corpo animato da usare per l'unita' del giocatore (umano, ork, ogryn) e relativi accessori
-        enum class AnimatedBodyKind { Human = 0, Ork, Ogryn, Neophyte, Astartes, Gretchin, Count };
+        // Corpo animato da usare per l'unita' del giocatore (umano, vrepigh, ogre) e relativi accessori
+        enum class AnimatedBodyKind { Human = 0, Vrepigh, Ogre, Candidate, Vanguard, Pighcib, Count };
         AnimatedBodyKind CurrentAnimatedBodyKind();
         AnimatedBodyKind BodyKindForUnit(const std::string& unitId) const;   // corpo animato di un tipo di unita'
 
@@ -602,7 +602,7 @@ namespace SunEngine {
             float yaw = 0.0f, sinceSeen = 0.0f;
             std::uint8_t meleeSeq = 0;              // gesti di mischia: cresce a ogni attacco iniziato
             int lastPhase = 0; std::string lastNode;
-            std::uint8_t kind = 0, player = 0, slot = 0;   // 0 orco dell'ondata, 1 bot del Vs Bot (riga e unita' del roster)
+            std::uint8_t kind = 0, player = 0, slot = 0;   // 0 vrepigh dell'ondata, 1 bot del Vs Bot (riga e unita' del roster)
             bool aiming = false; int weaponSlot = 0;
         };
         struct NetMatchState {
@@ -658,10 +658,10 @@ namespace SunEngine {
         void NetFlushPuppetDamage(NetRemote& r);
         void RenderNetMatchOverlay();               // nomi dei compagni sopra le loro unita' in partita
         void StartDeployment(int spawnSlot);        // ingresso in partita (GameLayer.cpp)
-        void UpdateWaaaghWaves(float deltaTime, const glm::vec3& center);
+        void UpdateHungryWaves(float deltaTime, const glm::vec3& center);
         void GetWaveState(bool& active, float& timer, int& count) const;
         void SetWaveState(bool active, float timer, int count);
-        entt::entity SpawnNetOrk(const glm::vec3& pos);
+        entt::entity SpawnNetVrepigh(const glm::vec3& pos);
         // PVE-STORY (GameLayerStory.cpp)
         StoryState m_Story;
         std::vector<TrainedUnit> m_StoryBackupRoster;   // il garage, messo da parte durante il capitolo
@@ -758,11 +758,11 @@ namespace SunEngine {
         MeleeCombatSystem m_MeleeCombat;
         WeaponSystem m_WeaponSystem;
         EquipmentSystem m_EquipmentSystem;   // scatola di munizioni e altra dotazione tattica
-        SquigSystem m_SquigSystem;           // compagni squig dei gretchin
+        GrugnSystem m_GrugnSystem;           // compagni grugn dei pighcib
         ExplosiveSystem m_ExplosiveSystem;
-        TurretSystem m_TurretSystem;        // armi pesanti piazzabili e manovrate (lascannon)   // granate, mine, lampi delle esplosioni
-        std::optional<SkeletonData> m_SquigSkeleton;   // scheletro a cubi dello squig (Skeletons/squig.json)
-        bool m_SquigSkeletonLoaded = false;
+        TurretSystem m_TurretSystem;        // armi pesanti piazzabili e manovrate (impulse_cannon)   // granate, mine, lampi delle esplosioni
+        std::optional<SkeletonData> m_GrugnSkeleton;   // scheletro a cubi dello grugn (Skeletons/grugn.json)
+        bool m_GrugnSkeletonLoaded = false;
         RepairSystem m_RepairSystem;         // chiave inglese: ripara veicoli, strutture, torrette
         ParticleSystem m_ParticleSystem;
         GameFeel m_Feel;   // suoni a strati, scossoni, lampi, bossoli, segni dei colpi (vedi GameFeel.h)
@@ -778,19 +778,19 @@ namespace SunEngine {
         RifleAnimationController m_RifleAnimController;
         bool m_RifleAnimLoaded = false;
 
-        // Corpi animati alternativi al guardsman, con lo stesso rig Mixamo (52 ossa, stessi nomi):
-        //   orchi    -> Characters/ork_master.fbx      + Animations/Orks/
-        //   ogryn    -> Characters/ogryn_master.fbx    + Animations/Ogryn/
-        //   neofiti  -> Characters/neophyte_master.fbx + Animations/Neophyte/  (neofita, scout)
-        //   astartes -> Characters/astartes_master.fbx + Animations/Astartes/  (battle brother, phobos, gravis)
-        //   gretchin -> Characters/gretchin_master.fbx + Animations/Gretchin/
+        // Corpi animati alternativi al footman, con lo stesso rig Mixamo (52 ossa, stessi nomi):
+        //   vrepighs    -> Characters/vrepigh_master.fbx      + Animations/Vrepighs/
+        //   ogre    -> Characters/ogre_master.fbx    + Animations/Ogre/
+        //   candidati  -> Characters/candidate_master.fbx + Animations/Candidate/  (candidato, scout)
+        //   vanguard -> Characters/vanguard_master.fbx + Animations/Vanguard/  (difensore e konrad)
+        //   pighcib -> Characters/pighcib_master.fbx + Animations/Pighcib/
         // Se manca la cartella delle animazioni si usano quelle Human, adattate dal retarget.
         struct AnimatedBody {
             SkinnedModel model;
             RifleAnimationController controller;
             bool modelLoaded = false;
             bool animLoaded = false;
-            BoarHead boar;                  // muso, zanne e occhi del vrepigh (solo corpo ork procedurale)
+            BoarHead boar;                  // muso, zanne e occhi del vrepigh (solo corpo vrepigh procedurale)
         };
         AnimatedBody m_AnimatedBodies[static_cast<int>(AnimatedBodyKind::Count)];   // [Human] inutilizzato
         AnimatedBody& Body(AnimatedBodyKind kind) { return m_AnimatedBodies[static_cast<int>(kind)]; }
@@ -798,7 +798,7 @@ namespace SunEngine {
         // dell'artista. Si vedono solo i pezzi fatti per questo corpo ("sculpted_fit", come l'armatura teutonica
         // di Konrad). Col modello d'autore in Characters/ le skin tornano come prima.
         bool BareSculptedBody(AnimatedBodyKind kind) const {
-            return kind == AnimatedBodyKind::Astartes && !m_AnimatedBodies[static_cast<int>(kind)].model.authored;
+            return kind == AnimatedBodyKind::Vanguard && !m_AnimatedBodies[static_cast<int>(kind)].model.authored;
         }
         const AnimatedBody& Body(AnimatedBodyKind kind) const { return m_AnimatedBodies[static_cast<int>(kind)]; }
         AnimatedBodyKind m_AnimatedBodyInUse = AnimatedBodyKind::Human;   // modello assegnato ora all'entity animata
@@ -882,10 +882,10 @@ namespace SunEngine {
         float m_WeaponHandAlign = 0.0f;   // 0 = arma dritta lungo la mira, 1 = segue la linea tra le mani
         glm::vec3 m_WeaponModelGripOffset = glm::vec3(0.0f);   // spostamento dell'arma (spazio arma: dx, su, indietro)
         glm::vec3 m_WeaponModelRotation = glm::vec3(0.0f);     // correzione di rotazione (gradi)
-        // Arma degli orchi (modello a blocchi): punto di presa sul blocco del braccio (in unita' del blocco,
+        // Arma dei vrepighs (modello a blocchi): punto di presa sul blocco del braccio (in unita' del blocco,
         // come il vecchio cubo) e rotazione che porta l'asse della lama (-Z del modello) lungo il braccio.
-        glm::vec3 m_OrkWeaponHoldOffset = glm::vec3(0.0f, 0.05f, 0.0f);       // metri, dal fondo del braccio (= la mano)
-        glm::vec3 m_OrkWeaponModelRotation = glm::vec3(-30.0f, 0.0f, 0.0f);   // gradi: 0 = lama in avanti dal pugno
+        glm::vec3 m_VrepighWeaponHoldOffset = glm::vec3(0.0f, 0.05f, 0.0f);       // metri, dal fondo del braccio (= la mano)
+        glm::vec3 m_VrepighWeaponModelRotation = glm::vec3(-30.0f, 0.0f, 0.0f);   // gradi: 0 = lama in avanti dal pugno
         bool m_WeaponFollowsHand = false;
 
         PlayerProfile m_Profile;
@@ -947,16 +947,16 @@ namespace SunEngine {
         bool m_PlayerPoseFresh = false;   // posa del giocatore ricostruita in questo frame (IK delle mani da aggiungere)
         float m_PoseTime = 0.0f;
         float m_PoseClimb = 0.0f;                    // peso dell'arrampicata (le altre azioni: ActionPoseComponent)
-        // Buff di fazione (orki: WAAAGH!)
+        // Buff di fazione (vrepighs: HUNGRY!)
         std::string m_FactionBuffFaction;          // fazione dell'unita' con cui si sta caricando
-        float m_WaaaghPoints = 0.0f;               // 0..350 (7 caratteri di "Waaagh!" da 50 punti)
-        float m_WaaaghTimer = 0.0f;                // >0: WAAAGH! attiva, secondi rimasti
-        float m_WaaaghPrevHp = -1.0f;              // per misurare i danni subiti
-        static constexpr float kWaaaghMax = 350.0f;
-        static constexpr float kWaaaghDuration = 20.0f;
-        // Tasto del buff di fazione (V): orki = scatena la WAAAGH! carica; Guardia = selettore radiale degli ordini
+        float m_HungryPoints = 0.0f;               // 0..350 (7 caratteri di "Hungry!" da 50 punti)
+        float m_HungryTimer = 0.0f;                // >0: HUNGRY! attiva, secondi rimasti
+        float m_HungryPrevHp = -1.0f;              // per misurare i danni subiti
+        static constexpr float kHungryMax = 350.0f;
+        static constexpr float kHungryDuration = 20.0f;
+        // Tasto del buff di fazione (V): vrepighs = scatena la HUNGRY! carica; Guardia = selettore radiale degli ordini
         bool m_FactionKeyWasDown = true;
-        float m_FactionFightIdle = 0.0f;           // orki: secondi senza combattere (oltre 5 la barra si svuota)
+        float m_FactionFightIdle = 0.0f;           // vrepighs: secondi senza combattere (oltre 5 la barra si svuota)
         int m_FactionPrevAmmo = -1, m_FactionPrevSlot = -1;
         bool m_FactionPrevWindup = false;
         bool m_FactionWasAlive = false;
@@ -964,7 +964,7 @@ namespace SunEngine {
         bool m_FactionEnemyFront = false;          // nemico in vista davanti (entro la portata dell'arma)
         bool m_FactionEnemyBehind = false;         // nemico in vista alle spalle (la Guardia perde punti)
         float m_FactionNearestEnemy = 1e9f;
-        // Guardia imperiale: "Follow Orders"
+        // Guardia del Kingship: "Follow Orders"
         float m_OrdersAssistAccum = 0.0f;          // aiuti ai compagni dall'ultimo frame (munizioni, cure, strutture)
         float m_CohesionDelay = 10.0f;             // dopo ogni schieramento la coesione non carica per 10 s
         // Giuramento di Sangue di Konrad (Vanguard, tasto V)
@@ -984,7 +984,7 @@ namespace SunEngine {
         static constexpr float kGruukDuration = 6.0f;    // secondi
         static constexpr float kGruukRadius = 15.0f;     // metri
         static constexpr float kGruukCooldown = 30.0f;   // secondi
-        static constexpr const char* kGruukUnit = "orks_zhelvar";
+        static constexpr const char* kGruukUnit = "vrepighs_zhelvar";
         void UpdateGruuk(float deltaTime, bool canInput);
         int ApplyWarCry(const glm::vec3& pos, int team, float radius, float duration, float mult);   // a cio' che simulo io
         void PlayGruukVoice(const glm::vec3& pos);

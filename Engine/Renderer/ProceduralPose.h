@@ -275,8 +275,8 @@ namespace SunEngine {
             p.Rotate("Head", Rx(25.0f * amount)); p.Rotate("Spine", Rx(8.0f * amount));
         }
 
-        // Vox caster: cornetta all'orecchio con la sinistra, testa inclinata verso la mano
-        inline void VoxCall(ProceduralPose& p, float amount) {
+        // Radio caster: cornetta all'orecchio con la sinistra, testa inclinata verso la mano
+        inline void RadioCall(ProceduralPose& p, float amount) {
             if (amount <= 0.0f) return;
             p.Rotate("LeftArm", Rx(-30.0f * amount)); p.Rotate("LeftArm", Rz(55.0f * amount));
             p.Rotate("LeftForeArm", Rx(-120.0f * amount));

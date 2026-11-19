@@ -19,7 +19,7 @@ namespace SunEngine {
         bool firing = false;     // sta sparando (grilletto / cooldown colpo attivo)
         bool vaulting = false;   // scavalcamento ostacolo in corso
         bool crouching = false;  // accovacciato (CTRL)
-        bool climbing = false;   // arrampicata lenta (gretchin): base ferma, il movimento lo fa la posa procedurale
+        bool climbing = false;   // arrampicata lenta (pighcib): base ferma, il movimento lo fa la posa procedurale
         bool shotFired = false;  // un colpo e' partito in QUESTO frame (fronte di salita del cooldown)
         float groundSpeed = 0.0f;     // velocita' orizzontale reale del personaggio (m/s); <=0 = ignora
         float vaultDuration = 0.0f;   // durata dello scavalcamento in corso (s); adatta la clip di salto
@@ -194,7 +194,7 @@ namespace SunEngine {
         // Scala usata per convertire la velocita' incisa nelle clip (cm) in m/s
         void SetModelScale(float scale) { m_ModelScale = scale; }
         void SetPlaybackRateLimits(float minRate, float maxRate) { m_MinRate = minRate; m_MaxRate = maxRate; }
-        // Ritmo della razza (RaceMotion.h): il gretchin fa passi piu' corti e rapidi, l'ogryn piu' lenti
+        // Ritmo della razza (RaceMotion.h): il pighcib fa passi piu' corti e rapidi, l'ogre piu' lenti
         void SetStyleRate(float rate) { m_StyleRate = std::clamp(rate, 0.5f, 2.0f); }
 
         bool GetBoneModelTransform(const std::string& boneName, glm::mat4& out) const {

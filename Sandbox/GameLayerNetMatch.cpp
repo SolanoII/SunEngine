@@ -551,7 +551,7 @@ namespace SunEngine {
                 NetEnemyInfo info; info.e = e; info.prevHp = reg.get<HealthComponent>(e).currentHealth;
                 m_Net.enemies[id] = info;
             }
-            // Vs Bot: i bot del roster (riga e unita', per ricrearli uguali). Gli altri (rinforzi del vox) restano solo qui.
+            // Vs Bot: i bot del roster (riga e unita', per ricrearli uguali). Gli altri (rinforzi del radio) restano solo qui.
             if (m_VsBotActive) {
                 fresh.clear();
                 for (auto e : reg.view<BotBrainComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, NetEntityComponent, NetGhostComponent, NetRemotePlayerComponent>)) fresh.push_back(e);
@@ -991,7 +991,7 @@ namespace SunEngine {
                         if (auto* brain = reg.try_get<BotBrainComponent>(e)) brain->displayName = bp.name + " (" + bp.squad[si].unit.customName + ")";
                         bp.squad[si].entity = e;
                     }
-                    else e = SpawnNetOrk(pos);
+                    else e = SpawnNetVrepigh(pos);
                     if (e == entt::null) continue;
                     reg.emplace_or_replace<NetEntityComponent>(e, NetEntityComponent{ id });
                     reg.emplace_or_replace<NetGhostComponent>(e);
@@ -1297,7 +1297,7 @@ namespace SunEngine {
             center = reg.get<TransformComponent>(m_PlayerEntity).Position; found = true;
         }
         for (const auto& [id, r] : m_Net.remotes) if (!found && r.alive && r.hasState) { center = r.pos; found = true; }
-        if (found) UpdateWaaaghWaves(deltaTime, center);
+        if (found) UpdateHungryWaves(deltaTime, center);
         CheckUnitDeaths();
         glm::vec3 playerPos(0.0f);
         if (const auto* pt = reg.try_get<TransformComponent>(m_PlayerEntity)) playerPos = pt->Position;

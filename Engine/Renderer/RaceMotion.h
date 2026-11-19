@@ -3,15 +3,15 @@
 // dondolio, braccia, testa, respiro e tic dell'idle, piu' le ossa in piu' (orecchie, mascella, pancia, spallacci)
 // con un po' di moto secondario a molla.
 //
-//   Umano (guardsman)  soldato addestrato: dritto, passo regolare, si guarda attorno con calma
-//   Ork                gorilla spavaldo: gobbo, spalle avanti, braccia larghe, rolla di lato e torce il busto a
+//   Umano (footman)  soldato addestrato: dritto, passo regolare, si guarda attorno con calma
+//   Vrepigh                gorilla spavaldo: gobbo, spalle avanti, braccia larghe, rolla di lato e torce il busto a
 //                      ogni passo; in carica abbassa la testa e urla; ringhia nell'idle
-//   Gretchin           furtivo e nervoso: accucciato, passi corti e rapidi, scatti della testa, si volta a
+//   Pighcib           furtivo e nervoso: accucciato, passi corti e rapidi, scatti della testa, si volta a
 //                      guardarsi le spalle, orecchie che sbattono, chiacchiera
-//   Astartes           semidio in armatura: eretto, petto in fuori, passo pesante e preciso con un affondo a ogni
+//   Vanguard           semidio in armatura: eretto, petto in fuori, passo pesante e preciso con un affondo a ogni
 //                      appoggio, immobile quando mira, scansiona lentamente
 //   Aspirante / scout  agile e attento: leggermente chino in avanti, passo rapido e leggero
-//   Ogryn              montagna lenta: braccia che non toccano i fianchi, gambe larghe, ondeggia pesante da un
+//   Ogre              montagna lenta: braccia che non toccano i fianchi, gambe larghe, ondeggia pesante da un
 //                      lato all'altro, bocca socchiusa, pancia che ballonzola, testa che si inclina
 //
 // Rotazioni nello spazio della mesh in posa (vedi ProceduralPose.h): Rx(+) piega avanti la colonna, Rx(-) alza
@@ -23,7 +23,7 @@
 
 namespace SunEngine {
 
-    enum class RaceMotionKind { Human = 0, Ork, Gretchin, Astartes, Neophyte, Ogryn };
+    enum class RaceMotionKind { Human = 0, Vrepigh, Pighcib, Vanguard, Candidate, Ogre };
 
     struct RaceMotionProfile {
         float hunch = 0.0f;          // piega in avanti della schiena (gradi, divisi sulle vertebre)
@@ -43,7 +43,7 @@ namespace SunEngine {
         float lookAmp = 20.0f;       // quanto gira la testa guardandosi attorno (gradi)
         float lookEvery = 3.0f;      // ogni quanto cambia sguardo (secondi)
         float lookSpeed = 3.0f;      // velocita' con cui la testa raggiunge lo sguardo
-        float headTilt = 0.0f;       // testa inclinata di lato (gradi): l'ogryn tonto
+        float headTilt = 0.0f;       // testa inclinata di lato (gradi): l'ogre tonto
         float aimSteady = 0.8f;      // quanto lo stile si spegne mirando (0 = niente, 1 = tutto)
         float chargeHunch = 0.0f;    // gobba in piu' correndo/caricando
         // ossa in piu'
@@ -59,29 +59,29 @@ namespace SunEngine {
             p.hunch = 2.0f; p.sway = 1.5f; p.swagger = 2.0f; p.bob = 0.012f; p.strideLen = 1.4f;
             p.breath = 1.2f; p.lookAmp = 22.0f; p.lookEvery = 3.5f; p.lookSpeed = 2.5f;
             break;
-        case RaceMotionKind::Ork:
+        case RaceMotionKind::Vrepigh:
             p.hunch = 18.0f; p.headUp = 22.0f; p.shoulderFwd = 9.0f; p.armOut = 11.0f; p.stance = 5.0f; p.knee = 9.0f;
             p.sway = 6.0f; p.swagger = 9.0f; p.bob = 0.018f; p.heavyStep = 0.5f; p.strideLen = 1.25f; p.rateMult = 0.95f;
             p.breath = 2.4f; p.breathRate = 0.32f; p.lookAmp = 35.0f; p.lookEvery = 2.2f; p.lookSpeed = 4.0f;
             p.aimSteady = 0.5f; p.chargeHunch = 12.0f; p.jaw = true; p.jawIdle = 3.0f; p.ears = true; p.tail = true;
             break;
-        case RaceMotionKind::Gretchin:
+        case RaceMotionKind::Pighcib:
             p.hunch = 20.0f; p.headUp = 16.0f; p.shoulderFwd = 12.0f; p.armOut = 3.0f; p.stance = 3.0f; p.knee = 17.0f;
             p.sway = 3.5f; p.swagger = 4.0f; p.bob = 0.024f; p.strideLen = 0.95f; p.rateMult = 1.3f;
             p.breath = 1.6f; p.breathRate = 0.6f; p.lookAmp = 55.0f; p.lookEvery = 0.7f; p.lookSpeed = 14.0f;
             p.aimSteady = 0.4f; p.chargeHunch = 8.0f; p.ears = true; p.jaw = true; p.jawIdle = 2.0f; p.jawChatter = 5.0f;
             break;
-        case RaceMotionKind::Astartes:
+        case RaceMotionKind::Vanguard:
             p.hunch = -5.0f; p.headUp = -3.0f; p.shoulderFwd = -7.0f; p.armOut = 10.0f; p.stance = 7.0f; p.knee = 5.0f;
             p.sway = 0.8f; p.swagger = 1.5f; p.bob = 0.014f; p.heavyStep = 1.0f; p.strideLen = 1.5f; p.rateMult = 0.88f;
             p.breath = 0.6f; p.breathRate = 0.18f; p.lookAmp = 28.0f; p.lookEvery = 4.5f; p.lookSpeed = 1.4f;
             p.aimSteady = 1.0f; p.chargeHunch = 6.0f; p.pauldrons = true;
             break;
-        case RaceMotionKind::Neophyte:
+        case RaceMotionKind::Candidate:
             p.hunch = 5.0f; p.headUp = 3.0f; p.knee = 4.0f; p.sway = 1.2f; p.swagger = 2.5f; p.bob = 0.011f;
             p.strideLen = 1.45f; p.rateMult = 1.06f; p.breath = 1.0f; p.lookAmp = 30.0f; p.lookEvery = 2.6f; p.lookSpeed = 4.0f;
             break;
-        case RaceMotionKind::Ogryn:
+        case RaceMotionKind::Ogre:
             p.hunch = 11.0f; p.headUp = 8.0f; p.shoulderFwd = 5.0f; p.armOut = 17.0f; p.stance = 10.0f; p.knee = 9.0f;
             p.sway = 8.0f; p.swagger = 3.0f; p.bob = 0.02f; p.heavyStep = 0.8f; p.strideLen = 1.15f; p.rateMult = 0.8f;
             p.breath = 2.8f; p.breathRate = 0.16f; p.lookAmp = 18.0f; p.lookEvery = 5.0f; p.lookSpeed = 0.9f; p.headTilt = 7.0f;
@@ -117,7 +117,7 @@ namespace SunEngine {
         float legLen = 0.0f;         // lunghezza della gamba (unita' del modello) per il molleggio
         float modelUnitsPerMeter = 100.0f;
         bool aiming = false, sprinting = false, crouching = false;
-        bool roar = false;           // urlo: carica, WAAAGH!, colpo pesante
+        bool roar = false;           // urlo: carica, HUNGRY!, colpo pesante
         float yaw = 0.0f;            // orientamento del corpo (gradi): la testa reagisce alle girate (molle)
         float velFwd = 0.0f, velSide = 0.0f;   // velocita' nel riferimento del corpo (m/s; lato + = destra)
         float aimPitch = 0.0f;       // dove mira in altezza (gradi, + = in alto): il busto accompagna l'arma
@@ -226,7 +226,7 @@ namespace SunEngine {
         s.lookTimer -= dt;
         if (s.lookTimer <= 0.0f) {
             s.lookTimer = p.lookEvery * (0.5f + s.Rand());
-            const bool glance = p.lookEvery < 1.0f && s.Rand() < 0.15f;   // gretchin: occhiata alle spalle
+            const bool glance = p.lookEvery < 1.0f && s.Rand() < 0.15f;   // pighcib: occhiata alle spalle
             s.lookTargetYaw = (s.Rand() * 2.0f - 1.0f) * p.lookAmp * (glance ? 2.2f : 1.0f);
             s.lookTargetPitch = (s.Rand() * 2.0f - 1.0f) * p.lookAmp * 0.25f;
         }

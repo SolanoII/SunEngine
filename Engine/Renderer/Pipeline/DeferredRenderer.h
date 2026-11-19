@@ -143,7 +143,7 @@ namespace SunEngine {
         void SetAutoExposureEnabled(bool e) { m_AutoExposureEnabled = e; }
         // Esposti per debug HUD
         GpuTexture* GetHDRResult() { return m_HDRTarget.GetColorTexture(0); }
-        // Parametri in piu' per corpi e parti scolpite (vedi MuscleTone.h, SquigModel.h)
+        // Parametri in piu' per corpi e parti scolpite (vedi MuscleTone.h, GrugnModel.h)
         struct SkinnedDrawExtra {
             int baked = 0;                       // 1: coordinate texture = curvatura/occlusione, canali dati negli slot liberi delle ossa
             glm::vec4 skinStyle{ 0.0f };         // pelle: x chiazze, y verruche, z definizione muscolare, w vene

@@ -50,8 +50,8 @@ namespace SunEngine {
         return true;
     }
 
-    // Zona colpita dal nome del blocco. Blocchi aggiuntivi (es. scheletro degli orchi): la mascella conta
-    // come testa (cosi' come orecchie e naso del gretchin), spalle e pugni come il braccio del loro lato, la
+    // Zona colpita dal nome del blocco. Blocchi aggiuntivi (es. scheletro dei vrepighs): la mascella conta
+    // come testa (cosi' come orecchie e naso del pighcib), spalle e pugni come il braccio del loro lato, la
     // gobba e la pancia (e ogni altro blocco) come torso.
     inline HitboxLocation LocationFromBlockName(const std::string& name) {
         if (name == "Head" || name == "Jaw" || name.rfind("Ear", 0) == 0 || name == "Nose") return HitboxLocation::Head;
@@ -83,8 +83,8 @@ namespace SunEngine {
 
     // Registra un colpo andato a segno: marcatore nell'HUD + flash del blocco colpito.
     // Solo per i colpi del giocatore (il feedback e' per chi spara o colpisce in mischia).
-    // Danni inflitti dal giocatore (anche col suo squig e i suoi esplosivi) dall'ultima lettura: GameLayer li
-    // usa per caricare il buff di fazione (WAAAGH!) e poi azzera
+    // Danni inflitti dal giocatore (anche col suo grugn e i suoi esplosivi) dall'ultima lettura: GameLayer li
+    // usa per caricare il buff di fazione (HUNGRY!) e poi azzera
     inline float& PlayerDamageDealtAccum() { static float v = 0.0f; return v; }
     // Bersagli colpiti dal giocatore locale (partita in rete: l'host distingue i suoi colpi da quelli dei bot per dare
     // il merito delle uccisioni). Lo svuota il gioco a ogni fotogramma.
@@ -105,15 +105,15 @@ namespace SunEngine {
         if (dealt > 0.0f && PlayerHitLog().size() < 512) PlayerHitLog().push_back(target);
 
         // Esperienza: danni a un nemico (una volta per nemico, lo controlla GameLayer) e colpo di grazia.
-        // Non contano manichini e squig (si potrebbero "coltivare").
+        // Non contano manichini e grugn (si potrebbero "coltivare").
         if (dealt > 0.0f && !SameTeam(reg, shooter, target) &&
-            !reg.all_of<TrainingDummyComponent>(target) && !reg.all_of<SquigComponent>(target)) {
+            !reg.all_of<TrainingDummyComponent>(target) && !reg.all_of<GrugnComponent>(target)) {
             // Quanto vale il nemico = quanti punti costa la sua unita' (25 XP a punto per il danno, 50 per l'uccisione):
-            // un gretchin da 3 punti rende poco, un ogryn o un capitano moltissimo. Orda = boy.
+            // un pighcib da 3 punti rende poco, un ogre o un capitano moltissimo. Orda = tusker.
             int cost = 10;
             std::string victimId;
             if (const auto* uid = reg.try_get<UnitBlueprintId>(target)) victimId = uid->id;
-            else if (reg.all_of<HordeAgentComponent>(target)) victimId = "orks_boy";
+            else if (reg.all_of<HordeAgentComponent>(target)) victimId = "vrepighs_tusker";
             if (!victimId.empty())
                 if (const auto* ubp = BlueprintManager::Get().GetUnit(victimId); ubp && ubp->point_cost > 0) cost = ubp->point_cost;
             EmitXp(shooter, XpCategory::Damage, XpValues::DamagePerPoint * cost, target);

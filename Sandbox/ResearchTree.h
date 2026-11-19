@@ -22,13 +22,13 @@ namespace SunEngine {
     //    quel tipo di unita'); i nodi radice sono gia' sbloccati.
     //  - Un nodo sbloccato si "acquista" con ENERGIA: crea un'unita' nuova nel garage (anche piu' volte).
     //  - Nodi OGGETTO ("item": id di un'arma o dotazione): si ricercano coi punti studio della prima unita'
-    //    risalendo l'albero (es. la chiave inglese sotto il Gretchin usa i punti studio del Gretchin) e poi si
+    //    risalendo l'albero (es. la chiave inglese sotto il Pighcib usa i punti studio del Pighcib) e poi si
     //    comprano nel garage, unita' per unita'. Gli oggetti senza nodo (dotazione base) sono sempre disponibili.
     //  - Maestria (stellina dorata): un'unita' e' "padroneggiata" quando tutti i suoi OGGETTI sono ricercati.
     //    Per ricercare il personaggio successivo serve la maestria del personaggio padre (tutte le fazioni).
     //    Un nodo puo' chiedere la maestria di altre unita' ("requires_mastered"), cosi' due rami si riuniscono
-    //    (es. Commissar Cadet: Kasrkin E Tempestus Specialist con la stellina).
-    //  - "parent_any": padri alternativi (es. Flash Gitz dopo i Kommandos OPPURE i Tankbustas): basta uno, sbloccato e
+    //    (es. Prefect Cadet: Chosen E Chosen Specialist con la stellina).
+    //  - "parent_any": padri alternativi (es. Sfondatasche dopo i Ombrazanne OPPURE i Spaccacorazze): basta uno, sbloccato e
     //    con la stellina; la ricerca si paga coi punti studio di quello che li ha (il primo disegnato e' "parent").
     //  - "renamed_from": vecchi id del nodo, per non perdere le ricerche dei salvataggi quando un nodo cambia id.
     // Solo dati e regole: la UI sta in GameLayer. Dati in GameData/Research/research_tree.json.

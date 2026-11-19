@@ -1,9 +1,9 @@
 #pragma once
 // Ossa in piu' per razza, aggiunte al modello al caricamento (dopo l'eventuale BodyFit, prima delle clip):
-//   gretchin: orecchie (sinistra/destra) e mascella  -> orecchie che sbattono, chiacchiericcio nervoso
-//   ork:      mascella                              -> ringhio, urlo in carica e durante la WAAAGH!
-//   ogryn:    mascella e pancia                     -> bocca socchiusa da tonto, pancia che ballonzola
-//   astartes: spallacci (sinistro/destro)           -> spallacci montati sul busto: non si deformano col braccio
+//   pighcib: orecchie (sinistra/destra) e mascella  -> orecchie che sbattono, chiacchiericcio nervoso
+//   vrepigh:      mascella                              -> ringhio, urlo in carica e durante la HUNGRY!
+//   ogre:    mascella e pancia                     -> bocca socchiusa da tonto, pancia che ballonzola
+//   vanguard: spallacci (sinistro/destro)           -> spallacci montati sul busto: non si deformano col braccio
 //
 // Ogni osso nuovo e' figlio di un osso esistente, ha un perno nello spazio della mesh e prende i vertici di una
 // zona del corpo (pesi sfumati ai bordi, tolti in proporzione alle ossa che li avevano). Le clip lo ereditano
@@ -50,7 +50,7 @@ namespace SunEngine {
     inline std::vector<ExtraBoneDef> RaceExtraBones(const std::string& race) {
         using ExtraBonesDetail::SmoothStep;
         std::vector<ExtraBoneDef> out;
-        if (race == "gretchin") {
+        if (race == "pighcib") {
             // Orecchie enormi ai lati della testa (|x| oltre 9, fra y 78 e 91)
             for (int side : { 1, -1 }) {
                 ExtraBoneDef d;
@@ -68,7 +68,7 @@ namespace SunEngine {
             jaw.weight = [](const glm::vec3& p) { return SmoothStep(76.0f, 73.5f, p.y) * SmoothStep(8.0f, 11.0f, p.z) * SmoothStep(8.0f, 6.0f, std::fabs(p.x)); };
             out.push_back(jaw);
         }
-        else if (race == "ork") {
+        else if (race == "vrepigh") {
             // Mascellone: la parte bassa e avanzata della testa (y < 141, z > 20), cerniera dietro la bocca
             ExtraBoneDef jaw;
             jaw.name = "Jaw"; jaw.parent = "Head"; jaw.region = { "Head" };
@@ -76,7 +76,7 @@ namespace SunEngine {
             jaw.weight = [](const glm::vec3& p) { return SmoothStep(142.5f, 138.5f, p.y) * SmoothStep(19.0f, 24.0f, p.z); };
             out.push_back(jaw);
         }
-        else if (race == "ogryn") {
+        else if (race == "ogre") {
             ExtraBoneDef jaw;
             jaw.name = "Jaw"; jaw.parent = "Head"; jaw.region = { "Head" };
             jaw.pivot = glm::vec3(0.0f, 256.0f, 8.0f);
@@ -89,7 +89,7 @@ namespace SunEngine {
             belly.weight = [](const glm::vec3& p) { return SmoothStep(16.0f, 30.0f, p.z) * SmoothStep(148.0f, 162.0f, p.y) * SmoothStep(212.0f, 196.0f, p.y); };
             out.push_back(belly);
         }
-        else if (race == "astartes") {
+        else if (race == "vanguard") {
             // Spallacci: la calotta della spalla (y > 182, 16 < |x| < 40) passa al busto
             for (int side : { 1, -1 }) {
                 ExtraBoneDef d;

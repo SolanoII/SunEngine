@@ -1,0 +1,54 @@
+{
+  "id": "konrad_auto_heavy_round_rifle",
+  "displayName": "Fucile Automatico dell'Ordine",
+  "faction": "Vanguard",
+  "slot_type": "primary",
+  "hand_type": "TwoHanded",
+  "weight_kg": 8.5,
+  "point_cost": 8,
+  "has_scope": false,
+  "scope_zoom_fov": 18.0,
+  "has_underbarrel": false,
+  "is_melee": false,
+  "magazine_size": 36,
+  "suppression_value": 7,
+  "suppression_slow": 0.1,
+  "reload_time_sec": 2.4,
+  "fire_modes": [
+    "auto"
+  ],
+  "rate_of_fire": 520.0,
+  "base_damage": 54.0,
+  "armor_penetration": 15,
+  "range_effective": 75.0,
+  "damage_falloff_start": 45.0,
+  "damage_falloff_end": 75.0,
+  "spread_base": 0.04,
+  "recoil_force": 0.6,
+  "heat_capacity": 450.0,
+  "projectile_type": "heavy_round",
+  "is_beam": false,
+  "primary_color": [
+    0.95,
+    0.93,
+    0.88,
+    1.0
+  ],
+  "projectile_width": 0.05,
+  "weapon_scale": [
+    0.15,
+    0.18,
+    0.85
+  ],
+  "hold_offset": [
+    0.4,
+    -0.1,
+    -0.25
+  ],
+  "spare_magazines": 5,
+  "comment": "Fucile automatico di Konrad von Eber, rifinito dai fabbri dell'Ordo Domus Humilitatis: piu' colpi, piu' precisione e piu' penetrazione del fucile del Difensore. 36 colpi e 180 di riserva.",
+  "allowed_units": [
+    "vanguard_konrad"
+  ],
+  "spread_auto_multiplier": 1.5
+}

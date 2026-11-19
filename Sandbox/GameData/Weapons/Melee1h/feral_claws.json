@@ -2,9 +2,9 @@
   "id": "feral_claws",
   "displayName": "Artigli",
   "comment": "Arma naturale del Feral Pig: zampe artigliate. Non si vede in mano (weapon_scale 0), non si puo' togliere ne' cambiare. Colpi rapidi, x2 danno alle spalle.",
-  "faction": "Orks",
+  "faction": "Vrepighs",
   "allowed_units": [
-    "orks_yoof"
+    "vrepighs_feral_pig"
   ],
   "is_melee": true,
   "hand_type": "OneHanded",

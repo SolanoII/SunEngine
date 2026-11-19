@@ -1,5 +1,5 @@
 #pragma once
-// Corpi delle altre razze (ork, ogryn, astartes, aspirante, gretchin) ricavati dal corpo umano base.
+// Corpi delle altre razze (vrepigh, ogre, vanguard, aspirante, pighcib) ricavati dal corpo umano base.
 //
 // I modelli delle altre razze hanno proporzioni e volumi giusti ma una superficie grossolana (piedi a blocco,
 // mani senza dita, muscoli a bolle). Il corpo umano (mixamo) ha invece anatomia, mani e piedi precisi.
@@ -351,7 +351,7 @@ namespace SunEngine {
                     }
                     else {
                         // Braccia e gambe: lo spessore della razza per osso (lisciato), altrimenti l'appoggio da solo
-                        // non riempirebbe un braccio d'ogryn partendo da uno umano. Il busto lo modella l'appoggio.
+                        // non riempirebbe un braccio d'ogre partendo da uno umano. Il busto lo modella l'appoggio.
                         const bool limb = rn.find("Arm") != std::string::npos || rn.find("Leg") != std::string::npos;
                         // coscia: limitata (le ossa della coscia della razza reggono anche un pezzo di pancia)
                         if (limb || opt.conform <= 0.0f) ratio *= rn.find("UpLeg") != std::string::npos ? std::min(2.0f, sample(ratios, rn, tn, ang, 1.0f)) : sample(ratios, rn, tn, ang, 1.0f);
@@ -383,7 +383,7 @@ namespace SunEngine {
         }
 
         // 2b) Appoggio sulla sagoma della razza: ogni vertice viene spinto verso il punto piu' vicino del vecchio
-        // corpo (gobba, pancia, trapezi dell'ork...). Lo spostamento viene lisciato sulla superficie, cosi' arriva la
+        // corpo (gobba, pancia, trapezi del vrepigh...). Lo spostamento viene lisciato sulla superficie, cosi' arriva la
         // forma della razza ma restano i dettagli umani (ombelico, muscoli, pieghe). Mani e piedi esclusi: quelli
         // della razza sono blocchi, restano quelli umani portati dalle ossa.
         const size_t humanCount = outVerts.size();
@@ -395,7 +395,7 @@ namespace SunEngine {
             for (const auto& m : raceMeshes) {
                 const auto& V = *m.vertices; const auto& I = *m.indices;
                 for (size_t t = 0; t + 2 < I.size(); t += 3) {
-                    // la testa della razza non fa da sagoma (la mascella dell'ork pende sul petto: tirerebbe su il torace)
+                    // la testa della razza non fa da sagoma (la mascella del vrepigh pende sul petto: tirerebbe su il torace)
                     triHead.push_back(std::max({ headWeight(V[I[t]], rName), headWeight(V[I[t + 1]], rName), headWeight(V[I[t + 2]], rName) }) >= opt.headWeight);
                     for (int k = 0; k < 3; ++k) { tri.push_back(V[I[t + k]].Position); mn = glm::min(mn, V[I[t + k]].Position); mx = glm::max(mx, V[I[t + k]].Position); }
                 }

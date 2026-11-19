@@ -1,9 +1,9 @@
 #pragma once
 // Lettura degli strati "garments" dai JSON di armature, unita' (base_skin) e dotazioni.
 // Esempio:
-//   "garments": [ { "id": "grot_rags_torso", "bones": ["Spine", "Spine1", "Spine2", "Hips"],
+//   "garments": [ { "id": "pighcib_rags_torso", "bones": ["Spine", "Spine1", "Spine2", "Hips"],
 //                   "height_range": [0.44, 0.73], "inflate": 0.010, "noise": 0.6,
-//                   "texture": "Textures/Garments/grot_rags.png", "tex_tiles": 4, "alpha_cut": 0.5 } ]
+//                   "texture": "Textures/Garments/pighcib_rags.png", "tex_tiles": 4, "alpha_cut": 0.5 } ]
 // Campi: bones, min_weight, height_range [min,max] (frazione dell'altezza in posa T), side (+1 sinistra, -1 destra),
 // max_abs_x, facing [x,y,z] + facing_min (es. solo il davanti), inflate, noise, noise_scale, plate_cells,
 // plate_step, texture, tex_tiles, color, roughness, metallic, alpha_cut, model (FBX skinnato opzionale),

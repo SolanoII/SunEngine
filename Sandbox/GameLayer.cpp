@@ -54,16 +54,16 @@ namespace SunEngine {
 
     // Cartella del modello d'autore per ogni corpo (GameData/Models/Characters/<cartella>/)
     static std::string AuthoredFolderOf(const std::string& label) {
-        if (label == "neofita") return "neophyte";
-        return label;   // guardsman, ork, ogryn, gretchin, astartes
+        if (label == "candidato") return "candidate";
+        return label;   // footman, vrepigh, ogre, pighcib, vanguard
     }
     // Altezza indicativa di ogni corpo (cm): serve solo a riconoscere le unita' del file dell'artista (m, cm, mm)
     static float DefaultBodyHeightCm(const std::string& label) {
-        if (label == "ork") return 195.0f;
-        if (label == "ogryn") return 275.0f;
-        if (label == "gretchin") return 90.0f;
-        if (label == "neofita" || label == "neophyte") return 195.0f;
-        if (label == "astartes") return 220.0f;
+        if (label == "vrepigh") return 195.0f;
+        if (label == "ogre") return 275.0f;
+        if (label == "pighcib") return 90.0f;
+        if (label == "candidato" || label == "candidate") return 195.0f;
+        if (label == "vanguard") return 220.0f;
         return 180.0f;
     }
 
@@ -75,7 +75,7 @@ namespace SunEngine {
 
     // FIX #3: observer on_destroy di HordeAgentComponent. Quando un'unita' nemica viene distrutta
     // (timeout cadavere, reload mappa, ritorno al garage...) distrugge anche l'arma "figlia"
-    // (orkWeaponEntity, entity separata Mesh+Color) che altrimenti restava a fluttuare per sempre.
+    // (vrepighWeaponEntity, entity separata Mesh+Color) che altrimenti restava a fluttuare per sempre.
     // Distrugge un'entity DIVERSA da quella in corso di rimozione, quindi e' sicuro dentro il segnale.
     static void OnHordeAgentDestroyed(entt::registry& reg, entt::entity enemy) {
         if (!reg.all_of<HordeAgentComponent>(enemy)) return;
@@ -114,32 +114,32 @@ namespace SunEngine {
         { 2560, 1440, "2560 x 1440 (2K QHD)" }
     };
 
-    static bool g_WaaaghActive = false;
-    static float g_WaaaghTimer = 0.0f;
-    static int g_WaaaghSpawnCount = 1;
+    static bool g_HungryActive = false;
+    static float g_HungryTimer = 0.0f;
+    static int g_HungrySpawnCount = 1;
 
-    struct OrkVoicePoolItem {
+    struct VrepighVoicePoolItem {
         std::string filename{};
         ma_sound sound{};
     };
 
     struct PendingShout {
-        entt::entity orkEntity = entt::null;
+        entt::entity vrepighEntity = entt::null;
         float delayTimer = 0.0f;
     };
 
-    struct OrkVoiceManager {
-        ma_sound startWaaaghSound;
+    struct VrepighVoiceManager {
+        ma_sound startHungrySound;
         bool startSoundLoaded = false;
 
-        std::vector<std::unique_ptr<OrkVoicePoolItem>> voicePool;
+        std::vector<std::unique_ptr<VrepighVoicePoolItem>> voicePool;
         std::vector<std::string> variationFiles;
 
         float nextShoutTimer = 3.0f;
         std::vector<PendingShout> pendingShouts;
-    } g_OrkVoices;
+    } g_VrepighVoices;
 
-    static std::mutex g_OrkVoiceMutex;
+    static std::mutex g_VrepighVoiceMutex;
     static float CalculateSpatialVolume(float distance) {
         if (distance <= 1.0f) return 1.0f;
         if (distance >= 101.0f) return 0.0f;
@@ -564,64 +564,64 @@ namespace SunEngine {
         }
     }
 
-    static void InitOrkAudio(ma_engine* engine, ma_sound_group* voiceGroup) {   // voiceGroup: volume "Voci" delle opzioni
+    static void InitVrepighAudio(ma_engine* engine, ma_sound_group* voiceGroup) {   // voiceGroup: volume "Voci" delle opzioni
         std::string audioDir = FindValidDir("Audio");
 
         if (audioDir.empty()) {
             audioDir = "GameData/Audio/";
         }
 
-        std::string startPath = audioDir + "i-say-waaagh.wav";
-        if (ma_sound_init_from_file(engine, startPath.c_str(), MA_SOUND_FLAG_DECODE, voiceGroup, NULL, &g_OrkVoices.startWaaaghSound) == MA_SUCCESS) {
-            g_OrkVoices.startSoundLoaded = true;
-            // FIX #7: "I say waaagh" e' un annuncio globale senza posizione. Ora che il listener segue il
+        std::string startPath = audioDir + "i-say-hungry.wav";
+        if (ma_sound_init_from_file(engine, startPath.c_str(), MA_SOUND_FLAG_DECODE, voiceGroup, NULL, &g_VrepighVoices.startHungrySound) == MA_SUCCESS) {
+            g_VrepighVoices.startSoundLoaded = true;
+            // FIX #7: "I say hungry" e' un annuncio globale senza posizione. Ora che il listener segue il
             // player, se restasse spazializzato (posizione di default = origine) verrebbe attenuato e
             // panneggiato in base alla distanza dall'origine della mappa.
-            ma_sound_set_spatialization_enabled(&g_OrkVoices.startWaaaghSound, MA_FALSE);
+            ma_sound_set_spatialization_enabled(&g_VrepighVoices.startHungrySound, MA_FALSE);
         }
 
-        g_OrkVoices.variationFiles = {
-            audioDir + "waaagh.wav",
-            audioDir + "waaagh(1).wav",
-            audioDir + "waaagh(3).wav"
+        g_VrepighVoices.variationFiles = {
+            audioDir + "hungry.wav",
+            audioDir + "hungry(1).wav",
+            audioDir + "hungry(3).wav"
         };
 
-        for (const auto& file : g_OrkVoices.variationFiles) {
+        for (const auto& file : g_VrepighVoices.variationFiles) {
             for (int i = 0; i < 3; ++i) {
-                auto item = std::make_unique<OrkVoicePoolItem>();
+                auto item = std::make_unique<VrepighVoicePoolItem>();
                 item->filename = file;
 
                 if (ma_sound_init_from_file(engine, file.c_str(), MA_SOUND_FLAG_DECODE, voiceGroup, NULL, &item->sound) == MA_SUCCESS) {
-                    g_OrkVoices.voicePool.push_back(std::move(item));
+                    g_VrepighVoices.voicePool.push_back(std::move(item));
                 }
             }
         }
     }
-    static void PlayStartWaaagh(float voiceVolume) {
-        if (g_OrkVoices.startSoundLoaded && voiceVolume > 0.001f) {
-            std::lock_guard<std::mutex> lock(g_OrkVoiceMutex);   // ← AGGIUNGI
-            ma_sound_seek_to_pcm_frame(&g_OrkVoices.startWaaaghSound, 0);
-            ma_sound_set_volume(&g_OrkVoices.startWaaaghSound, voiceVolume);
-            ma_sound_start(&g_OrkVoices.startWaaaghSound);
+    static void PlayStartHungry(float voiceVolume) {
+        if (g_VrepighVoices.startSoundLoaded && voiceVolume > 0.001f) {
+            std::lock_guard<std::mutex> lock(g_VrepighVoiceMutex);   // ← AGGIUNGI
+            ma_sound_seek_to_pcm_frame(&g_VrepighVoices.startHungrySound, 0);
+            ma_sound_set_volume(&g_VrepighVoices.startHungrySound, voiceVolume);
+            ma_sound_start(&g_VrepighVoices.startHungrySound);
         }
     }
 
-    static void PlayOrkVoiceAtPos(const glm::vec3& orkPos, const glm::vec3& playerPos, float voiceVolume, float pitchMin = 0.90f, float pitchMax = 1.10f) {
-        if (g_OrkVoices.voicePool.empty() || voiceVolume <= 0.001f) return;
+    static void PlayVrepighVoiceAtPos(const glm::vec3& vrepighPos, const glm::vec3& playerPos, float voiceVolume, float pitchMin = 0.90f, float pitchMax = 1.10f) {
+        if (g_VrepighVoices.voicePool.empty() || voiceVolume <= 0.001f) return;
 
-        float distToPlayer = glm::distance(orkPos, playerPos);
+        float distToPlayer = glm::distance(vrepighPos, playerPos);
         if (distToPlayer > 35.0f) return;
 
         float volume = CalculateSpatialVolume(distToPlayer) * voiceVolume;
         if (volume <= 0.005f) return;
 
-        std::lock_guard<std::mutex> lock(g_OrkVoiceMutex);   // ← AGGIUNGI
-        for (auto& item : g_OrkVoices.voicePool) {
+        std::lock_guard<std::mutex> lock(g_VrepighVoiceMutex);   // ← AGGIUNGI
+        for (auto& item : g_VrepighVoices.voicePool) {
             if (!ma_sound_is_playing(&item->sound)) {
                 float randomPitch = Random::Range(pitchMin, pitchMax);
                 ma_sound_set_volume(&item->sound, volume);
                 ma_sound_set_pitch(&item->sound, randomPitch);
-                ma_sound_set_position(&item->sound, orkPos.x, orkPos.y, orkPos.z);
+                ma_sound_set_position(&item->sound, vrepighPos.x, vrepighPos.y, vrepighPos.z);
                 // FIX #7: l'attenuazione per distanza e' gia' calcolata a mano (CalculateSpatialVolume):
                 // miniaudio fa SOLO il panning rispetto al listener, senza una seconda attenuazione 1/d.
                 ma_sound_set_attenuation_model(&item->sound, ma_attenuation_model_none);
@@ -632,21 +632,21 @@ namespace SunEngine {
         }
     }
 
-    static void TriggerOrkShoutAndProvoke(entt::entity speakerEntity, Scene& scene, const glm::vec3& playerPos, float voiceVolume) {
+    static void TriggerVrepighShoutAndProvoke(entt::entity speakerEntity, Scene& scene, const glm::vec3& playerPos, float voiceVolume) {
         if (!scene.GetRegistry().valid(speakerEntity)) return;
 
         const auto& speakerPos = scene.GetRegistry().get<TransformComponent>(speakerEntity).Position;
-        PlayOrkVoiceAtPos(speakerPos, playerPos, voiceVolume);
+        PlayVrepighVoiceAtPos(speakerPos, playerPos, voiceVolume);
 
-        auto orkView = scene.GetRegistry().view<TransformComponent, HealthComponent>(
+        auto vrepighView = scene.GetRegistry().view<TransformComponent, HealthComponent>(
             entt::exclude<PlayerTag, CorpseComponent>
         );
 
-        for (auto otherEntity : orkView) {
+        for (auto otherEntity : vrepighView) {
             if (otherEntity == speakerEntity) continue;
-            if (g_OrkVoices.pendingShouts.size() >= 6) break;
+            if (g_VrepighVoices.pendingShouts.size() >= 6) break;
 
-            const auto& otherPos = orkView.get<TransformComponent>(otherEntity).Position;
+            const auto& otherPos = vrepighView.get<TransformComponent>(otherEntity).Position;
             float distToSpeaker = glm::distance(speakerPos, otherPos);
             float perceivedVolume = CalculateSpatialVolume(distToSpeaker);
 
@@ -655,8 +655,8 @@ namespace SunEngine {
 
                 if (Random::Chance(provocationChance)) {
                     bool alreadyPending = false;
-                    for (const auto& pending : g_OrkVoices.pendingShouts) {
-                        if (pending.orkEntity == otherEntity) {
+                    for (const auto& pending : g_VrepighVoices.pendingShouts) {
+                        if (pending.vrepighEntity == otherEntity) {
                             alreadyPending = true;
                             break;
                         }
@@ -664,59 +664,59 @@ namespace SunEngine {
 
                     if (!alreadyPending) {
                         PendingShout shout{};
-                        shout.orkEntity = otherEntity;
+                        shout.vrepighEntity = otherEntity;
                         shout.delayTimer = Random::Range(0.2f, 0.8f);
-                        g_OrkVoices.pendingShouts.push_back(shout);
+                        g_VrepighVoices.pendingShouts.push_back(shout);
                     }
                 }
             }
         }
     }
 
-    static void UpdateOrkVoices(Scene& scene, entt::entity playerEntity, float deltaTime, float voiceVolume) {
-        std::vector<entt::entity> livingOrks;
-        auto orkView = scene.GetRegistry().view<TransformComponent, HealthComponent>(
+    static void UpdateVrepighVoices(Scene& scene, entt::entity playerEntity, float deltaTime, float voiceVolume) {
+        std::vector<entt::entity> livingVrepighs;
+        auto vrepighView = scene.GetRegistry().view<TransformComponent, HealthComponent>(
             entt::exclude<PlayerTag, CorpseComponent>
         );
         const auto& playerPos = scene.GetRegistry().get<TransformComponent>(playerEntity).Position;
 
-        for (auto entity : orkView) {
-            const auto& orkPos = orkView.get<TransformComponent>(entity).Position;
-            if (glm::distance(orkPos, playerPos) <= 35.0f) {
-                livingOrks.push_back(entity);
+        for (auto entity : vrepighView) {
+            const auto& vrepighPos = vrepighView.get<TransformComponent>(entity).Position;
+            if (glm::distance(vrepighPos, playerPos) <= 35.0f) {
+                livingVrepighs.push_back(entity);
             }
         }
 
-        if (livingOrks.empty()) {
-            g_OrkVoices.pendingShouts.clear();
+        if (livingVrepighs.empty()) {
+            g_VrepighVoices.pendingShouts.clear();
             return;
         }
 
         std::vector<entt::entity> readyToShout;
-        for (auto it = g_OrkVoices.pendingShouts.begin(); it != g_OrkVoices.pendingShouts.end();) {
+        for (auto it = g_VrepighVoices.pendingShouts.begin(); it != g_VrepighVoices.pendingShouts.end();) {
             it->delayTimer -= deltaTime;
             if (it->delayTimer <= 0.0f) {
-                if (scene.GetRegistry().valid(it->orkEntity)) {
-                    readyToShout.push_back(it->orkEntity);
+                if (scene.GetRegistry().valid(it->vrepighEntity)) {
+                    readyToShout.push_back(it->vrepighEntity);
                 }
-                it = g_OrkVoices.pendingShouts.erase(it);
+                it = g_VrepighVoices.pendingShouts.erase(it);
             }
             else {
                 ++it;
             }
         }
 
-        for (auto shoutingOrk : readyToShout) {
-            TriggerOrkShoutAndProvoke(shoutingOrk, scene, playerPos, voiceVolume);
+        for (auto shoutingVrepigh : readyToShout) {
+            TriggerVrepighShoutAndProvoke(shoutingVrepigh, scene, playerPos, voiceVolume);
         }
 
-        g_OrkVoices.nextShoutTimer -= deltaTime;
-        if (g_OrkVoices.nextShoutTimer <= 0.0f) {
-            entt::entity leaderOrk = livingOrks[Random::RangeInt(0, static_cast<int>(livingOrks.size()) - 1)];
-            TriggerOrkShoutAndProvoke(leaderOrk, scene, playerPos, voiceVolume);
+        g_VrepighVoices.nextShoutTimer -= deltaTime;
+        if (g_VrepighVoices.nextShoutTimer <= 0.0f) {
+            entt::entity leaderVrepigh = livingVrepighs[Random::RangeInt(0, static_cast<int>(livingVrepighs.size()) - 1)];
+            TriggerVrepighShoutAndProvoke(leaderVrepigh, scene, playerPos, voiceVolume);
 
             float baseCooldown = Random::Range(4.0f, 7.0f);
-            g_OrkVoices.nextShoutTimer = std::max(1.5f, baseCooldown / std::sqrt(static_cast<float>(livingOrks.size())));
+            g_VrepighVoices.nextShoutTimer = std::max(1.5f, baseCooldown / std::sqrt(static_cast<float>(livingVrepighs.size())));
         }
     }
 
@@ -725,7 +725,7 @@ namespace SunEngine {
     static const glm::vec3 kVrepighSkin[6] = { { 0.36f, 0.34f, 0.35f }, { 0.31f, 0.28f, 0.32f }, { 0.27f, 0.22f, 0.29f },
                                                { 0.22f, 0.17f, 0.25f }, { 0.17f, 0.12f, 0.20f }, { 0.12f, 0.08f, 0.15f } };
     static const glm::vec3 kPighcibSkin{ 0.40f, 0.37f, 0.39f };
-    // Profili salvati con le vecchie tinte verdi degli orki: si passa alla tinta nuova piu' vicina per tono
+    // Profili salvati con le vecchie tinte verdi dei vrepighs: si passa alla tinta nuova piu' vicina per tono
     static glm::vec4 MigrateGreenSkin(const glm::vec4& c, bool pighcib) {
         if (!(c.g > c.r + 0.04f && c.g > c.b + 0.04f)) return c;   // non e' una delle tinte verdi di prima
         if (pighcib) return glm::vec4(kPighcibSkin, c.a);
@@ -734,7 +734,7 @@ namespace SunEngine {
         return glm::vec4(kVrepighSkin[idx], c.a);
     }
 
-    static entt::entity SpawnOrkBoy(Scene& scene, const glm::vec3& spawnPos) {
+    static entt::entity SpawnVrepighTusker(Scene& scene, const glm::vec3& spawnPos) {
         auto enemyEntity = scene.CreateEntity();
         auto& enemyTransform = scene.GetRegistry().emplace<TransformComponent>(enemyEntity);
 
@@ -765,46 +765,46 @@ namespace SunEngine {
         footstep.stepInterval = 0.50f;
 
         auto& inv = scene.GetRegistry().emplace<InventoryComponent>(enemyEntity);
-        inv.meleeWeaponId = "ork_choppa_1h";
+        inv.meleeWeaponId = "vrepigh_cleaver_1h";
         inv.currentSlot = 2;
 
-        scene.GetRegistry().emplace<WeaponBlueprintId>(enemyEntity, "ork_choppa_1h");
+        scene.GetRegistry().emplace<WeaponBlueprintId>(enemyEntity, "vrepigh_cleaver_1h");
         scene.GetRegistry().emplace<MeleeStateComponent>(enemyEntity);
 
-        auto orkWeaponEntity = scene.CreateEntity();
-        scene.GetRegistry().emplace<TransformComponent>(orkWeaponEntity);
-        scene.GetRegistry().emplace<MeshComponent>(orkWeaponEntity, 0u);
-        auto& wColor = scene.GetRegistry().emplace<ColorComponent>(orkWeaponEntity);
+        auto vrepighWeaponEntity = scene.CreateEntity();
+        scene.GetRegistry().emplace<TransformComponent>(vrepighWeaponEntity);
+        scene.GetRegistry().emplace<MeshComponent>(vrepighWeaponEntity, 0u);
+        auto& wColor = scene.GetRegistry().emplace<ColorComponent>(vrepighWeaponEntity);
         wColor.Color = glm::vec4(0.45f, 0.47f, 0.50f, 1.0f);
         wColor.BaseColor = wColor.Color;
 
         auto& hordeComp = scene.GetRegistry().emplace<HordeAgentComponent>(enemyEntity);
         hordeComp.state = HordeState::Waiting;
-        hordeComp.weaponEntity = orkWeaponEntity;
+        hordeComp.weaponEntity = vrepighWeaponEntity;
 
         std::string skeletonsDir = FindValidDir("Skeletons");
-        auto orkSkeleton = SkeletonLoader::LoadFromFile(skeletonsDir + "orks_boy.json");
-        if (orkSkeleton) {
+        auto vrepighSkeleton = SkeletonLoader::LoadFromFile(skeletonsDir + "vrepighs_tusker.json");
+        if (vrepighSkeleton) {
             auto& skelComp = scene.GetRegistry().emplace_or_replace<SkeletonComponent>(enemyEntity);
-            skelComp.data = *orkSkeleton;
+            skelComp.data = *vrepighSkeleton;
             skelComp.scale = 1.0f;
             skelComp.blockFlashTimers.assign(skelComp.data.blocks.size(), 0.0f);
         }
         return enemyEntity;
     }
 
-    // Scheletro a cubi (hitbox) di un'unita': quello indicato nel blueprint ("skeleton", es. lo yoof usa
-    // orks_boy) con la sua scala, altrimenti Skeletons/<id>.json. Se il file non esiste si usa quello del
-    // guardsman, cosi' l'unita' non si tiene lo scheletro della precedente.
+    // Scheletro a cubi (hitbox) di un'unita': quello indicato nel blueprint ("skeleton", es. il feral_pig usa
+    // vrepighs_tusker) con la sua scala, altrimenti Skeletons/<id>.json. Se il file non esiste si usa quello del
+    // footman, cosi' l'unita' non si tiene lo scheletro della precedente.
     static std::optional<SkeletonData> LoadUnitSkeleton(const std::string& unitId, float& outScale) {
         const auto* bp = BlueprintManager::Get().GetUnit(unitId);
         const std::string skeletonsDir = FindValidDir("Skeletons");
         const std::string skelId = (bp && !bp->skeleton_id.empty()) ? bp->skeleton_id : unitId;
         outScale = (bp && bp->skeleton_scale > 0.05f) ? bp->skeleton_scale : 1.0f;
         if (auto data = SkeletonLoader::LoadFromFile(skeletonsDir + skelId + ".json")) return data;
-        SUN_CORE_WARN("Scheletro '{0}' per l'unita' '{1}' non trovato: uso quello del guardsman", skelId, unitId);
+        SUN_CORE_WARN("Scheletro '{0}' per l'unita' '{1}' non trovato: uso quello del Fante del Regno", skelId, unitId);
         outScale = 1.0f;
-        return SkeletonLoader::LoadFromFile(skeletonsDir + "imperium_guardsman_recruit.json");
+        return SkeletonLoader::LoadFromFile(skeletonsDir + "kingship_footman.json");
     }
 
     static void SwapPlayerUnit(Scene& scene, entt::entity playerEntity, const std::string& newUnitId) {
@@ -821,7 +821,7 @@ namespace SunEngine {
         stats.staminaRegen = bp->stamina_regen;
         stats.maxHealth = bp->health;
         stats.currentHealth = bp->health;
-        // La salute vera e' l'HealthComponent: prima restava 100 per qualsiasi unita' (un ogryn aveva 100 PV)
+        // La salute vera e' l'HealthComponent: prima restava 100 per qualsiasi unita' (un ogre aveva 100 PV)
         auto& unitHealth = scene.GetRegistry().get_or_emplace<HealthComponent>(playerEntity);
         unitHealth.maxHealth = bp->health;
         unitHealth.currentHealth = bp->health;
@@ -895,12 +895,10 @@ namespace SunEngine {
         }
 
         glm::vec4 unitColor(0.8f, 0.8f, 0.8f, 1.0f);
-        if (newUnitId == "imperium_guardsman_recruit") unitColor = glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
-        else if (newUnitId == "imperium_kasrkin") unitColor = glm::vec4(0.35f, 0.25f, 0.18f, 1.0f);
-        else if (newUnitId == "spacemarines_neophyte") unitColor = glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
-        else if (newUnitId == "spacemarines_battle_brother") unitColor = glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
-        else if (newUnitId == "orks_boy") unitColor = glm::vec4(kVrepighSkin[2], 1.0f);
-        else if (newUnitId == "orks_nob") unitColor = glm::vec4(kVrepighSkin[4], 1.0f);
+        if (newUnitId == "kingship_footman") unitColor = glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
+        else if (newUnitId == "vanguard_candidate") unitColor = glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
+        else if (newUnitId == "vanguard_defender") unitColor = glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
+        else if (newUnitId == "vrepighs_tusker") unitColor = glm::vec4(kVrepighSkin[2], 1.0f);
 
         auto& colorComp = scene.GetRegistry().emplace_or_replace<ColorComponent>(playerEntity);
         colorComp.Color = unitColor;
@@ -956,7 +954,7 @@ namespace SunEngine {
             inv.tool2Id = unit.equipmentSlots[1];
             inv.tool3Id = unit.equipmentSlots[2];
 
-            // Slot vuoto (es. il gretchin non ha primaria): si passa al primo slot non vuoto
+            // Slot vuoto (es. il pighcib non ha primaria): si passa al primo slot non vuoto
             if (!inv.IsSlotSelectable(inv.currentSlot)) inv.currentSlot = inv.FirstUsableSlot();
             std::string activeId = inv.GetActiveWeaponId();
             if (inv.GetEquipStance() == EquipStance::HybridRangedMelee) activeId = inv.secondaryWeaponId;
@@ -981,7 +979,7 @@ namespace SunEngine {
     }
 
     // Skin dell'armatura sul campo: colora i blocchi coperti dalle vesti e aggiunge i pezzi (es. elmetto).
-    // Gretchin: nudo, vestito, nudo con elmetto o vestito con elmetto, a seconda di cosa indossa.
+    // Pighcib: nudo, vestito, nudo con elmetto o vestito con elmetto, a seconda di cosa indossa.
     void GameLayer::ApplyArmorSkin(entt::entity e, const TrainedUnit& unit) {
         auto& reg = m_Scene.GetRegistry();
         if (!reg.valid(e)) return;
@@ -1011,7 +1009,7 @@ namespace SunEngine {
             skin.parts.push_back(p);
             any = true;
         };
-        // Vestiti dell'unita' (es. calzoni degli orki), sotto l'armatura
+        // Vestiti dell'unita' (es. calzoni dei vrepighs), sotto l'armatura
         if (const auto* ubp = BlueprintManager::Get().GetUnit(unit.blueprintId)) {
             for (const auto& [blockName, col] : ubp->baseSkinBlockColors) {
                 const int b = findBlock(blockName);
@@ -1037,32 +1035,32 @@ namespace SunEngine {
         else if (reg.all_of<SkinComponent>(e)) reg.remove<SkinComponent>(e);
     }
 
-    // Squig col modello skinnato: le ossa seguono i blocchi dello scheletro (o il ragdoll quando muore)
-    void GameLayer::UpdateSquigVisuals() {
+    // Grugn col modello skinnato: le ossa seguono i blocchi dello scheletro (o il ragdoll quando muore)
+    void GameLayer::UpdateGrugnVisuals() {
         auto& reg = m_Scene.GetRegistry();
-        if (!m_SquigSkeleton || !m_SquigModel.Build(*m_SquigSkeleton)) return;
+        if (!m_GrugnSkeleton || !m_GrugnModel.Build(*m_GrugnSkeleton)) return;
         std::vector<entt::entity> fresh;
-        for (auto e : reg.view<SquigComponent, SkeletonComponent, TransformComponent>()) if (!reg.all_of<SquigVisualTag>(e)) fresh.push_back(e);
+        for (auto e : reg.view<GrugnComponent, SkeletonComponent, TransformComponent>()) if (!reg.all_of<GrugnVisualTag>(e)) fresh.push_back(e);
         for (auto e : fresh) {
-            reg.emplace<SquigVisualTag>(e);
+            reg.emplace<GrugnVisualTag>(e);
             auto& sk = reg.emplace_or_replace<SkinnedModelInstanceComponent>(e);
-            sk.sourceModel = m_SquigModel.Model();
-            sk.extraParts = m_SquigModel.Parts();
+            sk.sourceModel = m_GrugnModel.Model();
+            sk.extraParts = m_GrugnModel.Parts();
             sk.skinStyle = glm::vec4(0.6f, 0.9f, 0.5f, 0.2f);
             sk.roughness = 0.55f;
-            m_SquigBones[e] = std::make_unique<std::vector<glm::mat4>>(8, glm::mat4(1.0f));
-            sk.boneMatrices = m_SquigBones[e].get();
+            m_GrugnBones[e] = std::make_unique<std::vector<glm::mat4>>(8, glm::mat4(1.0f));
+            sk.boneMatrices = m_GrugnBones[e].get();
         }
-        for (auto it = m_SquigBones.begin(); it != m_SquigBones.end();) {
+        for (auto it = m_GrugnBones.begin(); it != m_GrugnBones.end();) {
             const entt::entity e = it->first;
-            if (!reg.valid(e) || !reg.all_of<SquigVisualTag, SkinnedModelInstanceComponent, TransformComponent>(e)) { it = m_SquigBones.erase(it); continue; }
+            if (!reg.valid(e) || !reg.all_of<GrugnVisualTag, SkinnedModelInstanceComponent, TransformComponent>(e)) { it = m_GrugnBones.erase(it); continue; }
             auto& sk = reg.get<SkinnedModelInstanceComponent>(e);
             const auto& t = reg.get<TransformComponent>(e);
             const glm::mat4 em = t.GetTransform();
             if (const auto* rd = reg.try_get<RagdollComponent>(e); rd && !rd->worldTransforms.empty())
-                m_SquigModel.ComputeBones(rd->worldTransforms, em, *it->second);
+                m_GrugnModel.ComputeBones(rd->worldTransforms, em, *it->second);
             else if (const auto* sc = reg.try_get<SkeletonComponent>(e))
-                m_SquigModel.ComputeBones(sc->data.ComputeWorldTransforms(t.Position, t.Rotation, sc->scale), em, *it->second);
+                m_GrugnModel.ComputeBones(sc->data.ComputeWorldTransforms(t.Position, t.Rotation, sc->scale), em, *it->second);
             sk.boneMatrices = it->second.get();
             if (const auto* c = reg.try_get<ColorComponent>(e)) sk.albedo = c->Color;
             ++it;
@@ -1071,12 +1069,12 @@ namespace SunEngine {
 
     const char* GameLayer::BodyLabelOf(int kind) {
         switch (static_cast<AnimatedBodyKind>(kind)) {
-        case AnimatedBodyKind::Ork: return "ork";
-        case AnimatedBodyKind::Ogryn: return "ogryn";
-        case AnimatedBodyKind::Neophyte: return "neofita";
-        case AnimatedBodyKind::Astartes: return "astartes";
-        case AnimatedBodyKind::Gretchin: return "gretchin";
-        default: return "guardsman";
+        case AnimatedBodyKind::Vrepigh: return "vrepigh";
+        case AnimatedBodyKind::Ogre: return "ogre";
+        case AnimatedBodyKind::Candidate: return "candidato";
+        case AnimatedBodyKind::Vanguard: return "vanguard";
+        case AnimatedBodyKind::Pighcib: return "pighcib";
+        default: return "footman";
         }
     }
 
@@ -1196,8 +1194,8 @@ namespace SunEngine {
         for (auto entity : dead) {
             if (!reg.valid(entity)) continue;
 
-            // Squig ucciso: ragdoll a cubi, non conta come uccisione e per il padrone e' perso fino a fine partita
-            if (const auto* sq = reg.try_get<SquigComponent>(entity)) {
+            // Grugn ucciso: ragdoll a cubi, non conta come uccisione e per il padrone e' perso fino a fine partita
+            if (const auto* sq = reg.try_get<GrugnComponent>(entity)) {
                 if (reg.valid(sq->owner)) {
                     if (auto* ammo = reg.try_get<AmmoComponent>(sq->owner)) {
                         if (sq->ownerSlot >= 4 && sq->ownerSlot <= 6) ammo->equipmentUses[sq->ownerSlot - 4] = 0;
@@ -1205,18 +1203,18 @@ namespace SunEngine {
                         ammo->feedbackTimer = 2.5f;
                     }
                 }
-                reg.remove<SquigComponent>(entity);
+                reg.remove<GrugnComponent>(entity);
                 if (reg.all_of<EvasionComponent>(entity)) reg.remove<EvasionComponent>(entity);
                 m_PhysicsSystem.KillUnit(m_Scene, entity, glm::vec3(0.0f, 2.0f, 0.0f));
                 if (!reg.all_of<CorpseComponent>(entity)) m_Scene.DestroyEntity(entity);
-                SUN_CORE_INFO("Squig ucciso");
+                SUN_CORE_INFO("Grugn ucciso");
                 continue;
             }
 
             SUN_CORE_WARN("Unita' eliminata! Attivazione Ragdoll Jolt Physics...");
 
-            // FIX #3: l'arma dell'ork sparisce alla morte (il ragdoll non la regge in mano).
-            // L'observer on_destroy copre comunque i casi in cui l'ork sparisce senza passare di qui.
+            // FIX #3: l'arma del vrepigh sparisce alla morte (il ragdoll non la regge in mano).
+            // L'observer on_destroy copre comunque i casi in cui il vrepigh sparisce senza passare di qui.
             if (auto* horde = reg.try_get<HordeAgentComponent>(entity)) {
                 if (horde->weaponEntity != entt::null && reg.valid(horde->weaponEntity)) {
                     reg.destroy(horde->weaponEntity);
@@ -1266,14 +1264,14 @@ namespace SunEngine {
 
     // Ondate dell'orda (Difesa del Settore): ogni 10 s un gruppo che raddoppia, attorno al giocatore. In una partita in
     // rete le genera solo chi simula i nemici (l'host); gli altri ricevono le copie.
-    void GameLayer::UpdateWaaaghWaves(float deltaTime, const glm::vec3& center) {
-        if (!g_WaaaghActive || !NetIsAuthority()) return;
-        g_WaaaghTimer += deltaTime;
-        if (g_WaaaghTimer < 10.0f) return;
-        g_WaaaghTimer = 0.0f;
+    void GameLayer::UpdateHungryWaves(float deltaTime, const glm::vec3& center) {
+        if (!g_HungryActive || !NetIsAuthority()) return;
+        g_HungryTimer += deltaTime;
+        if (g_HungryTimer < 10.0f) return;
+        g_HungryTimer = 0.0f;
 
         auto livingEnemyView = m_Scene.GetRegistry().view<HealthComponent>(
-            entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent, SquigComponent, NetRemotePlayerComponent>
+            entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent, GrugnComponent, NetRemotePlayerComponent>
         );
         size_t activeEnemyCount = static_cast<size_t>(std::distance(livingEnemyView.begin(), livingEnemyView.end()));
         constexpr size_t MAX_ACTIVE_ENEMIES = 60;
@@ -1281,22 +1279,22 @@ namespace SunEngine {
         if (activeEnemyCount < MAX_ACTIVE_ENEMIES) {
             const float minSpawnDistance = 20.0f;
             const float maxSpawnDistance = 60.0f;
-            int spawnAmount = std::min(g_WaaaghSpawnCount, static_cast<int>(MAX_ACTIVE_ENEMIES - activeEnemyCount));
+            int spawnAmount = std::min(g_HungrySpawnCount, static_cast<int>(MAX_ACTIVE_ENEMIES - activeEnemyCount));
             for (int i = 0; i < spawnAmount; ++i) {
                 float angle = Random::Range(0.0f, 6.28318530718f);
                 float distance = Random::Range(minSpawnDistance, maxSpawnDistance);
                 glm::vec3 spawnPos = center + glm::vec3(std::cos(angle) * distance, 0.0f, std::sin(angle) * distance);
-                SpawnOrkBoy(m_Scene, spawnPos);
+                SpawnVrepighTusker(m_Scene, spawnPos);
             }
         }
-        g_WaaaghSpawnCount = std::min(g_WaaaghSpawnCount * 2, 12);
+        g_HungrySpawnCount = std::min(g_HungrySpawnCount * 2, 12);
     }
 
-    // Partita in rete: le copie degli orchi simulati dall'host (stessa unita' dell'ondata)
-    entt::entity GameLayer::SpawnNetOrk(const glm::vec3& pos) { return SpawnOrkBoy(m_Scene, pos); }
+    // Partita in rete: le copie dei vrepighs simulati dall'host (stessa unita' dell'ondata)
+    entt::entity GameLayer::SpawnNetVrepigh(const glm::vec3& pos) { return SpawnVrepighTusker(m_Scene, pos); }
 
-    void GameLayer::GetWaveState(bool& active, float& timer, int& count) const { active = g_WaaaghActive; timer = g_WaaaghTimer; count = g_WaaaghSpawnCount; }
-    void GameLayer::SetWaveState(bool active, float timer, int count) { g_WaaaghActive = active; g_WaaaghTimer = timer; g_WaaaghSpawnCount = std::clamp(count, 1, 12); }
+    void GameLayer::GetWaveState(bool& active, float& timer, int& count) const { active = g_HungryActive; timer = g_HungryTimer; count = g_HungrySpawnCount; }
+    void GameLayer::SetWaveState(bool active, float timer, int count) { g_HungryActive = active; g_HungryTimer = timer; g_HungrySpawnCount = std::clamp(count, 1, 12); }
 
     // FIX #4: pulisce lo stato "morto" del player (ragdoll Jolt + CorpseComponent).
     // Prima lo faceva solo il pulsante SCHIERA del respawn: tornando al garage a squadra distrutta
@@ -1338,10 +1336,10 @@ namespace SunEngine {
             m_PhysicsSystem.DestroyJoltBody(m_Scene, e);
             m_Scene.DestroyEntity(e);
         }
-        if (leaving) {   // all'ingresso no: la partita che parte li ha appena impostati (ondata WAAAGH! della sopravvivenza)
-            g_WaaaghActive = false;
-            g_WaaaghTimer = 0.0f;
-            g_WaaaghSpawnCount = 1;
+        if (leaving) {   // all'ingresso no: la partita che parte li ha appena impostati (ondata HUNGRY! della sopravvivenza)
+            g_HungryActive = false;
+            g_HungryTimer = 0.0f;
+            g_HungrySpawnCount = 1;
             ResetFactionBuff();
         }
         m_IsPaused = false;
@@ -1370,7 +1368,7 @@ namespace SunEngine {
     GameLayer::GameLayer() : Layer("Game Layer")
     {
         m_PhysicsSystem.Init(m_Scene);
-        // FIX #3: pulizia automatica dell'arma nemica alla distruzione dell'ork
+        // FIX #3: pulizia automatica dell'arma nemica alla distruzione del vrepigh
         m_Scene.GetRegistry().on_destroy<HordeAgentComponent>().connect<&OnHordeAgentDestroyed>();
         m_Scene.GetRegistry().on_destroy<BotBrainComponent>().connect<&OnBotDestroyed>();
         {
@@ -1391,15 +1389,15 @@ namespace SunEngine {
             m_Garments.SetRoot(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/");
             // Dettaglio fotografico di mappe, vesti, armature e armi (texture generate in Textures/Surfaces)
             m_DeferredRenderer.LoadSurfaceDetail(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/Textures/Surfaces/");
-            std::string fbxPath = modelsDir + "Characters/guardsman_master.fbx";
+            std::string fbxPath = modelsDir + "Characters/footman_master.fbx";
             // Il modello skinnato serve al personaggio animato (UpdateAnimatedPlayer). Rimossi i modelli di
             // prova: la copia statica in T-pose, il dummy animato accanto al giocatore e l'entity all'origine.
             m_SkinnedShader.Init();
-            // Modello d'autore in Characters/guardsman/ (vedi AuthoredModel.h e la guida per gli artisti): sostituisce il
+            // Modello d'autore in Characters/footman/ (vedi AuthoredModel.h e la guida per gli artisti): sostituisce il
             // corpo umano procedurale. Le altre razze allora non si adattano dal corpo umano (BodyFit).
             AuthoredCharacterInfo humanAsset;
-            if (FindAuthoredCharacter(modelsDir + "Characters/guardsman", humanAsset) &&
-                LoadAuthoredCharacter(humanAsset, m_SkinnedTestModel, DefaultBodyHeightCm("guardsman"))) {
+            if (FindAuthoredCharacter(modelsDir + "Characters/footman", humanAsset) &&
+                LoadAuthoredCharacter(humanAsset, m_SkinnedTestModel, DefaultBodyHeightCm("footman"))) {
                 m_SkinnedModelLoaded = true;
                 fbxPath = humanAsset.modelPath;
             }
@@ -1416,15 +1414,15 @@ namespace SunEngine {
                 }
             }
 
-            // Corpi animati delle altre unita' (stesso rig del guardsman)
-            LoadAnimatedBody(Body(AnimatedBodyKind::Ork), modelsDir, "ork_master.fbx", "Orks", "ork");
-            LoadAnimatedBody(Body(AnimatedBodyKind::Ogryn), modelsDir, "ogryn_master.fbx", "Ogryn", "ogryn");
-            LoadAnimatedBody(Body(AnimatedBodyKind::Neophyte), modelsDir, "neophyte_master.fbx", "Neophyte", "neofita");
-            LoadAnimatedBody(Body(AnimatedBodyKind::Astartes), modelsDir, "astartes_master.fbx", "Astartes", "astartes");
-            LoadAnimatedBody(Body(AnimatedBodyKind::Gretchin), modelsDir, "gretchin_master.fbx", "Gretchin", "gretchin");
+            // Corpi animati delle altre unita' (stesso rig del footman)
+            LoadAnimatedBody(Body(AnimatedBodyKind::Vrepigh), modelsDir, "vrepigh_master.fbx", "Vrepighs", "vrepigh");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Ogre), modelsDir, "ogre_master.fbx", "Ogre", "ogre");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Candidate), modelsDir, "candidate_master.fbx", "Candidate", "candidato");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Vanguard), modelsDir, "vanguard_master.fbx", "Vanguard", "vanguard");
+            LoadAnimatedBody(Body(AnimatedBodyKind::Pighcib), modelsDir, "pighcib_master.fbx", "Pighcib", "pighcib");
             // Il corpo umano base serve da sorgente al BodyFit delle altre razze: muscoli solo dopo
             if (m_SkinnedModelLoaded && !m_SkinnedTestModel.authored) {
-                ApplyMuscleTone(m_SkinnedTestModel, RaceMuscleTone("guardsman"));
+                ApplyMuscleTone(m_SkinnedTestModel, RaceMuscleTone("footman"));
             }
         }
 
@@ -1463,16 +1461,16 @@ namespace SunEngine {
         m_Scene.GetRegistry().emplace<RigidBodyComponent>(m_PlayerEntity, glm::vec3(0.0f), 0.0f, false);
 
         m_Scene.GetRegistry().emplace<HealthComponent>(m_PlayerEntity, 100.0f, 100.0f);
-        m_Scene.GetRegistry().emplace<UnitBlueprintId>(m_PlayerEntity, "imperium_guardsman_recruit");
+        m_Scene.GetRegistry().emplace<UnitBlueprintId>(m_PlayerEntity, "kingship_footman");
         m_Scene.GetRegistry().emplace<UnitStatsComponent>(m_PlayerEntity);
         m_Scene.GetRegistry().emplace<MeleeStateComponent>(m_PlayerEntity);
         m_Scene.GetRegistry().emplace<CameraRecoilComponent>(m_PlayerEntity);
 
-        SwapPlayerUnit(m_Scene, m_PlayerEntity, "imperium_guardsman_recruit");
+        SwapPlayerUnit(m_Scene, m_PlayerEntity, "kingship_footman");
 
         auto& inv = m_Scene.GetRegistry().emplace<InventoryComponent>(m_PlayerEntity);
-        inv.primaryWeaponId = "lasgun_standard";
-        inv.secondaryWeaponId = "laspistol_standard";
+        inv.primaryWeaponId = "auto_rifle_mg";
+        inv.secondaryWeaponId = "impulse_pistol_standard";
         inv.meleeWeaponId = "combat_knife_1h";
         inv.currentSlot = 0;
 
@@ -1508,7 +1506,7 @@ namespace SunEngine {
             if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_VoiceGroup) == MA_SUCCESS) m_VoiceGroupInitialized = true;
             if (ma_sound_group_init(&m_AudioEngine, 0, NULL, &m_MusicGroup) == MA_SUCCESS) m_MusicGroupInitialized = true;
             ApplyAudioVolumes();
-            InitOrkAudio(&m_AudioEngine, m_VoiceGroupInitialized ? &m_VoiceGroup : nullptr);
+            InitVrepighAudio(&m_AudioEngine, m_VoiceGroupInitialized ? &m_VoiceGroup : nullptr);
             InitMusic();
 
             std::string audioDir = FindValidDir("Audio");
@@ -1808,6 +1806,17 @@ namespace SunEngine {
 
     // ===================== PROFILO LOCALE =====================
     void GameLayer::LoadProfile() {
+        // Vecchi id dei salvataggi -> nuovi (unita', armi, armature e nodi rinominati con i termini di TSDH)
+        try {
+            std::ifstream mig(FindValidDir("Research") + "id_migration.json", std::ios::binary);
+            if (mig) {
+                const nlohmann::json jm = nlohmann::json::parse(mig);
+                const nlohmann::json ids = jm.value("ids", nlohmann::json::object());
+                for (const auto& [from, to] : ids.items())
+                    if (to.is_string()) PlayerProfile::s_IdMigration[from] = to.get<std::string>();
+            }
+        }
+        catch (const std::exception& e) { SUN_CORE_WARN("id_migration.json non leggibile: {0}", e.what()); }
         PlayerProfile loaded;
         if (PlayerProfile::Load(loaded)) {
             m_Profile = loaded;
@@ -1870,11 +1879,11 @@ namespace SunEngine {
                     t.armorColor = glm::vec4(u["armorColor"][0].get<float>(), u["armorColor"][1].get<float>(),
                                              u["armorColor"][2].get<float>(), u["armorColor"][3].get<float>());
                 }
-                if (t.blueprintId.rfind("orks_", 0) == 0)   // Vrepighs e Pighcib non piu' verdi
-                    t.armorColor = MigrateGreenSkin(t.armorColor, t.blueprintId == "orks_gretchin");
+                if (t.blueprintId.rfind("vrepighs_", 0) == 0)   // Vrepighs e Pighcib non piu' verdi
+                    t.armorColor = MigrateGreenSkin(t.armorColor, t.blueprintId == "vrepighs_pighcib");
                 t.facePreset = u.value("facePreset", 0);
                 t.rebuildUntil = u.value("rebuildUntil", static_cast<int64_t>(0));
-                // Armi non piu' presenti nei blueprint (es. "laspistol_m-g", mai esistita): torno al default
+                // Armi non piu' presenti nei blueprint (es. "impulse_pistol_mg", mai esistita): torno al default
                 auto weaponOr = [&](const char* key, const std::string& def) {
                     std::string id = u.value(key, def);
                     return (id.empty() || BlueprintManager::Get().GetWeapon(id)) ? id : def;
@@ -1896,7 +1905,7 @@ namespace SunEngine {
                 t.armorLeftLegId = u.value("armorLeftLegId", t.armorLeftLegId);
                 t.armorRightLegId = u.value("armorRightLegId", t.armorRightLegId);
                 t.exp = std::max(0, u.value("exp", 0));
-                // Unita' salvata prima delle dotazioni base (es. gretchin col fucile laser): riceve la sua
+                // Unita' salvata prima delle dotazioni base (es. pighcib col fucile laser): riceve la sua
                 const int savedVersion = u.value("loadoutVersion", 0);
                 const auto* tbp = BlueprintManager::Get().GetUnit(t.blueprintId);
                 const int unitVersion = tbp ? tbp->loadout_version : 0;
@@ -2028,14 +2037,14 @@ namespace SunEngine {
         m_WeaponSystem.ShutdownAudio();
         m_MovementSystem.ShutdownAudio();
 
-        if (g_OrkVoices.startSoundLoaded) {
-            ma_sound_uninit(&g_OrkVoices.startWaaaghSound);
-            g_OrkVoices.startSoundLoaded = false;
+        if (g_VrepighVoices.startSoundLoaded) {
+            ma_sound_uninit(&g_VrepighVoices.startHungrySound);
+            g_VrepighVoices.startSoundLoaded = false;
         }
-        for (auto& item : g_OrkVoices.voicePool) {
+        for (auto& item : g_VrepighVoices.voicePool) {
             if (item) ma_sound_uninit(&item->sound);
         }
-        g_OrkVoices.voicePool.clear();
+        g_VrepighVoices.voicePool.clear();
 
         if (m_MusicLoaded) {
             ma_sound_uninit(&m_MusicSound);
@@ -2076,15 +2085,12 @@ namespace SunEngine {
 
     // Colore dei manichini: stessi colori delle unita' giocabili (vedi SwapPlayerUnit)
     static glm::vec4 TrainingDummyColor(const std::string& unitId) {
-        if (unitId == "imperium_guardsman_recruit") return glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
-        if (unitId == "imperium_kasrkin") return glm::vec4(0.35f, 0.25f, 0.18f, 1.0f);
-        if (unitId == "imperium_ogryn") return glm::vec4(0.60f, 0.45f, 0.30f, 1.0f);
-        if (unitId == "spacemarines_neophyte") return glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
-        if (unitId == "spacemarines_battle_brother") return glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
-        if (unitId == "orks_boy") return glm::vec4(kVrepighSkin[2], 1.0f);
-        if (unitId == "orks_nob") return glm::vec4(kVrepighSkin[4], 1.0f);
-        if (unitId == "orks_yoof") return glm::vec4(kVrepighSkin[1], 1.0f);
-        if (unitId == "orks_gretchin") return glm::vec4(kPighcibSkin, 1.0f);
+        if (unitId == "kingship_footman") return glm::vec4(0.65f, 0.50f, 0.35f, 1.0f);
+        if (unitId == "vanguard_candidate") return glm::vec4(0.92f, 0.72f, 0.68f, 1.0f);
+        if (unitId == "vanguard_defender") return glm::vec4(0.74f, 0.58f, 0.48f, 1.0f);
+        if (unitId == "vrepighs_tusker") return glm::vec4(kVrepighSkin[2], 1.0f);
+        if (unitId == "vrepighs_feral_pig") return glm::vec4(kVrepighSkin[1], 1.0f);
+        if (unitId == "vrepighs_pighcib") return glm::vec4(kPighcibSkin, 1.0f);
         return glm::vec4(0.75f, 0.75f, 0.78f, 1.0f);
     }
 
@@ -2296,14 +2302,14 @@ namespace SunEngine {
     }
 
     // ===================== CORPI ANIMATI DI TUTTE LE UNITA' =====================
-    // Bot, orki dell'orda e manichini del campo da tiro usano il corpo 3D animato della loro unita' (come il
+    // Bot, vrepighs dell'orda e manichini del campo da tiro usano il corpo 3D animato della loro unita' (come il
     // giocatore); i cubi dello scheletro restano come hitbox ma non si disegnano (HideProceduralVisualTag).
     // Ogni unita' ha il suo controller con le clip condivise del corpo, quindi cammina, mira e spara per conto suo.
     // F2 (cubi) vale per tutti. Alla morte il corpo animato sparisce e resta il ragdoll a cubi.
     static std::string AnimUnitIdOf(entt::registry& reg, entt::entity e) {
         if (const auto* uid = reg.try_get<UnitBlueprintId>(e)) return uid->id;
         if (const auto* d = reg.try_get<TrainingDummyComponent>(e)) return d->unitId;
-        if (reg.all_of<HordeAgentComponent>(e)) return "orks_boy";
+        if (reg.all_of<HordeAgentComponent>(e)) return "vrepighs_tusker";
         return std::string();
     }
 
@@ -2461,7 +2467,7 @@ namespace SunEngine {
 
         static const std::vector<glm::mat4> s_BindPose(ANIMATOR_MAX_BONES, glm::mat4(1.0f));   // posa in T del file
         std::vector<entt::entity> units;
-        for (auto e : reg.view<SkeletonComponent, TransformComponent>(entt::exclude<PlayerTag, CorpseComponent, RagdollComponent, SquigComponent>)) units.push_back(e);
+        for (auto e : reg.view<SkeletonComponent, TransformComponent>(entt::exclude<PlayerTag, CorpseComponent, RagdollComponent, GrugnComponent>)) units.push_back(e);
         for (auto e : units) {
             const std::string unitId = AnimUnitIdOf(reg, e);
             if (unitId.empty()) continue;
@@ -2591,7 +2597,7 @@ namespace SunEngine {
                 c.Color = parts[i]->color; c.BaseColor = c.Color;
             }
             // Testa del vrepigh (muso, zanne, occhi) sulle stesse ossa del corpo
-            sk.extraParts = (inst.kind == AnimatedBodyKind::Ork && !Body(inst.kind).boar.parts.parts.empty()) ? &Body(inst.kind).boar.parts : nullptr;
+            sk.extraParts = (inst.kind == AnimatedBodyKind::Vrepigh && !Body(inst.kind).boar.parts.parts.empty()) ? &Body(inst.kind).boar.parts : nullptr;
             // Hitbox mosse dalle ossa del corpo animato (i manichini del campo da tiro sulla posa a T del loro corpo)
             if (auto* skel = reg.try_get<SkeletonComponent>(e)) {
                 if (inst.kind == AnimatedBodyKind::Count) skel->data.driven = false;
@@ -2798,13 +2804,13 @@ namespace SunEngine {
         }
     }
 
-    // Auspex in mano: sonar in basso a sinistra, nemici entro la portata come pallini rossi (in alto = davanti)
-    void GameLayer::RenderAuspex() {
+    // Scanner in mano: sonar in basso a sinistra, nemici entro la portata come pallini rossi (in alto = davanti)
+    void GameLayer::RenderScanner() {
         auto& reg = m_Scene.GetRegistry();
         const auto* inv = reg.try_get<InventoryComponent>(m_PlayerEntity);
         if (!inv) return;
         const auto* held = BlueprintManager::Get().GetWeapon(inv->GetActiveWeaponId());
-        if (!held || held->equipment_type != "auspex") return;
+        if (!held || held->equipment_type != "scanner") return;
         const float range = std::max(5.0f, held->equipment_range);
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* dl = ImGui::GetForegroundDrawList();
@@ -2844,11 +2850,11 @@ namespace SunEngine {
         }
         dl->AddTriangleFilled(ImVec2(c.x, c.y - 7.0f), ImVec2(c.x - 5.0f, c.y + 5.0f), ImVec2(c.x + 5.0f, c.y + 5.0f), IM_COL32(120, 255, 140, 255));
         dl->AddCircle(c, R, IM_COL32(90, 255, 120, 220), 64, 2.0f);
-        char txt[48]; std::snprintf(txt, sizeof(txt), "AUSPEX  %d m", static_cast<int>(range));
+        char txt[48]; std::snprintf(txt, sizeof(txt), "SCANNER  %d m", static_cast<int>(range));
         dl->AddText(ImVec2(c.x - R, c.y - R - 18.0f), IM_COL32(120, 255, 140, 255), txt);
     }
 
-    // Cerchio verde a terra sotto ogni rinforzo evocato (vox caster): fa parte della squadra di chi l'ha chiamato
+    // Cerchio verde a terra sotto ogni rinforzo evocato (radio): fa parte della squadra di chi l'ha chiamato
     void GameLayer::RenderSummonRings(bool deferred) {
         auto& reg = m_Scene.GetRegistry();
         constexpr int kSegments = 28;
@@ -2875,7 +2881,7 @@ namespace SunEngine {
         return m_Scene.GetRegistry().view<SummonedComponent>().size() > 0;
     }
 
-    // Rinforzi chiamati col vox caster: il conto alla rovescia, poi l'unita' compare dietro chi l'ha chiamata.
+    // Rinforzi chiamati col radio: il conto alla rovescia, poi l'unita' compare dietro chi l'ha chiamata.
     // Se chi ha chiamato cade prima, i rinforzi non arrivano.
     void GameLayer::UpdateSummons(float deltaTime) {
         auto& reg = m_Scene.GetRegistry();
@@ -2926,7 +2932,7 @@ namespace SunEngine {
             brain->advanceSide = side;
         }
         if (auto* a = reg.try_get<AmmoComponent>(owner)) { a->feedback = "Rinforzo arrivato: " + u.customName; a->feedbackTimer = 2.5f; }
-        SUN_CORE_INFO("Rinforzo dal vox caster: {0}", u.customName);
+        SUN_CORE_INFO("Rinforzo chiamato col comunicatore: {0}", u.customName);
         return e;
     }
 
@@ -3124,7 +3130,7 @@ namespace SunEngine {
                 for (const auto& faction : m_ResearchTree.GetFactions()) {
                     for (const auto& n : faction.nodes) {
                         if (m_ResearchTree.IsResearched(m_Profile, n)) continue;
-                        bool paysHere = false;   // anche coi padri alternativi (es. Kommandos oppure Tankbustas)
+                        bool paysHere = false;   // anche coi padri alternativi (es. Ombrazanne oppure Spaccacorazze)
                         for (const ResearchNode* src : m_ResearchTree.StudySources(n)) paysHere = paysHere || src->unitId == unitId;
                         if (!paysHere) continue;
                         const ResearchStatus rst = m_ResearchTree.GetStatus(m_Profile, n);
@@ -3154,12 +3160,12 @@ namespace SunEngine {
     // Si attiva col tasto V. Il contatore resta se rientri con un'altra unita' della stessa fazione e si azzera se
     // passi a un'altra fazione. Vale solo per l'unita' del giocatore.
     //
-    // Orki: WAAAGH!. La scritta "Waaagh!" ha 7 caratteri da 50 punti (350). Si carica con i danni inflitti e
+    // Vrepighs: HUNGRY!. La scritta "Hungry!" ha 7 caratteri da 50 punti (350). Si carica con i danni inflitti e
     // subiti; piena, si scatena con V: per 20 secondi +15% velocita', +40% velocita' di ricarica, +20% velocita'
     // dei colpi in mischia, +15% danni in mischia. Se non combatti per piu' di 5 secondi (sparare con un nemico in
     // vista o colpire in mischia con un nemico entro 5 m) la barra inizia a svuotarsi.
     //
-    // Guardia imperiale: FOLLOW ORDERS (300 punti). Si carica con la coesione (compagni entro 12 m, fino a 4; non
+    // Guardia del Kingship: FOLLOW ORDERS (300 punti). Si carica con la coesione (compagni entro 12 m, fino a 4; non
     // nei primi 10 secondi dopo ogni schieramento), i danni inflitti e gli aiuti ai compagni. Scende se dai le
     // spalle a un nemico che ti vede ed e' a portata: la Guardia non arretra. Piena, V tenuto apre il selettore
     // radiale (mouse per scegliere, rilascia per dare l'ordine), 10 secondi:
@@ -3173,9 +3179,9 @@ namespace SunEngine {
 
     void GameLayer::ResetFactionBuff() {
         m_FactionBuffFaction.clear();
-        m_WaaaghPoints = 0.0f;
-        m_WaaaghTimer = 0.0f;
-        m_WaaaghPrevHp = -1.0f;
+        m_HungryPoints = 0.0f;
+        m_HungryTimer = 0.0f;
+        m_HungryPrevHp = -1.0f;
         m_FactionFightIdle = 0.0f;
         m_OrdersAssistAccum = 0.0f;
         m_OrderActive = -1;
@@ -3212,7 +3218,7 @@ namespace SunEngine {
     }
 
     // Nemici in vista dal giocatore (linea di vista dagli occhi), ogni 0,2 s: davanti entro la portata dell'arma
-    // (orki: "sta combattendo") e alle spalle entro la portata (Guardia: "volta le spalle al nemico").
+    // (vrepighs: "sta combattendo") e alle spalle entro la portata (Guardia: "volta le spalle al nemico").
     void GameLayer::ScanFactionEnemies() {
         auto& reg = m_Scene.GetRegistry();
         m_FactionEnemyFront = m_FactionEnemyBehind = false;
@@ -3237,7 +3243,7 @@ namespace SunEngine {
         auto view = reg.view<TransformComponent, HealthComponent, UnitStatsComponent>(entt::exclude<CorpseComponent, PlayerTag>);
         for (auto o : view) {
             if (view.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
-            if (const auto* sq = reg.try_get<SquigComponent>(o); sq && sq->owner == m_PlayerEntity) continue;
+            if (const auto* sq = reg.try_get<GrugnComponent>(o); sq && sq->owner == m_PlayerEntity) continue;
             bool enemy;
             if (const auto* ot = reg.try_get<TeamComponent>(o)) enemy = !myTeam || ot->team != myTeam->team;
             else enemy = reg.any_of<HordeAgentComponent, TrainingDummyComponent>(o);
@@ -3276,8 +3282,8 @@ namespace SunEngine {
         float taken = 0.0f;
         const auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
         if (hp) {
-            if (m_WaaaghPrevHp >= 0.0f && hp->currentHealth < m_WaaaghPrevHp) taken = m_WaaaghPrevHp - std::max(0.0f, hp->currentHealth);
-            m_WaaaghPrevHp = std::max(0.0f, hp->currentHealth);
+            if (m_HungryPrevHp >= 0.0f && hp->currentHealth < m_HungryPrevHp) taken = m_HungryPrevHp - std::max(0.0f, hp->currentHealth);
+            m_HungryPrevHp = std::max(0.0f, hp->currentHealth);
         }
         const bool alive = hp && hp->currentHealth > 0.0f && !reg.all_of<CorpseComponent>(m_PlayerEntity);
         if (alive && !m_FactionWasAlive) m_CohesionDelay = 10.0f;   // appena schierato (inizio partita o rientro)
@@ -3311,40 +3317,40 @@ namespace SunEngine {
 
         UpdateGruuk(deltaTime, alive && !m_IsPaused && m_GameState == GameState::Gameplay);
 
-        if (faction == "orks") {
-            if (m_WaaaghTimer > 0.0f) {
-                m_WaaaghTimer -= deltaTime;
-                if (m_WaaaghTimer <= 0.0f) {
-                    m_WaaaghTimer = 0.0f;
-                    m_WaaaghPoints = 0.0f;
+        if (faction == "vrepighs") {
+            if (m_HungryTimer > 0.0f) {
+                m_HungryTimer -= deltaTime;
+                if (m_HungryTimer <= 0.0f) {
+                    m_HungryTimer = 0.0f;
+                    m_HungryPoints = 0.0f;
                     if (reg.all_of<FactionBuffComponent>(m_PlayerEntity)) reg.remove<FactionBuffComponent>(m_PlayerEntity);
-                    SUN_CORE_INFO("WAAAGH! finita");
+                    SUN_CORE_INFO("HUNGRY! finita");
                 }
                 else {
-                    // Anche dopo un rientro con un'altra unita' orka il buff resta per il tempo che manca
+                    // Anche dopo un rientro con un'altra unita' vrepigh il buff resta per il tempo che manca
                     auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
                     b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
                 }
                 return;
             }
-            m_WaaaghPoints = std::min(kWaaaghMax, m_WaaaghPoints + dealt + taken);
+            m_HungryPoints = std::min(kHungryMax, m_HungryPoints + dealt + taken);
             // Senza combattere per piu' di 5 secondi la barra si svuota (25 punti al secondo)
             m_FactionFightIdle = (fought || dealt > 0.0f) ? 0.0f : m_FactionFightIdle + deltaTime;
-            if (m_FactionFightIdle > 5.0f) m_WaaaghPoints = std::max(0.0f, m_WaaaghPoints - 25.0f * deltaTime);
-            if (m_WaaaghPoints >= kWaaaghMax && keyPressed) {
-                m_WaaaghTimer = kWaaaghDuration;
+            if (m_FactionFightIdle > 5.0f) m_HungryPoints = std::max(0.0f, m_HungryPoints - 25.0f * deltaTime);
+            if (m_HungryPoints >= kHungryMax && keyPressed) {
+                m_HungryTimer = kHungryDuration;
                 auto& b = reg.get_or_emplace<FactionBuffComponent>(m_PlayerEntity);
                 b.moveSpeedMult = 1.15f; b.reloadSpeedMult = 1.40f; b.meleeSpeedMult = 1.20f; b.meleeDamageMult = 1.15f;
-                SUN_CORE_INFO("WAAAGH!!! (20 s)");
+                SUN_CORE_INFO("HUNGRY!!! (20 s)");
             }
             return;
         }
 
-        if (faction == "imperium") {
+        if (faction == "kingship") {
             if (m_OrderActive >= 0) {
                 m_RadialOpen = false;
                 m_OrderTimer -= deltaTime;
-                if (m_OrderTimer <= 0.0f) { m_OrderTimer = 0.0f; m_OrderActive = -1; m_WaaaghPoints = 0.0f; }
+                if (m_OrderTimer <= 0.0f) { m_OrderTimer = 0.0f; m_OrderActive = -1; m_HungryPoints = 0.0f; }
                 ApplyOrderBuff();
                 return;
             }
@@ -3355,7 +3361,7 @@ namespace SunEngine {
                 if (const auto* myTeam = reg.try_get<TeamComponent>(m_PlayerEntity)) {
                     const glm::vec3 me = reg.get<TransformComponent>(m_PlayerEntity).Position;
                     int allies = 0;
-                    auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent>);
+                    auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, GrugnComponent>);
                     for (auto o : mates) {
                         if (mates.get<TeamComponent>(o).team != myTeam->team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                         const glm::vec3 op = mates.get<TransformComponent>(o).Position;
@@ -3364,12 +3370,12 @@ namespace SunEngine {
                     gain += std::min(allies, 4) * 2.5f * deltaTime;
                 }
             }
-            m_WaaaghPoints = std::min(kOrdersMax, m_WaaaghPoints + gain);
+            m_HungryPoints = std::min(kOrdersMax, m_HungryPoints + gain);
             // La Guardia non arretra: spalle a un nemico che ti vede e a portata = 20 punti al secondo persi
-            if (alive && m_FactionEnemyBehind) m_WaaaghPoints = std::max(0.0f, m_WaaaghPoints - 20.0f * deltaTime);
+            if (alive && m_FactionEnemyBehind) m_HungryPoints = std::max(0.0f, m_HungryPoints - 20.0f * deltaTime);
 
             // Selettore radiale: V tenuto con la barra piena, il mouse sceglie, il rilascio da' l'ordine
-            if (keyPressed && m_WaaaghPoints >= kOrdersMax) { m_RadialOpen = true; m_RadialVec = glm::vec2(0.0f); }
+            if (keyPressed && m_HungryPoints >= kOrdersMax) { m_RadialOpen = true; m_RadialVec = glm::vec2(0.0f); }
             if (m_RadialOpen && (!alive || m_IsPaused)) m_RadialOpen = false;
             if (m_RadialOpen && keyReleased) {
                 m_RadialOpen = false;
@@ -3387,7 +3393,7 @@ namespace SunEngine {
         }
         m_RadialOpen = false;
         // Vanguard: Konrad ha il Giuramento di Sangue (V)
-        if (faction == "spacemarines") UpdateBloodOath(deltaTime, alive, keyPressed);
+        if (faction == "vanguard") UpdateBloodOath(deltaTime, alive, keyPressed);
     }
 
     // Giuramento di Sangue (solo Konrad, tasto V): finche' e' attivo +10% velocita', +15% velocita' d'attacco (colpi in
@@ -3398,7 +3404,7 @@ namespace SunEngine {
         auto& reg = m_Scene.GetRegistry();
         m_OathAutoOff = std::max(0.0f, m_OathAutoOff - deltaTime);
         const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
-        const bool konrad = uid && uid->id == "spacemarines_sworn_brother";
+        const bool konrad = uid && uid->id == "vanguard_konrad";
         auto* hp = reg.try_get<HealthComponent>(m_PlayerEntity);
         auto stop = [&](const char* why) {
             if (!m_OathActive) return;
@@ -3446,7 +3452,7 @@ namespace SunEngine {
         NetSendWarCry(me, team, kGruukRadius, kGruukDuration, 1.0f + kGruukSpeed);  // in rete: i compagni lo prendono dai loro computer
         // quanti l'hanno sentito: anche i compagni degli altri computer (le loro copie qui)
         int heard = 0;
-        auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent>);
+        auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, GrugnComponent>);
         for (auto o : mates) {
             if (mates.get<TeamComponent>(o).team != team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
             const glm::vec3 op = mates.get<TransformComponent>(o).Position;
@@ -3482,7 +3488,7 @@ namespace SunEngine {
             if (hp && hp->currentHealth > 0.0f && myTeam == team && inRange(m_PlayerEntity)) give(m_PlayerEntity);
         }
         if (NetIsAuthority()) {
-            auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, SquigComponent, NetGhostComponent>);
+            auto mates = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, PlayerTag, GrugnComponent, NetGhostComponent>);
             for (auto o : mates) {
                 if (mates.get<TeamComponent>(o).team != team || mates.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                 if (inRange(o)) give(o);
@@ -3495,7 +3501,7 @@ namespace SunEngine {
     void GameLayer::PlayGruukVoice(const glm::vec3& pos) {
         glm::vec3 listener = pos;
         if (const auto* pt = m_Scene.GetRegistry().try_get<TransformComponent>(m_PlayerEntity)) listener = pt->Position;
-        PlayOrkVoiceAtPos(pos, listener, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice, 0.68f, 0.76f);
+        PlayVrepighVoiceAtPos(pos, listener, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice, 0.68f, 0.76f);
     }
 
     // Selettore radiale degli ordini al centro dello schermo: 4 voci (su, destra, giu', sinistra)
@@ -3778,13 +3784,13 @@ namespace SunEngine {
                 }
             }
         }
-        // Effetti in corso della dotazione (zaino energetico, insegna imperiale vicina)
+        // Effetti in corso della dotazione (zaino energetico, insegna del Kingship vicina)
         if (const auto* boost = reg.try_get<SpeedBoostComponent>(m_PlayerEntity)) {
             char t[64]; std::snprintf(t, sizeof(t), "Zaino energetico: +%d%% velocita'  %.0f s", static_cast<int>(std::lround((boost->mult - 1.0f) * 100.0f)), std::ceil(boost->timeLeft));
             dl->AddText(ImVec2(x, y), IM_COL32(120, 200, 255, 255), t); y += 16.0f;
         }
         if (const auto* aura = reg.try_get<MoraleAuraComponent>(m_PlayerEntity)) {
-            char t[64]; std::snprintf(t, sizeof(t), "Insegna imperiale: tetto del morale +%d", static_cast<int>(std::lround(aura->bonus * 100.0f)));
+            char t[64]; std::snprintf(t, sizeof(t), "Insegna del Kingship: tetto del morale +%d", static_cast<int>(std::lround(aura->bonus * 100.0f)));
             dl->AddText(ImVec2(x, y), IM_COL32(255, 215, 90, 255), t); y += 16.0f;
         }
         if (const auto* cry = reg.try_get<WarCryComponent>(m_PlayerEntity)) {
@@ -3793,14 +3799,14 @@ namespace SunEngine {
         }
         if (reg.any_of<SpeedBoostComponent, MoraleAuraComponent, WarCryComponent>(m_PlayerEntity)) y += 4.0f;
 
-        if (m_FactionBuffFaction == "imperium") {
+        if (m_FactionBuffFaction == "kingship") {
             // "FOLLOW ORDERS": le lettere si accendono d'oro da sinistra a destra man mano che la barra si carica
             const char* word = "FOLLOW ORDERS";
             const int n = static_cast<int>(std::strlen(word));
             const float size = 28.0f;
             const bool active = m_OrderActive >= 0;
-            const float frac = active ? m_OrderTimer / kOrderDuration : m_WaaaghPoints / kOrdersMax;
-            const bool full = !active && m_WaaaghPoints >= kOrdersMax;
+            const float frac = active ? m_OrderTimer / kOrderDuration : m_HungryPoints / kOrdersMax;
+            const bool full = !active && m_HungryPoints >= kOrdersMax;
             const float pulse = (active || full) ? 0.75f + 0.25f * std::sin(static_cast<float>(ImGui::GetTime()) * 8.0f) : 1.0f;
             const ImU32 off = IM_COL32(70, 70, 66, 230);
             const ImU32 on = IM_COL32(static_cast<int>(255 * pulse), static_cast<int>(205 * pulse), 70, 255);
@@ -3821,7 +3827,7 @@ namespace SunEngine {
             char info[96];
             if (active) std::snprintf(info, sizeof(info), "%s  %.0f s", kOrderNames[m_OrderActive], std::ceil(m_OrderTimer));
             else if (full) std::snprintf(info, sizeof(info), "PRONTO: tieni [V]");
-            else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_WaaaghPoints, kOrdersMax);
+            else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_HungryPoints, kOrdersMax);
             dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), (active || full) ? on : IM_COL32(200, 200, 200, 220), info);
             float ly = y + size + 2.0f;
             if (active) { dl->AddText(ImVec2(x, ly), IM_COL32(240, 220, 160, 230), kOrderEffects[m_OrderActive]); ly += 16.0f; }
@@ -3834,9 +3840,9 @@ namespace SunEngine {
             }
             return;
         }
-        if (m_FactionBuffFaction == "spacemarines") {
+        if (m_FactionBuffFaction == "vanguard") {
             const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
-            if (!uid || uid->id != "spacemarines_sworn_brother") return;
+            if (!uid || uid->id != "vanguard_konrad") return;
             // Giuramento di Sangue: rosso che pulsa quando e' acceso, lucchetto per i primi 3 secondi
             const float size = 28.0f;
             const float t = static_cast<float>(ImGui::GetTime());
@@ -3861,12 +3867,12 @@ namespace SunEngine {
             else if (m_OathAutoOff > 0.0f) dl->AddText(ImVec2(x, ly), IM_COL32(255, 120, 90, 255), "Il giuramento si e' spento: non ti resta abbastanza sangue");
             return;
         }
-        if (m_FactionBuffFaction != "orks") return;
-        // "HUNGRY!" (ex "Waaagh!"): ogni carattere vale 50 punti e si accende di verde da sinistra a destra (anche a meta')
+        if (m_FactionBuffFaction != "vrepighs") return;
+        // "HUNGRY!": ogni carattere vale 50 punti e si accende di verde da sinistra a destra (anche a meta')
         static const char* kLetters[7] = { "H", "U", "N", "G", "R", "Y", "!" };
         const float size = 34.0f;
-        const bool active = m_WaaaghTimer > 0.0f;
-        const float lit = active ? (m_WaaaghTimer / kWaaaghDuration) * kWaaaghMax : m_WaaaghPoints;   // attiva: si svuota
+        const bool active = m_HungryTimer > 0.0f;
+        const float lit = active ? (m_HungryTimer / kHungryDuration) * kHungryMax : m_HungryPoints;   // attiva: si svuota
         const float pulse = active ? 0.75f + 0.25f * std::sin(static_cast<float>(ImGui::GetTime()) * 10.0f) : 1.0f;
         const ImU32 off = IM_COL32(70, 75, 70, 230);
         const ImU32 on = active ? IM_COL32(static_cast<int>(120 * pulse), 255, static_cast<int>(60 * pulse), 255) : IM_COL32(60, 220, 70, 255);
@@ -3884,14 +3890,14 @@ namespace SunEngine {
             lx += ls.x + 1.0f;
         }
         char info[96];
-        const bool ready = !active && m_WaaaghPoints >= kWaaaghMax;
-        if (active) std::snprintf(info, sizeof(info), "HUNGRY!  %.0f s", std::ceil(m_WaaaghTimer));
+        const bool ready = !active && m_HungryPoints >= kHungryMax;
+        if (active) std::snprintf(info, sizeof(info), "HUNGRY!  %.0f s", std::ceil(m_HungryTimer));
         else if (ready) std::snprintf(info, sizeof(info), "PRONTA: premi [V]");
-        else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_WaaaghPoints, kWaaaghMax);
+        else std::snprintf(info, sizeof(info), "%.0f / %.0f", m_HungryPoints, kHungryMax);
         dl->AddText(ImVec2(lx + 10.0f, y + size * 0.5f - 7.0f), (active || ready) ? on : IM_COL32(200, 200, 200, 220), info);
         if (active) dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(170, 240, 170, 230),
             "+15% velocita'  +40% ricarica  +20% colpi in mischia  +15% danni in mischia");
-        else if (m_FactionFightIdle > 5.0f && m_WaaaghPoints > 0.0f)
+        else if (m_FactionFightIdle > 5.0f && m_HungryPoints > 0.0f)
             dl->AddText(ImVec2(x, y + size + 2.0f), IM_COL32(255, 120, 80, 240), "Niente rissa: la fame HUNGRY! si sta spegnendo!");
         RenderGruukHud(x, y + size + 22.0f);
     }
@@ -3937,17 +3943,17 @@ namespace SunEngine {
 
     RaceMotionKind GameLayer::RaceMotionOf(AnimatedBodyKind k) {
         switch (k) {
-        case AnimatedBodyKind::Ork: return RaceMotionKind::Ork;
-        case AnimatedBodyKind::Gretchin: return RaceMotionKind::Gretchin;
-        case AnimatedBodyKind::Astartes: return RaceMotionKind::Astartes;
-        case AnimatedBodyKind::Neophyte: return RaceMotionKind::Neophyte;
-        case AnimatedBodyKind::Ogryn: return RaceMotionKind::Ogryn;
+        case AnimatedBodyKind::Vrepigh: return RaceMotionKind::Vrepigh;
+        case AnimatedBodyKind::Pighcib: return RaceMotionKind::Pighcib;
+        case AnimatedBodyKind::Vanguard: return RaceMotionKind::Vanguard;
+        case AnimatedBodyKind::Candidate: return RaceMotionKind::Candidate;
+        case AnimatedBodyKind::Ogre: return RaceMotionKind::Ogre;
         default: return RaceMotionKind::Human;
         }
     }
 
     // Stile di movimento della razza (RaceMotion.h) per un'unita' animata: velocita' dal suo spostamento, mira,
-    // corsa, accovacciato e "urlo" (carica, WAAAGH!, colpo pesante). Imposta anche il ritmo delle clip.
+    // corsa, accovacciato e "urlo" (carica, HUNGRY!, colpo pesante). Imposta anche il ritmo delle clip.
     void GameLayer::ApplyRaceStyle(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float legLen, float deltaTime) {
         auto& reg = m_Scene.GetRegistry();
         if (!reg.valid(e) || !reg.all_of<TransformComponent>(e)) return;
@@ -3979,7 +3985,7 @@ namespace SunEngine {
         if (const auto* cr = reg.try_get<CrouchComponent>(e)) in.crouching = cr->amount > 0.5f;
         if (e == m_PlayerEntity) in.aiming = m_PlayerAimingNow;
         else if (const auto* brain = reg.try_get<BotBrainComponent>(e)) in.aiming = brain->isAiming;
-        // Urlo: chi corre all'assalto (non gli astartes, che hanno l'elmo), la WAAAGH! attiva, il colpo pesante
+        // Urlo: chi corre all'assalto (non i vanguard, che hanno l'elmo), la HUNGRY! attiva, il colpo pesante
         const auto* buff = reg.try_get<FactionBuffComponent>(e);
         const auto* melee = reg.try_get<MeleeStateComponent>(e);
         const bool heavy = melee && melee->currentAttack == MeleeAttackType::Heavy &&
@@ -4035,7 +4041,7 @@ namespace SunEngine {
     }
 
     // Pose procedurali di un'unita' (giocatore, bot, orda) sopra la clip in corso: accovacciato, arrampicata,
-    // mischia e parata, dotazione (lancio, oggetti posati, scatola, chiave inglese, costruzione, medikit, vox, torretta).
+    // mischia e parata, dotazione (lancio, oggetti posati, scatola, chiave inglese, costruzione, medikit, radio, torretta).
     void GameLayer::BuildUnitPose(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float poseTime, float& climb, float deltaTime) {
         pose.Clear();
         auto& reg = m_Scene.GetRegistry();
@@ -4118,7 +4124,7 @@ namespace SunEngine {
             PoseLib::Build(pose, poseTime, ap->build, thigh, shin);
             PoseLib::Repair(pose, poseTime, ap->repair);
             PoseLib::SelfHeal(pose, poseTime, ap->medkit);
-            PoseLib::VoxCall(pose, ap->vox);
+            PoseLib::RadioCall(pose, ap->radio);
             PoseLib::Gunner(pose, ap->gunner, thigh, shin);
             if (ap->action == 1) PoseLib::Throw(pose, ap->time / ap->duration);
             else if (ap->action == 2) PoseLib::UseItem(pose, ap->time / ap->duration, thigh, shin);
@@ -4238,7 +4244,7 @@ namespace SunEngine {
                 if (type == "scrap_barricade" || type == "slit_wall") textRight(type == "slit_wall" ? "Costruzione muro... (resta fermo)" : "Costruzione barricata... (resta fermo)", baseSize, yellow);
                 else if (type == "turret") textRight("Montaggio... (resta fermo)", baseSize, yellow);
                 else if (type == "medkit") textRight("Medicazione...", baseSize, yellow);
-                else if (type == "vox_caster") textRight("Chiamata col Comunicatore da Campo...", baseSize, yellow);
+                else if (type == "field_radio") textRight("Chiamata col Comunicatore da Campo...", baseSize, yellow);
                 else textRight(ammo->useTarget == m_PlayerEntity ? "Rifornimento..." : "Rifornimento al compagno...", baseSize, yellow);
             }
             if (type == "ammo_box")
@@ -4261,11 +4267,11 @@ namespace SunEngine {
             else if (type == "camo_cloak")
                 textRight("Sinistro: mimetizzati per " + std::to_string(static_cast<int>(std::lround(held->effect_duration))) +
                           " s (sparare o colpire lo interrompe)", baseSize, grey);
-            else if (type == "auspex")
+            else if (type == "scanner")
                 textRight("Sonar attivo: nemici entro " + std::to_string(static_cast<int>(held->equipment_range)) + " m", baseSize, grey);
             else if (type == "ammo_crate")
                 textRight("Sinistro: posa la cassa a terra (" + std::to_string(held->crate_charges) + " caricatori, E vicino per prenderne uno)", baseSize, grey);
-            else if (type == "vox_caster")
+            else if (type == "field_radio")
                 textRight("Sinistro: chiama un rinforzo (" + std::to_string(static_cast<int>(std::lround(held->equipment_use_time))) +
                           " s di chiamata, arriva dopo " + std::to_string(static_cast<int>(std::lround(held->summon_delay))) + " s)", baseSize, grey);
             else if (type == "turret")
@@ -4278,7 +4284,7 @@ namespace SunEngine {
             else if (type == "food_pack")
                 textRight("Sinistro: posa lo zaino (cura " + std::to_string(static_cast<int>(held->heal_per_second)) + " HP/s entro " +
                           std::to_string(static_cast<int>(held->equipment_range)) + " m per " + std::to_string(static_cast<int>(held->effect_duration)) + " s)", baseSize, grey);
-            if (type != "auspex" && type != "power_pack" && type != "insignia")   // passivi o a ricarica: niente usi
+            if (type != "scanner" && type != "power_pack" && type != "insignia")   // passivi o a ricarica: niente usi
                 textRight("Usi: " + std::to_string(uses) + " / " + std::to_string(held->equipment_uses), baseSize * 2.0f, uses > 0 ? white : red);
             textRight(held->displayName, baseSize * 1.15f, grey);
         }
@@ -4612,10 +4618,10 @@ namespace SunEngine {
         }
         body.modelLoaded = body.model.LoadModel(path);
         // Corpo piu' preciso: anatomia, mani e piedi del corpo umano base adattati allo scheletro e alla sagoma
-        // della razza (la testa resta quella della razza). Vedi BodyFit.h. Solo per ork, aspirante e astartes:
-        // ogryn e gretchin restano col loro modello (pancia dell'ogryn e torace del gretchin vengono meglio cosi').
+        // della razza (la testa resta quella della razza). Vedi BodyFit.h. Solo per vrepigh, aspirante e vanguard:
+        // ogre e pighcib restano col loro modello (pancia del ogre e torace del pighcib vengono meglio cosi').
         const std::string bodyLabel = label;
-        const bool fitThisBody = bodyLabel == "ork" || bodyLabel == "neofita" || bodyLabel == "astartes";
+        const bool fitThisBody = bodyLabel == "vrepigh" || bodyLabel == "candidato" || bodyLabel == "vanguard";
         if (body.modelLoaded && m_SkinnedModelLoaded && m_FitBodiesFromHuman && fitThisBody && !m_SkinnedTestModel.authored) {
             const BodyFitSkeleton hs = BodyFitSkeletonOf(m_SkinnedTestModel), rs = BodyFitSkeletonOf(body.model);
             std::vector<BodyFitMesh> hm, rm;
@@ -4631,8 +4637,8 @@ namespace SunEngine {
                 SUN_CORE_INFO("Corpo {0}: adattato dal corpo umano base", label);
             }
         }
-        // Ossa in piu' della razza (orecchie e mascella del gretchin, mascella dell'ork, mascella e pancia
-        // dell'ogryn, spallacci dell'astartes): prima delle clip, che le ereditano dalla gerarchia del modello
+        // Ossa in piu' della razza (orecchie e mascella del pighcib, mascella del vrepigh, mascella e pancia
+        // del ogre, spallacci del vanguard): prima delle clip, che le ereditano dalla gerarchia del modello
         if (body.modelLoaded) {
             const int extra = AddExtraBones(body.model, RaceExtraBones(bodyLabel));
             if (extra > 0) SUN_CORE_INFO("Corpo {0}: {1} ossa in piu' (vedi ExtraBones.h)", label, extra);
@@ -4643,11 +4649,11 @@ namespace SunEngine {
         }
         // Sagoma (BodySculpt.h): Vanguard a V (spalle larghe, vita stretta), vrepigh uomini-cinghiale
         // (gobba, collo taurino, muso con zanne). Prima delle clip: il retarget eredita le ossa spostate.
-        if (body.modelLoaded && bodyLabel == "astartes") {
+        if (body.modelLoaded && bodyLabel == "vanguard") {
             SculptVanguardBody(body.model);
             SUN_CORE_INFO("Corpo {0}: sagoma a V", label);
         }
-        if (body.modelLoaded && bodyLabel == "ork") {
+        if (body.modelLoaded && bodyLabel == "vrepigh") {
             SculptBoarBody(body.model, &body.boar);
             SUN_CORE_INFO("Corpo {0}: uomo-cinghiale ({1} parti di testa)", label, body.boar.parts.parts.size());
         }
@@ -4660,12 +4666,11 @@ namespace SunEngine {
     }
 
     // Quale corpo animato usa l'unita' del giocatore:
-    //   orks_*                              -> ork (boy e nob)
-    //   imperium_ogryn*                     -> ogryn
-    //   spacemarines_neophyte / _scout      -> neofita (gli scout sono neofiti)
-    //   altri spacemarines_*                -> astartes (battle brother, phobos, gravis)
-    //   tutto il resto                      -> guardsman
-    // Se il modello dedicato non e' caricato si ricade sul guardsman.
+    //   vrepighs_*                              -> vrepigh
+    //   vanguard_candidate / _scout      -> candidato (gli scout sono candidati)
+    //   altri vanguard_*                -> vanguard
+    //   tutto il resto                      -> footman
+    // Se il modello dedicato non e' caricato si ricade sul footman.
     GameLayer::AnimatedBodyKind GameLayer::CurrentAnimatedBodyKind() {
         const auto* uid = m_Scene.GetRegistry().try_get<UnitBlueprintId>(m_PlayerEntity);
         return BodyKindForUnit(uid ? uid->id : std::string());
@@ -4677,19 +4682,18 @@ namespace SunEngine {
         if (bp && !bp->animated_body.empty()) {
             // Indicato nel blueprint dell'unita' ("animated_body")
             const std::string& b = bp->animated_body;
-            if (b == "ork") kind = AnimatedBodyKind::Ork;
-            else if (b == "ogryn") kind = AnimatedBodyKind::Ogryn;
-            else if (b == "gretchin") kind = AnimatedBodyKind::Gretchin;
-            else if (b == "neophyte") kind = AnimatedBodyKind::Neophyte;
-            else if (b == "astartes") kind = AnimatedBodyKind::Astartes;
+            if (b == "vrepigh") kind = AnimatedBodyKind::Vrepigh;
+            else if (b == "ogre") kind = AnimatedBodyKind::Ogre;
+            else if (b == "pighcib") kind = AnimatedBodyKind::Pighcib;
+            else if (b == "candidate") kind = AnimatedBodyKind::Candidate;
+            else if (b == "vanguard") kind = AnimatedBodyKind::Vanguard;
         }
         else if (!id.empty()) {
             // Senza indicazione: dedotto dall'id
-            if (id == "orks_gretchin") kind = AnimatedBodyKind::Gretchin;
-            else if (id.rfind("orks_", 0) == 0) kind = AnimatedBodyKind::Ork;
-            else if (id.rfind("imperium_ogryn", 0) == 0) kind = AnimatedBodyKind::Ogryn;
-            else if (id == "spacemarines_neophyte" || id == "spacemarines_scout") kind = AnimatedBodyKind::Neophyte;
-            else if (id.rfind("spacemarines_", 0) == 0) kind = AnimatedBodyKind::Astartes;
+            if (id == "vrepighs_pighcib") kind = AnimatedBodyKind::Pighcib;
+            else if (id.rfind("vrepighs_", 0) == 0) kind = AnimatedBodyKind::Vrepigh;
+            else if (id == "vanguard_candidate" || id == "vanguard_explorer") kind = AnimatedBodyKind::Candidate;
+            else if (id.rfind("vanguard_", 0) == 0) kind = AnimatedBodyKind::Vanguard;
         }
         return AnimatedBodyReady(kind) ? kind : AnimatedBodyKind::Human;
     }
@@ -4742,7 +4746,7 @@ namespace SunEngine {
     void GameLayer::UpdateAnimatedPlayer(float deltaTime, const RifleAnimInput& input) {
         auto& reg = m_Scene.GetRegistry();
 
-        // Corpo dell'unita' corrente: guardsman, ork (boy/nob) oppure ogryn
+        // Corpo dell'unita' corrente: footman, vrepigh (tusker/capozanna) oppure ogre
         const AnimatedBodyKind kind = CurrentAnimatedBodyKind();
         const bool modelReady = AnimatedBodyReady(kind);
         RifleAnimationController& controller = AnimatedBodyController(kind);
@@ -4791,7 +4795,7 @@ namespace SunEngine {
             m_AnimatedBodyAssigned = false;   // forza l'assegnazione del modello qui sotto
         }
         if (!m_AnimatedBodyAssigned || m_AnimatedBodyInUse != kind) {
-            // Cambio di unita' (es. guardsman -> ogryn nel garage): stessa entity, altro modello
+            // Cambio di unita' (es. footman -> ogre nel garage): stessa entity, altro modello
             auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
             inst.sourceModel = &AnimatedBodyModel(kind);
             inst.boneMatrices = &controller.GetFinalBoneMatrices();
@@ -4806,9 +4810,9 @@ namespace SunEngine {
         auto& vt = reg.get<TransformComponent>(m_AnimatedPlayerEntity);
         vt.Position = pt.Position;   // Position del player = piedi, come l'origine del modello
         vt.Rotation = glm::vec3(0.0f, pt.Rotation.y + m_AnimatedYawOffset, 0.0f);
-        // Scala del modello dal blueprint ("model_scale"): il nob e' il modello dell'ork boy a 1.2, lo yoof a 0.85.
-        // Gli altri corpi hanno gia' la loro altezza nel file: gretchin ~0,9 m, neofita ~1,95 m, astartes ~2,2 m,
-        // ogryn ~2,75 m.
+        // Scala del modello dal blueprint ("model_scale"): il capozanna e' il modello del Vrepigh a 1.2, il feral_pig a 0.85.
+        // Gli altri corpi hanno gia' la loro altezza nel file: pighcib ~0,9 m, candidato ~1,95 m, vanguard ~2,2 m,
+        // ogre ~2,75 m.
         float unitScale = 1.0f;
         if (const auto* uid = reg.try_get<UnitBlueprintId>(m_PlayerEntity)) {
             if (const auto* ubp = BlueprintManager::Get().GetUnit(uid->id); ubp && ubp->model_scale > 0.05f) unitScale = ubp->model_scale;
@@ -4823,7 +4827,7 @@ namespace SunEngine {
         {
             auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
             const bool knownBody = kind != AnimatedBodyKind::Count;
-            inst.extraParts = (kind == AnimatedBodyKind::Ork && !Body(kind).boar.parts.parts.empty()) ? &Body(kind).boar.parts : nullptr;
+            inst.extraParts = (kind == AnimatedBodyKind::Vrepigh && !Body(kind).boar.parts.parts.empty()) ? &Body(kind).boar.parts : nullptr;
             if (auto* skel = reg.try_get<SkeletonComponent>(m_PlayerEntity)) {
                 if (!knownBody) skel->data.driven = false;
                 else DriveBoneHitboxes(HitboxTemplateFor(kind, skel->data, inst),
@@ -4956,7 +4960,7 @@ namespace SunEngine {
         // Modello a blocchi con impugnatura: l'arma si orienta lungo la linea mano destra -> mano sinistra
         // (impugnatura e guardamano), cosi' "sta in braccio" al soldato com'e' nell'animazione. Se il
         // modello non ha l'appoggio sinistro, o l'arma e' a una mano, segue il corpo (direzione + mira).
-        // Equipaggiamento (auspex, medikit, cassa...): resta nella mano, come prima.
+        // Equipaggiamento (scanner, medikit, cassa...): resta nella mano, come prima.
         const bool equipment = bp && !bp->equipment_type.empty();
         if (model && model->hasGripRight && !equipment) {
             // Direzione di mira = la stessa che WeaponSystem usa per il colpo (AimYaw / AimPitch)
@@ -5272,12 +5276,12 @@ namespace SunEngine {
             if (inMatch && !m_IsPaused) deltaTime *= m_Feel.TimeScale();
         }
 
-        // Fuori dalla partita niente squig in giro (garage, editor)
+        // Fuori dalla partita niente grugn in giro (garage, editor)
         if (m_GameState != GameState::Gameplay) {
             XpEventLog().clear();   // eventi rimasti fuori partita: non contano
             m_MoraleSystem.Clear(m_Scene);   // il morale riparte dal valore di partenza a ogni partita
             m_Feel.Reset();
-            m_SquigSystem.Clear(m_Scene);
+            m_GrugnSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
             const bool showcase = m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Showcase;
             if (!showcase) m_ParticleSystem.Clear();   // la vetrina usa gli effetti (lampi, scie dei fendenti)
@@ -5499,7 +5503,7 @@ namespace SunEngine {
                 else if (Input::IsKeyPressed(GLFW_KEY_4)) requestedSlot = 4;
                 else if (Input::IsKeyPressed(GLFW_KEY_5)) requestedSlot = 5;
                 else if (Input::IsKeyPressed(GLFW_KEY_6)) requestedSlot = 6;
-                if (requestedSlot != -1 && !inv.IsSlotSelectable(requestedSlot)) requestedSlot = -1;   // slot vuoto o squig
+                if (requestedSlot != -1 && !inv.IsSlotSelectable(requestedSlot)) requestedSlot = -1;   // slot vuoto o grugn
 
                 if (requestedSlot != -1 && requestedSlot != inv.currentSlot) {
                     inv.currentSlot = requestedSlot;
@@ -5667,13 +5671,13 @@ namespace SunEngine {
             UpdateSummons(deltaTime);
             if ((m_VsBotActive || HasSummons() || StoryUsesBots()) && !(m_VsBotActive && m_VsBotWarmup > 0.0f)) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
             m_MeleeCombat.Update(m_Scene, deltaTime);
-            // Compagni squig (seguono il padrone e attaccano quello a cui spara) e riparazione con la chiave inglese
-            if (!m_SquigSkeletonLoaded) {   // un solo tentativo: se manca il file lo squig resta un cubo
-                m_SquigSkeleton = SkeletonLoader::LoadFromFile(FindValidDir("Skeletons") + "squig.json");
-                m_SquigSkeletonLoaded = true;
+            // Compagni grugn (seguono il padrone e attaccano quello a cui spara) e riparazione con la chiave inglese
+            if (!m_GrugnSkeletonLoaded) {   // un solo tentativo: se manca il file il grugn resta un cubo
+                m_GrugnSkeleton = SkeletonLoader::LoadFromFile(FindValidDir("Skeletons") + "grugn.json");
+                m_GrugnSkeletonLoaded = true;
             }
-            m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);
-            UpdateSquigVisuals();
+            m_GrugnSystem.Update(m_Scene, m_NavQuery, deltaTime, m_GrugnSkeleton ? &*m_GrugnSkeleton : nullptr);
+            UpdateGrugnVisuals();
             m_RepairSystem.Update(m_Scene, m_PlayerEntity, deltaTime);
             if (auto* ap = m_Scene.GetRegistry().try_get<ActionPoseComponent>(m_PlayerEntity)) ap->repairing = m_RepairSystem.repairing;
             ActionPose::Update(m_Scene, deltaTime);   // azioni di tutte le unita' (granate, oggetti, costruzione...)
@@ -6151,13 +6155,13 @@ namespace SunEngine {
 
             Renderer::SetViewProjection(m_Camera.GetViewProjection());
 
-            if (g_WaaaghActive) {
-                UpdateWaaaghWaves(deltaTime, transform.Position);
-                UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
+            if (g_HungryActive) {
+                UpdateHungryWaves(deltaTime, transform.Position);
+                UpdateVrepighVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
             }
             else if (m_Story.active && m_Story.result == 0) {   // PVE-STORY: ondate, obiettivi e capo del capitolo
                 UpdateStory(deltaTime, transform.Position);
-                UpdateOrkVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
+                UpdateVrepighVoices(m_Scene, m_PlayerEntity, deltaTime, m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
             }
 
             AnimateUnits(deltaTime, transform.Position, true);
@@ -6209,7 +6213,7 @@ namespace SunEngine {
         SyncCloakVisuals();
         if (!m_IsPaused && m_GameState == GameState::Gameplay) m_MovementSystem.UpdateAiVaulting(m_Scene, m_PhysicsSystem, deltaTime);   // bot e orda scavalcano
         if (!m_IsPaused) FeralCharge::UpdateFeralCharges(m_Scene, deltaTime);   // zanne di chi corre lanciato (Feral Pig)
-        if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // WAAAGH! (anche mentre sei a terra: il contatore resta)
+        if (!m_IsPaused) UpdateFactionBuff(deltaTime);   // HUNGRY! (anche mentre sei a terra: il contatore resta)
         if (m_VsBotActive) {
             UpdateBotVisuals();
             UpdateVsBot(deltaTime);
@@ -6222,26 +6226,26 @@ namespace SunEngine {
                 m_VsBotTWasDown = tDown;
             }
         }
-        else if (m_GameState == GameState::Gameplay && (HasSummons() || m_Net.active)) UpdateBotVisuals();   // rinforzi del vox in modalita' orda, compagni in rete
+        else if (m_GameState == GameState::Gameplay && (HasSummons() || m_Net.active)) UpdateBotVisuals();   // rinforzi del radio in modalita' orda, compagni in rete
 
-        auto orkWeaponView = m_Scene.GetRegistry().view<HordeAgentComponent, TransformComponent, SkeletonComponent>();
-        for (auto orkEnt : orkWeaponView) {
-            auto& horde = orkWeaponView.get<HordeAgentComponent>(orkEnt);
-            auto& orkTrans = orkWeaponView.get<TransformComponent>(orkEnt);
-            auto& skel = orkWeaponView.get<SkeletonComponent>(orkEnt);
+        auto vrepighWeaponView = m_Scene.GetRegistry().view<HordeAgentComponent, TransformComponent, SkeletonComponent>();
+        for (auto vrepighEnt : vrepighWeaponView) {
+            auto& horde = vrepighWeaponView.get<HordeAgentComponent>(vrepighEnt);
+            auto& vrepighTrans = vrepighWeaponView.get<TransformComponent>(vrepighEnt);
+            auto& skel = vrepighWeaponView.get<SkeletonComponent>(vrepighEnt);
 
             if (m_Scene.GetRegistry().valid(horde.weaponEntity)) {
                 auto& wTrans = m_Scene.GetRegistry().get<TransformComponent>(horde.weaponEntity);
-                const auto* wBP = BlueprintManager::Get().GetWeapon("ork_choppa_1h");
-                {   // Corpo animato: la choppa va in mano al modello 3D
-                    std::string id = "ork_choppa_1h";
-                    if (const auto* wid = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(orkEnt); wid && !wid->id.empty()) id = wid->id;
+                const auto* wBP = BlueprintManager::Get().GetWeapon("vrepigh_cleaver_1h");
+                {   // Corpo animato: la cleaver va in mano al modello 3D
+                    std::string id = "vrepigh_cleaver_1h";
+                    if (const auto* wid = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(vrepighEnt); wid && !wid->id.empty()) id = wid->id;
                     const BlockModel* m = m_BlockModels.Find(id);
-                    if (m && PlaceBotWeaponOnHand(orkEnt, wTrans, m)) { SetWeaponBlockModel(horde.weaponEntity, id); continue; }
+                    if (m && PlaceBotWeaponOnHand(vrepighEnt, wTrans, m)) { SetWeaponBlockModel(horde.weaponEntity, id); continue; }
                 }
 
                 if (wBP) {
-                    auto worldTransforms = skel.data.ComputeWorldTransforms(orkTrans.Position, orkTrans.Rotation, skel.scale);
+                    auto worldTransforms = skel.data.ComputeWorldTransforms(vrepighTrans.Position, vrepighTrans.Rotation, skel.scale);
 
                     int armRIndex = -1;
                     for (size_t i = 0; i < skel.data.blocks.size(); ++i) {
@@ -6251,33 +6255,33 @@ namespace SunEngine {
                     if (armRIndex >= 0 && armRIndex < static_cast<int>(worldTransforms.size())) {
                         glm::mat4 armWorldMat = worldTransforms[armRIndex];
 
-                        // Modello a blocchi dell'arma dell'ork (es. la choppa): sostituisce il cubo
-                        std::string orkWeaponId = "ork_choppa_1h";
-                        if (const auto* wid = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(orkEnt)) {
-                            if (!wid->id.empty()) orkWeaponId = wid->id;
+                        // Modello a blocchi dell'arma del vrepigh (es. la cleaver): sostituisce il cubo
+                        std::string vrepighWeaponId = "vrepigh_cleaver_1h";
+                        if (const auto* wid = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(vrepighEnt)) {
+                            if (!wid->id.empty()) vrepighWeaponId = wid->id;
                         }
-                        if (m_BlockModels.Find(orkWeaponId)) {
+                        if (m_BlockModels.Find(vrepighWeaponId)) {
                             // La matrice del braccio include la scala del blocco: separo rotazione e dimensioni,
                             // cosi' il modello (in metri reali) non viene deformato.
                             glm::mat4 armRot(1.0f);
                             for (int i = 0; i < 3; ++i) armRot[i] = glm::vec4(glm::normalize(glm::vec3(armWorldMat[i])), 0.0f);
                             const glm::vec3 armSize = skel.data.BlockWorldSize(armRIndex, skel.scale);
-                            const glm::mat4 corr = glm::eulerAngleYXZ(glm::radians(m_OrkWeaponModelRotation.y),
-                                glm::radians(m_OrkWeaponModelRotation.x), glm::radians(m_OrkWeaponModelRotation.z));
+                            const glm::mat4 corr = glm::eulerAngleYXZ(glm::radians(m_VrepighWeaponModelRotation.y),
+                                glm::radians(m_VrepighWeaponModelRotation.x), glm::radians(m_VrepighWeaponModelRotation.z));
                             const glm::mat4 weaponRot = armRot * corr;
 
-                            // Il pugno e' il fondo del blocco braccio: l'impugnatura della choppa (ancora del
+                            // Il pugno e' il fondo del blocco braccio: l'impugnatura della cleaver (ancora del
                             // modello) cade li', e la lama esce dal pugno in avanti (rotazione tarabile).
-                            const BlockModel* orkModel = m_BlockModels.Find(orkWeaponId);
-                            const glm::vec3 handLocal = glm::vec3(0.0f, -armSize.y * 0.5f, 0.0f) + m_OrkWeaponHoldOffset;
+                            const BlockModel* vrepighModel = m_BlockModels.Find(vrepighWeaponId);
+                            const glm::vec3 handLocal = glm::vec3(0.0f, -armSize.y * 0.5f, 0.0f) + m_VrepighWeaponHoldOffset;
                             const glm::vec3 handWorld = glm::vec3(armWorldMat[3]) + glm::vec3(armRot * glm::vec4(handLocal, 0.0f));
-                            const glm::vec3 gripLocal = orkModel->hasGripRight ? orkModel->gripRight : glm::vec3(0.0f);
+                            const glm::vec3 gripLocal = vrepighModel->hasGripRight ? vrepighModel->gripRight : glm::vec3(0.0f);
 
                             wTrans.Position = handWorld - glm::vec3(weaponRot * glm::vec4(gripLocal, 0.0f));
                             float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
                             glm::extractEulerAngleYXZ(weaponRot, yaw, pitch, roll);
                             wTrans.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
-                            SetWeaponBlockModel(horde.weaponEntity, orkWeaponId);   // scala 1 = metri reali
+                            SetWeaponBlockModel(horde.weaponEntity, vrepighWeaponId);   // scala 1 = metri reali
                         }
                         else {
                             glm::mat4 weaponWorldMat = glm::translate(armWorldMat, glm::vec3(0.0f, -0.15f, 0.45f));
@@ -6360,7 +6364,7 @@ namespace SunEngine {
                 }
                 m_DeferredRenderer.FlushShadowCubes(c);   // tutti i cubi della cascata in una chiamata
 
-                // Personaggi animati (corpo, vestiti, armature, squig): l'ombra segue l'animazione
+                // Personaggi animati (corpo, vestiti, armature, grugn): l'ombra segue l'animazione
                 auto skinned = m_Scene.GetRegistry().view<TransformComponent, SkinnedModelInstanceComponent>();
                 for (auto entity : skinned) {
                     if (!gq.characterShadows) break;
@@ -6605,7 +6609,7 @@ namespace SunEngine {
                 RenderAmmoHUD();
                 RenderPlayerStatusHUD();
                 RenderOrdersRadial();
-                RenderAuspex();
+                RenderScanner();
                 RenderTurretHUD();
                 RenderNetMatchOverlay();
                 RenderPartyOverlay();   // avvisi della squadra anche in partita (cambio di squadra, nuovo host...)
@@ -6678,9 +6682,9 @@ namespace SunEngine {
                     m_GameState = GameState::MainMenu;
                     m_IsPaused = false;
                     m_PlayerDeathHandled = false;
-                    g_WaaaghActive = false;
-                    g_WaaaghTimer = 0.0f;
-                    g_WaaaghSpawnCount = 1;
+                    g_HungryActive = false;
+                    g_HungryTimer = 0.0f;
+                    g_HungrySpawnCount = 1;
 
                     auto enemyView = m_Scene.GetRegistry().view<HealthComponent>(entt::exclude<PlayerTag>);
                     for (auto e : enemyView) {
@@ -6945,7 +6949,7 @@ namespace SunEngine {
     }
 
     // Garage di un profilo nuovo: solo l'unita' iniziale (nodo radice) di ciascun ramo dell'albero di ricerca,
-    // col suo nome e colore predefiniti: oggi coscritto, neofita e gretchin. Se l'albero non e' leggibile si
+    // col suo nome e colore predefiniti: oggi coscritto, candidato e pighcib. Se l'albero non e' leggibile si
     // usano direttamente quelle tre unita'.
     void GameLayer::BuildStarterRoster() {
         m_PlayerRoster.clear();
@@ -6961,9 +6965,9 @@ namespace SunEngine {
             }
         }
         if (m_PlayerRoster.empty()) {
-            m_PlayerRoster.push_back(TrainedUnit{ "Recluta Teren", "imperium_conscript", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
-            m_PlayerRoster.push_back(TrainedUnit{ "Candidato Corvo", "spacemarines_neophyte", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
-            m_PlayerRoster.push_back(TrainedUnit{ "Snuffo", "orks_gretchin", glm::vec4(kPighcibSkin, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Recluta Teren", "kingship_recruit", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Candidato Corvo", "vanguard_candidate", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Snuffo", "vrepighs_pighcib", glm::vec4(kPighcibSkin, 1.0f) });
             for (auto& u : m_PlayerRoster) u.ApplyDefaultLoadout();
         }
         m_SelectedVaultIndex = 0;
@@ -7882,21 +7886,21 @@ namespace SunEngine {
                 Ui::Heading("FASE 1: SELEZIONA LA FAZIONE");
 
                 if (Ui::PlainButton("KINGSHIP", ImVec2(280, 45))) {
-                    m_SelectedFaction = "Imperium";
+                    m_SelectedFaction = "Kingship";
                     m_RecruitStep = 1;
                 }
                 if (Ui::PlainButton("VANGUARD ARMORS", ImVec2(280, 45))) {
-                    m_SelectedFaction = "SpaceMarines";
+                    m_SelectedFaction = "Vanguard";
                     m_RecruitStep = 1;
                 }
                 if (Ui::PlainButton("VREPIGHS", ImVec2(280, 45))) {
-                    m_SelectedFaction = "Orks";
+                    m_SelectedFaction = "Vrepighs";
                     m_RecruitStep = 1;
                 }
             }
             else if (m_RecruitStep == 1) {
-                // nome mostrato della fazione (l'id interno resta Imperium / SpaceMarines / Orks)
-                const char* factionLabel = m_SelectedFaction == "Imperium" ? "Kingship" : m_SelectedFaction == "SpaceMarines" ? "Vanguard Armors" : "Vrepighs";
+                // nome mostrato della fazione (l'id interno resta Kingship / Vanguard / Vrepighs)
+                const char* factionLabel = m_SelectedFaction == "Kingship" ? "Kingship" : m_SelectedFaction == "Vanguard" ? "Vanguard Armors" : "Vrepighs";
                 ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "FASE 2: SELEZIONA TRUPPA (%s)", factionLabel);
                 ImGui::Separator(); ImGui::Spacing();
 
@@ -7910,28 +7914,22 @@ namespace SunEngine {
                     ImGui::CloseCurrentPopup();
                 };
 
-                if (m_SelectedFaction == "Imperium") {
+                if (m_SelectedFaction == "Kingship") {
                     if (Ui::PlainButton("Fante del Regno (10 Pti)\n(Recluta)", ImVec2(280, 50))) {
-                        recruitAction("imperium_guardsman_recruit", "Fante Hessel", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
-                    }
-                    if (Ui::PlainButton("Kingsman Scelto (25 Pti)\n(Soldato Scelto)", ImVec2(280, 50))) {
-                        recruitAction("imperium_kasrkin", "Kingsman Thorne", glm::vec4(0.35f, 0.25f, 0.18f, 1.0f));
+                        recruitAction("kingship_footman", "Fante Hessel", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
                     }
                 }
-                else if (m_SelectedFaction == "SpaceMarines") {
+                else if (m_SelectedFaction == "Vanguard") {
                     if (Ui::PlainButton("Candidato Umano (40 Pti)\n(Candidato)", ImVec2(280, 50))) {
-                        recruitAction("spacemarines_neophyte", "Candidato Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
+                        recruitAction("vanguard_candidate", "Candidato Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
                     if (Ui::PlainButton("Difensore Vanguardio (75 Pti)\n(Difensore)", ImVec2(280, 50))) {
-                        recruitAction("spacemarines_battle_brother", "Dietrich Falken", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
+                        recruitAction("vanguard_defender", "Dietrich Falken", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
-                else if (m_SelectedFaction == "Orks") {
+                else if (m_SelectedFaction == "Vrepighs") {
                     if (Ui::PlainButton("Vrepigh (15 Pti)\n(Fante Vrepigh)", ImVec2(280, 50))) {
-                        recruitAction("orks_boy", "Brakk", glm::vec4(kVrepighSkin[2], 1.0f));
-                    }
-                    if (Ui::PlainButton("Vrepigh Capozanna (50 Pti)\n(Capoclan Vrepigh)", ImVec2(280, 50))) {
-                        recruitAction("orks_nob", "Ruggzanna", glm::vec4(kVrepighSkin[4], 1.0f));
+                        recruitAction("vrepighs_tusker", "Brakk", glm::vec4(kVrepighSkin[2], 1.0f));
                     }
                 }
 
@@ -8000,11 +7998,11 @@ namespace SunEngine {
                 ImGui::Spacing(); ImGui::Spacing();
                 ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "CARNAGIONE");
                 // tinte tipiche della razza (Vrepighs dal grigio sporco al viola scurissimo, Pighcib grigi,
-                // ogryn e umani dal pallido allo scuro)
+                // ogre e umani dal pallido allo scuro)
                 std::vector<glm::vec3> tones;
                 const std::string lb = bodyLabel;
-                if (lb == "ork") tones.assign(std::begin(kVrepighSkin), std::end(kVrepighSkin));
-                else if (lb == "gretchin") tones = { kPighcibSkin, { 0.44f, 0.41f, 0.43f }, kVrepighSkin[0], kVrepighSkin[1], { 0.34f, 0.30f, 0.33f }, kVrepighSkin[2] };
+                if (lb == "vrepigh") tones.assign(std::begin(kVrepighSkin), std::end(kVrepighSkin));
+                else if (lb == "pighcib") tones = { kPighcibSkin, { 0.44f, 0.41f, 0.43f }, kVrepighSkin[0], kVrepighSkin[1], { 0.34f, 0.30f, 0.33f }, kVrepighSkin[2] };
                 else tones = { { 0.86f, 0.68f, 0.58f }, { 0.80f, 0.62f, 0.52f }, { 0.70f, 0.52f, 0.40f }, { 0.56f, 0.40f, 0.30f }, { 0.42f, 0.29f, 0.21f }, { 0.30f, 0.20f, 0.15f } };
                 for (size_t i = 0; i < tones.size(); ++i) {
                     if (i > 0) ImGui::SameLine();
@@ -8561,7 +8559,7 @@ namespace SunEngine {
 
         const char* events[] = {
             "Difesa della pietra (ondata Vrepighs)",
-            "Recupero Dati (Tyranidi)",   // nascosta per ora: non compare nella lista
+            "Recupero Dati (Divoratori)",   // nascosta per ora: non compare nella lista
             "Incursione Profonda",
             "SANDBOX (Esplorazione Libera)",
             "VS BOT (5 contro 5)"
@@ -8783,13 +8781,13 @@ namespace SunEngine {
         m_IsPaused = false;
 
         if (m_SelectedEventIndex == 0) {
-            g_WaaaghActive = true;
-            g_WaaaghTimer = 9.0f;
-            g_WaaaghSpawnCount = 1;
-            PlayStartWaaagh(m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
+            g_HungryActive = true;
+            g_HungryTimer = 9.0f;
+            g_HungrySpawnCount = 1;
+            PlayStartHungry(m_VoiceGroupInitialized ? 1.0f : m_VolumeVoice);
         }
         else {
-            g_WaaaghActive = false;
+            g_HungryActive = false;
         }
 
         ResetFactionBuff();
@@ -8828,9 +8826,9 @@ namespace SunEngine {
             if (Ui::PlainButton("Torna al Menu Principale (Garage)", ImVec2(-1, 50))) {
                 m_GameState = GameState::MainMenu;
                 m_PlayerDeathHandled = false;
-                g_WaaaghActive = false;
-                g_WaaaghTimer = 0.0f;
-                g_WaaaghSpawnCount = 1;
+                g_HungryActive = false;
+                g_HungryTimer = 0.0f;
+                g_HungrySpawnCount = 1;
 
                 auto enemyView = m_Scene.GetRegistry().view<HealthComponent>(entt::exclude<PlayerTag>);
                 for (auto e : enemyView) {
@@ -9192,14 +9190,14 @@ namespace SunEngine {
                     ImGui::DragFloat("Fattore inclinazione mira", &m_WeaponPitchFactor, 0.01f, -2.0f, 2.0f, "%.2f");
                     ImGui::Checkbox("Segui rotazione della mano", &m_WeaponFollowsHand);
                     ImGui::Separator();
-                    ImGui::TextDisabled("Armi con modello a blocchi (es. lasgun):");
+                    ImGui::TextDisabled("Armi con modello a blocchi (es. fucile a impulsi):");
                     ImGui::SliderFloat("Allineamento alle mani (0 = dritta)", &m_WeaponHandAlign, 0.0f, 1.0f, "%.2f");
                     ImGui::DragFloat3("Spostamento (dx,su,indietro) m", &m_WeaponModelGripOffset.x, 0.002f, -0.5f, 0.5f, "%.3f");
                     ImGui::DragFloat3("Correzione rotazione (gradi)", &m_WeaponModelRotation.x, 0.5f, -180.0f, 180.0f, "%.1f");
                     ImGui::Separator();
                     ImGui::TextDisabled("Arma dei Vrepighs (mannaia):");
-                    ImGui::DragFloat3("Pugno sul braccio (m, dal fondo)", &m_OrkWeaponHoldOffset.x, 0.01f, -1.0f, 1.0f, "%.2f");
-                    ImGui::DragFloat3("Rotazione lama (gradi)", &m_OrkWeaponModelRotation.x, 1.0f, -180.0f, 180.0f, "%.0f");
+                    ImGui::DragFloat3("Pugno sul braccio (m, dal fondo)", &m_VrepighWeaponHoldOffset.x, 0.01f, -1.0f, 1.0f, "%.2f");
+                    ImGui::DragFloat3("Rotazione lama (gradi)", &m_VrepighWeaponModelRotation.x, 1.0f, -180.0f, 180.0f, "%.0f");
                     ImGui::EndChild();
                     ImGui::EndTabItem();
                 }
@@ -9291,13 +9289,12 @@ namespace SunEngine {
         if (number > 1) name += " " + std::to_string(number);
         TrainedUnit u{ name, unitId, color };
         const std::string faction = VsBotFactionOf(unitId);
-        u.primaryWeaponId = "lasgun_standard";
-        u.secondaryWeaponId = "laspistol_standard";
-        if (faction == "orks") u.meleeWeaponId = "ork_choppa_1h";
-        else if (faction == "spacemarines") u.meleeWeaponId = "standard_chainsword_1h";
-        else if (unitId == "imperium_ogryn") u.meleeWeaponId = "entrenching_shovel_1h";
+        u.primaryWeaponId = "auto_rifle_mg";
+        u.secondaryWeaponId = "impulse_pistol_standard";
+        if (faction == "vrepighs") u.meleeWeaponId = "vrepigh_cleaver_1h";
+        else if (faction == "vanguard") u.meleeWeaponId = "standard_toothsword_1h";
         else u.meleeWeaponId = "combat_knife_1h";
-        u.ApplyDefaultLoadout();   // unita' con dotazione base definita (es. gretchin, yoof): quella
+        u.ApplyDefaultLoadout();   // unita' con dotazione base definita (es. pighcib, feral_pig): quella
         return u;
     }
 
@@ -9313,103 +9310,103 @@ namespace SunEngine {
             if (delta > budget) slot = old;
             else budget -= delta;
         };
-        if (u.blueprintId == "orks_gretchin") {
-            tryUpgrade(0.25f, u.primaryWeaponId, "grot_trombone");
+        if (u.blueprintId == "vrepighs_pighcib") {
+            tryUpgrade(0.25f, u.primaryWeaponId, "pighcib_blunderbuss");
             const float r = Random::Float01();
-            if (r < 0.35f) tryUpgrade(1.0f, u.equipmentSlots[1], "squig_biter");
-            else if (r < 0.50f) tryUpgrade(1.0f, u.equipmentSlots[1], "squig_bomb");
-            tryUpgrade(0.30f, u.armorHeadId, "head_grot_scrap_helmet");
+            if (r < 0.35f) tryUpgrade(1.0f, u.equipmentSlots[1], "grugn_companion");
+            else if (r < 0.50f) tryUpgrade(1.0f, u.equipmentSlots[1], "grugn_bomb");
+            tryUpgrade(0.30f, u.armorHeadId, "head_pighcib_scrap_helmet");
         }
-        else if (u.blueprintId == "orks_yoof") {
-            tryUpgrade(0.30f, u.armorHeadId, "head_yoof_scrap");   // Feral Pig: solo armatura, pezzo per pezzo
-            tryUpgrade(0.35f, u.armorTorsoId, "torso_yoof_scrap");
-            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_yoof_scrap"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_yoof_scrap"); }
-            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_yoof_scrap"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_yoof_scrap"); }
+        else if (u.blueprintId == "vrepighs_feral_pig") {
+            tryUpgrade(0.30f, u.armorHeadId, "head_feral_pig_scrap");   // Feral Pig: solo armatura, pezzo per pezzo
+            tryUpgrade(0.35f, u.armorTorsoId, "torso_feral_pig_scrap");
+            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_feral_pig_scrap"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_feral_pig_scrap"); }
+            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_feral_pig_scrap"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_feral_pig_scrap"); }
         }
-        else if (u.blueprintId == "orks_boy") {
-            tryUpgrade(0.30f, u.meleeWeaponId, "boy_big_choppa");
-            tryUpgrade(0.25f, u.primaryWeaponId, "boy_big_shoota");
-            tryUpgrade(0.25f, u.equipmentSlots[1], "boy_mines");
-            tryUpgrade(0.30f, u.armorHeadId, "head_boy_helmet");
-            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_boy_plate"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_boy_plate"); }
-            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_boy_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_boy_plate"); }
-            tryUpgrade(0.20f, u.armorTorsoId, "torso_boy_heavy");
+        else if (u.blueprintId == "vrepighs_tusker") {
+            tryUpgrade(0.30f, u.meleeWeaponId, "tusker_heavy_cleaver");
+            tryUpgrade(0.25f, u.primaryWeaponId, "tusker_heavy_crude_gun");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "tusker_mines");
+            tryUpgrade(0.30f, u.armorHeadId, "head_tusker_helmet");
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_tusker_plate"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_tusker_plate"); }
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_tusker_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_tusker_plate"); }
+            tryUpgrade(0.20f, u.armorTorsoId, "torso_tusker_heavy");
         }
-        else if (u.blueprintId == "orks_shoota_boy") {
+        else if (u.blueprintId == "vrepighs_gunner") {
             const float r = Random::Float01();
-            if (r < 0.25f) tryUpgrade(1.0f, u.primaryWeaponId, "shoota_big_shoota");
-            else if (r < 0.45f) tryUpgrade(1.0f, u.primaryWeaponId, "shoota_rokkit");
-            tryUpgrade(0.30f, u.equipmentSlots[1], "shoota_ammo_backpack");
-            tryUpgrade(0.30f, u.armorHeadId, "head_shoota_helmet");
-            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_shoota_plate"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_shoota_plate"); }
-            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_shoota_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_shoota_plate"); }
-            tryUpgrade(0.20f, u.armorTorsoId, "torso_shoota_heavy");
+            if (r < 0.25f) tryUpgrade(1.0f, u.primaryWeaponId, "gunner_heavy_crude_gun");
+            else if (r < 0.45f) tryUpgrade(1.0f, u.primaryWeaponId, "gunner_rocket_launcher");
+            tryUpgrade(0.30f, u.equipmentSlots[1], "gunner_ammo_backpack");
+            tryUpgrade(0.30f, u.armorHeadId, "head_gunner_helmet");
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_gunner_plate"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_gunner_plate"); }
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_gunner_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_gunner_plate"); }
+            tryUpgrade(0.20f, u.armorTorsoId, "torso_gunner_heavy");
         }
-        else if (u.blueprintId == "imperium_whiteshield") {
-            tryUpgrade(0.5f, u.primaryWeaponId, "whiteshield_autogun");     // alternativa base alla lasgun
-            tryUpgrade(0.30f, u.meleeWeaponId, "whiteshield_chainsword");
-            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_whiteshield_guard"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_whiteshield_guard"); }
-            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_whiteshield_guard"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_whiteshield_guard"); }
-            tryUpgrade(0.25f, u.equipmentSlots[1], "whiteshield_lascannon");
+        else if (u.blueprintId == "kingship_levy") {
+            tryUpgrade(0.5f, u.primaryWeaponId, "levy_auto_rifle");     // alternativa base alla impulse_rifle
+            tryUpgrade(0.30f, u.meleeWeaponId, "levy_toothsword");
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_levy_guard"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_levy_guard"); }
+            if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_levy_guard"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_levy_guard"); }
+            tryUpgrade(0.25f, u.equipmentSlots[1], "levy_impulse_cannon");
         }
-        else if (u.blueprintId == "imperium_guardsman_recruit") {
-            tryUpgrade(0.40f, u.primaryWeaponId, "guardsman_autogun");        // alternative base
-            tryUpgrade(0.35f, u.secondaryWeaponId, "guardsman_autopistol");
+        else if (u.blueprintId == "kingship_footman") {
+            tryUpgrade(0.40f, u.primaryWeaponId, "footman_auto_rifle");        // alternative base
+            tryUpgrade(0.35f, u.secondaryWeaponId, "footman_auto_pistol");
             const float r = Random::Float01();                                  // armi speciali (una al massimo)
-            if (r < 0.10f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_shotgun");
-            else if (r < 0.19f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_flamer");
-            else if (r < 0.28f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_plasma");
-            else if (r < 0.36f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_melta");
-            else if (r < 0.44f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_long_las");
-            else if (r < 0.52f) tryUpgrade(1.0f, u.primaryWeaponId, "guardsman_grenade_launcher");
-            tryUpgrade(0.25f, u.meleeWeaponId, "guardsman_chainsword");
-            tryUpgrade(0.25f, u.equipmentSlots[1], "guardsman_vox_caster");
+            if (r < 0.10f) tryUpgrade(1.0f, u.primaryWeaponId, "footman_shotgun");
+            else if (r < 0.19f) tryUpgrade(1.0f, u.primaryWeaponId, "footman_flamer");
+            else if (r < 0.28f) tryUpgrade(1.0f, u.primaryWeaponId, "footman_discharge_rifle");
+            else if (r < 0.36f) tryUpgrade(1.0f, u.primaryWeaponId, "footman_fusion_rifle");
+            else if (r < 0.44f) tryUpgrade(1.0f, u.primaryWeaponId, "footman_precision_rifle");
+            else if (r < 0.52f) tryUpgrade(1.0f, u.primaryWeaponId, "footman_grenade_launcher");
+            tryUpgrade(0.25f, u.meleeWeaponId, "footman_toothsword");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "footman_field_radio");
         }
-        else if (u.blueprintId == "imperium_schola_cadet") {
-            tryUpgrade(0.40f, u.primaryWeaponId, "guardsman_autogun");          // alternative base (come il guardsman)
-            tryUpgrade(0.35f, u.secondaryWeaponId, "guardsman_autopistol");
-            tryUpgrade(0.35f, u.primaryWeaponId, "schola_hotshot_lasgun");
-            tryUpgrade(0.30f, u.secondaryWeaponId, "schola_hotshot_laspistol");
-            tryUpgrade(0.30f, u.armorTorsoId, "torso_schola_carapace");
-            tryUpgrade(0.30f, u.armorHeadId, "head_schola_carapace");
-            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_schola_carapace"); }
-            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_schola_carapace"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_schola_carapace"); }
-            tryUpgrade(0.30f, u.equipmentSlots[1], "schola_ammo_crate");
+        else if (u.blueprintId == "kingship_college_cadet") {
+            tryUpgrade(0.40f, u.primaryWeaponId, "footman_auto_rifle");          // alternative base (come il footman)
+            tryUpgrade(0.35f, u.secondaryWeaponId, "footman_auto_pistol");
+            tryUpgrade(0.35f, u.primaryWeaponId, "cadet_high_power_rifle");
+            tryUpgrade(0.30f, u.secondaryWeaponId, "cadet_high_power_pistol");
+            tryUpgrade(0.30f, u.armorTorsoId, "torso_cadet_carapace");
+            tryUpgrade(0.30f, u.armorHeadId, "head_cadet_carapace");
+            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_cadet_carapace"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_cadet_carapace"); }
+            if (Random::Chance(0.25f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_cadet_carapace"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_cadet_carapace"); }
+            tryUpgrade(0.30f, u.equipmentSlots[1], "cadet_ammo_crate");
         }
-        else if (u.blueprintId == "spacemarines_battle_brother") {
-            tryUpgrade(0.40f, u.primaryWeaponId, "firstborn_auto_bolt_rifle");   // alternative base
-            tryUpgrade(0.30f, u.meleeWeaponId, "firstborn_knife");
-            tryUpgrade(0.25f, u.primaryWeaponId, "firstborn_heavy_bolter");
-            tryUpgrade(0.30f, u.equipmentSlots[0], "firstborn_krak");
-            tryUpgrade(0.30f, u.equipmentSlots[2], "firstborn_insignia");
+        else if (u.blueprintId == "vanguard_defender") {
+            tryUpgrade(0.40f, u.primaryWeaponId, "defender_auto_heavy_round_rifle");   // alternative base
+            tryUpgrade(0.30f, u.meleeWeaponId, "defender_knife");
+            tryUpgrade(0.25f, u.primaryWeaponId, "defender_heavy_round_mg");
+            tryUpgrade(0.30f, u.equipmentSlots[0], "defender_piercing_grenade");
+            tryUpgrade(0.30f, u.equipmentSlots[2], "defender_house_banner");
         }
-        else if (u.blueprintId == "spacemarines_scout") {
-            tryUpgrade(0.30f, u.primaryWeaponId, "scout_shotgun");          // alternative base
-            tryUpgrade(0.30f, u.meleeWeaponId, "scout_chainsword");
+        else if (u.blueprintId == "vanguard_explorer") {
+            tryUpgrade(0.30f, u.primaryWeaponId, "explorer_shotgun");          // alternative base
+            tryUpgrade(0.30f, u.meleeWeaponId, "explorer_toothsword");
             const float r = Random::Float01();
-            if (r < 0.20f) tryUpgrade(1.0f, u.primaryWeaponId, "scout_sniper");
-            else if (r < 0.38f) tryUpgrade(1.0f, u.primaryWeaponId, "scout_heavy_bolter");
-            tryUpgrade(0.30f, u.armorHeadId, "head_scout_visor");
-            tryUpgrade(0.25f, u.equipmentSlots[1], "scout_camo_cloak");      // al posto dell'auspex (inutile per l'IA)
+            if (r < 0.20f) tryUpgrade(1.0f, u.primaryWeaponId, "explorer_sniper");
+            else if (r < 0.38f) tryUpgrade(1.0f, u.primaryWeaponId, "explorer_heavy_round_mg");
+            tryUpgrade(0.30f, u.armorHeadId, "head_explorer_visor");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "explorer_camo_cloak");      // al posto dell'scanner (inutile per l'IA)
         }
-        else if (u.blueprintId == "spacemarines_neophyte") {
-            tryUpgrade(0.50f, u.primaryWeaponId, "aspirant_autogun");      // alternativa base al lasrifle
-            tryUpgrade(0.25f, u.primaryWeaponId, "aspirant_shotgun");
-            tryUpgrade(0.35f, u.secondaryWeaponId, "aspirant_laspistol");
-            tryUpgrade(0.30f, u.meleeWeaponId, "aspirant_chainsword");
+        else if (u.blueprintId == "vanguard_candidate") {
+            tryUpgrade(0.50f, u.primaryWeaponId, "candidate_auto_rifle");      // alternativa base al impulse_rifle
+            tryUpgrade(0.25f, u.primaryWeaponId, "candidate_shotgun");
+            tryUpgrade(0.35f, u.secondaryWeaponId, "candidate_impulse_pistol");
+            tryUpgrade(0.30f, u.meleeWeaponId, "candidate_toothsword");
         }
-        else if (u.blueprintId == "imperium_conscript") {
-            tryUpgrade(0.30f, u.equipmentSlots[0], "conscript_frag");
-            tryUpgrade(0.25f, u.equipmentSlots[1], "conscript_medkit");
-            tryUpgrade(0.35f, u.armorTorsoId, "torso_conscript_flak");
-            tryUpgrade(0.35f, u.armorHeadId, "head_conscript_helmet");
+        else if (u.blueprintId == "kingship_recruit") {
+            tryUpgrade(0.30f, u.equipmentSlots[0], "recruit_frag");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "recruit_medkit");
+            tryUpgrade(0.35f, u.armorTorsoId, "torso_recruit_flak");
+            tryUpgrade(0.35f, u.armorHeadId, "head_recruit_helmet");
         }
-        else if (u.blueprintId == "orks_loota") {
+        else if (u.blueprintId == "vrepighs_raider") {
             const float r = Random::Float01();
-            if (r < 0.25f) tryUpgrade(1.0f, u.primaryWeaponId, "loota_deffgun_beamy");
-            else if (r < 0.45f) tryUpgrade(1.0f, u.primaryWeaponId, "loota_deffgun_plasma");
-            tryUpgrade(0.30f, u.armorHeadId, "head_loota_helmet");
-            tryUpgrade(0.25f, u.equipmentSlots[1], "loota_slit_wall");
+            if (r < 0.25f) tryUpgrade(1.0f, u.primaryWeaponId, "raider_beam_rifle");
+            else if (r < 0.45f) tryUpgrade(1.0f, u.primaryWeaponId, "raider_discharge_rifle");
+            tryUpgrade(0.30f, u.armorHeadId, "head_raider_helmet");
+            tryUpgrade(0.25f, u.equipmentSlots[1], "raider_slit_wall");
         }
     }
 
@@ -9463,7 +9460,7 @@ namespace SunEngine {
         inv.tool1Id = unit.equipmentSlots[0];
         inv.tool2Id = unit.equipmentSlots[1];
         inv.tool3Id = unit.equipmentSlots[2];
-        inv.currentSlot = inv.FirstUsableSlot();   // senza primaria (gretchin) parte dalla secondaria
+        inv.currentSlot = inv.FirstUsableSlot();   // senza primaria (pighcib) parte dalla secondaria
         reg.emplace<WeaponBlueprintId>(e, inv.GetActiveWeaponId());
         auto& ws = reg.emplace<WeaponStateComponent>(e);
         if (const auto* wbp = BlueprintManager::Get().GetWeapon(inv.GetActiveWeaponId())) ws.currentAmmo = wbp->magazine_size;
@@ -9494,7 +9491,7 @@ namespace SunEngine {
         return e;
     }
 
-    // Massimo per tipo di unita' ("max_per_squad", es. 4 boyz): le squadre salvate prima della regola
+    // Massimo per tipo di unita' ("max_per_squad", es. 4 tuskers): le squadre salvate prima della regola
     // potrebbero superarlo, quindi lo si ricontrolla prima di entrare in coda.
     std::string GameLayer::SquadTypeCapProblem() const {
         std::unordered_map<std::string, int> count;
@@ -9686,7 +9683,7 @@ namespace SunEngine {
         for (const auto& p : m_VsBotPlayers) { pts[p.team == 1 ? 1 : 0] += p.TotalPoints(); units[p.team == 1 ? 1 : 0] += static_cast<int>(p.squad.size()); }
         SUN_CORE_INFO("Vs Bot {0}: squadra 0 {1} pti in {2} unita', squadra 1 {3} pti in {4} unita'", tier.name, pts[0], units[0], pts[1], units[1]);
 
-        g_WaaaghActive = false;
+        g_HungryActive = false;
         m_VsBotActive = true;
         m_VsBotTier = std::clamp(tierIdx, 0, 2);
         m_VsBotTime = 0.0f;
@@ -10046,8 +10043,8 @@ namespace SunEngine {
         m_MoraleSystem.Update(m_Scene, deltaTime);
         if (m_VsBotWarmup <= 0.0f) m_BotAI.Update(m_Scene, m_NavQuery, deltaTime);   // nel riscaldamento i bot aspettano
         m_MeleeCombat.Update(m_Scene, deltaTime);
-        m_SquigSystem.Update(m_Scene, m_NavQuery, deltaTime, m_SquigSkeleton ? &*m_SquigSkeleton : nullptr);
-        UpdateSquigVisuals();
+        m_GrugnSystem.Update(m_Scene, m_NavQuery, deltaTime, m_GrugnSkeleton ? &*m_GrugnSkeleton : nullptr);
+        UpdateGrugnVisuals();
         CheckUnitDeaths();
         CollectMatchXp(deltaTime, false);   // a terra niente sopravvivenza
         glm::vec3 playerPos(0.0f);
@@ -10079,15 +10076,15 @@ namespace SunEngine {
         Renderer::SetViewProjection(m_Camera.GetViewProjection());
     }
 
-    // Animazione procedurale di orki e bot (gambe, braccia) e spinta lontano dal giocatore.
+    // Animazione procedurale di vrepighs e bot (gambe, braccia) e spinta lontano dal giocatore.
     void GameLayer::AnimateUnits(float deltaTime, const glm::vec3& playerPos, bool pushFromPlayer) {
-        static float orkAnimTimer = 0.0f;
-        orkAnimTimer += deltaTime * 8.0f;
+        static float vrepighAnimTimer = 0.0f;
+        vrepighAnimTimer += deltaTime * 8.0f;
 
         float totalTime = static_cast<float>(glfwGetTime());
 
         auto enemyView = m_Scene.GetRegistry().view<TransformComponent, HealthComponent>(
-            entt::exclude<PlayerTag, CorpseComponent, SquigComponent>
+            entt::exclude<PlayerTag, CorpseComponent, GrugnComponent>
         );
 
         for (auto enemyEntity : enemyView) {
@@ -10103,9 +10100,9 @@ namespace SunEngine {
 
             if (pushFromPlayer && distPE < minDistPlayer && distPE > 0.001f) {
                 glm::vec2 pushDir = glm::normalize(eXZ - pXZ);
-                glm::vec2 correctedOrkPos = pXZ + pushDir * minDistPlayer;
-                enemyTrans.Position.x = correctedOrkPos.x;
-                enemyTrans.Position.z = correctedOrkPos.y;
+                glm::vec2 correctedVrepighPos = pXZ + pushDir * minDistPlayer;
+                enemyTrans.Position.x = correctedVrepighPos.x;
+                enemyTrans.Position.z = correctedVrepighPos.y;
                 m_PhysicsSystem.SetBodyPosition(m_Scene, enemyEntity, enemyTrans.Position);
             }
 

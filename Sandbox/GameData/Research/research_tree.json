@@ -4,7 +4,7 @@
   "max_tier_comment": "Gradi mostrati: fino al 3 per le tre fazioni (quello che The Sun's Darkest Hours ha gia' raccontato). Le unita' d'elite ('premium', Konrad di grado 6) restano a parte. Alzare il numero per aprire i gradi successivi: i nodi sono gia' qui sotto.",
   "factions": [
     {
-      "id": "imperium",
+      "id": "kingship",
       "name": "KINGSHIP",
       "accent": [
         0.85,
@@ -13,8 +13,8 @@
       ],
       "nodes": [
         {
-          "id": "ig_conscript",
-          "unit": "imperium_conscript",
+          "id": "kg_recruit",
+          "unit": "kingship_recruit",
           "name": "Reclute",
           "tier": 1,
           "col": 0,
@@ -31,13 +31,13 @@
           ]
         },
         {
-          "id": "ig_whiteshield",
-          "unit": "imperium_whiteshield",
+          "id": "kg_levy",
+          "unit": "kingship_levy",
           "name": "Reclute di Leva",
           "tier": 2,
           "col": 1,
           "row": 2.5,
-          "parent": "ig_conscript",
+          "parent": "kg_recruit",
           "research_cost": 15000,
           "purchase_cost": 15000,
           "default_name": "Recluta di Leva Brann",
@@ -49,13 +49,13 @@
           ]
         },
         {
-          "id": "ig_guardsman",
-          "unit": "imperium_guardsman_recruit",
+          "id": "kg_footman",
+          "unit": "kingship_footman",
           "name": "Fanti del Regno",
           "tier": 3,
           "col": 2,
           "row": 1,
-          "parent": "ig_whiteshield",
+          "parent": "kg_levy",
           "research_cost": 25000,
           "purchase_cost": 30000,
           "default_name": "Fante Hessel",
@@ -67,13 +67,13 @@
           ]
         },
         {
-          "id": "ig_special_weapon_team",
-          "unit": "imperium_special_weapon_team",
+          "id": "kg_special_weapons_team",
+          "unit": "kingship_special_weapons_team",
           "name": "Squadra delle Armi Speciali",
           "tier": 4,
           "col": 3,
           "row": 1,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 35000,
           "purchase_cost": 45000,
           "default_name": "Artigliere Ulmar",
@@ -85,88 +85,13 @@
           ]
         },
         {
-          "id": "ig_ogryn",
-          "unit": "imperium_ogryn",
-          "name": "Ogre da Guerra",
-          "tier": 5,
-          "col": 4,
-          "row": 0,
-          "parent": "ig_special_weapon_team",
-          "research_cost": 45000,
-          "purchase_cost": 120000,
-          "default_name": "Ogre Grobb",
-          "color": [
-            0.6,
-            0.45,
-            0.3,
-            1
-          ]
-        },
-        {
-          "id": "ig_bone_ead",
-          "unit": "imperium_bone_ead",
-          "name": "Capo Ogre",
-          "tier": 6,
-          "col": 5,
-          "row": 0,
-          "parent": "ig_ogryn",
-          "research_cost": 70000,
-          "purchase_cost": 150000,
-          "default_name": "Capo Ogre Maddok",
-          "color": [
-            0.62,
-            0.5,
-            0.32,
-            1
-          ]
-        },
-        {
-          "id": "ig_bullgryn",
-          "unit": "imperium_bullgryn",
-          "name": "Ogre Corazzati",
-          "tier": 7,
-          "col": 6,
-          "row": 0,
-          "parent": "ig_bone_ead",
-          "research_cost": 100000,
-          "purchase_cost": 200000,
-          "default_name": "Ogre Corazzato Torvald",
-          "color": [
-            0.45,
-            0.4,
-            0.3,
-            1
-          ]
-        },
-        {
-          "id": "ig_kasrkin",
-          "unit": "imperium_kasrkin",
-          "name": "Guardia Scelta",
-          "tier": 5,
-          "col": 4,
-          "row": 2,
-          "parent": "ig_special_weapon_team",
-          "research_cost": 45000,
-          "purchase_cost": 60000,
-          "default_name": "Kingsman Thorne",
-          "color": [
-            0.35,
-            0.25,
-            0.18,
-            1
-          ],
-          "renamed_from": [
-            "ig_tempestus"
-          ]
-        },
-        {
-          "id": "ig_captain",
-          "unit": "imperium_captain",
+          "id": "kg_captain",
+          "unit": "kingship_captain",
           "name": "Capitano del Regno",
           "tier": 6,
           "col": 5,
           "row": 2,
-          "parent": "ig_kasrkin",
+          "parent": "kg_special_weapons_team",
           "research_cost": 70000,
           "purchase_cost": 90000,
           "default_name": "Capitano Aldric",
@@ -178,13 +103,13 @@
           ]
         },
         {
-          "id": "ig_colonel",
-          "unit": "imperium_colonel",
+          "id": "kg_legion_commander",
+          "unit": "kingship_legion_commander",
           "name": "Comandante di Legione",
           "tier": 7,
           "col": 6,
           "row": 2,
-          "parent": "ig_captain",
+          "parent": "kg_captain",
           "research_cost": 100000,
           "purchase_cost": 130000,
           "default_name": "Comandante Halvek",
@@ -196,13 +121,13 @@
           ]
         },
         {
-          "id": "ig_lord_general",
-          "unit": "imperium_lord_general",
+          "id": "kg_grand_strategist",
+          "unit": "kingship_grand_strategist",
           "name": "Gran Stratega",
           "tier": 8,
           "col": 7,
           "row": 2,
-          "parent": "ig_colonel",
+          "parent": "kg_legion_commander",
           "research_cost": 150000,
           "purchase_cost": 200000,
           "default_name": "Gran Stratega Ottmar",
@@ -214,13 +139,13 @@
           ]
         },
         {
-          "id": "ig_commissar_cadet",
-          "unit": "imperium_commissar_cadet",
+          "id": "kg_prefect_cadet",
+          "unit": "kingship_prefect_cadet",
           "name": "Allievo Prefetto",
           "tier": 6,
           "col": 5,
           "row": 3,
-          "parent": "ig_tempestus_specialist",
+          "parent": "kg_chosen_specialist",
           "research_cost": 70000,
           "purchase_cost": 90000,
           "default_name": "Allievo Prefetto Ordwin",
@@ -231,18 +156,17 @@
             1
           ],
           "requires_mastered": [
-            "ig_kasrkin",
-            "ig_tempestus_specialist"
+            "kg_chosen_specialist"
           ]
         },
         {
-          "id": "ig_commissar",
-          "unit": "imperium_commissar",
+          "id": "kg_prefect",
+          "unit": "kingship_prefect",
           "name": "Prefetto Militare",
           "tier": 7,
           "col": 6,
           "row": 3,
-          "parent": "ig_commissar_cadet",
+          "parent": "kg_prefect_cadet",
           "research_cost": 100000,
           "purchase_cost": 130000,
           "default_name": "Prefetto Raik",
@@ -254,13 +178,13 @@
           ]
         },
         {
-          "id": "ig_lord_commissar",
-          "unit": "imperium_lord_commissar",
+          "id": "kg_high_prefect",
+          "unit": "kingship_high_prefect",
           "name": "Alto Prefetto",
           "tier": 8,
           "col": 7,
           "row": 3,
-          "parent": "ig_commissar",
+          "parent": "kg_prefect",
           "research_cost": 150000,
           "purchase_cost": 200000,
           "default_name": "Alto Prefetto Kordan",
@@ -272,13 +196,13 @@
           ]
         },
         {
-          "id": "ig_schola_cadet",
-          "unit": "imperium_schola_cadet",
+          "id": "kg_college_cadet",
+          "unit": "kingship_college_cadet",
           "name": "Cadetti del Collegio",
           "tier": 3,
           "col": 2,
           "row": 4,
-          "parent": "ig_whiteshield",
+          "parent": "kg_levy",
           "research_cost": 25000,
           "purchase_cost": 30000,
           "default_name": "Cadetta Ilse",
@@ -290,13 +214,13 @@
           ]
         },
         {
-          "id": "ig_tempestus_scion",
-          "unit": "imperium_tempestus_scion",
+          "id": "kg_chosen_guard",
+          "unit": "kingship_chosen_guard",
           "name": "Guardie Scelte",
           "tier": 4,
           "col": 3,
           "row": 4,
-          "parent": "ig_schola_cadet",
+          "parent": "kg_college_cadet",
           "research_cost": 35000,
           "purchase_cost": 50000,
           "default_name": "Guardia Scelta Darro",
@@ -308,13 +232,13 @@
           ]
         },
         {
-          "id": "ig_tempestus_specialist",
-          "unit": "imperium_tempestus_specialist",
+          "id": "kg_chosen_specialist",
+          "unit": "kingship_chosen_specialist",
           "name": "Specialista delle Guardie Scelte",
           "tier": 5,
           "col": 4,
           "row": 4,
-          "parent": "ig_tempestus_scion",
+          "parent": "kg_chosen_guard",
           "research_cost": 50000,
           "purchase_cost": 70000,
           "default_name": "Specialista Moira",
@@ -326,13 +250,13 @@
           ]
         },
         {
-          "id": "ig_tempestor",
-          "unit": "imperium_tempestor",
+          "id": "kg_chosen_captain",
+          "unit": "kingship_chosen_captain",
           "name": "Capitano delle Guardie Scelte",
           "tier": 6,
           "col": 5,
           "row": 4,
-          "parent": "ig_tempestus_specialist",
+          "parent": "kg_chosen_specialist",
           "research_cost": 70000,
           "purchase_cost": 90000,
           "default_name": "Capitano Hask",
@@ -344,13 +268,13 @@
           ]
         },
         {
-          "id": "ig_tempestor_prime",
-          "unit": "imperium_tempestor_prime",
+          "id": "kg_chosen_first_captain",
+          "unit": "kingship_chosen_first_captain",
           "name": "Primo Capitano delle Guardie Scelte",
           "tier": 7,
           "col": 6,
           "row": 4,
-          "parent": "ig_tempestor",
+          "parent": "kg_chosen_captain",
           "research_cost": 110000,
           "purchase_cost": 150000,
           "default_name": "Primo Capitano Vell",
@@ -362,274 +286,274 @@
           ]
         },
         {
-          "id": "ig_conscript_item_frag",
-          "item": "conscript_frag",
+          "id": "kg_recruit_item_frag",
+          "item": "recruit_frag",
           "name": "Granata a Frammentazione",
           "tier": 1,
           "col": 1,
           "row": 3,
-          "parent": "ig_conscript",
+          "parent": "kg_recruit",
           "research_cost": 10000,
           "purchase_cost": 20000
         },
         {
-          "id": "ig_conscript_item_medkit",
-          "item": "conscript_medkit",
+          "id": "kg_recruit_item_medkit",
+          "item": "recruit_medkit",
           "name": "Medikit",
           "tier": 1,
           "col": 1,
           "row": 4,
-          "parent": "ig_conscript",
+          "parent": "kg_recruit",
           "research_cost": 15000,
           "purchase_cost": 25000
         },
         {
-          "id": "ig_conscript_item_flak",
-          "item": "torso_conscript_flak",
+          "id": "kg_recruit_item_flak",
+          "item": "torso_recruit_flak",
           "name": "Corpetto Antischegge",
           "tier": 1,
           "col": 1,
           "row": 5,
-          "parent": "ig_conscript",
+          "parent": "kg_recruit",
           "research_cost": 10000,
           "purchase_cost": 20000
         },
         {
-          "id": "ig_conscript_item_helmet",
-          "item": "head_conscript_helmet",
+          "id": "kg_recruit_item_helmet",
+          "item": "head_recruit_helmet",
           "name": "Elmetto",
           "tier": 1,
           "col": 2,
           "row": 5,
-          "parent": "ig_conscript_item_flak",
+          "parent": "kg_recruit_item_flak",
           "research_cost": 8000,
           "purchase_cost": 15000
         },
         {
-          "id": "ig_whiteshield_item_chainsword",
+          "id": "kg_levy_item_toothsword",
           "name": "Spada a Denti Meccanici da Recluta",
           "tier": 2,
           "col": 2,
           "row": 6,
-          "parent": "ig_whiteshield",
+          "parent": "kg_levy",
           "research_cost": 20000,
           "purchase_cost": 35000,
-          "item": "whiteshield_chainsword"
+          "item": "levy_toothsword"
         },
         {
-          "id": "ig_whiteshield_item_arms",
+          "id": "kg_levy_item_arms",
           "name": "Spallacci",
           "tier": 2,
           "col": 2,
           "row": 7,
-          "parent": "ig_whiteshield",
+          "parent": "kg_levy",
           "research_cost": 15000,
           "purchase_cost": 25000,
           "items": [
-            "arm_l_whiteshield_guard",
-            "arm_r_whiteshield_guard"
+            "arm_l_levy_guard",
+            "arm_r_levy_guard"
           ]
         },
         {
-          "id": "ig_whiteshield_item_legs",
+          "id": "kg_levy_item_legs",
           "name": "Gambali",
           "tier": 2,
           "col": 3,
           "row": 7,
-          "parent": "ig_whiteshield_item_arms",
+          "parent": "kg_levy_item_arms",
           "research_cost": 15000,
           "purchase_cost": 25000,
           "items": [
-            "leg_l_whiteshield_guard",
-            "leg_r_whiteshield_guard"
+            "leg_l_levy_guard",
+            "leg_r_levy_guard"
           ]
         },
         {
-          "id": "ig_whiteshield_item_lascannon",
+          "id": "kg_levy_item_impulse_cannon",
           "name": "Cannone a Impulsi Pesante",
           "tier": 2,
           "col": 2,
           "row": 8,
-          "parent": "ig_whiteshield",
+          "parent": "kg_levy",
           "research_cost": 35000,
           "purchase_cost": 70000,
-          "item": "whiteshield_lascannon"
+          "item": "levy_impulse_cannon"
         },
         {
-          "id": "ig_guardsman_item_shotgun",
-          "item": "guardsman_shotgun",
+          "id": "kg_footman_item_shotgun",
+          "item": "footman_shotgun",
           "name": "Fucile a Pompa",
           "tier": 3,
           "col": 3,
           "row": 10,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 15000,
           "purchase_cost": 25000
         },
         {
-          "id": "ig_guardsman_item_chainsword",
-          "item": "guardsman_chainsword",
+          "id": "kg_footman_item_toothsword",
+          "item": "footman_toothsword",
           "name": "Spada a Denti Meccanici da Fante",
           "tier": 3,
           "col": 3,
           "row": 11,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 20000,
           "purchase_cost": 35000
         },
         {
-          "id": "ig_guardsman_item_grenade_launcher",
-          "item": "guardsman_grenade_launcher",
+          "id": "kg_footman_item_grenade_launcher",
+          "item": "footman_grenade_launcher",
           "name": "Lanciagranate",
           "tier": 3,
           "col": 3,
           "row": 12,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 30000,
           "purchase_cost": 55000
         },
         {
-          "id": "ig_guardsman_item_flamer",
-          "item": "guardsman_flamer",
+          "id": "kg_footman_item_flamer",
+          "item": "footman_flamer",
           "name": "Lanciafiamme",
           "tier": 3,
           "col": 3,
           "row": 13,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 30000,
           "purchase_cost": 55000
         },
         {
-          "id": "ig_guardsman_item_plasma",
-          "item": "guardsman_plasma",
+          "id": "kg_footman_item_discharge",
+          "item": "footman_discharge_rifle",
           "name": "Fucile al Plasma",
           "tier": 3,
           "col": 3,
           "row": 14,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 40000,
           "purchase_cost": 70000
         },
         {
-          "id": "ig_guardsman_item_melta",
-          "item": "guardsman_melta",
+          "id": "kg_footman_item_fusion",
+          "item": "footman_fusion_rifle",
           "name": "Fucile a Fusione",
           "tier": 3,
           "col": 3,
           "row": 15,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 40000,
           "purchase_cost": 70000
         },
         {
-          "id": "ig_guardsman_item_long_las",
-          "item": "guardsman_long_las",
+          "id": "kg_footman_item_precision_rifle",
+          "item": "footman_precision_rifle",
           "name": "Fucile di Precisione a Impulsi",
           "tier": 3,
           "col": 3,
           "row": 16,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 35000,
           "purchase_cost": 60000
         },
         {
-          "id": "ig_guardsman_item_vox",
-          "item": "guardsman_vox_caster",
+          "id": "kg_footman_item_radio",
+          "item": "footman_field_radio",
           "name": "Comunicatore da Campo",
           "tier": 3,
           "col": 3,
           "row": 17,
-          "parent": "ig_guardsman",
+          "parent": "kg_footman",
           "research_cost": 35000,
           "purchase_cost": 60000
         },
         {
-          "id": "ig_schola_item_hotshot_lasgun",
-          "item": "schola_hotshot_lasgun",
+          "id": "kg_college_cadet_item_high_power_rifle",
+          "item": "cadet_high_power_rifle",
           "name": "Fucile a Impulsi ad Alta Potenza",
           "tier": 3,
           "col": 3,
           "row": 20,
-          "parent": "ig_schola_cadet",
+          "parent": "kg_college_cadet",
           "research_cost": 30000,
           "purchase_cost": 55000
         },
         {
-          "id": "ig_schola_item_hotshot_laspistol",
-          "item": "schola_hotshot_laspistol",
+          "id": "kg_college_cadet_item_high_power_pistol",
+          "item": "cadet_high_power_pistol",
           "name": "Pistola a Impulsi ad Alta Potenza",
           "tier": 3,
           "col": 3,
           "row": 21,
-          "parent": "ig_schola_cadet",
+          "parent": "kg_college_cadet",
           "research_cost": 20000,
           "purchase_cost": 35000
         },
         {
-          "id": "ig_schola_item_ammo_crate",
-          "item": "schola_ammo_crate",
+          "id": "kg_college_cadet_item_ammo_crate",
+          "item": "cadet_ammo_crate",
           "name": "Cassa di Munizioni",
           "tier": 3,
           "col": 3,
           "row": 22,
-          "parent": "ig_schola_cadet",
+          "parent": "kg_college_cadet",
           "research_cost": 25000,
           "purchase_cost": 45000
         },
         {
-          "id": "ig_schola_item_carapace_torso",
-          "item": "torso_schola_carapace",
+          "id": "kg_college_cadet_item_carapace_torso",
+          "item": "torso_cadet_carapace",
           "name": "Corazza Rigida",
           "tier": 3,
           "col": 3,
           "row": 23,
-          "parent": "ig_schola_cadet",
+          "parent": "kg_college_cadet",
           "research_cost": 30000,
           "purchase_cost": 50000
         },
         {
-          "id": "ig_schola_item_carapace_head",
-          "item": "head_schola_carapace",
+          "id": "kg_college_cadet_item_carapace_head",
+          "item": "head_cadet_carapace",
           "name": "Elmo Rigido",
           "tier": 3,
           "col": 3,
           "row": 24,
-          "parent": "ig_schola_item_carapace_torso",
+          "parent": "kg_college_cadet_item_carapace_torso",
           "research_cost": 20000,
           "purchase_cost": 35000
         },
         {
-          "id": "ig_schola_item_carapace_arms",
+          "id": "kg_college_cadet_item_carapace_arms",
           "items": [
-            "arm_l_schola_carapace",
-            "arm_r_schola_carapace"
+            "arm_l_cadet_carapace",
+            "arm_r_cadet_carapace"
           ],
           "name": "Spallacci Rigidi",
           "tier": 3,
           "col": 3,
           "row": 25,
-          "parent": "ig_schola_item_carapace_torso",
+          "parent": "kg_college_cadet_item_carapace_torso",
           "research_cost": 20000,
           "purchase_cost": 35000
         },
         {
-          "id": "ig_schola_item_carapace_legs",
+          "id": "kg_college_cadet_item_carapace_legs",
           "items": [
-            "leg_l_schola_carapace",
-            "leg_r_schola_carapace"
+            "leg_l_cadet_carapace",
+            "leg_r_cadet_carapace"
           ],
           "name": "Gambali Rigidi",
           "tier": 3,
           "col": 3,
           "row": 26,
-          "parent": "ig_schola_item_carapace_arms",
+          "parent": "kg_college_cadet_item_carapace_arms",
           "research_cost": 20000,
           "purchase_cost": 35000
         }
       ]
     },
     {
-      "id": "spacemarines",
+      "id": "vanguard",
       "name": "VANGUARD ARMORS",
       "accent": [
         0.25,
@@ -673,7 +597,7 @@
                   "title": "Landmeister",
                   "text": "Governa ampie zone della galassia.",
                   "member": "Konrad von Eber",
-                  "member_node": "sm_sworn_brother"
+                  "member_node": "va_konrad"
                 },
                 {
                   "tier": 6,
@@ -761,8 +685,8 @@
       ],
       "nodes": [
         {
-          "id": "sm_aspirant",
-          "unit": "spacemarines_neophyte",
+          "id": "va_candidate",
+          "unit": "vanguard_candidate",
           "name": "Human Candidate",
           "tier": 1,
           "col": 0,
@@ -776,19 +700,16 @@
             0.72,
             0.68,
             1
-          ],
-          "renamed_from": [
-            "sm_neophyte"
           ]
         },
         {
-          "id": "sm_scout",
-          "unit": "spacemarines_scout",
+          "id": "va_explorer",
+          "unit": "vanguard_explorer",
           "name": "Vanguard Explorer",
           "tier": 2,
           "col": 1,
           "row": 1.5,
-          "parent": "sm_aspirant",
+          "parent": "va_candidate",
           "research_cost": 20000,
           "purchase_cost": 85000,
           "default_name": "Esploratore Ilex",
@@ -800,13 +721,13 @@
           ]
         },
         {
-          "id": "sm_firstborn",
-          "unit": "spacemarines_battle_brother",
+          "id": "va_defender",
+          "unit": "vanguard_defender",
           "name": "Difensori Vanguardii",
           "tier": 3,
           "col": 2,
           "row": 1.5,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 40000,
           "purchase_cost": 165000,
           "default_name": "Dietrich Falken",
@@ -815,19 +736,16 @@
             0.5,
             0.52,
             1
-          ],
-          "renamed_from": [
-            "sm_tacticus"
           ]
         },
         {
-          "id": "sm_intercessors",
-          "unit": "spacemarines_intercessor",
+          "id": "va_line_guard",
+          "unit": "vanguard_line_guard",
           "name": "Guardie di Linea",
           "tier": 4,
           "col": 3,
           "row": 0,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 50000,
           "purchase_cost": 200000,
           "default_name": "Ansgar Holt",
@@ -839,13 +757,13 @@
           ]
         },
         {
-          "id": "sm_sternguard",
-          "unit": "spacemarines_sternguard",
+          "id": "va_guard_veteran",
+          "unit": "vanguard_guard_veteran",
           "name": "Veterani della Guardia",
           "tier": 5,
           "col": 4,
           "row": 0,
-          "parent": "sm_intercessors",
+          "parent": "va_line_guard",
           "research_cost": 70000,
           "purchase_cost": 240000,
           "default_name": "Ulrich Kessel",
@@ -857,13 +775,13 @@
           ]
         },
         {
-          "id": "sm_terminators",
-          "unit": "spacemarines_terminator",
+          "id": "va_armored_guard",
+          "unit": "vanguard_armored_guard",
           "name": "Guardie Corazzate",
           "tier": 6,
           "col": 5,
           "row": 0,
-          "parent": "sm_sternguard",
+          "parent": "va_guard_veteran",
           "research_cost": 95000,
           "purchase_cost": 280000,
           "default_name": "Gideon Brandt",
@@ -875,13 +793,13 @@
           ]
         },
         {
-          "id": "sm_terminator_assault",
-          "unit": "spacemarines_terminator_assault",
+          "id": "va_armored_assault",
+          "unit": "vanguard_armored_assault",
           "name": "Squadra d'Assalto Corazzata",
           "tier": 7,
           "col": 6,
           "row": 0,
-          "parent": "sm_terminators",
+          "parent": "va_armored_guard",
           "research_cost": 125000,
           "purchase_cost": 330000,
           "default_name": "Kaelen Stahl",
@@ -893,13 +811,13 @@
           ]
         },
         {
-          "id": "sm_captain_terminator",
-          "unit": "spacemarines_captain_terminator",
+          "id": "va_shock_captain",
+          "unit": "vanguard_shock_captain",
           "name": "Capitano in Armatura d'Urto",
           "tier": 8,
           "col": 7,
           "row": 0,
-          "parent": "sm_terminator_assault",
+          "parent": "va_armored_assault",
           "research_cost": 170000,
           "purchase_cost": 400000,
           "default_name": "Capitano Severin Rauch",
@@ -911,13 +829,13 @@
           ]
         },
         {
-          "id": "sm_assault_intercessors",
-          "unit": "spacemarines_assault_intercessor",
+          "id": "va_assault_guard",
+          "unit": "vanguard_assault_guard",
           "name": "Guardie d'Assalto",
           "tier": 4,
           "col": 3,
           "row": 1,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 50000,
           "purchase_cost": 200000,
           "default_name": "Damon Reiter",
@@ -929,13 +847,13 @@
           ]
         },
         {
-          "id": "sm_jump_intercessors",
-          "unit": "spacemarines_jump_intercessor",
+          "id": "va_jump_guard",
+          "unit": "vanguard_jump_guard",
           "name": "Guardie d'Assalto Aviotrasportate",
           "tier": 5,
           "col": 4,
           "row": 1,
-          "parent": "sm_assault_intercessors",
+          "parent": "va_assault_guard",
           "research_cost": 70000,
           "purchase_cost": 240000,
           "default_name": "Icaro Wendt",
@@ -947,13 +865,13 @@
           ]
         },
         {
-          "id": "sm_vanguard",
-          "unit": "spacemarines_vanguard_veteran",
+          "id": "va_forward_veteran",
+          "unit": "vanguard_forward_veteran",
           "name": "Veterani dell'Avanguardia",
           "tier": 6,
           "col": 5,
           "row": 1,
-          "parent": "sm_jump_intercessors",
+          "parent": "va_jump_guard",
           "research_cost": 95000,
           "purchase_cost": 280000,
           "default_name": "Leopold Marr",
@@ -965,13 +883,13 @@
           ]
         },
         {
-          "id": "sm_bladeguard",
-          "unit": "spacemarines_bladeguard_veteran",
+          "id": "va_blade_guard",
+          "unit": "vanguard_blade_guard",
           "name": "Guardie della Lama",
           "tier": 7,
           "col": 6,
           "row": 1,
-          "parent": "sm_vanguard",
+          "parent": "va_forward_veteran",
           "research_cost": 125000,
           "purchase_cost": 330000,
           "default_name": "Aurel Grau",
@@ -983,13 +901,13 @@
           ]
         },
         {
-          "id": "sm_captain",
-          "unit": "spacemarines_captain",
+          "id": "va_captain",
+          "unit": "vanguard_captain",
           "name": "Capitano Vanguardio",
           "tier": 8,
           "col": 7,
           "row": 1,
-          "parent": "sm_bladeguard",
+          "parent": "va_blade_guard",
           "research_cost": 170000,
           "purchase_cost": 400000,
           "default_name": "Capitano Otto Varn",
@@ -1001,13 +919,13 @@
           ]
         },
         {
-          "id": "sm_devastators",
-          "unit": "spacemarines_devastator",
+          "id": "va_heavy_support",
+          "unit": "vanguard_heavy_support",
           "name": "Squadra di Supporto Pesante",
           "tier": 4,
           "col": 3,
           "row": 2,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 50000,
           "purchase_cost": 200000,
           "default_name": "Bruno Eisen",
@@ -1019,13 +937,13 @@
           ]
         },
         {
-          "id": "sm_hellblasters",
-          "unit": "spacemarines_hellblaster",
+          "id": "va_incinerator",
+          "unit": "vanguard_incinerator",
           "name": "Inceneritori",
           "tier": 5,
           "col": 4,
           "row": 2,
-          "parent": "sm_devastators",
+          "parent": "va_heavy_support",
           "research_cost": 70000,
           "purchase_cost": 240000,
           "default_name": "Plinius Brand",
@@ -1037,13 +955,13 @@
           ]
         },
         {
-          "id": "sm_eradicators",
-          "unit": "spacemarines_eradicator",
+          "id": "va_demolisher",
+          "unit": "vanguard_demolisher",
           "name": "Demolitori",
           "tier": 6,
           "col": 5,
           "row": 2,
-          "parent": "sm_hellblasters",
+          "parent": "va_incinerator",
           "research_cost": 95000,
           "purchase_cost": 280000,
           "default_name": "Walther Vulk",
@@ -1055,34 +973,13 @@
           ]
         },
         {
-          "id": "sm_aggressors",
-          "unit": "spacemarines_gravis",
-          "name": "Vestment Pesanti",
-          "tier": 7,
-          "col": 6,
-          "row": 2,
-          "parent": "sm_eradicators",
-          "research_cost": 125000,
-          "purchase_cost": 330000,
-          "default_name": "Garran Stein",
-          "color": [
-            0.5,
-            0.5,
-            0.52,
-            1
-          ],
-          "renamed_from": [
-            "sm_gravis"
-          ]
-        },
-        {
-          "id": "sm_captain_gravis",
-          "unit": "spacemarines_captain_gravis",
+          "id": "va_heavy_captain",
+          "unit": "vanguard_heavy_captain",
           "name": "Capitano in Corazza Pesante",
           "tier": 8,
           "col": 7,
           "row": 2,
-          "parent": "sm_aggressors",
+          "parent": "va_demolisher",
           "research_cost": 170000,
           "purchase_cost": 400000,
           "default_name": "Capitano Tybald Hart",
@@ -1094,34 +991,13 @@
           ]
         },
         {
-          "id": "sm_infiltrators",
-          "unit": "spacemarines_phobos",
-          "name": "Vestment da Ricognizione",
-          "tier": 4,
-          "col": 3,
-          "row": 3,
-          "parent": "sm_firstborn",
-          "research_cost": 50000,
-          "purchase_cost": 200000,
-          "default_name": "Vael Sturm",
-          "color": [
-            0.5,
-            0.5,
-            0.52,
-            1
-          ],
-          "renamed_from": [
-            "sm_phobos"
-          ]
-        },
-        {
-          "id": "sm_incursors",
-          "unit": "spacemarines_incursor",
+          "id": "va_outrider",
+          "unit": "vanguard_outrider",
           "name": "Avanguardisti",
           "tier": 5,
           "col": 4,
           "row": 3,
-          "parent": "sm_infiltrators",
+          "parent": "va_defender",
           "research_cost": 70000,
           "purchase_cost": 240000,
           "default_name": "Nyx Adler",
@@ -1133,13 +1009,13 @@
           ]
         },
         {
-          "id": "sm_reivers",
-          "unit": "spacemarines_reiver",
+          "id": "va_shock_raider",
+          "unit": "vanguard_shock_raider",
           "name": "Incursori d'Urto",
           "tier": 6,
           "col": 5,
           "row": 3,
-          "parent": "sm_incursors",
+          "parent": "va_outrider",
           "research_cost": 95000,
           "purchase_cost": 280000,
           "default_name": "Mortimer Graf",
@@ -1151,13 +1027,13 @@
           ]
         },
         {
-          "id": "sm_eliminators",
-          "unit": "spacemarines_eliminator",
+          "id": "va_marksman",
+          "unit": "vanguard_marksman",
           "name": "Tiratori Scelti",
           "tier": 7,
           "col": 6,
           "row": 3,
-          "parent": "sm_reivers",
+          "parent": "va_shock_raider",
           "research_cost": 125000,
           "purchase_cost": 330000,
           "default_name": "Silas Fink",
@@ -1169,13 +1045,13 @@
           ]
         },
         {
-          "id": "sm_captain_phobos",
-          "unit": "spacemarines_captain_phobos",
+          "id": "va_explorer_captain",
+          "unit": "vanguard_explorer_captain",
           "name": "Capitano Esploratore",
           "tier": 8,
           "col": 7,
           "row": 3,
-          "parent": "sm_eliminators",
+          "parent": "va_marksman",
           "research_cost": 170000,
           "purchase_cost": 400000,
           "default_name": "Capitano Rainer Schrick",
@@ -1187,152 +1063,152 @@
           ]
         },
         {
-          "id": "sm_aspirant_item_shotgun",
-          "item": "aspirant_shotgun",
+          "id": "va_candidate_item_shotgun",
+          "item": "candidate_shotgun",
           "name": "Fucile a Pompa",
           "tier": 1,
           "col": 1,
           "row": 10,
-          "parent": "sm_aspirant",
+          "parent": "va_candidate",
           "research_cost": 8000,
           "purchase_cost": 15000
         },
         {
-          "id": "sm_aspirant_item_laspistol",
-          "item": "aspirant_laspistol",
+          "id": "va_candidate_item_impulse_pistol",
+          "item": "candidate_impulse_pistol",
           "name": "Pistola a Impulsi",
           "tier": 1,
           "col": 2,
           "row": 10,
-          "parent": "sm_aspirant_item_shotgun",
+          "parent": "va_candidate_item_shotgun",
           "research_cost": 6000,
           "purchase_cost": 10000
         },
         {
-          "id": "sm_aspirant_item_chainsword",
-          "item": "aspirant_chainsword",
+          "id": "va_candidate_item_toothsword",
+          "item": "candidate_toothsword",
           "name": "Spada a Denti Meccanici",
           "tier": 1,
           "col": 3,
           "row": 10,
-          "parent": "sm_aspirant_item_laspistol",
+          "parent": "va_candidate_item_impulse_pistol",
           "research_cost": 12000,
           "purchase_cost": 22000
         },
         {
-          "id": "sm_scout_item_sniper",
-          "item": "scout_sniper",
+          "id": "va_explorer_item_sniper",
+          "item": "explorer_sniper",
           "name": "Fucile di Precisione",
           "tier": 2,
           "col": 2,
           "row": 12,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 20000,
           "purchase_cost": 40000
         },
         {
-          "id": "sm_scout_item_heavy_bolter",
-          "item": "scout_heavy_bolter",
+          "id": "va_explorer_item_heavy_round_mg",
+          "item": "explorer_heavy_round_mg",
           "name": "Mitragliatrice a Proiettili Pesanti",
           "tier": 2,
           "col": 2,
           "row": 13,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 30000,
           "purchase_cost": 60000
         },
         {
-          "id": "sm_scout_item_visor",
-          "item": "head_scout_visor",
+          "id": "va_explorer_item_visor",
+          "item": "head_explorer_visor",
           "name": "Elmetto con Visiera",
           "tier": 2,
           "col": 2,
           "row": 14,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 12000,
           "purchase_cost": 25000
         },
         {
-          "id": "sm_scout_item_camo_cloak",
-          "item": "scout_camo_cloak",
+          "id": "va_explorer_item_camo_cloak",
+          "item": "explorer_camo_cloak",
           "name": "Mantello Mimetico",
           "tier": 2,
           "col": 2,
           "row": 15,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 25000,
           "purchase_cost": 50000
         },
         {
-          "id": "sm_scout_item_shotgun",
-          "item": "scout_shotgun",
+          "id": "va_explorer_item_shotgun",
+          "item": "explorer_shotgun",
           "name": "Fucile a Pompa Vanguardio",
           "tier": 2,
           "col": 2,
           "row": 16,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 12000,
           "purchase_cost": 20000
         },
         {
-          "id": "sm_scout_item_chainsword",
-          "item": "scout_chainsword",
+          "id": "va_explorer_item_toothsword",
+          "item": "explorer_toothsword",
           "name": "Spada a Denti Meccanici da Esploratore",
           "tier": 2,
           "col": 2,
           "row": 17,
-          "parent": "sm_scout",
+          "parent": "va_explorer",
           "research_cost": 15000,
           "purchase_cost": 25000
         },
         {
-          "id": "sm_firstborn_item_heavy_bolter",
-          "item": "firstborn_heavy_bolter",
+          "id": "va_defender_item_heavy_round_mg",
+          "item": "defender_heavy_round_mg",
           "name": "Mitragliatrice a Proiettili Pesanti Rinforzata",
           "tier": 3,
           "col": 3,
           "row": 20,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 35000,
           "purchase_cost": 70000
         },
         {
-          "id": "sm_firstborn_item_krak",
-          "item": "firstborn_krak",
+          "id": "va_defender_item_piercing",
+          "item": "defender_piercing_grenade",
           "name": "Granata Perforante",
           "tier": 3,
           "col": 3,
           "row": 21,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 20000,
           "purchase_cost": 40000
         },
         {
-          "id": "sm_firstborn_item_insignia",
-          "item": "firstborn_insignia",
+          "id": "va_defender_item_banner",
+          "item": "defender_house_banner",
           "name": "Stendardo di Casata",
           "tier": 3,
           "col": 3,
           "row": 22,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 25000,
           "purchase_cost": 50000
         },
         {
-          "id": "sm_firstborn_item_auto_bolt_rifle",
-          "item": "firstborn_auto_bolt_rifle",
+          "id": "va_defender_item_auto_heavy_round_rifle",
+          "item": "defender_auto_heavy_round_rifle",
           "name": "Fucile Automatico a Proiettili Pesanti",
           "tier": 3,
           "col": 3,
           "row": 23,
-          "parent": "sm_firstborn",
+          "parent": "va_defender",
           "research_cost": 30000,
           "purchase_cost": 55000
         },
         {
-          "id": "sm_sworn_brother",
-          "unit": "spacemarines_sworn_brother",
-          "name": "Konrad (Sworn Brother)",
+          "id": "va_konrad",
+          "unit": "vanguard_konrad",
+          "name": "Konrad (Landmeister)",
           "tier": 6,
           "col": 4,
           "row": 1.5,
@@ -1352,7 +1228,7 @@
       ]
     },
     {
-      "id": "orks",
+      "id": "vrepighs",
       "name": "VREPIGHS",
       "accent": [
         0.25,
@@ -1361,8 +1237,8 @@
       ],
       "nodes": [
         {
-          "id": "ork_gretchin",
-          "unit": "orks_gretchin",
+          "id": "vr_pighcib",
+          "unit": "vrepighs_pighcib",
           "name": "Pighcib",
           "tier": 1,
           "col": 0,
@@ -1379,13 +1255,13 @@
           ]
         },
         {
-          "id": "ork_yoof",
-          "unit": "orks_yoof",
+          "id": "vr_feral_pig",
+          "unit": "vrepighs_feral_pig",
           "name": "Feral Pigs",
           "tier": 2,
           "col": 1,
           "row": 2.5,
-          "parent": "ork_gretchin",
+          "parent": "vr_pighcib",
           "research_cost": 15000,
           "purchase_cost": 35000,
           "default_name": "Grufolo",
@@ -1397,13 +1273,13 @@
           ]
         },
         {
-          "id": "ork_yoof_item_scrap_head",
-          "item": "head_yoof_scrap",
+          "id": "vr_feral_pig_item_scrap_head",
+          "item": "head_feral_pig_scrap",
           "name": "Museruola di Rottami",
           "tier": 2,
           "col": 2,
           "row": 6,
-          "parent": "ork_yoof",
+          "parent": "vr_feral_pig",
           "research_cost": 15000,
           "purchase_cost": 25000,
           "color": [
@@ -1414,13 +1290,13 @@
           ]
         },
         {
-          "id": "ork_slugga",
-          "unit": "orks_boy",
+          "id": "vr_tusker",
+          "unit": "vrepighs_tusker",
           "name": "Vrepigh Zannuti",
           "tier": 3,
           "col": 2,
           "row": 0,
-          "parent": "ork_yoof",
+          "parent": "vr_feral_pig",
           "research_cost": 25000,
           "purchase_cost": 55000,
           "default_name": "Brakk",
@@ -1432,13 +1308,13 @@
           ]
         },
         {
-          "id": "ork_shoota",
-          "unit": "orks_shoota_boy",
+          "id": "vr_gunner",
+          "unit": "vrepighs_gunner",
           "name": "Vrepigh Sparammazza",
           "tier": 3,
           "col": 2,
           "row": 2,
-          "parent": "ork_yoof",
+          "parent": "vr_feral_pig",
           "research_cost": 25000,
           "purchase_cost": 50000,
           "default_name": "Zannor",
@@ -1450,13 +1326,13 @@
           ]
         },
         {
-          "id": "ork_loota",
-          "unit": "orks_loota",
+          "id": "vr_raider",
+          "unit": "vrepighs_raider",
           "name": "Vrepigh Razziatori",
           "tier": 3,
           "col": 2,
           "row": 4.5,
-          "parent": "ork_yoof",
+          "parent": "vr_feral_pig",
           "research_cost": 35000,
           "purchase_cost": 60000,
           "default_name": "Ferrigno",
@@ -1468,13 +1344,13 @@
           ]
         },
         {
-          "id": "ork_stormboyz",
-          "unit": "orks_stormboy",
+          "id": "vr_leaper",
+          "unit": "vrepighs_leaper",
           "name": "Saltazanne",
           "tier": 4,
           "col": 3,
           "row": 0,
-          "parent": "ork_slugga",
+          "parent": "vr_tusker",
           "research_cost": 35000,
           "purchase_cost": 70000,
           "default_name": "Saltagrugno",
@@ -1486,13 +1362,13 @@
           ]
         },
         {
-          "id": "ork_ard_boyz",
-          "unit": "orks_ard_boy",
+          "id": "vr_armored",
+          "unit": "vrepighs_armored",
           "name": "Vrepigh Corazzati",
           "tier": 5,
           "col": 4,
           "row": 0,
-          "parent": "ork_stormboyz",
+          "parent": "vr_leaper",
           "research_cost": 50000,
           "purchase_cost": 90000,
           "default_name": "Krungh il Duro",
@@ -1504,13 +1380,13 @@
           ]
         },
         {
-          "id": "ork_kommandos",
-          "unit": "orks_kommando",
+          "id": "vr_shadow",
+          "unit": "vrepighs_shadow",
           "name": "Ombrazanne",
           "tier": 4,
           "col": 3,
           "row": 2,
-          "parent": "ork_shoota",
+          "parent": "vr_gunner",
           "research_cost": 35000,
           "purchase_cost": 70000,
           "default_name": "Ombragrufo",
@@ -1522,13 +1398,13 @@
           ]
         },
         {
-          "id": "ork_tankbustas",
-          "unit": "orks_tankbusta",
+          "id": "vr_breaker",
+          "unit": "vrepighs_breaker",
           "name": "Spaccacorazze",
           "tier": 4,
           "col": 3,
           "row": 3,
-          "parent": "ork_shoota",
+          "parent": "vr_gunner",
           "research_cost": 35000,
           "purchase_cost": 70000,
           "default_name": "Pancia di Botto",
@@ -1540,8 +1416,8 @@
           ]
         },
         {
-          "id": "ork_flash_gitz",
-          "unit": "orks_flash_git",
+          "id": "vr_pocketbuster",
+          "unit": "vrepighs_pocketbuster",
           "name": "Sfondatasche",
           "tier": 5,
           "col": 4,
@@ -1557,40 +1433,18 @@
             1
           ],
           "parent_any": [
-            "ork_kommandos",
-            "ork_tankbustas"
+            "vr_shadow",
+            "vr_breaker"
           ]
         },
         {
-          "id": "ork_nobz",
-          "unit": "orks_nob",
-          "name": "Vrepigh Capozanne",
-          "tier": 6,
-          "col": 5,
-          "row": 1,
-          "parent": "ork_ard_boyz",
-          "research_cost": 75000,
-          "purchase_cost": 120000,
-          "default_name": "Ruggzanna",
-          "color": [
-            0.17,
-            0.12,
-            0.2,
-            1
-          ],
-          "requires_mastered": [
-            "ork_ard_boyz",
-            "ork_flash_gitz"
-          ]
-        },
-        {
-          "id": "ork_meganobz",
-          "unit": "orks_meganob",
+          "id": "vr_armored_chief",
+          "unit": "vrepighs_armored_chief",
           "name": "Capozanne Corazzati",
           "tier": 7,
           "col": 6,
           "row": 1,
-          "parent": "ork_nobz",
+          "parent": "vr_armored",
           "research_cost": 100000,
           "purchase_cost": 160000,
           "default_name": "Murgan il Corazzato",
@@ -1599,16 +1453,19 @@
             0.12,
             0.2,
             1
+          ],
+          "requires_mastered": [
+            "vr_pocketbuster"
           ]
         },
         {
-          "id": "ork_warboss",
-          "unit": "orks_warboss",
+          "id": "vr_great_chief",
+          "unit": "vrepighs_great_chief",
           "name": "Gran Capo",
           "tier": 8,
           "col": 7,
           "row": 1,
-          "parent": "ork_meganobz",
+          "parent": "vr_armored_chief",
           "research_cost": 150000,
           "purchase_cost": 220000,
           "default_name": "Gran Capo Vrokk",
@@ -1620,13 +1477,13 @@
           ]
         },
         {
-          "id": "ork_spanner",
-          "unit": "orks_spanner",
+          "id": "vr_fixer",
+          "unit": "vrepighs_fixer",
           "name": "Aggiustatore",
           "tier": 4,
           "col": 3,
           "row": 4.5,
-          "parent": "ork_loota",
+          "parent": "vr_raider",
           "research_cost": 35000,
           "purchase_cost": 70000,
           "default_name": "Chiavino",
@@ -1638,13 +1495,13 @@
           ]
         },
         {
-          "id": "ork_mek_boy",
-          "unit": "orks_mek_boy",
+          "id": "vr_smith",
+          "unit": "vrepighs_smith",
           "name": "Ferraro",
           "tier": 5,
           "col": 4,
           "row": 4.5,
-          "parent": "ork_spanner",
+          "parent": "vr_fixer",
           "research_cost": 50000,
           "purchase_cost": 90000,
           "default_name": "Ferraro Mazzuco",
@@ -1656,13 +1513,13 @@
           ]
         },
         {
-          "id": "ork_big_mek",
-          "unit": "orks_big_mek",
+          "id": "vr_great_smith",
+          "unit": "vrepighs_great_smith",
           "name": "Gran Ferraro",
           "tier": 6,
           "col": 5,
           "row": 4.5,
-          "parent": "ork_mek_boy",
+          "parent": "vr_smith",
           "research_cost": 75000,
           "purchase_cost": 120000,
           "default_name": "Gran Ferraro Dorgun",
@@ -1674,13 +1531,13 @@
           ]
         },
         {
-          "id": "ork_big_mek_boss",
-          "unit": "orks_big_mek_boss",
+          "id": "vr_smith_chief",
+          "unit": "vrepighs_smith_chief",
           "name": "Gran Ferraro Capozanna",
           "tier": 7,
           "col": 6,
           "row": 4.5,
-          "parent": "ork_big_mek",
+          "parent": "vr_great_smith",
           "research_cost": 100000,
           "purchase_cost": 160000,
           "default_name": "Capozanna Bullone",
@@ -1692,13 +1549,13 @@
           ]
         },
         {
-          "id": "ork_big_mek_boss_mega",
-          "unit": "orks_big_mek_boss_mega",
+          "id": "vr_armored_smith",
+          "unit": "vrepighs_armored_smith",
           "name": "Gran Ferraro in Corazza Pesante",
           "tier": 8,
           "col": 7,
           "row": 4.5,
-          "parent": "ork_big_mek_boss",
+          "parent": "vr_smith_chief",
           "research_cost": 150000,
           "purchase_cost": 220000,
           "default_name": "Capozanna Manovella",
@@ -1710,13 +1567,13 @@
           ]
         },
         {
-          "id": "ork_item_wrench",
-          "item": "grot_wrench",
+          "id": "vr_pighcib_item_wrench",
+          "item": "pighcib_wrench",
           "name": "Chiave Inglese",
           "tier": 1,
           "col": 1,
           "row": 3,
-          "parent": "ork_gretchin",
+          "parent": "vr_pighcib",
           "research_cost": 8000,
           "purchase_cost": 20000,
           "color": [
@@ -1727,13 +1584,13 @@
           ]
         },
         {
-          "id": "ork_item_trombone",
-          "item": "grot_trombone",
+          "id": "vr_pighcib_item_blunderbuss",
+          "item": "pighcib_blunderbuss",
           "name": "Archibugio a Canna Larga",
           "tier": 1,
           "col": 1,
           "row": 4,
-          "parent": "ork_gretchin",
+          "parent": "vr_pighcib",
           "research_cost": 18000,
           "purchase_cost": 35000,
           "color": [
@@ -1744,13 +1601,13 @@
           ]
         },
         {
-          "id": "ork_item_squig",
-          "item": "squig_biter",
+          "id": "vr_pighcib_item_grugn",
+          "item": "grugn_companion",
           "name": "Grugn da Compagnia",
           "tier": 1,
           "col": 1,
           "row": 5,
-          "parent": "ork_gretchin",
+          "parent": "vr_pighcib",
           "research_cost": 20000,
           "purchase_cost": 40000,
           "color": [
@@ -1761,13 +1618,13 @@
           ]
         },
         {
-          "id": "ork_item_squig_bomb",
-          "item": "squig_bomb",
+          "id": "vr_pighcib_item_grugn_bomb",
+          "item": "grugn_bomb",
           "name": "Grugn Esplosivo",
           "tier": 1,
           "col": 2,
           "row": 5,
-          "parent": "ork_item_squig",
+          "parent": "vr_pighcib_item_grugn",
           "research_cost": 25000,
           "purchase_cost": 50000,
           "color": [
@@ -1778,13 +1635,13 @@
           ]
         },
         {
-          "id": "ork_item_scrap_helmet",
-          "item": "head_grot_scrap_helmet",
+          "id": "vr_pighcib_item_scrap_helmet",
+          "item": "head_pighcib_scrap_helmet",
           "name": "Elmetto di Ferraglia",
           "tier": 1,
           "col": 1,
           "row": 6,
-          "parent": "ork_gretchin",
+          "parent": "vr_pighcib",
           "research_cost": 10000,
           "purchase_cost": 15000,
           "color": [
@@ -1795,13 +1652,13 @@
           ]
         },
         {
-          "id": "ork_yoof_item_scrap_torso",
-          "item": "torso_yoof_scrap",
+          "id": "vr_feral_pig_item_scrap_torso",
+          "item": "torso_feral_pig_scrap",
           "name": "Corazza di Rottami",
           "tier": 2,
           "col": 2,
           "row": 7,
-          "parent": "ork_yoof",
+          "parent": "vr_feral_pig",
           "research_cost": 15000,
           "purchase_cost": 30000,
           "color": [
@@ -1812,16 +1669,16 @@
           ]
         },
         {
-          "id": "ork_yoof_item_scrap_arms",
+          "id": "vr_feral_pig_item_scrap_arms",
           "items": [
-            "arm_l_yoof_scrap",
-            "arm_r_yoof_scrap"
+            "arm_l_feral_pig_scrap",
+            "arm_r_feral_pig_scrap"
           ],
           "name": "Spallacci di Rottami",
           "tier": 2,
           "col": 3,
           "row": 7,
-          "parent": "ork_yoof_item_scrap_torso",
+          "parent": "vr_feral_pig_item_scrap_torso",
           "research_cost": 20000,
           "purchase_cost": 25000,
           "color": [
@@ -1832,16 +1689,16 @@
           ]
         },
         {
-          "id": "ork_yoof_item_scrap_legs",
+          "id": "vr_feral_pig_item_scrap_legs",
           "items": [
-            "leg_l_yoof_scrap",
-            "leg_r_yoof_scrap"
+            "leg_l_feral_pig_scrap",
+            "leg_r_feral_pig_scrap"
           ],
           "name": "Gambali di Rottami",
           "tier": 2,
           "col": 4,
           "row": 7,
-          "parent": "ork_yoof_item_scrap_arms",
+          "parent": "vr_feral_pig_item_scrap_arms",
           "research_cost": 20000,
           "purchase_cost": 25000,
           "color": [
@@ -1852,13 +1709,13 @@
           ]
         },
         {
-          "id": "ork_boy_item_big_choppa",
-          "item": "boy_big_choppa",
+          "id": "vr_tusker_item_heavy_cleaver",
+          "item": "tusker_heavy_cleaver",
           "name": "Mannaia Pesante",
           "tier": 3,
           "col": 3,
           "row": 0,
-          "parent": "ork_slugga",
+          "parent": "vr_tusker",
           "research_cost": 30000,
           "purchase_cost": 60000,
           "color": [
@@ -1869,13 +1726,13 @@
           ]
         },
         {
-          "id": "ork_boy_item_big_shoota",
-          "item": "boy_big_shoota",
+          "id": "vr_tusker_item_heavy_crude_gun",
+          "item": "tusker_heavy_crude_gun",
           "name": "Mitragliatore Pesante",
           "tier": 3,
           "col": 3,
           "row": 1,
-          "parent": "ork_slugga",
+          "parent": "vr_tusker",
           "research_cost": 35000,
           "purchase_cost": 70000,
           "color": [
@@ -1886,13 +1743,13 @@
           ]
         },
         {
-          "id": "ork_boy_item_mines",
-          "item": "boy_mines",
+          "id": "vr_tusker_item_mines",
+          "item": "tusker_mines",
           "name": "Mine da Terra",
           "tier": 3,
           "col": 3,
           "row": 2,
-          "parent": "ork_slugga",
+          "parent": "vr_tusker",
           "research_cost": 25000,
           "purchase_cost": 45000,
           "color": [
@@ -1903,16 +1760,16 @@
           ]
         },
         {
-          "id": "ork_boy_item_arms",
+          "id": "vr_tusker_item_arms",
           "items": [
-            "arm_l_boy_plate",
-            "arm_r_boy_plate"
+            "arm_l_tusker_plate",
+            "arm_r_tusker_plate"
           ],
           "name": "Spallacci da Vrepigh",
           "tier": 3,
           "col": 3,
           "row": 3,
-          "parent": "ork_slugga",
+          "parent": "vr_tusker",
           "research_cost": 20000,
           "purchase_cost": 30000,
           "color": [
@@ -1923,16 +1780,16 @@
           ]
         },
         {
-          "id": "ork_boy_item_legs",
+          "id": "vr_tusker_item_legs",
           "items": [
-            "leg_l_boy_plate",
-            "leg_r_boy_plate"
+            "leg_l_tusker_plate",
+            "leg_r_tusker_plate"
           ],
           "name": "Gambali da Vrepigh",
           "tier": 3,
           "col": 4,
           "row": 3,
-          "parent": "ork_boy_item_arms",
+          "parent": "vr_tusker_item_arms",
           "research_cost": 20000,
           "purchase_cost": 30000,
           "color": [
@@ -1943,13 +1800,13 @@
           ]
         },
         {
-          "id": "ork_boy_item_helmet",
-          "item": "head_boy_helmet",
+          "id": "vr_tusker_item_helmet",
+          "item": "head_tusker_helmet",
           "name": "Elmo da Vrepigh",
           "tier": 3,
           "col": 5,
           "row": 3,
-          "parent": "ork_boy_item_legs",
+          "parent": "vr_tusker_item_legs",
           "research_cost": 25000,
           "purchase_cost": 35000,
           "color": [
@@ -1960,13 +1817,13 @@
           ]
         },
         {
-          "id": "ork_boy_item_heavy",
-          "item": "torso_boy_heavy",
+          "id": "vr_tusker_item_heavy",
+          "item": "torso_tusker_heavy",
           "name": "Corazza Pesante",
           "tier": 3,
           "col": 6,
           "row": 3,
-          "parent": "ork_boy_item_helmet",
+          "parent": "vr_tusker_item_helmet",
           "research_cost": 30000,
           "purchase_cost": 50000,
           "color": [
@@ -1977,13 +1834,13 @@
           ]
         },
         {
-          "id": "ork_shoota_item_big_shoota",
-          "item": "shoota_big_shoota",
+          "id": "vr_gunner_item_heavy_crude_gun",
+          "item": "gunner_heavy_crude_gun",
           "name": "Mitragliatore Pesante Rinforzato",
           "tier": 3,
           "col": 3,
           "row": 4,
-          "parent": "ork_shoota",
+          "parent": "vr_gunner",
           "research_cost": 30000,
           "purchase_cost": 60000,
           "color": [
@@ -1994,13 +1851,13 @@
           ]
         },
         {
-          "id": "ork_shoota_item_rokkit",
-          "item": "shoota_rokkit",
+          "id": "vr_gunner_item_rocket_launcher",
+          "item": "gunner_rocket_launcher",
           "name": "Lanciarazzi",
           "tier": 3,
           "col": 3,
           "row": 5,
-          "parent": "ork_shoota",
+          "parent": "vr_gunner",
           "research_cost": 40000,
           "purchase_cost": 80000,
           "color": [
@@ -2011,13 +1868,13 @@
           ]
         },
         {
-          "id": "ork_shoota_item_backpack",
-          "item": "shoota_ammo_backpack",
+          "id": "vr_gunner_item_backpack",
+          "item": "gunner_ammo_backpack",
           "name": "Zaino Munizioni",
           "tier": 3,
           "col": 3,
           "row": 6,
-          "parent": "ork_shoota",
+          "parent": "vr_gunner",
           "research_cost": 20000,
           "purchase_cost": 35000,
           "color": [
@@ -2028,16 +1885,16 @@
           ]
         },
         {
-          "id": "ork_shoota_item_arms",
+          "id": "vr_gunner_item_arms",
           "items": [
-            "arm_l_shoota_plate",
-            "arm_r_shoota_plate"
+            "arm_l_gunner_plate",
+            "arm_r_gunner_plate"
           ],
           "name": "Spallacci da Tiratore",
           "tier": 3,
           "col": 4,
           "row": 6,
-          "parent": "ork_shoota",
+          "parent": "vr_gunner",
           "research_cost": 20000,
           "purchase_cost": 30000,
           "color": [
@@ -2048,16 +1905,16 @@
           ]
         },
         {
-          "id": "ork_shoota_item_legs",
+          "id": "vr_gunner_item_legs",
           "items": [
-            "leg_l_shoota_plate",
-            "leg_r_shoota_plate"
+            "leg_l_gunner_plate",
+            "leg_r_gunner_plate"
           ],
           "name": "Gambali da Tiratore",
           "tier": 3,
           "col": 5,
           "row": 6,
-          "parent": "ork_shoota_item_arms",
+          "parent": "vr_gunner_item_arms",
           "research_cost": 20000,
           "purchase_cost": 30000,
           "color": [
@@ -2068,13 +1925,13 @@
           ]
         },
         {
-          "id": "ork_shoota_item_helmet",
-          "item": "head_shoota_helmet",
+          "id": "vr_gunner_item_helmet",
+          "item": "head_gunner_helmet",
           "name": "Elmo da Tiratore",
           "tier": 3,
           "col": 6,
           "row": 6,
-          "parent": "ork_shoota_item_legs",
+          "parent": "vr_gunner_item_legs",
           "research_cost": 25000,
           "purchase_cost": 35000,
           "color": [
@@ -2085,13 +1942,13 @@
           ]
         },
         {
-          "id": "ork_shoota_item_heavy",
-          "item": "torso_shoota_heavy",
+          "id": "vr_gunner_item_heavy",
+          "item": "torso_gunner_heavy",
           "name": "Corazza Pesante",
           "tier": 3,
           "col": 7,
           "row": 6,
-          "parent": "ork_shoota_item_helmet",
+          "parent": "vr_gunner_item_helmet",
           "research_cost": 30000,
           "purchase_cost": 50000,
           "color": [
@@ -2102,13 +1959,13 @@
           ]
         },
         {
-          "id": "ork_loota_item_beamy",
-          "item": "loota_deffgun_beamy",
+          "id": "vr_raider_item_beam_rifle",
+          "item": "raider_beam_rifle",
           "name": "Fucile a Fascio",
           "tier": 3,
           "col": 3,
           "row": 8,
-          "parent": "ork_loota",
+          "parent": "vr_raider",
           "research_cost": 40000,
           "purchase_cost": 80000,
           "color": [
@@ -2119,13 +1976,13 @@
           ]
         },
         {
-          "id": "ork_loota_item_plasma",
-          "item": "loota_deffgun_plasma",
+          "id": "vr_raider_item_discharge",
+          "item": "raider_discharge_rifle",
           "name": "Fucile a Scarica",
           "tier": 3,
           "col": 3,
           "row": 9,
-          "parent": "ork_loota",
+          "parent": "vr_raider",
           "research_cost": 45000,
           "purchase_cost": 90000,
           "color": [
@@ -2136,13 +1993,13 @@
           ]
         },
         {
-          "id": "ork_loota_item_helmet",
-          "item": "head_loota_helmet",
+          "id": "vr_raider_item_helmet",
+          "item": "head_raider_helmet",
           "name": "Elmetto da Razziatore",
           "tier": 3,
           "col": 3,
           "row": 10,
-          "parent": "ork_loota",
+          "parent": "vr_raider",
           "research_cost": 25000,
           "purchase_cost": 35000,
           "color": [
@@ -2153,13 +2010,13 @@
           ]
         },
         {
-          "id": "ork_loota_item_slit_wall",
-          "item": "loota_slit_wall",
+          "id": "vr_raider_item_slit_wall",
+          "item": "raider_slit_wall",
           "name": "Muro con Feritoia",
           "tier": 3,
           "col": 3,
           "row": 11,
-          "parent": "ork_loota",
+          "parent": "vr_raider",
           "research_cost": 30000,
           "purchase_cost": 50000,
           "color": [
@@ -2170,8 +2027,8 @@
           ]
         },
         {
-          "id": "ork_zhelvar",
-          "unit": "orks_zhelvar",
+          "id": "vr_zhelvar",
+          "unit": "vrepighs_zhelvar",
           "name": "Il Vecchio (Zhelvar)",
           "tier": 4,
           "col": 4,

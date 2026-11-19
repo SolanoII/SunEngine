@@ -267,8 +267,8 @@ namespace SunEngine {
         TrainedUnit MakeStoryUnit(int story, int chapter) {
             TrainedUnit u;
             if (story == 1) {
-                if (chapter == 2) { u = TrainedUnit{ "Il Vecchio", "orks_zhelvar", glm::vec4(0.42f, 0.30f, 0.50f, 1.0f) }; u.ApplyDefaultLoadout(); return u; }
-                u = TrainedUnit{ "Kragh", "orks_kragh", glm::vec4(0.36f, 0.24f, 0.30f, 1.0f) };
+                if (chapter == 2) { u = TrainedUnit{ "Il Vecchio", "vrepighs_zhelvar", glm::vec4(0.42f, 0.30f, 0.50f, 1.0f) }; u.ApplyDefaultLoadout(); return u; }
+                u = TrainedUnit{ "Kragh", "vrepighs_kragh", glm::vec4(0.36f, 0.24f, 0.30f, 1.0f) };
                 u.ApplyDefaultLoadout();
                 if (chapter == 0) {   // duello: solo artigli
                     u.primaryWeaponId.clear(); u.secondaryWeaponId.clear();
@@ -277,20 +277,20 @@ namespace SunEngine {
                 return u;
             }
             if (chapter == 0) {
-                u = TrainedUnit{ "Martus Kell", "imperium_conscript", glm::vec4(0.80f, 0.62f, 0.52f, 1.0f) };
+                u = TrainedUnit{ "Martus Kell", "kingship_recruit", glm::vec4(0.80f, 0.62f, 0.52f, 1.0f) };
                 u.ApplyDefaultLoadout();
-                u.primaryWeaponId = "autogun_standard";   // il fucile automatico assegnato alle milizie planetarie
+                u.primaryWeaponId = "auto_rifle_standard";   // il fucile automatico assegnato alle milizie planetarie
             }
             else if (chapter == 1) {
-                u = TrainedUnit{ "Sergente Ordan", "imperium_guardsman_recruit", glm::vec4(0.66f, 0.50f, 0.40f, 1.0f) };
+                u = TrainedUnit{ "Sergente Ordan", "kingship_footman", glm::vec4(0.66f, 0.50f, 0.40f, 1.0f) };
                 u.ApplyDefaultLoadout();
-                u.primaryWeaponId = "guardsman_autogun";
-                u.secondaryWeaponId = "guardsman_autopistol";
+                u.primaryWeaponId = "footman_auto_rifle";
+                u.secondaryWeaponId = "footman_auto_pistol";
             }
             else {
-                // lo stesso Konrad che si sblocca nei Vestments (Sworn Brother): livrea bianca, nera e avorio
+                // lo stesso Konrad che si sblocca nei Vestments (Landmeister): livrea bianca, nera e avorio
                 // dell'Ordo Domus Humilitatis, spada lunga dalla lama scura, equipaggiamento migliore
-                u = TrainedUnit{ "Konrad von Eber", "spacemarines_sworn_brother", glm::vec4(0.78f, 0.62f, 0.52f, 1.0f) };
+                u = TrainedUnit{ "Konrad von Eber", "vanguard_konrad", glm::vec4(0.78f, 0.62f, 0.52f, 1.0f) };
                 u.ApplyDefaultLoadout();
             }
             return u;
@@ -560,7 +560,7 @@ namespace SunEngine {
     entt::entity GameLayer::SpawnStoryBot(const std::string& unitId, const std::string& name, int team, const glm::vec3& pos, float yaw,
                                           const glm::vec3* guardPost, float leash) {
         TrainedUnit u{ name, unitId, glm::vec4(1.0f) };
-        u.armorColor = unitId.rfind("orks", 0) == 0 ? glm::vec4(0.40f, 0.32f, 0.28f, 1.0f) : glm::vec4(0.62f, 0.60f, 0.52f, 1.0f);
+        u.armorColor = unitId.rfind("vrepighs", 0) == 0 ? glm::vec4(0.40f, 0.32f, 0.28f, 1.0f) : glm::vec4(0.62f, 0.60f, 0.52f, 1.0f);
         u.ApplyDefaultLoadout();
         const entt::entity e = SpawnBot(u, team, pos, yaw, -1);
         if (e == entt::null) return e;
@@ -582,14 +582,14 @@ namespace SunEngine {
         if (chapter == 0) {
             // Gorvakh davanti all'altare: resta nella sala
             const glm::vec3 post(0.0f, 0.5f, -6.0f);
-            m_Story.boss = SpawnStoryBot("orks_gorvakh", "Gorvakh", 1, post, 180.0f, &post, 40.0f);   // guarda verso Kragh
+            m_Story.boss = SpawnStoryBot("vrepighs_gorvakh", "Gorvakh", 1, post, 180.0f, &post, 40.0f);   // guarda verso Kragh
             m_BotAI.SetTeamBases(me, post);
         }
         else if (chapter == 1) {
             m_BotAI.SetTeamBases(glm::vec3(0.0f, 0.0f, -90.0f), glm::vec3(0.0f, 0.0f, 66.0f));
             // il vargh: scende dai rottami con Kragh
-            const char* vargh[12] = { "orks_boy", "orks_boy", "orks_boy", "orks_boy", "orks_shoota_boy", "orks_shoota_boy",
-                                      "orks_shoota_boy", "orks_boy", "orks_yoof", "orks_yoof", "orks_shoota_boy", "orks_boy" };
+            const char* vargh[12] = { "vrepighs_tusker", "vrepighs_tusker", "vrepighs_tusker", "vrepighs_tusker", "vrepighs_gunner", "vrepighs_gunner",
+                                      "vrepighs_gunner", "vrepighs_tusker", "vrepighs_feral_pig", "vrepighs_feral_pig", "vrepighs_gunner", "vrepighs_tusker" };
             for (int i = 0; i < 12; ++i) {
                 const glm::vec3 p = me + glm::vec3(-10.0f + 2.2f * static_cast<float>(i % 6) + 8.0f, 0.0f, -2.0f - 2.5f * static_cast<float>(i / 6));
                 SpawnStoryBot(vargh[i], i < 6 ? "Guerriero di Morg" : "Guerriero del vargh", 0, p, 180.0f);
@@ -600,7 +600,7 @@ namespace SunEngine {
                 for (int i = 0; i < 6; ++i) {
                     const float a = 6.2831853f * static_cast<float>(i) / 6.0f + 0.4f * static_cast<float>(k);
                     const glm::vec3 p = kGatherPoints[k] + glm::vec3(std::cos(a) * 6.5f, 0.5f, std::sin(a) * 6.5f);
-                    SpawnStoryBot("imperium_whiteshield", "Guardia del punto", 1, p, 0.0f, &p, 12.0f); ++n;
+                    SpawnStoryBot("kingship_levy", "Guardia del punto", 1, p, 0.0f, &p, 12.0f); ++n;
                 }
             }
             // ...e il resto sulle linee di difesa: avamposti nei campi e la linea della strada di servizio
@@ -608,18 +608,18 @@ namespace SunEngine {
             for (const auto& o : outposts)
                 for (int i = 0; i < 4; ++i) {
                     const glm::vec3 p = o + glm::vec3(-3.0f + 2.0f * static_cast<float>(i), 0.0f, (i % 2) * 1.5f);
-                    SpawnStoryBot("imperium_whiteshield", "Difensore", 1, p, 0.0f, &p, 18.0f); ++n;
+                    SpawnStoryBot("kingship_levy", "Difensore", 1, p, 0.0f, &p, 18.0f); ++n;
                 }
             for (int i = 0; i < 10; ++i) {
                 float x = -56.0f + 12.0f * static_cast<float>(i);
                 if (x > -10.0f && x < 14.0f) x += 26.0f;   // non dentro il rifugio
                 const glm::vec3 p(x, 0.5f, 58.0f);
-                SpawnStoryBot("imperium_whiteshield", "Difensore della linea", 1, p, 0.0f, &p, 16.0f); ++n;
+                SpawnStoryBot("kingship_levy", "Difensore della linea", 1, p, 0.0f, &p, 16.0f); ++n;
             }
             for (int k = 0; k < 3; ++k)   // strade che portano ai punti
                 for (int i = 0; i < 2; ++i) {
                     const glm::vec3 p = kGatherPoints[k] + glm::vec3(i == 0 ? -12.0f : 12.0f, 0.5f, -14.0f);
-                    SpawnStoryBot("imperium_whiteshield", "Sentinella", 1, p, 0.0f, &p, 16.0f); ++n;
+                    SpawnStoryBot("kingship_levy", "Sentinella", 1, p, 0.0f, &p, 16.0f); ++n;
                 }
             SUN_CORE_INFO("PVE-STORY: sbarco, {0} glatt in campo", n);
             // i punti di raccolta: casse di provviste, tenda, antenna con la luce
@@ -639,7 +639,7 @@ namespace SunEngine {
             // tre guerrieri del vargh restano con il vecchio
             for (int i = 0; i < 3; ++i) {
                 const glm::vec3 p = me + glm::vec3(-3.0f + 3.0f * static_cast<float>(i), 0.0f, -2.5f);
-                SpawnStoryBot("orks_boy", "Zhelvar", 0, p, 180.0f, &p, 14.0f);
+                SpawnStoryBot("vrepighs_tusker", "Zhelvar", 0, p, 180.0f, &p, 14.0f);
             }
             // le tre corazze bianche arrivano dal rifugio, a piedi: Konrad avanti con la lama scura (niente armi
             // da fuoco, come nel racconto), Adelheid e Dietrich dietro con i fucili. Tirano nel fumo contro un
@@ -656,10 +656,10 @@ namespace SunEngine {
             TrainedUnit konrad = MakeStoryUnit(0, 2);
             konrad.primaryWeaponId.clear(); konrad.secondaryWeaponId.clear();
             belokh(konrad, glm::vec3(0.0f, 0.5f, 34.0f));
-            TrainedUnit adel{ "Adelheid Voss", "spacemarines_battle_brother", glm::vec4(0.86f, 0.84f, 0.78f, 1.0f) };
+            TrainedUnit adel{ "Adelheid Voss", "vanguard_defender", glm::vec4(0.86f, 0.84f, 0.78f, 1.0f) };
             adel.ApplyDefaultLoadout();
             belokh(adel, glm::vec3(-6.0f, 0.5f, 40.0f));
-            TrainedUnit diet{ "Dietrich Falken", "spacemarines_battle_brother", glm::vec4(0.80f, 0.79f, 0.74f, 1.0f) };
+            TrainedUnit diet{ "Dietrich Falken", "vanguard_defender", glm::vec4(0.80f, 0.79f, 0.74f, 1.0f) };
             diet.ApplyDefaultLoadout();
             belokh(diet, glm::vec3(6.0f, 0.5f, 40.0f));
         }
@@ -729,7 +729,7 @@ namespace SunEngine {
         m_Story.time += deltaTime;
 
         int alive = 0;
-        for (auto e : reg.view<HealthComponent>(entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent, SquigComponent>)) {
+        for (auto e : reg.view<HealthComponent>(entt::exclude<PlayerTag, CorpseComponent, TrainingDummyComponent, GrugnComponent>)) {
             (void)e;
             ++alive;
         }
@@ -754,7 +754,7 @@ namespace SunEngine {
                     p = ClampToField(playerPos + glm::vec3(std::cos(a) * d, 0.0f, std::sin(a) * d));
                     p.y = 0.5f;
                 }
-                SpawnNetOrk(p);
+                SpawnNetVrepigh(p);
             }
             if (chapter == 0) m_Story.waveSize = std::min(m_Story.waveSize + 1, 6);
             else if (chapter == 1) m_Story.waveSize = std::min(m_Story.waveSize + 1, 10);
@@ -810,7 +810,7 @@ namespace SunEngine {
                 m_Story.bossSpawned = true;
                 glm::vec3 p = ClampToField(playerPos + glm::vec3(0.0f, 0.0f, -32.0f));
                 p.y = 0.5f;
-                const entt::entity boss = SpawnNetOrk(p);
+                const entt::entity boss = SpawnNetVrepigh(p);
                 if (reg.valid(boss)) {
                     auto& hp = reg.get_or_emplace<HealthComponent>(boss);
                     hp.maxHealth = 1200.0f; hp.currentHealth = 1200.0f;

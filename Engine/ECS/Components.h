@@ -99,7 +99,7 @@ namespace SunEngine {
         float fKeyHoldTimer = 0.0f;
         bool fKeyWasPressed = false;
 
-        // Scatto dell'attacco pesante (armi con "heavy_lunge_distance", es. lancia dello yoof)
+        // Scatto dell'attacco pesante (armi con "heavy_lunge_distance", es. lancia dello feral_pig)
         float lungeTimer = 0.0f;
         glm::vec3 lungeVelocity{ 0.0f };
 
@@ -378,12 +378,12 @@ namespace SunEngine {
         glm::vec3 useStartPos{ 0.0f }; // dove e' iniziata la canalizzazione (scrap: bisogna restare fermi)
     };
 
-    // Spinta dello zaino energetico (firstborn): velocita' x mult per timeLeft secondi
+    // Spinta dello zaino energetico (defender): velocita' x mult per timeLeft secondi
     struct SpeedBoostComponent {
         float timeLeft = 0.0f;
         float mult = 1.0f;
     };
-    // Aura dell'insegna imperiale: chi e' vicino a un'insegna della sua squadra ha il morale alto (+10%), che oggi
+    // Aura dell'insegna del Kingship: chi e' vicino a un'insegna della sua squadra ha il morale alto (+10%), che oggi
     // vuol dire mani piu' ferme: -10% di dispersione. Rinnovata ogni frame da EquipmentSystem.
     struct MoraleAuraComponent {
         float timeLeft = 0.0f;
@@ -442,7 +442,7 @@ namespace SunEngine {
         bool owner = false;            // true = e' l'unita' che l'ha attivato (non una copia per la grafica)
     };
 
-    // Cassa di munizioni posata a terra (schola progenium): E vicino = un caricatore dell'arma in mano, 'charges' volte
+    // Cassa di munizioni posata a terra (cadet progenium): E vicino = un caricatore dell'arma in mano, 'charges' volte
     struct AmmoCrateComponent {
         entt::entity owner = entt::null;
         int team = -1;                 // squadra di chi l'ha posata (-1 = nessuna: solo il padrone)
@@ -460,12 +460,12 @@ namespace SunEngine {
         float timeLeft = 90.0f;   // poi sparisce
     };
 
-    // Rinforzi chiamati col vox caster: arrivano dopo 'timer' secondi accanto a chi li ha chiamati (li crea GameLayer)
+    // Rinforzi chiamati col radio: arrivano dopo 'timer' secondi accanto a chi li ha chiamati (li crea GameLayer)
     struct SummonRequestComponent {
         struct Pending { std::string unitId; float timer = 5.0f; };
         std::vector<Pending> pending;
     };
-    // Unita' evocata (rinforzo del vox caster): segue il padrone e combatte con lui. Cerchio verde sotto i piedi.
+    // Unita' evocata (rinforzo del radio): segue il padrone e combatte con lui. Cerchio verde sotto i piedi.
     struct SummonedComponent {
         entt::entity owner = entt::null;
         float side = 1.0f;             // da che lato del padrone si mette (-1 sinistra, +1 destra)
@@ -526,20 +526,20 @@ namespace SunEngine {
     };
 
     // Probabilita' di schivare un colpo (a distanza o in mischia): il colpo non fa danno e, se a distanza,
-    // prosegue oltre. Es. squig 0.30 = 30%.
+    // prosegue oltre. Es. grugn 0.30 = 30%.
     struct EvasionComponent {
         float chance = 0.0f;
     };
 
-    // Compagno squig che segue il padrone e attacca quello a cui il padrone spara.
-    enum class SquigKind { Biter, Bomb };
-    enum class SquigState { Follow, Attack, Charge };
-    struct SquigComponent {
+    // Compagno grugn che segue il padrone e attacca quello a cui il padrone spara.
+    enum class GrugnKind { Biter, Bomb };
+    enum class GrugnState { Follow, Attack, Charge };
+    struct GrugnComponent {
         entt::entity owner = entt::null;
         int ownerSlot = 4;                  // slot equipaggiamento del padrone (4-6) da cui viene
-        std::string itemId;                 // blueprint dello squig
-        SquigKind kind = SquigKind::Biter;
-        SquigState state = SquigState::Follow;
+        std::string itemId;                 // blueprint dello grugn
+        GrugnKind kind = GrugnKind::Biter;
+        GrugnState state = GrugnState::Follow;
         entt::entity target = entt::null;
         float targetTimer = 0.0f;           // per quanto insegue ancora l'ordine ricevuto
         float attackCooldown = 0.0f;
@@ -560,7 +560,7 @@ namespace SunEngine {
         bool isBeam = true;
         float projectileLength = 0.5f;
         float projectileWidth = 0.05f;
-        int style = 0;                 // 0 = scia classica, 1 = proiettile (tracciante sottile), 2 = bolt (cartuccia a razzo + scoppio)
+        int style = 0;                 // 0 = scia classica, 1 = proiettile (tracciante sottile), 2 = heavy_round (cartuccia a razzo + scoppio)
         // Aspetto per tipo di arma (WeaponFx in VfxEvents.h, -1 = scia classica) e impatto all'arrivo
         int fx = -1;
         bool hitSomething = false;     // il colpo finisce su qualcosa: all'arrivo parte l'impatto
@@ -626,14 +626,14 @@ namespace SunEngine {
             return !id.empty() && id != "none" && BlueprintManager::Get().GetWeapon(id) != nullptr;
         }
 
-        // Si puo' prendere in mano? (squig e zaino munizioni sono passivi: occupano lo slot ma non si impugnano)
+        // Si puo' prendere in mano? (grugn e zaino munizioni sono passivi: occupano lo slot ma non si impugnano)
         bool IsSlotSelectable(int slot) const {
             if (!HasSlotItem(slot)) return false;
             const auto* bp = BlueprintManager::Get().GetWeapon(GetSlotItemId(slot));
-            return !(bp->is_equipment && (bp->equipment_type.rfind("squig", 0) == 0 || bp->equipment_type == "ammo_backpack"));
+            return !(bp->is_equipment && (bp->equipment_type.rfind("grugn", 0) == 0 || bp->equipment_type == "ammo_backpack"));
         }
 
-        // Primo slot con qualcosa dentro (es. il gretchin non ha primaria: parte con la Grot Blasta)
+        // Primo slot con qualcosa dentro (es. il pighcib non ha primaria: parte con la Pighcib Blasta)
         int FirstUsableSlot() const {
             for (int s : { 0, 1, 2, 4, 5, 6 }) if (IsSlotSelectable(s)) return s;
             return 0;
@@ -645,7 +645,7 @@ namespace SunEngine {
             return bp && bp->is_equipment;
         }
 
-        // Passiva di velocita' dell'arma da mischia tenuta in mano (es. coltello del gretchin +5%)
+        // Passiva di velocita' dell'arma da mischia tenuta in mano (es. coltello del pighcib +5%)
         float HeldSpeedMultiplier() const {
             const WeaponBlueprint* held = nullptr;
             if (currentSlot == 2 || GetEquipStance() == EquipStance::HybridRangedMelee)
@@ -782,7 +782,7 @@ namespace SunEngine {
         float idle = 0.0f;       // bot: secondi senza bersagli
     };
 
-    // Buff di fazione attivo sull'unita' (es. WAAAGH! degli orki): moltiplicatori letti da movimento, armi e mischia
+    // Buff di fazione attivo sull'unita' (es. HUNGRY! dei vrepighs): moltiplicatori letti da movimento, armi e mischia
     struct FactionBuffComponent {
         float moveSpeedMult = 1.0f;     // velocita' di movimento
         float reloadSpeedMult = 1.0f;   // velocita' di ricarica (1.4 = ricarica il 40% piu' in fretta)
@@ -864,12 +864,12 @@ namespace SunEngine {
 
     struct SkinnedPartSet;   // Renderer/SkinnedParts.h
 
-    struct SquigVisualTag {};
+    struct GrugnVisualTag {};
 
     // Materiale procedurale di un blocco della mappa (Renderer/SurfaceMaterials.h)
     struct SurfaceMaterialComponent { int id = 0; };
     // Detrito decorativo sparso dal caricatore della mappa: solo da vedere (niente collisioni ne' navmesh)
-    struct MapDecorTag {};   // lo squig e' disegnato col modello skinnato (SquigModel.h)
+    struct MapDecorTag {};   // il grugn e' disegnato col modello skinnato (GrugnModel.h)
 
     struct SkinnedModelInstanceComponent {
         SunEngine::SkinnedModel* sourceModel = nullptr;
@@ -879,7 +879,7 @@ namespace SunEngine {
         float metallic = 0.0f;
         float emissive = 0.0f;
         std::vector<GarmentDraw> garments;   // vestiti e armature disegnati sopra il corpo, con le stesse ossa
-        const SkinnedPartSet* extraParts = nullptr;   // parti con materiale proprio (denti e occhi dello squig)
+        const SkinnedPartSet* extraParts = nullptr;   // parti con materiale proprio (denti e occhi dello grugn)
         glm::vec4 skinStyle{ 0.0f };         // pelle della razza: chiazze, verruche, definizione muscolare, vene
         // Modello vuoto di default: non renderizzato finché non setti i puntatori
     };                               // ← aggiungi ; 
@@ -908,7 +908,7 @@ namespace SunEngine {
     }
 
     // --- Partita in rete (Sandbox/GameLayerNetMatch.cpp) ---
-    // Entita' che esiste uguale per tutti i giocatori, con lo stesso numero (es. un orco dell'ondata)
+    // Entita' che esiste uguale per tutti i giocatori, con lo stesso numero (es. un vrepigh dell'ondata)
     struct NetEntityComponent { std::uint32_t netId = 0; };
     // Copia di un'entita' simulata da un altro computer (l'host per i nemici, il proprietario per i giocatori):
     // qui niente IA e niente danni inflitti; muore solo quando lo dice chi la simula (killConfirmed).

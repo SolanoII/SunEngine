@@ -20,18 +20,18 @@
 //   I bot vicini la usano da soli quando hanno la riserva bassa.
 // Zaino energetico ("power_pack"): click sinistro = +move_speed_bonus di velocita' per effect_duration secondi, poi
 //   equipment_cooldown secondi di ricarica (nessun limite di usi).
-// Insegna imperiale ("insignia"): passiva, basta averla in uno slot: morale alto a chi della squadra e' entro
+// Insegna del Kingship ("insignia"): passiva, basta averla in uno slot: morale alto a chi della squadra e' entro
 //   equipment_range metri, portatore compreso (MoraleAuraComponent).
 // Mantello mimetico ("camo_cloak"): click sinistro per effect_duration secondi il corpo diventa un liquido trasparente
 //   (CloakComponent); i nemici IA non lo vedono oltre 6 m. Sparare o colpire in mischia lo interrompe.
-// Auspex ("auspex"): in mano mostra un sonar coi nemici entro equipment_range metri (lo disegna GameLayer).
+// Scanner ("scanner"): in mano mostra un sonar coi nemici entro equipment_range metri (lo disegna GameLayer).
 // In rete (vedi AidEvents.h): zaino di cibo, cassa di munizioni e scatola data a un compagno arrivano anche ai
 //   compagni degli altri computer; qui si cura, si rifornisce e si raccoglie solo cio' che questo computer simula
 //   (mai le copie NetGhostComponent, che ricevono l'aiuto dal loro proprietario).
 // Munizioni dai caduti: chi muore lascia a terra, per ogni tipo di munizione delle sue armi ("ammo_type"), il 10% dei
 //   colpi massimi (caricatore + riserva piena). Chi ci passa sopra con un'arma dello stesso tipo le raccoglie da solo
 //   (fino a riempire la riserva; il resto rimane a terra). Spariscono dopo 90 secondi. Per rifornirsi bisogna avanzare.
-// Vox caster ("vox_caster"): click sinistro e equipment_use_time secondi di chiamata (ci si puo' muovere), poi
+// Radio caster ("field_radio"): click sinistro e equipment_use_time secondi di chiamata (ci si puo' muovere), poi
 //   dopo summon_delay secondi arriva un rinforzo summon_unit che segue chi l'ha chiamato (lo crea GameLayer).
 #include "Components.h"
 #include "../Scene/Scene.h"
@@ -63,7 +63,7 @@ namespace SunEngine {
             if (t == "cariche_fusione") return "cariche di fusione";
             if (t == "carburante") return "carburante";
             if (t == "esplosivi") return "razzi e granate";
-            if (t == "celle_grav") return "celle gravitazionali";
+            if (t == "celle_gravita") return "celle gravitazionali";
             if (t == "cristalli_psi") return "cristalli psionici";
             return t;
         }
@@ -300,8 +300,8 @@ namespace SunEngine {
                     if (wantSelf) PlaceCrate(scene, e, a, *held, slotIdx, models);
                     continue;
                 }
-                if (held->equipment_type == "vox_caster") {
-                    UpdateVoxCaster(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
+                if (held->equipment_type == "field_radio") {
+                    UpdateRadioCaster(scene, e, a, *held, inv.currentSlot, wantSelf, dt);
                     continue;
                 }
 
@@ -414,7 +414,7 @@ namespace SunEngine {
             a.useTimer = 0.0f; a.useSlot = -1;
 
             if (bp.equipment_type == "turret") {
-                // Arma pesante (es. lascannon): torretta davanti, si manovra con E
+                // Arma pesante (es. impulse_cannon): torretta davanti, si manovra con E
                 Turret::Spawn(scene, e, bp, slot, FootY(reg, e), models);
                 a.equipmentUses[slotIdx] -= 1;
                 Feedback(a, bp.displayName + " piazzato: E per usarlo");
@@ -460,7 +460,7 @@ namespace SunEngine {
             return b;
         }
 
-        // Barricata (scrap dello yoof) o muro con feritoia (loota) davanti a chi costruisce, ruotato di 0 o 90
+        // Barricata (scrap dello feral_pig) o muro con feritoia (raider) davanti a chi costruisce, ruotato di 0 o 90
         // gradi secondo la mira (i collider del motore sono box allineati agli assi)
         static void BuildStructure(Scene& scene, entt::entity e, const WeaponBlueprint& bp, const BlockModelLibrary* models) {
             auto& reg = scene.GetRegistry();
@@ -824,8 +824,8 @@ namespace SunEngine {
                 Feedback(*a, "+" + std::to_string(got) + " " + AmmoTypes::Name(ad.ammoType) + " raccolti (" + weaponName + ")");
         }
 
-        // Vox caster: chiamata di equipment_use_time secondi, poi il rinforzo e' in arrivo (SummonRequestComponent)
-        void UpdateVoxCaster(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slot, bool pressed, float dt) {
+        // Radio caster: chiamata di equipment_use_time secondi, poi il rinforzo e' in arrivo (SummonRequestComponent)
+        void UpdateRadioCaster(Scene& scene, entt::entity e, AmmoComponent& a, const WeaponBlueprint& bp, int slot, bool pressed, float dt) {
             auto& reg = scene.GetRegistry();
             const int slotIdx = slot - 4;
             if (a.useTimer > 0.0f && a.useSlot == slot) {

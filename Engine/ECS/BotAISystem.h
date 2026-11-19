@@ -30,7 +30,7 @@ namespace SunEngine {
         void DoMelee(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);
         void TryParry(Scene& scene, entt::entity self, BotBrainComponent& brain);
         void Resupply(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);   // scatola di munizioni
-        void TryGrenade(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt); // granate (es. stikkbomb)
+        void TryGrenade(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt); // granate (es. nail_grenade)
         bool ShouldHeal(Scene& scene, entt::entity self, BotBrainComponent& brain, const WeaponBlueprint& item);   // curare o attaccare?
         void TryDeploy(Scene& scene, entt::entity self, BotBrainComponent& brain, float dt);  // mine, barricate, muri con feritoia
     };

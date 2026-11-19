@@ -214,7 +214,7 @@ namespace SunEngine {
             entt::entity target = entt::null;
             float bestD = bp.range_effective;
             bool threat = false;
-            auto units = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+            auto units = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, GrugnComponent>);
             for (auto o : units) {
                 if (units.get<TeamComponent>(o).team == t.team || units.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                 const glm::vec3 p = units.get<TransformComponent>(o).Position;

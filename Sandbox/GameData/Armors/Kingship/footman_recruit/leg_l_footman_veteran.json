@@ -1,0 +1,151 @@
+{
+  "id": "leg_l_footman_veteran",
+  "displayName": "Schiniera Rinforzata da Veterano (sx)",
+  "location": "LeftLeg",
+  "armor_rating": 11,
+  "coverage": 0.7,
+  "max_durability": 130.0,
+  "weight": 2.2,
+  "point_cost": 1,
+  "faction": "Kingship",
+  "unit_restriction": "kingship_footman",
+  "skin_blocks": {
+    "Leg_L": [
+      0.27,
+      0.27,
+      0.27,
+      1
+    ]
+  },
+  "skin_parts": [
+    {
+      "block": "Leg_L",
+      "offset": [
+        0,
+        -0.12,
+        -0.105
+      ],
+      "size": [
+        0.18,
+        0.32,
+        0.03
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    },
+    {
+      "block": "Leg_L",
+      "offset": [
+        0,
+        0.02,
+        -0.11
+      ],
+      "size": [
+        0.16,
+        0.08,
+        0.04
+      ],
+      "color": [
+        0.27,
+        0.27,
+        0.27,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.3
+    }
+  ],
+  "garments": [
+    {
+      "id": "footman_pants_l_garrison_veteran",
+      "bones": [
+        "Hips",
+        "LeftUpLeg",
+        "LeftLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.07,
+        0.6
+      ],
+      "side": 1,
+      "inflate": 0.0045,
+      "noise": 0.3,
+      "noise_scale": 12,
+      "texture": "Textures/Garments/militia_fatigues.png",
+      "tex_tiles": 6,
+      "color": [
+        0.81,
+        0.81,
+        0.765,
+        1
+      ],
+      "roughness": 0.9
+    },
+    {
+      "id": "footman_boot_l_garrison_veteran",
+      "bones": [
+        "LeftFoot",
+        "LeftToeBase",
+        "LeftToe_End",
+        "LeftLeg"
+      ],
+      "min_weight": 0.4,
+      "height_range": [
+        0.0,
+        0.11
+      ],
+      "side": 1,
+      "inflate": 0.0066,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 6,
+      "color": [
+        0.533,
+        0.533,
+        0.533,
+        1
+      ],
+      "roughness": 0.6,
+      "metallic": 0.05
+    },
+    {
+      "id": "footman_leg_guard_l_garrison_veteran",
+      "bones": [
+        "LeftLeg",
+        "LeftUpLeg"
+      ],
+      "min_weight": 0.5,
+      "height_range": [
+        0.1,
+        0.42
+      ],
+      "side": 1,
+      "facing": [
+        0,
+        0,
+        1
+      ],
+      "facing_min": 0.15,
+      "inflate": 0.0132,
+      "plate_cells": 5,
+      "plate_step": 0.003,
+      "texture": "Textures/Garments/militia_flak.png",
+      "tex_tiles": 4,
+      "roughness": 0.6,
+      "metallic": 0.25,
+      "color": [
+        0.533,
+        0.533,
+        0.533,
+        1
+      ]
+    }
+  ],
+  "comment": "Aspetto: stesse forme della milizia, schema veterano: grigio scuro."
+}

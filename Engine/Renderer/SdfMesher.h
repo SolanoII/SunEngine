@@ -3,7 +3,7 @@
 // Algoritmo "surface nets": un vertice per ogni cella della griglia attraversata dalla superficie (media dei
 // punti in cui la superficie taglia gli spigoli della cella, poi riportato sulla superficie col gradiente),
 // un quadrilatero per ogni spigolo della griglia che cambia segno. Superfici lisce e organiche, adatte a
-// creature e parti organiche (vedi SquigModel.h).
+// creature e parti organiche (vedi GrugnModel.h).
 //
 // La griglia fine viene valutata solo vicino alla superficie: prima una griglia grossolana (passo x4), poi
 // solo i blocchi in cui la distanza grossolana dice che la superficie puo' passare. Calcolo su piu' thread.

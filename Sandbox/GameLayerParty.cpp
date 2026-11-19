@@ -123,7 +123,7 @@ namespace SunEngine {
         ImDrawList* dl = ImGui::GetBackgroundDrawList();
         const glm::mat4 vp = m_Camera.GetViewProjection();
         for (const auto& pa : m_PartyActors) {
-            const float h = pa.actor.kind == AnimatedBodyKind::Ogryn ? 2.9f : (pa.actor.kind == AnimatedBodyKind::Gretchin ? 1.2f : 2.25f);
+            const float h = pa.actor.kind == AnimatedBodyKind::Ogre ? 2.9f : (pa.actor.kind == AnimatedBodyKind::Pighcib ? 1.2f : 2.25f);
             const glm::vec4 clip = vp * glm::vec4(pa.actor.pos + glm::vec3(0.0f, h * pa.actor.scale, 0.0f), 1.0f);
             if (clip.w <= 0.01f) continue;
             const ImVec2 p((clip.x / clip.w * 0.5f + 0.5f) * io.DisplaySize.x, (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * io.DisplaySize.y);

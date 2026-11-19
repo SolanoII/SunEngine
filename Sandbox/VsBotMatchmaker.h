@@ -26,7 +26,7 @@ namespace SunEngine {
     struct VsBotCandidate {
         std::string unitId;
         int cost = 0;
-        std::string faction;   // "imperium", "spacemarines", "orks"
+        std::string faction;   // "kingship", "vanguard", "vrepighs"
         int maxCount = 5;      // massimo di questo tipo in una squadra ("max_per_squad")
     };
 
@@ -145,7 +145,7 @@ namespace SunEngine {
     }
 
     // Squadra di un giocatore IA: quante piu' unita' possibile con somma <= cap della coda (e sopra il minimo),
-    // senza superare il massimo per tipo ("max_per_squad" del blueprint, es. 5 gretchin, 4 boyz). Non c'e' un
+    // senza superare il massimo per tipo ("max_per_squad" del blueprint, es. 5 pighcib, 4 tuskers). Non c'e' un
     // limite al numero di unita': ogni unita' e' un rientro in partita, quindi gli eserciti d'orda (tante unita'
     // economiche) hanno piu' rientri di chi porta poche unita' d'elite.
     // Riempimento casuale ripetuto: ogni tentativo aggiunge unita' a caso finche' ne entra almeno una; vince il
@@ -186,8 +186,8 @@ namespace SunEngine {
     }
 
     // Squadra mista di un giocatore IA: ogni bot pesca uno "stile" diverso, cosi' nella stessa parte convivono schemi
-    // diversi e le fazioni si mescolano (es. un gretchin e un aspirant; due gretchin e una guardia; un "grot spammer"
-    // con quattro gretchin). Sempre entro il cap della coda e il massimo per tipo; quel che avanza del cap va
+    // diversi e le fazioni si mescolano (es. un pighcib e un candidate; due pighcib e una guardia; un "pighcib spammer"
+    // con quattro pighcib). Sempre entro il cap della coda e il massimo per tipo; quel che avanza del cap va
     // all'equipaggiamento (AddBotExtras).
     //   0 misto       tutte le fazioni, scelta uniforme
     //   1 orda        tante unita' economiche (peso 1/costo)
@@ -271,13 +271,13 @@ namespace SunEngine {
 
     // Nomi dei giocatori IA, per fazione (senza ripetizioni nella stessa partita).
     inline std::string VsBotRandomName(const std::string& faction, std::vector<std::string>& used, std::mt19937& rng) {
-        static const std::vector<std::string> orks = { "Grunf", "Zannor", "Brakk", "Murgan", "Ruggzanna", "Krungh",
+        static const std::vector<std::string> vrepighs = { "Grunf", "Zannor", "Brakk", "Murgan", "Ruggzanna", "Krungh",
             "Vrokk", "Mazzuco", "Dorgun", "Skarn", "Bogrim", "Tusk" };
-        static const std::vector<std::string> imperium = { "Sgt. Varn", "Cpl. Hessin", "Kael", "Ostrava", "Brandt", "Mirelle",
+        static const std::vector<std::string> kingship = { "Sgt. Varn", "Cpl. Hessin", "Kael", "Ostrava", "Brandt", "Mirelle",
             "Taveck", "Ilsen", "Corvin", "Lt. Drusa", "Okonkwo", "Reiss" };
         static const std::vector<std::string> marines = { "Aurelian", "Cassar", "Valerius", "Severan", "Marcell",
             "Dorian", "Lucent", "Hadrian", "Corvin", "Octavian" };
-        const auto& list = faction == "orks" ? orks : (faction == "spacemarines" ? marines : imperium);
+        const auto& list = faction == "vrepighs" ? vrepighs : (faction == "vanguard" ? marines : kingship);
         std::vector<std::string> free;
         for (const auto& n : list) if (std::find(used.begin(), used.end(), n) == used.end()) free.push_back(n);
         std::string name = free.empty() ? list[rng() % list.size()] + " " + std::to_string(used.size() + 1) : free[rng() % free.size()];

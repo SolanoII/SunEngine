@@ -176,7 +176,7 @@ namespace SunEngine {
             float vaultMod = (stats.vaultModifier > 0.01f) ? stats.vaultModifier : 1.0f;
             float jumpReach = (stats.strength * 0.032f) * vaultMod;
             const float vaultHeight = legHeight + jumpReach;            // scavalcamento normale
-            // Arrampicata lenta (es. gretchin): puo' salire su muri piu' alti di quanto scavalcherebbe
+            // Arrampicata lenta (es. pighcib): puo' salire su muri piu' alti di quanto scavalcherebbe
             float maxClimbHeight = std::max(vaultHeight, stats.climbHeight);
 
             glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(trans.AimYaw), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -550,10 +550,10 @@ public:
             const float slow = ignoreSlows ? std::max(1.0f, stats.speedModifier) : stats.speedModifier;   // mira
             float moveSpeed = (stats.baseSpeed > 0.1f) ? (stats.baseSpeed * slow) : 5.0f;
             if (!ignoreSlows) moveSpeed *= CarrySpeedFactor(stats);   // peso addosso rispetto alla capacita' di trasporto
-            // Passiva dell'arma bianca in mano (es. coltello del gretchin: +5%)
+            // Passiva dell'arma bianca in mano (es. coltello del pighcib: +5%)
             if (const auto* inv = scene.GetRegistry().try_get<InventoryComponent>(entity)) moveSpeed *= inv->HeldSpeedMultiplier();
             moveSpeed *= 1.0f - 0.5f * crouch.amount;   // accovacciato: meta' velocita'
-            if (const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity)) moveSpeed *= buff->moveSpeedMult;   // WAAAGH!
+            if (const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity)) moveSpeed *= buff->moveSpeedMult;   // HUNGRY!
             if (const auto* boost = scene.GetRegistry().try_get<SpeedBoostComponent>(entity)) moveSpeed *= boost->mult;          // zaino energetico
             if (const auto* cry = scene.GetRegistry().try_get<WarCryComponent>(entity)) moveSpeed *= cry->mult;              // Gruuk
 
@@ -731,7 +731,7 @@ public:
 
         for (int i = 0; i < count; ++i) {
             const auto& cand = candidates[i];
-            // Passo come evento di sensazione: il gioco sceglie suono e peso in base al corpo (gretchin, astartes...)
+            // Passo come evento di sensazione: il gioco sceglie suono e peso in base al corpo (pighcib, vanguard...)
             { FeelEvent fe; fe.kind = FeelKind::Step; fe.pos = cand.position; fe.source = static_cast<std::uint32_t>(cand.entity);
               fe.variant = static_cast<int>(cand.surface); EmitFeel(fe); }
             if (FeelAudioActive()) continue;

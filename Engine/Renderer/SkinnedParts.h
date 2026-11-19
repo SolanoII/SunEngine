@@ -1,6 +1,6 @@
 #pragma once
 // Parti in piu' di un modello skinnato, disegnate con le stesse ossa ma con un materiale loro
-// (es. denti e occhi dello squig, vedi SquigModel.h).
+// (es. denti e occhi dello grugn, vedi GrugnModel.h).
 #include "GarmentShell.h"
 #include <vector>
 

@@ -34,7 +34,7 @@ namespace SunEngine {
         float texScale = 1.0f;                 // ripetizioni per unita' del modello (bind pose)
         float alphaCut = 0.0f;
         float invHeight = 1.0f;                // 1 / altezza del corpo (posa T): scala dei dettagli nello shader
-        // Parti con un materiale proprio (SkinnedParts.h, es. denti e occhi dello squig)
+        // Parti con un materiale proprio (SkinnedParts.h, es. denti e occhi dello grugn)
         int detail = -1;                       // -1 = dal metallo (stoffa o armatura), altrimenti il dettaglio dello shader
         float emissive = 0.0f;
         int colorSource = 0;                   // 0 = color, 1 = colore della pelle dell'istanza

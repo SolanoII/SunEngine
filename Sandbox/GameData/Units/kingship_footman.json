@@ -1,0 +1,42 @@
+{
+  "id": "kingship_footman",
+  "displayName": "Fante del Regno",
+  "ai_role": "ranged",
+  "point_cost": 10,
+  "animated_body": "human",
+  "base_speed": 2.88,
+  "stamina": 110.0,
+  "stamina_regen": 12.0,
+  "health": 100.0,
+  "toughness": 15,
+  "armor_rating": 3,
+  "strength": 20,
+  "accuracy_skill": 40,
+  "melee_skill": 25,
+  "morale": 55,
+  "suppression_threshold": 50,
+  "vision_range": 120,
+  "fov_degrees": 90,
+  "weight_capacity": 70.0,
+  "comment": "Fante del Regno del Presidio. Dotazione base: armatura completa, fucile a impulsi (20+80) o auto_rifle (30+120), pistola a impulsi (10+50) o pistola automatica (12+60), coltello, 1 granata frag. Sbloccabili: fucile a pompa, spada a denti meccanici, lanciagranate, lanciafiamme, plasma, fusione, fucile di precisione a impulsi e Comunicatore da Campo (chiama un coscritto che ti segue).",
+  "default_loadout": {
+    "primary": "footman_impulse_rifle",
+    "secondary": "footman_impulse_pistol",
+    "melee": "footman_knife",
+    "equipment": [
+      "footman_frag",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "head_footman_helmet",
+      "torso": "torso_footman_flak",
+      "arm_l": "arm_l_footman_guard",
+      "arm_r": "arm_r_footman_guard",
+      "leg_l": "leg_l_footman_guard",
+      "leg_r": "leg_r_footman_guard"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 3
+}

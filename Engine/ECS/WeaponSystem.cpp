@@ -133,7 +133,7 @@ namespace SunEngine {
         if (!m_AudioInitialized || baseVolume <= 0.001f) return;
         if (FeelAudioActive()) return;   // il gioco suona gli spari per tipo di arma (GameFeel): qui resta la riserva
 
-        // Falloff lineare da 1.0 a 0.0 in 40 metri (più secco delle voci Ork)
+        // Falloff lineare da 1.0 a 0.0 in 40 metri (più secco delle voci Vrepigh)
         // L'ascoltatore vero e' il giocatore locale (il GameLayer lo passa a miniaudio a ogni frame): prima si usava la
         // posizione di chi sparava, cosi' ogni arma, anche lontanissima, suonava a volume pieno come se fosse
         // la propria. listenerPos resta solo come riserva se il motore audio non c'e'.
@@ -168,17 +168,17 @@ namespace SunEngine {
         if (underbarrelShotgun || w.pellet_count > 1) return WeaponFx::Shotgun;
         switch (w.projectile_type) {
         case ProjectileType::Laser:
-            if (w.melta_shot) return WeaponFx::Melta;
-            if (w.base_damage >= 100.0f || w.id.find("long_las") != std::string::npos) return WeaponFx::LongLas;
-            if (w.ammo_per_shot >= 2 || w.id.find("hotshot") != std::string::npos) return WeaponFx::HotShot;
+            if (w.fusion_shot) return WeaponFx::Fusion;
+            if (w.base_damage >= 100.0f || w.id.find("precision") != std::string::npos) return WeaponFx::Precision;
+            if (w.ammo_per_shot >= 2 || w.id.find("high_power") != std::string::npos) return WeaponFx::HighPower;
             return WeaponFx::Laser;
         case ProjectileType::Ballistic: return w.base_damage >= 100.0f ? WeaponFx::Sniper : WeaponFx::Ballistic;
-        case ProjectileType::Bolt: return WeaponFx::Bolt;
+        case ProjectileType::HeavyRound: return WeaponFx::HeavyRound;
         case ProjectileType::Plasma: return WeaponFx::Plasma;
         case ProjectileType::Explosive: return WeaponFx::Explosive;
         case ProjectileType::Flamer: return WeaponFx::Flamer;
-        case ProjectileType::ContinuousBeam: return WeaponFx::Melta;
-        case ProjectileType::Grav: case ProjectileType::Psychic: return WeaponFx::Grav;
+        case ProjectileType::ContinuousBeam: return WeaponFx::Fusion;
+        case ProjectileType::Gravity: case ProjectileType::Psychic: return WeaponFx::Gravity;
         }
         return WeaponFx::Ballistic;
     }
@@ -264,7 +264,7 @@ namespace SunEngine {
                 else recoil.recoverySpeed = 10.0f;
             }
 
-            // -------- ARMI A RAGGIO CONTINUO (MELTA GUN) --------
+            // -------- ARMI A RAGGIO CONTINUO (FUSIONE GUN) --------
             // Restano "auto finché tieni premuto": non ha senso semi/burst su un beam.
             if (wpBP->projectile_type == ProjectileType::ContinuousBeam) {
                 if (wantsToFire && !wState.isOverheating && !wState.isReloading) {
@@ -299,7 +299,7 @@ namespace SunEngine {
             }
 
             if (wState.isReloading) {
-                // Buff di fazione (WAAAGH!): ricarica piu' veloce
+                // Buff di fazione (HUNGRY!): ricarica piu' veloce
                 const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
                 wState.reloadTimer -= deltaTime * (buff ? buff->reloadSpeedMult : 1.0f);
                 if (wState.reloadTimer <= 0.0f) {
@@ -374,7 +374,7 @@ namespace SunEngine {
             }
 
             if (wantsToShootThisFrame && wState.fireCooldown <= 0.0f && !wState.isOverheating) {
-                if (wState.currentAmmo >= std::max(1, wpBP->ammo_per_shot)) {   // hot-shot: 2 colpi per sparo
+                if (wState.currentAmmo >= std::max(1, wpBP->ammo_per_shot)) {   // ad alta potenza: 2 colpi per sparo
                     FireWeapon(scene, entity, wState, recoil, *wpBP, trans, stats);
                     if (effectiveMode == "burst" && wState.burstRemaining > 0) {
                         wState.burstRemaining--;
@@ -405,7 +405,7 @@ namespace SunEngine {
         if (wState.currentHeat >= wpBP.heat_capacity) {
             wState.currentHeat = wpBP.heat_capacity;
             wState.isOverheating = true;
-            SUN_CORE_WARN("MELTA GUN SURRISCALDATA!");
+            SUN_CORE_WARN("FUCILE A FUSIONE SURRISCALDATO!");
             return;
         }
 
@@ -482,10 +482,10 @@ namespace SunEngine {
             float frameDamage = dps * deltaTime;
             int effectiveAP = wpBP.armor_penetration;
 
-            float meltaThreshold = (wpBP.melta_range > 0.5f) ? wpBP.melta_range : 4.5f;
-            if (hit.distance <= meltaThreshold) {
-                float meltaMult = (wpBP.melta_multiplier > 1.0f) ? wpBP.melta_multiplier : 2.5f;
-                frameDamage *= meltaMult;
+            float fusionThreshold = (wpBP.fusion_range > 0.5f) ? wpBP.fusion_range : 4.5f;
+            if (hit.distance <= fusionThreshold) {
+                float fusionMult = (wpBP.fusion_multiplier > 1.0f) ? wpBP.fusion_multiplier : 2.5f;
+                frameDamage *= fusionMult;
                 effectiveAP += 20;
             }
 
@@ -501,8 +501,8 @@ namespace SunEngine {
         if (wpBP.suppression_value > 0)
             EmitMoraleShock({ barrelOrigin, hitPoint, shooter, Explosives::TeamOf(scene.GetRegistry(), shooter),
                               static_cast<float>(wpBP.suppression_value) * std::max(1.0f, wpBP.rate_of_fire / 60.0f) * deltaTime, wpBP.suppression_slow });
-        entt::entity meltaBeamEntity = scene.CreateEntity();
-        auto& beamTrail = scene.GetRegistry().emplace<TrailRequestComponent>(meltaBeamEntity);
+        entt::entity fusionBeamEntity = scene.CreateEntity();
+        auto& beamTrail = scene.GetRegistry().emplace<TrailRequestComponent>(fusionBeamEntity);
         beamTrail.start = barrelOrigin;
         beamTrail.end = hitPoint;
         beamTrail.color = (wpBP.primary_color.a > 0.01f) ? wpBP.primary_color : glm::vec4(1.0f, 0.40f, 0.05f, 0.95f);
@@ -510,11 +510,11 @@ namespace SunEngine {
         beamTrail.projectileWidth = (wpBP.projectile_width > 0.05f) ? wpBP.projectile_width : 0.38f;
         beamTrail.travelTime = 0.001f;
         beamTrail.totalLife = std::max(0.05f, deltaTime * 2.5f);
-        beamTrail.fx = static_cast<int>(WeaponFx::Melta);
+        beamTrail.fx = static_cast<int>(WeaponFx::Fusion);
         beamTrail.hitSomething = hit.hit && Random::Chance(0.3f);   // metallo fuso ogni tanto, non a ogni frame
         beamTrail.hitUnit = hit.hitUnit;
-        if (Random::Chance(0.35f)) { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Melta; mz.pos = barrelOrigin; mz.dir = baseDir; EmitVfx(mz); }
-        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::Melta; fe.pos = barrelOrigin; fe.dir = baseDir; fe.source = static_cast<std::uint32_t>(shooter); fe.flag = true; EmitFeel(fe); }   // flag = raggio continuo
+        if (Random::Chance(0.35f)) { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Fusion; mz.pos = barrelOrigin; mz.dir = baseDir; EmitVfx(mz); }
+        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::Fusion; fe.pos = barrelOrigin; fe.dir = baseDir; fe.source = static_cast<std::uint32_t>(shooter); fe.flag = true; EmitFeel(fe); }   // flag = raggio continuo
     }
 
     void WeaponSystem::FireWeapon(Scene& scene, entt::entity shooter,
@@ -533,7 +533,7 @@ namespace SunEngine {
             SUN_CORE_WARN("ARMA SURRISCALDATA!");
         }
 
-        // Stabilita' del tiratore: accovacciato (fino a -35%), ordine "Take AIM!", insegna imperiale vicina,
+        // Stabilita' del tiratore: accovacciato (fino a -35%), ordine "Take AIM!", insegna del Kingship vicina,
         // elmetto con visiera. Riduce rinculo, ventaglio, deviazione e colpi di striscio.
         const float skill = Marksmanship::Skill01(stats, orderBuff);
         float steadyMult = 1.0f;
@@ -701,7 +701,7 @@ namespace SunEngine {
 
             // Il colpo e' deciso adesso (chi e dove), ma danno, sussulto e suono dell'impatto arrivano quando il
             // proiettile che si vede ci arriva davvero. Prima il bersaglio perdeva vita (e moriva) all'istante,
-            // con il bolt o il globo di plasma ancora a meta' strada.
+            // con il heavy_round o il globo di plasma ancora a meta' strada.
             PendingShot ps;
             ps.shooter = shooter; ps.target = hit.entity; ps.team = Explosives::TeamOf(scene.GetRegistry(), shooter);
             ps.hit = hit.hit; ps.hitUnit = hit.hitUnit; ps.parried = parried;
@@ -712,7 +712,7 @@ namespace SunEngine {
             ps.color = isUnderbarrelShotgun ? glm::vec4(1.0f, 0.7f, 0.2f, 1.0f) : wpBP.primary_color;
             ps.baseDamage = wpBP.base_damage; ps.armorPenetration = wpBP.armor_penetration;
             ps.falloffStart = wpBP.damage_falloff_start; ps.falloffEnd = wpBP.damage_falloff_end;
-            ps.meltaShot = wpBP.melta_shot; ps.meltaRange = wpBP.melta_range; ps.meltaMultiplier = wpBP.melta_multiplier;
+            ps.fusionShot = wpBP.fusion_shot; ps.fusionRange = wpBP.fusion_range; ps.fusionMultiplier = wpBP.fusion_multiplier;
             ps.type = wpBP.projectile_type;
             ps.explosionRadius = wpBP.explosion_radius; ps.explosionDamage = wpBP.explosion_damage; ps.structureMultiplier = wpBP.structure_damage_multiplier;
 
@@ -740,14 +740,14 @@ namespace SunEngine {
                 bulletTrail.totalLife = bulletTrail.travelTime + linger;
             };
             switch (fx) {
-            case WeaponFx::Laser: case WeaponFx::HotShot: flight(170.0f, 0.03f, 0.45f, 0.01f); break;
-            case WeaponFx::LongLas: case WeaponFx::Melta: bulletTrail.travelTime = 0.001f; bulletTrail.totalLife = fx == WeaponFx::Melta ? 0.25f : 0.35f; break;
+            case WeaponFx::Laser: case WeaponFx::HighPower: flight(170.0f, 0.03f, 0.45f, 0.01f); break;
+            case WeaponFx::Precision: case WeaponFx::Fusion: bulletTrail.travelTime = 0.001f; bulletTrail.totalLife = fx == WeaponFx::Fusion ? 0.25f : 0.35f; break;
             case WeaponFx::Ballistic: case WeaponFx::Shotgun: bulletTrail.style = 1; flight(300.0f, 0.02f, 0.14f, 0.01f); break;
             case WeaponFx::Sniper: flight(450.0f, 0.02f, 0.5f, 0.6f); break;
-            case WeaponFx::Bolt: bulletTrail.style = 2; flight(140.0f, 0.05f, 0.4f, 0.6f); break;
+            case WeaponFx::HeavyRound: bulletTrail.style = 2; flight(140.0f, 0.05f, 0.4f, 0.6f); break;
             case WeaponFx::Plasma: flight(65.0f, 0.05f, 1.0f, 0.01f); break;
             case WeaponFx::Explosive: flight(90.0f, 0.05f, 0.8f, 0.9f); bulletTrail.impactScale = std::max(1.0f, wpBP.explosion_radius); bulletTrail.hitSomething = !parried; break;
-            case WeaponFx::Grav: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
+            case WeaponFx::Gravity: flight(80.0f, 0.05f, 0.6f, 0.01f); break;
             default: break;
             }
             // Soppressione: chi e' vicino alla traiettoria (o colpito) la subisce (MoraleSystem.h)
@@ -764,7 +764,7 @@ namespace SunEngine {
         // Suono posizionale: sorgente = bocca di fuoco; l'attenuazione usa l'ascoltatore (vedi PlayWeaponSound)
         glm::vec3 listenerPos = trans.Position + glm::vec3(0.0f, 1.2f, 0.0f);
 
-        // Distingui per proiettile: melta/flamer/laser hanno timbri diversi, ma per
+        // Distingui per proiettile: fusion/flamer/laser hanno timbri diversi, ma per
         // ora usiamo lo stesso file — la struttura è pronta per essere estesa.
         float baseVol = 1.0f;
         if (isShotgun) baseVol = 1.15f;   // shotgun un po' più "cattivo"
@@ -792,13 +792,13 @@ namespace SunEngine {
             if (ps.graze) finalDamage *= Marksmanship::kGrazeDamage;
 
             finalDamage = CalculateDamageWithFalloff(finalDamage, ps.distance, ps.falloffStart, ps.falloffEnd);
-            // Melta a colpo singolo: a bruciapelo scioglie tutto
-            if (ps.meltaShot && ps.distance <= ps.meltaRange) {
-                finalDamage *= (std::max)(1.0f, ps.meltaMultiplier);
+            // Fusion a colpo singolo: a bruciapelo scioglie tutto
+            if (ps.fusionShot && ps.distance <= ps.fusionRange) {
+                finalDamage *= (std::max)(1.0f, ps.fusionMultiplier);
                 effectiveAP += 20;
             }
 
-            if (ps.type == ProjectileType::Grav) {
+            if (ps.type == ProjectileType::Gravity) {
                 ArmorPiece* armor = targetStats.armorSet.GetPiece(ps.location);
                 int targetArmorRating = armor ? armor->armorRating : targetStats.armorSet.GetAverageRating();
                 finalDamage = ps.baseDamage + (targetArmorRating * 1.5f);
@@ -819,7 +819,7 @@ namespace SunEngine {
             const float dmg = CalculateDamageWithFalloff(ps.baseDamage, ps.distance, ps.falloffStart, ps.falloffEnd);
             if (DamageStructure(reg, ps.target, dmg * XpValues::StructureBulletDamage)) scene.DestroyEntity(ps.target);
         }
-        // Proiettile esplosivo (es. Rokkit Launcha): esplode dove arriva, colpendo i nemici attorno
+        // Proiettile esplosivo (es. Lanciarazzi): esplode dove arriva, colpendo i nemici attorno
         if (ps.type == ProjectileType::Explosive && ps.explosionRadius > 0.0f && !ps.parried) {
             Explosives::Explode(scene, ps.hitPoint, ps.explosionRadius, ps.explosionDamage, ps.armorPenetration,
                                 shooter, ps.team, ps.structureMultiplier, false);
@@ -946,12 +946,12 @@ namespace SunEngine {
         tr.projectileWidth = std::max(0.08f, bp.projectile_width);
         tr.travelTime = 0.001f;
         tr.totalLife = 0.45f;
-        tr.fx = static_cast<int>(WeaponFx::LongLas);
+        tr.fx = static_cast<int>(WeaponFx::Precision);
         tr.hitSomething = hit.hit;
         tr.hitUnit = hit.hitUnit;
-        { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::LongLas; mz.pos = origin; mz.dir = dir; mz.color = bp.primary_color; EmitVfx(mz); }
-        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::LongLas; fe.pos = origin; fe.dir = dir; fe.color = bp.primary_color; fe.scale = bp.base_damage; EmitFeel(fe); }
-        if (hit.hit) { FeelEvent fe; fe.kind = FeelKind::Impact; fe.fx = WeaponFx::LongLas; fe.pos = end; fe.dir = dir; fe.target = static_cast<std::uint32_t>(hit.entity); fe.hitUnit = hit.hitUnit; fe.scale = bp.base_damage; EmitFeel(fe); }
+        { VfxEvent mz; mz.kind = VfxKind::Muzzle; mz.fx = WeaponFx::Precision; mz.pos = origin; mz.dir = dir; mz.color = bp.primary_color; EmitVfx(mz); }
+        { FeelEvent fe; fe.kind = FeelKind::Shot; fe.fx = WeaponFx::Precision; fe.pos = origin; fe.dir = dir; fe.color = bp.primary_color; fe.scale = bp.base_damage; EmitFeel(fe); }
+        if (hit.hit) { FeelEvent fe; fe.kind = FeelKind::Impact; fe.fx = WeaponFx::Precision; fe.pos = end; fe.dir = dir; fe.target = static_cast<std::uint32_t>(hit.entity); fe.hitUnit = hit.hitUnit; fe.scale = bp.base_damage; EmitFeel(fe); }
     }
 
     WeaponSystem::RaycastResult WeaponSystem::RaycastAll(Scene& scene, const glm::vec3& rayOrigin,
@@ -970,7 +970,7 @@ namespace SunEngine {
             if (e == shooter) continue;
             if (SameTeam(reg, shooter, e)) continue;   // niente fuoco amico: i colpi attraversano gli alleati
             const auto& trans = unitView.get<TransformComponent>(e);
-            // Evasione (es. squig 30%): il colpo lo manca e prosegue verso quello che c'e' dietro
+            // Evasione (es. grugn 30%): il colpo lo manca e prosegue verso quello che c'e' dietro
             if (const auto* ev = reg.try_get<EvasionComponent>(e); ev && ev->chance > 0.0f) {
                 const glm::vec3 toUnit = trans.Position - rayOrigin;
                 const float along = glm::dot(toUnit, rayDir);
@@ -979,7 +979,7 @@ namespace SunEngine {
             }
 
             // Unita' con scheletro a cubi: il colpo si testa sui SINGOLI blocchi (testa, torso, braccia,
-            // gambe) nella posa attuale. Prima si usava il collider di movimento, che per gli orchi e'
+            // gambe) nella posa attuale. Prima si usava il collider di movimento, che per gli vrepighs e'
             // 0.7 x 1.3 m contro uno scheletro largo 1.85 m e alto 1.8 m: testa e braccia non erano colpibili,
             // e la zona colpita era solo stimata dall'altezza.
             if (const auto* skel = reg.try_get<SkeletonComponent>(e); skel && !skel->data.blocks.empty()) {
@@ -1027,7 +1027,7 @@ namespace SunEngine {
                 result.point = rayOrigin + rayDir * t;
 
                 // FIX #20: altezza normalizzata sul box dell'unita' (0 = piedi, 1 = cima) invece di
-                // soglie fisse per 1.8m: Nob (2m+) e ratling (1.2m) ora hanno testa/torso proporzionati.
+                // soglie fisse per 1.8m: Capozanna (2m+) e ratling (1.2m) ora hanno testa/torso proporzionati.
                 float spanY = (std::max)(maxB.y - minB.y, 0.001f);
                 float hitYn = std::clamp((result.point.y - minB.y) / spanY, 0.0f, 1.0f);
                 if (hitYn > 0.82f)      result.location = HitboxLocation::Head;

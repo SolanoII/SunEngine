@@ -78,7 +78,7 @@ namespace SunEngine {
                     const auto& node = it->second;
                     // Tempi con i minimi del tipo di colpo (cariche leggibili, recuperi punibili)
                     const MeleeTiming tm = DamageResolver::EffectiveTiming(node, melee.currentAttack, melee.currentAttackNode);
-                    // Buff di fazione (WAAAGH!): colpi piu' rapidi (tutte le fasi dell'attacco scorrono piu' in fretta)
+                    // Buff di fazione (HUNGRY!): colpi piu' rapidi (tutte le fasi dell'attacco scorrono piu' in fretta)
                     const auto* buff = scene.GetRegistry().try_get<FactionBuffComponent>(entity);
                     melee.stateTimer += deltaTime * (buff ? buff->meleeSpeedMult : 1.0f);
 
@@ -170,7 +170,7 @@ namespace SunEngine {
         const glm::vec3 up(0.0f, 1.0f, 0.0f);
 
         // Piedi e altezza dell'attaccante dal collider (che avvolge lo scheletro: Position non e' ai piedi,
-        // per il guardsman le gambe scendono 35 cm sotto l'origine). Altezze del colpo in base al tipo di attacco.
+        // per il footman le gambe scendono 35 cm sotto l'origine). Altezze del colpo in base al tipo di attacco.
         float footY = atkTrans.Position.y, height = 1.8f;
         if (const auto* col = reg.try_get<ColliderComponent>(attacker)) {
             height = std::max(0.8f, col->halfExtents.y * 2.0f * atkTrans.Scale.y);
@@ -256,10 +256,10 @@ namespace SunEngine {
         const auto result = DamageResolver::ResolveMeleeClash(scene, attacker, best.e, best.loc);
         if (result == DamageResolver::MeleeClashResult::Hit) {
             EmitHitFeedback(scene, attacker, best.e, best.point, best.loc, healthBefore);
-            // Effetto del colpo: sangue, lampo e (spada a catena / eviscerator) scintille dei denti
+            // Effetto del colpo: sangue, lampo e (spada a catena / shredder) scintille dei denti
             VfxEvent e; e.kind = VfxKind::MeleeHit; e.pos = best.point; e.dir = best.point - atkChest; e.dir.y = 0.0f;
             e.variant = atkMelee.currentAttack == MeleeAttackType::Light ? 0 : (atkMelee.currentAttack == MeleeAttackType::Heavy ? 2 : 1);
-            e.flag = weaponBP && (weaponBP->id.find("chain") != std::string::npos || weaponBP->id.find("eviscerator") != std::string::npos);
+            e.flag = weaponBP && weaponBP->id.find("toothsword") != std::string::npos;
             if (const auto* vt = reg.try_get<TransformComponent>(best.e)) {   // piedi del colpito: sangue a terra
                 float vy = vt->Position.y;
                 if (const auto* vc = reg.try_get<ColliderComponent>(best.e)) vy += (vc->localCenterOffset.y - vc->halfExtents.y) * vt->Scale.y;

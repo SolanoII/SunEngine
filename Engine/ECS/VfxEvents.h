@@ -12,18 +12,18 @@ namespace SunEngine {
 
     // Aspetto del colpo di un'arma: decide lampo alla bocca, proiettile in volo e impatto
     enum class WeaponFx : int {
-        Laser = 0,      // lasgun/laspistol: dardo di luce del colore dell'arma
-        HotShot,        // laser sovraccarico: piu' spesso e brillante
-        LongLas,        // laser da cecchino: raggio lungo che resta un attimo
+        Laser = 0,      // impulse_rifle/impulse_pistol: dardo di luce del colore dell'arma
+        HighPower,        // laser sovraccarico: piu' spesso e brillante
+        Precision,        // laser da cecchino: raggio lungo che resta un attimo
         Ballistic,      // proiettile: tracciante giallo, scintille e polvere
         Shotgun,        // pallettoni: lampo largo, tanti traccianti corti
         Sniper,         // proiettile pesante: scia d'aria che resta
-        Bolt,           // cartuccia a razzo che esplode nel bersaglio
+        HeavyRound,           // cartuccia a razzo che esplode nel bersaglio
         Plasma,         // globo azzurro-bianco, lento, scoppio di plasma
-        Melta,          // raggio di calore arancione con aria tremolante
+        Fusion,          // raggio di calore arancione con aria tremolante
         Flamer,         // getto di fiamme
         Explosive,      // razzo/granata: scia di fumo, esplosione
-        Grav            // onda gravitazionale viola
+        Gravity            // onda gravitazionale viola
     };
 
     enum class VfxKind : int {

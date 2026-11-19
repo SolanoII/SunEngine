@@ -101,7 +101,7 @@ namespace SunEngine {
         }
 
         // Arma da mischia in uso: quella impugnata se ha un moveset, altrimenti quella dell'inventario,
-        // altrimenti la spada a catena (giocatore) o la choppa (nemici). La stessa regola vale per l'input
+        // altrimenti la spada a catena (giocatore) o la cleaver (nemici). La stessa regola vale per l'input
         // del giocatore, per il sistema di mischia e per il calcolo del danno.
         inline static const WeaponBlueprint* ResolveMeleeWeapon(entt::registry& reg, entt::entity e) {
             auto& bpm = BlueprintManager::Get();
@@ -115,16 +115,16 @@ namespace SunEngine {
                     if (bp && bp->hasMoveset) return bp;
                 }
             }
-            // Unita' senza armi da mischia (es. loota): la sua arma di riserva
+            // Unita' senza armi da mischia (es. raider): la sua arma di riserva
             if (const auto* uid = reg.try_get<UnitBlueprintId>(e)) {
                 if (const auto* ubp = bpm.GetUnit(uid->id); ubp && !ubp->melee_fallback.empty()) {
                     const auto* fb = bpm.GetWeapon(ubp->melee_fallback);
                     if (fb && fb->hasMoveset) return fb;
                 }
             }
-            const auto* fallback = bpm.GetWeapon(reg.all_of<PlayerTag>(e) ? "standard_chainsword_1h" : "ork_choppa_1h");
+            const auto* fallback = bpm.GetWeapon(reg.all_of<PlayerTag>(e) ? "standard_toothsword_1h" : "vrepigh_cleaver_1h");
             if (fallback && fallback->hasMoveset) return fallback;
-            return bpm.GetWeapon("ork_choppa_1h");
+            return bpm.GetWeapon("vrepigh_cleaver_1h");
         }
 
         // La parata del difensore puo' fermare anche i colpi a distanza? Si' con uno scudo, con un'abilita'
@@ -225,7 +225,7 @@ namespace SunEngine {
                 return MeleeClashResult::Parried;
             }
 
-            // EVASIONE (es. squig): il colpo va a vuoto, uno solo per fendente
+            // EVASIONE (es. grugn): il colpo va a vuoto, uno solo per fendente
             if (const auto* ev = reg.try_get<EvasionComponent>(defender); ev && ev->chance > 0.0f && Random::Chance(ev->chance)) {
                 attackerMelee.hasHitInThisAttack = true;
                 SUN_CORE_INFO("Colpo schivato!");
@@ -252,10 +252,10 @@ namespace SunEngine {
             }
 
             float rawDamage = (attackerStats.strength * attackerStats.moraleCombatMult * 0.4f) + (weaponBaseDamage * nodeMult);
-            if (const auto* buff = reg.try_get<FactionBuffComponent>(attacker)) rawDamage *= buff->meleeDamageMult;   // WAAAGH!
+            if (const auto* buff = reg.try_get<FactionBuffComponent>(attacker)) rawDamage *= buff->meleeDamageMult;   // HUNGRY!
             int ap = weaponBP ? weaponBP->armor_penetration : 10;
 
-            // Colpo alle spalle: armi con "backstab_multiplier" (es. coltello del gretchin x2)
+            // Colpo alle spalle: armi con "backstab_multiplier" (es. coltello del pighcib x2)
             if (weaponBP && weaponBP->backstab_multiplier != 1.0f && IsBehind(reg, attacker, defender)) {
                 rawDamage *= weaponBP->backstab_multiplier;
                 SUN_CORE_INFO("COLPO ALLE SPALLE! Danno x{0}", weaponBP->backstab_multiplier);

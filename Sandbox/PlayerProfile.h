@@ -77,7 +77,7 @@ namespace SunEngine {
 #endif
             if (base.empty()) return std::filesystem::path("SaveData") / "profile.json";
             const std::filesystem::path dir = std::filesystem::path(base) / "ProjectSunCollector";
-            // Il progetto si chiamava Project Trazyn: la prima volta copia il vecchio profilo nella cartella nuova,
+            // Il progetto aveva un altro nome (cartella ProjectTrazyn): la prima volta copia il vecchio profilo nella cartella nuova,
             // cosi' roster, valute e impostazioni non si perdono (la cartella vecchia resta come copia di sicurezza).
             const std::filesystem::path oldFile = std::filesystem::path(base) / "ProjectTrazyn" / "profile.json";
             std::error_code ec;
@@ -192,6 +192,35 @@ namespace SunEngine {
 
         std::string Serialize() const { return ToJson().dump(2); }
 
+        // Id rinominati (GameData/Research/id_migration.json, vecchio -> nuovo): li carica il GameLayer prima del
+        // profilo. Al caricamento ogni stringa e ogni chiave del profilo uguale a un vecchio id diventa il nuovo
+        // (unita' del roster, armi, armature, oggetti comprati, nodi ricercati, punti studio, esperienza delle armi).
+        inline static std::unordered_map<std::string, std::string> s_IdMigration;
+        static int MigrateIds(nlohmann::json& j) {
+            int changed = 0;
+            if (j.is_string()) {
+                auto it = s_IdMigration.find(j.get_ref<const std::string&>());
+                if (it != s_IdMigration.end()) { j = it->second; ++changed; }
+            }
+            else if (j.is_array()) {
+                for (auto& v : j) changed += MigrateIds(v);
+            }
+            else if (j.is_object()) {
+                nlohmann::json out = nlohmann::json::object();
+                for (auto it = j.begin(); it != j.end(); ++it) {
+                    std::string key = it.key();
+                    if (auto m = s_IdMigration.find(key); m != s_IdMigration.end()) { key = m->second; ++changed; }
+                    nlohmann::json v = it.value();
+                    changed += MigrateIds(v);
+                    if (out.contains(key) && out[key].is_number_integer() && v.is_number_integer())
+                        out[key] = out[key].get<int64_t>() + v.get<int64_t>();   // due vecchi id sullo stesso nuovo: si sommano
+                    else out[key] = std::move(v);
+                }
+                j = std::move(out);
+            }
+            return changed;
+        }
+
         // false = nessun file (primo avvio) oppure file illeggibile. Un file corrotto viene messo da
         // parte come profile.corrupt.json (cosi' non va perso e non viene sovrascritto subito).
         static bool Load(PlayerProfile& out, const std::filesystem::path& path = GetProfilePath()) {
@@ -200,6 +229,7 @@ namespace SunEngine {
             try {
                 std::ifstream in(path, std::ios::binary);
                 nlohmann::json j = nlohmann::json::parse(in);
+                if (!s_IdMigration.empty()) MigrateIds(j);
                 out = FromJson(j);
                 return true;
             }

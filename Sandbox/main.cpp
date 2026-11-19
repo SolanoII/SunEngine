@@ -8,7 +8,7 @@ namespace fs = std::filesystem;
 std::string FindValidDir(const std::string& targetDirName) {
     // Cache dei risultati: il filesystem non cambia durante l'esecuzione, quindi
     // una volta trovato il path di una cartella, non serve cercarla di nuovo.
-    // Senza questa cache, ogni SpawnOrkBoy faceva un walk ricorsivo completo.
+    // Senza questa cache, ogni SpawnVrepighTusker faceva un walk ricorsivo completo.
     static std::unordered_map<std::string, std::string> s_Cache;
 
     // Fast path: già risolto

@@ -19,22 +19,22 @@ namespace SunEngine {
                                              "Colpo pesante", "Parata", "Stordito", "Urlo di guerra" };
 
         // Le razze della vetrina (una per corpo animato)
-        const char* kShowcaseLineup[] = { "imperium_guardsman_recruit", "spacemarines_scout", "spacemarines_battle_brother",
-                                          "orks_boy", "orks_gretchin", "imperium_ogryn" };
+        const char* kShowcaseLineup[] = { "kingship_footman", "vanguard_explorer", "vanguard_defender",
+                                          "vrepighs_tusker", "vrepighs_pighcib" };
 
         struct RaceNote { const char* race; const char* moves; const char* bones; };
         RaceNote NoteFor(RaceMotionKind k) {
             switch (k) {
-            case RaceMotionKind::Ork: return { "Vrepigh", "Gobbo e spavaldo: spalle avanti, braccia larghe, rolla e torce il busto a ogni passo, urla in carica", "Mascella (ringhio, urlo)" };
-            case RaceMotionKind::Gretchin: return { "Pighcib", "Furtivo e nervoso: accucciato, passi corti e rapidi, scatti della testa, si guarda le spalle", "Orecchie (sbattono a molla), mascella (chiacchiera)" };
-            case RaceMotionKind::Astartes: return { "Vanguard Armor", "Eretto, petto in fuori, passo pesante con affondo a ogni appoggio, immobile quando mira", "Spallacci montati sul busto" };
-            case RaceMotionKind::Neophyte: return { "Esploratore / Candidato", "Agile e attento: chino in avanti, passo rapido e leggero, si guarda attorno spesso", "-" };
-            case RaceMotionKind::Ogryn: return { "Ogre da Guerra", "Montagna lenta: braccia larghe, gambe divaricate, ondeggia pesante, testa inclinata", "Mascella (bocca socchiusa), pancia (ballonzola)" };
+            case RaceMotionKind::Vrepigh: return { "Vrepigh", "Gobbo e spavaldo: spalle avanti, braccia larghe, rolla e torce il busto a ogni passo, urla in carica", "Mascella (ringhio, urlo)" };
+            case RaceMotionKind::Pighcib: return { "Pighcib", "Furtivo e nervoso: accucciato, passi corti e rapidi, scatti della testa, si guarda le spalle", "Orecchie (sbattono a molla), mascella (chiacchiera)" };
+            case RaceMotionKind::Vanguard: return { "Vanguard Armor", "Eretto, petto in fuori, passo pesante con affondo a ogni appoggio, immobile quando mira", "Spallacci montati sul busto" };
+            case RaceMotionKind::Candidate: return { "Esploratore / Candidato", "Agile e attento: chino in avanti, passo rapido e leggero, si guarda attorno spesso", "-" };
+            case RaceMotionKind::Ogre: return { "Ogre da Guerra", "Montagna lenta: braccia larghe, gambe divaricate, ondeggia pesante, testa inclinata", "Mascella (bocca socchiusa), pancia (ballonzola)" };
             default: return { "Umano", "Soldato addestrato: dritto, passo regolare, si guarda attorno con calma", "-" };
             }
         }
 
-        // Colore della pelle per corpo (indice di GameLayer::AnimatedBodyKind: 0 umano, 1 ork, 2 ogryn, 3 aspirante, 4 astartes, 5 gretchin)
+        // Colore della pelle per corpo (indice di GameLayer::AnimatedBodyKind: 0 umano, 1 vrepigh, 2 ogre, 3 aspirante, 4 vanguard, 5 pighcib)
         glm::vec3 SkinFor(int kind) {
             switch (kind) {
             case 1: return { 0.27f, 0.22f, 0.29f };   // Vrepigh: grigio-viola
@@ -82,7 +82,7 @@ namespace SunEngine {
         TrainedUnit tu;
         tu.blueprintId = id;
         tu.ApplyDefaultLoadout();
-        if (!bp || !bp->has_default_loadout) {   // unita' senza dotazione definita (es. ogryn): niente armi ne' armature prese a prestito
+        if (!bp || !bp->has_default_loadout) {   // unita' senza dotazione definita (es. ogre): niente armi ne' armature prese a prestito
             tu.primaryWeaponId.clear(); tu.secondaryWeaponId.clear(); tu.meleeWeaponId.clear();
             for (auto& e : tu.equipmentSlots) e.clear();
             tu.armorHeadId.clear(); tu.armorTorsoId.clear(); tu.armorLeftArmId.clear(); tu.armorRightArmId.clear();
@@ -102,7 +102,7 @@ namespace SunEngine {
         sk.sourceModel = &AnimatedBodyModel(a.kind);
         sk.boneMatrices = &a.ctrl->GetFinalBoneMatrices();
         sk.albedo = glm::vec4(SkinFor(static_cast<int>(a.kind)), 1.0f);
-        if (a.kind == AnimatedBodyKind::Ork && !Body(a.kind).boar.parts.parts.empty()) sk.extraParts = &Body(a.kind).boar.parts;   // testa del vrepigh
+        if (a.kind == AnimatedBodyKind::Vrepigh && !Body(a.kind).boar.parts.parts.empty()) sk.extraParts = &Body(a.kind).boar.parts;   // testa del vrepigh
         // vestiti e armature: la stessa skin che avrebbe in partita
         const entt::entity holder = m_Scene.CreateEntity();
         ApplyArmorSkin(holder, tu);
@@ -136,11 +136,11 @@ namespace SunEngine {
             base = pt->Position;
             if (const auto* col = reg.try_get<ColliderComponent>(m_PlayerEntity)) base.y += (col->localCenterOffset.y - col->halfExtents.y) * pt->Scale.y;
         }
-        // Larghezza di ogni posto in fila (l'ogryn ne occupa di piu')
+        // Larghezza di ogni posto in fila (l'ogre ne occupa di piu')
         std::vector<float> widths;
         for (const auto& id : ids) {
             const AnimatedBodyKind k = BodyKindForUnit(id);
-            widths.push_back(k == AnimatedBodyKind::Ogryn ? 2.4f : (k == AnimatedBodyKind::Gretchin ? 1.3f : 1.7f));
+            widths.push_back(k == AnimatedBodyKind::Ogre ? 2.4f : (k == AnimatedBodyKind::Pighcib ? 1.3f : 1.7f));
         }
         float total = 0.0f;
         for (float w : widths) total += w;
@@ -172,7 +172,7 @@ namespace SunEngine {
 
         RifleAnimInput in;
         float speed = 0.0f;
-        const float metersPerUnitSpeed = a.kind == AnimatedBodyKind::Ogryn ? 1.2f : (a.kind == AnimatedBodyKind::Gretchin ? 0.9f : 1.0f);
+        const float metersPerUnitSpeed = a.kind == AnimatedBodyKind::Ogre ? 1.2f : (a.kind == AnimatedBodyKind::Pighcib ? 0.9f : 1.0f);
         switch (mode) {
         case ShowcaseAnim::Aim: in.aiming = true; break;
         case ShowcaseAnim::Walk: speed = 1.5f * metersPerUnitSpeed; in.isMoving = true; in.forward = true; break;
@@ -368,7 +368,7 @@ namespace SunEngine {
         if (m_ShowcaseAutoRotate) m_ShowcaseYaw += deltaTime * 10.0f;
         const bool single = m_ShowcaseActors.size() == 1;
         float height = 1.9f;
-        if (single) height = m_ShowcaseActors[0].kind == AnimatedBodyKind::Ogryn ? 2.8f : (m_ShowcaseActors[0].kind == AnimatedBodyKind::Gretchin ? 1.0f : 2.1f);
+        if (single) height = m_ShowcaseActors[0].kind == AnimatedBodyKind::Ogre ? 2.8f : (m_ShowcaseActors[0].kind == AnimatedBodyKind::Pighcib ? 1.0f : 2.1f);
         const float dist = (single ? height * 1.6f : m_ShowcaseExtent * 0.75f + 1.5f) * m_ShowcaseZoom;
         m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight);
         m_Camera.SetCameraOffsets(0.0f, 0.0f, dist);
@@ -435,7 +435,7 @@ namespace SunEngine {
         ImDrawList* dl = ImGui::GetBackgroundDrawList();
         for (const auto& a : m_ShowcaseActors) {
             const auto* bp = BlueprintManager::Get().GetUnit(a.unitId);
-            const float h = a.kind == AnimatedBodyKind::Ogryn ? 2.9f : (a.kind == AnimatedBodyKind::Gretchin ? 1.15f : 2.15f);
+            const float h = a.kind == AnimatedBodyKind::Ogre ? 2.9f : (a.kind == AnimatedBodyKind::Pighcib ? 1.15f : 2.15f);
             const glm::vec4 clip = vp * glm::vec4(a.pos + glm::vec3(0.0f, h, 0.0f), 1.0f);
             if (clip.w <= 0.05f) continue;
             const glm::vec2 ndc = glm::vec2(clip) / clip.w;

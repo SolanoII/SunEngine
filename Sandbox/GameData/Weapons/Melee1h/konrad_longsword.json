@@ -1,7 +1,7 @@
 {
   "id": "konrad_longsword",
   "displayName": "Spada di Konrad von Eber",
-  "faction": "SpaceMarines",
+  "faction": "Vanguard",
   "is_melee": true,
   "hand_type": "OneHanded",
   "slot_type": "Melee",
@@ -204,7 +204,7 @@
   "comment": "Spada lunga e sottile, lama scura quasi opaca: l'arma di Konrad in 'Primo Incontro'. Solo per la PVE-STORY. Grado VI: danno 78, penetrazione 10.",
   "allowed_units": [
     "story_konrad",
-    "spacemarines_sworn_brother"
+    "vanguard_konrad"
   ],
   "armor_penetration": 10
 }

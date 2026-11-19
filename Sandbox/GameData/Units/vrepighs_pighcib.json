@@ -1,0 +1,44 @@
+{
+  "id": "vrepighs_pighcib",
+  "displayName": "Pighcib",
+  "ai_role": "ranged",
+  "animated_body": "pighcib",
+  "point_cost": 3,
+  "stamina": 90.0,
+  "stamina_regen": 12.0,
+  "toughness": 10,
+  "armor_rating": 0,
+  "strength": 10,
+  "accuracy_skill": 22,
+  "melee_skill": 15,
+  "morale": 25,
+  "suppression_threshold": 25,
+  "vision_range": 110,
+  "fov_degrees": 90,
+  "weight_capacity": 35.0,
+  "base_speed": 4.0,
+  "health": 40.0,
+  "ammo_multiplier": 1.0,
+  "default_loadout": {
+    "primary": "",
+    "secondary": "pighcib_pistol",
+    "melee": "pighcib_knife_small",
+    "equipment": [
+      "pighcib_ammo_box",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "",
+      "torso": "torso_pighcib_rags",
+      "arm_l": "",
+      "arm_r": "",
+      "leg_l": "leg_l_pighcib_rags",
+      "leg_r": "leg_r_pighcib_rags"
+    }
+  },
+  "strict_loadout": true,
+  "climb_height": 2.5,
+  "climb_speed": 0.6,
+  "max_per_squad": 5
+}

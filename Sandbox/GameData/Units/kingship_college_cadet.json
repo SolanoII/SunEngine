@@ -1,0 +1,43 @@
+{
+  "id": "kingship_college_cadet",
+  "displayName": "Cadetto del Collegio",
+  "comment": "Cadetto del Collegio. Dotazione base come il Fante del Regno (armatura antischegge completa, fucile a impulsi o auto_rifle, pistola a impulsi o pistola automatica, coltello, frag). Sbloccabili: armatura in rigida, ad alta potenza fucile a impulsi, ad alta potenza pistola a impulsi, cassa di munizioni.",
+  "ai_role": "ranged",
+  "skeleton": "kingship_footman",
+  "animated_body": "human",
+  "point_cost": 11,
+  "stamina": 115.0,
+  "stamina_regen": 12.5,
+  "toughness": 15,
+  "armor_rating": 3,
+  "strength": 20,
+  "accuracy_skill": 45,
+  "melee_skill": 28,
+  "morale": 70,
+  "suppression_threshold": 60,
+  "vision_range": 120,
+  "fov_degrees": 90,
+  "weight_capacity": 75.0,
+  "base_speed": 2.9,
+  "health": 100.0,
+  "default_loadout": {
+    "primary": "footman_impulse_rifle",
+    "secondary": "footman_impulse_pistol",
+    "melee": "footman_knife",
+    "equipment": [
+      "footman_frag",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "head_footman_helmet",
+      "torso": "torso_footman_flak",
+      "arm_l": "arm_l_footman_guard",
+      "arm_r": "arm_r_footman_guard",
+      "leg_l": "leg_l_footman_guard",
+      "leg_r": "leg_r_footman_guard"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 3
+}

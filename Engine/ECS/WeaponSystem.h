@@ -52,7 +52,7 @@ namespace SunEngine {
         RaycastResult RaycastAll(Scene& scene, const glm::vec3& rayOrigin, const glm::vec3& rayDir,
             float maxDist, entt::entity shooter, entt::entity ignore = entt::null);
 
-        // Colpo singolo di un'arma pesante (es. lascannon dalla torretta): raggio dalla bocca, danno pieno senza
+        // Colpo singolo di un'arma pesante (es. impulse_cannon dalla torretta): raggio dalla bocca, danno pieno senza
         // calo con la distanza, danno x structure_damage_multiplier alle strutture, scia del raggio.
         void FireHeavyBeam(Scene& scene, entt::entity shooter, entt::entity ignore, const glm::vec3& origin,
             const glm::vec3& dir, const WeaponBlueprint& bp);
@@ -81,7 +81,7 @@ namespace SunEngine {
         struct PendingShot {
             entt::entity shooter = entt::null, target = entt::null;
             int team = 0;
-            bool hit = false, hitUnit = false, parried = false, underbarrelShotgun = false, graze = false, meltaShot = false;
+            bool hit = false, hitUnit = false, parried = false, underbarrelShotgun = false, graze = false, fusionShot = false;
             HitboxLocation location = HitboxLocation::Torso;
             float distance = 0.0f, timer = 0.0f;
             glm::vec3 point{ 0.0f }, hitPoint{ 0.0f }, dir{ 0.0f, 0.0f, -1.0f };
@@ -89,7 +89,7 @@ namespace SunEngine {
             WeaponFx fx = WeaponFx::Ballistic;
             ProjectileType type = ProjectileType::Ballistic;
             int pellets = 1, armorPenetration = 0;
-            float baseDamage = 0.0f, falloffStart = 0.0f, falloffEnd = 0.0f, meltaRange = 0.0f, meltaMultiplier = 1.0f;
+            float baseDamage = 0.0f, falloffStart = 0.0f, falloffEnd = 0.0f, fusionRange = 0.0f, fusionMultiplier = 1.0f;
             float explosionRadius = 0.0f, explosionDamage = 0.0f, structureMultiplier = 1.0f;
         };
         std::vector<PendingShot> m_PendingShots;

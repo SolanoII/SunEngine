@@ -5,7 +5,7 @@
 //   - scossoni della telecamera (trauma), pugno di FOV, fermo-immagine sui colpi di mischia
 //   - lampi di luce di spari ed esplosioni, bossoli che cadono, segni dei colpi sui muri
 //   - sussulto di chi viene colpito
-// Ogni corpo ha il suo peso (FeelProfile): un gretchin trema per tutto e fa passetti leggeri, un Astartes e'
+// Ogni corpo ha il suo peso (FeelProfile): un pighcib trema per tutto e fa passetti leggeri, un Vanguard e'
 // una roccia con passi che si sentono nel petto e armi piu' gravi.
 // Consuma la coda FeelEventQueue() riempita dai sistemi del motore (armi, mischia, esplosivi, movimento).
 #include "Engine/ECS/VfxEvents.h"
@@ -23,7 +23,7 @@ namespace SunEngine {
 
     class DeferredRenderer;
 
-    // Peso di un corpo. L'indice e' quello di GameLayer::AnimatedBodyKind (Human, Ork, Ogryn, Neophyte, Astartes, Gretchin).
+    // Peso di un corpo. L'indice e' quello di GameLayer::AnimatedBodyKind (Human, Vrepigh, Ogre, Candidate, Vanguard, Pighcib).
     struct FeelProfile {
         float shakeTaken = 1.0f;   // quanto ti scuote quello che ti succede attorno (colpi presi, esplosioni, fischi)
         float shakeGiven = 1.0f;   // quanto ti scuote la tua stessa arma

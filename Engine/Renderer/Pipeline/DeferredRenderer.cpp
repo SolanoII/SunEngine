@@ -730,7 +730,7 @@ void main() {
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
     if (sss > 0.0) F0 = vec3(0.028);   // pelle: riflesso speculare dell'acqua/sebo, non della plastica
-    // Colore della luce diffusa sotto la pelle: rossastra negli umani (sangue), calda e verde negli orki
+    // Colore della luce diffusa sotto la pelle: rossastra negli umani (sangue), calda e verde negli vrepighs
     vec3 sssTint = clamp(albedo * vec3(2.4, 1.25, 1.05) + vec3(0.12, 0.0, 0.0), 0.0, 1.0);
 
     vec3 Lo = vec3(0.0);
@@ -1131,7 +1131,7 @@ void main() {
     }
     if (u_Detail == 1) {
         subsurface = 1.0;
-        // grimdark: anche la pelle e' spenta (il verde degli orki tende all'oliva) e i piedi nudi sono infangati
+        // grimdark: anche la pelle e' spenta (il verde dei vrepighs tende all'oliva) e i piedi nudi sono infangati
         {
             float lum = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 )"
@@ -1144,7 +1144,7 @@ R"(            color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.78) * 0.94
         float big = Noise3(pn * 16.0), mid = Noise3(pn * 55.0), fine = Noise3(pn * 380.0);
         color.rgb *= 0.9 + 0.14 * big + 0.05 * mid;
         color.rgb = mix(color.rgb, color.rgb * vec3(1.1, 0.93, 0.9), smoothstep(0.5, 0.85, big) * 0.45);
-        // stile della razza: chiazze (pelle d'orko), verruche e bitorzoli
+        // stile della razza: chiazze (pelle di Vrepigh), verruche e bitorzoli
         float mott = Noise3(pn * 7.0 + 3.0) * 0.6 + Noise3(pn * 23.0) * 0.4;
         color.rgb *= mix(1.0, 0.7 + 0.55 * mott, u_SkinStyle.x);
         float warts = smoothstep(0.66, 0.82, Noise3(pn * 150.0)) * u_SkinStyle.y;

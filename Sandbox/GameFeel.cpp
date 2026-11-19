@@ -24,21 +24,21 @@ namespace SunEngine {
         };
         const ShotFeel k_Shot[12] = {
             { "shot_laser",     0.80f,  70.0f, 0.16f, 0.5f, 3, { -1.0f, 0.0f, 0.0f },   5.0f, 3.5f, 0 },   // Laser
-            { "shot_hotshot",   0.95f,  80.0f, 0.24f, 0.9f, 3, { -1.0f, 0.0f, 0.0f },   6.5f, 5.0f, 0 },   // HotShot
-            { "shot_longlas",   1.10f, 110.0f, 0.48f, 2.0f, 3, { -1.0f, 0.0f, 0.0f },   9.0f, 7.0f, 0 },   // LongLas
+            { "shot_high_power",   0.95f,  80.0f, 0.24f, 0.9f, 3, { -1.0f, 0.0f, 0.0f },   6.5f, 5.0f, 0 },   // HighPower
+            { "shot_precision",   1.10f, 110.0f, 0.48f, 2.0f, 3, { -1.0f, 0.0f, 0.0f },   9.0f, 7.0f, 0 },   // Precision
             { "shot_ballistic", 0.90f,  85.0f, 0.22f, 0.7f, 1, { 1.0f, 0.72f, 0.38f },  6.0f, 4.5f, 1 },   // Ballistic
             { "shot_shotgun",   1.15f,  95.0f, 0.52f, 2.2f, 2, { 1.0f, 0.68f, 0.32f },  8.0f, 6.5f, 2 },   // Shotgun
             { "shot_sniper",    1.20f, 130.0f, 0.55f, 2.4f, 2, { 1.0f, 0.75f, 0.45f },  8.0f, 6.0f, 2 },   // Sniper
-            { "shot_bolt",      1.20f, 110.0f, 0.40f, 1.5f, 2, { 1.0f, 0.62f, 0.25f },  8.5f, 7.0f, 2 },   // Bolt
+            { "shot_heavy_round",      1.20f, 110.0f, 0.40f, 1.5f, 2, { 1.0f, 0.62f, 0.25f },  8.5f, 7.0f, 2 },   // HeavyRound
             { "shot_plasma",    1.00f,  90.0f, 0.40f, 1.6f, 3, { 0.45f, 0.75f, 1.0f },  9.0f, 7.5f, 0 },   // Plasma
-            { "shot_melta",     0.80f,  60.0f, 0.12f, 0.2f, 0, { 1.0f, 0.5f, 0.15f },   7.0f, 5.0f, 0 },   // Melta
+            { "shot_fusion",     0.80f,  60.0f, 0.12f, 0.2f, 0, { 1.0f, 0.5f, 0.15f },   7.0f, 5.0f, 0 },   // Fusion
             { "shot_flamer",    0.75f,  55.0f, 0.08f, 0.1f, 0, { 1.0f, 0.55f, 0.2f },   7.0f, 4.0f, 0 },   // Flamer
             { "shot_launcher",  1.00f,  80.0f, 0.45f, 1.6f, 2, { 1.0f, 0.7f, 0.4f },    6.0f, 4.0f, 0 },   // Explosive
-            { "shot_grav",      1.00f,  80.0f, 0.36f, 1.4f, 3, { 0.65f, 0.4f, 1.0f },   8.0f, 6.0f, 0 },   // Grav
+            { "shot_gravity",      1.00f,  80.0f, 0.36f, 1.4f, 3, { 0.65f, 0.4f, 1.0f },   8.0f, 6.0f, 0 },   // Gravity
         };
         bool IsEnergy(WeaponFx fx) {
-            return fx == WeaponFx::Laser || fx == WeaponFx::HotShot || fx == WeaponFx::LongLas || fx == WeaponFx::Plasma ||
-                   fx == WeaponFx::Melta || fx == WeaponFx::Grav;
+            return fx == WeaponFx::Laser || fx == WeaponFx::HighPower || fx == WeaponFx::Precision || fx == WeaponFx::Plasma ||
+                   fx == WeaponFx::Fusion || fx == WeaponFx::Gravity;
         }
         float Smooth01(float a, float b, float x) { const float t = std::clamp((x - a) / (b - a), 0.0f, 1.0f); return t * t * (3.0f - 2.0f * t); }
         const float kSoundSpeed = 340.0f;
@@ -49,11 +49,11 @@ namespace SunEngine {
         //                               preso  dato  tono   vol   tonfo scossa arma   stop   suss.  forza
         static const FeelProfile k[6] = {
             /* Human    */ { 1.00f, 1.00f, 1.00f, 1.00f, 0.00f, 0.00f, 1.00f, 1.00f, 1.00f, 1.00f },
-            /* Ork      */ { 0.75f, 0.90f, 0.86f, 1.05f, 0.40f, 0.00f, 0.95f, 1.25f, 0.60f, 1.15f },
-            /* Ogryn    */ { 0.50f, 0.60f, 0.72f, 1.10f, 0.90f, 0.45f, 0.90f, 1.50f, 0.35f, 1.30f },
-            /* Neophyte */ { 0.80f, 0.85f, 0.92f, 1.00f, 0.35f, 0.00f, 0.96f, 1.10f, 0.70f, 1.10f },
-            /* Astartes */ { 0.40f, 0.55f, 0.78f, 1.10f, 1.00f, 0.35f, 0.90f, 1.60f, 0.25f, 1.40f },
-            /* Gretchin */ { 1.90f, 1.50f, 1.45f, 0.60f, 0.00f, 0.00f, 1.12f, 0.60f, 1.80f, 0.80f },
+            /* Vrepigh      */ { 0.75f, 0.90f, 0.86f, 1.05f, 0.40f, 0.00f, 0.95f, 1.25f, 0.60f, 1.15f },
+            /* Ogre    */ { 0.50f, 0.60f, 0.72f, 1.10f, 0.90f, 0.45f, 0.90f, 1.50f, 0.35f, 1.30f },
+            /* Candidate */ { 0.80f, 0.85f, 0.92f, 1.00f, 0.35f, 0.00f, 0.96f, 1.10f, 0.70f, 1.10f },
+            /* Vanguard */ { 0.40f, 0.55f, 0.78f, 1.10f, 1.00f, 0.35f, 0.90f, 1.60f, 0.25f, 1.40f },
+            /* Pighcib */ { 1.90f, 1.50f, 1.45f, 0.60f, 0.00f, 0.00f, 1.12f, 0.60f, 1.80f, 0.80f },
         };
         return k[(body >= 0 && body < 6) ? body : 0];
     }
@@ -170,7 +170,7 @@ namespace SunEngine {
                         const float miss = glm::distance(c, ear);
                         if (t > 0.06f && t < 1.0f && miss < 2.4f) {
                             const float k = 1.0f - miss / 2.4f;
-                            const int snd = IsEnergy(e.fx) ? m_WhizEnergy : ((e.fx == WeaponFx::Sniper || e.fx == WeaponFx::Bolt) ? m_WhizSnap : m_Whiz);
+                            const int snd = IsEnergy(e.fx) ? m_WhizEnergy : ((e.fx == WeaponFx::Sniper || e.fx == WeaponFx::HeavyRound) ? m_WhizSnap : m_Whiz);
                             m_Bank.PlayAt(snd, c, (0.55f + 0.6f * k) * (0.7f + 0.3f * me.shakeTaken), 12.0f, Random::Range(0.9f, 1.15f), e.delay * t);
                             AddTrauma(0.26f * k * me.shakeTaken);
                             m_WhizCooldown = 0.06f;
@@ -306,7 +306,7 @@ namespace SunEngine {
         const FeelProfile& who = ProfileOf((bodyOf && srcValid) ? bodyOf(src) : 0);
 
         float gain = 1.0f;
-        if (e.flag) {   // getto continuo (melta, lanciafiamme): un suono ogni tanto, non a ogni fotogramma
+        if (e.flag) {   // getto continuo (fusion, lanciafiamme): un suono ogni tanto, non a ogni fotogramma
             float& cd = m_LoopCooldown[e.source];
             if (cd > 0.0f) return;
             cd = 0.17f; gain = 0.8f;
@@ -393,14 +393,14 @@ namespace SunEngine {
                 Mark m{};
                 m.pos = e.pos; m.axis = axis; m.age = 0.0f;
                 switch (e.fx) {
-                case WeaponFx::Bolt: m.size = 0.17f; m.heat = 0.6f; m.glow = glm::vec3(1.0f, 0.5f, 0.15f); break;
+                case WeaponFx::HeavyRound: m.size = 0.17f; m.heat = 0.6f; m.glow = glm::vec3(1.0f, 0.5f, 0.15f); break;
                 case WeaponFx::Plasma: m.size = 0.24f; m.heat = 1.0f; m.glow = glm::vec3(0.5f, 0.8f, 1.0f); break;
-                case WeaponFx::Melta: m.size = 0.2f; m.heat = 1.0f; m.glow = glm::vec3(1.0f, 0.45f, 0.1f); break;
+                case WeaponFx::Fusion: m.size = 0.2f; m.heat = 1.0f; m.glow = glm::vec3(1.0f, 0.45f, 0.1f); break;
                 case WeaponFx::Sniper: m.size = 0.1f; break;
                 case WeaponFx::Shotgun: m.size = 0.045f; break;
-                case WeaponFx::LongLas: m.size = 0.11f; m.heat = 1.0f; m.glow = glm::vec3(e.color); break;
-                case WeaponFx::Laser: case WeaponFx::HotShot: m.size = 0.06f; m.heat = 0.9f; m.glow = glm::vec3(e.color); break;
-                case WeaponFx::Grav: m.size = 0.2f; break;
+                case WeaponFx::Precision: m.size = 0.11f; m.heat = 1.0f; m.glow = glm::vec3(e.color); break;
+                case WeaponFx::Laser: case WeaponFx::HighPower: m.size = 0.06f; m.heat = 0.9f; m.glow = glm::vec3(e.color); break;
+                case WeaponFx::Gravity: m.size = 0.2f; break;
                 default: m.size = 0.065f; break;
                 }
                 m.size *= Random::Range(0.85f, 1.2f);
@@ -419,9 +419,9 @@ namespace SunEngine {
             }
             else if (energy) m_Bank.PlayAt(m_ImpEnergy, e.pos, 0.7f, 45.0f, pitch, lag);
             else m_Bank.PlayAt((axis == 1 && axisSign > 0.0f && Random::Chance(0.6f)) ? m_ImpDirt : m_ImpHard, e.pos, 0.8f, 45.0f, pitch, lag);
-            if (e.fx == WeaponFx::Bolt) m_Bank.PlayAt(m_ExplSmall, e.pos, 0.5f, 70.0f, Random::Range(1.15f, 1.35f), lag);   // la cartuccia esplode nel bersaglio
+            if (e.fx == WeaponFx::HeavyRound) m_Bank.PlayAt(m_ExplSmall, e.pos, 0.5f, 70.0f, Random::Range(1.15f, 1.35f), lag);   // la cartuccia esplode nel bersaglio
         }
-        if (e.fx == WeaponFx::Bolt) AddLight(e.pos, glm::vec3(1.0f, 0.6f, 0.25f), 5.0f, 6.0f, 0.1f);
+        if (e.fx == WeaponFx::HeavyRound) AddLight(e.pos, glm::vec3(1.0f, 0.6f, 0.25f), 5.0f, 6.0f, 0.1f);
         else if (energy && !pellets) { glm::vec3 c(e.color); const float m = (std::max)(c.r, (std::max)(c.g, c.b)); AddLight(e.pos - e.dir * 0.15f, m > 0.05f ? c / m : glm::vec3(1.0f), 3.5f, 3.0f, 0.08f); }
 
         if (e.hitUnit && !e.killed) AddFlinch(scene, tgt, e.dir, std::clamp(0.4f + e.scale / 60.0f, 0.4f, 1.0f) * ProfileOf(bodyOf && reg.valid(tgt) ? bodyOf(tgt) : 0).flinch);

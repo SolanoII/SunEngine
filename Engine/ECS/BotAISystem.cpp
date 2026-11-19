@@ -25,7 +25,7 @@ namespace SunEngine {
             return h && h->currentHealth > 0.0f;
         }
 
-        // Piedi e altezza dal collider (Position non e' sempre ai piedi: vedi lo scheletro del guardsman)
+        // Piedi e altezza dal collider (Position non e' sempre ai piedi: vedi lo scheletro del footman)
         void FootAndHeight(entt::registry& reg, entt::entity e, float& footY, float& height) {
             const auto& t = reg.get<TransformComponent>(e);
             footY = t.Position.y; height = 1.8f;
@@ -82,8 +82,8 @@ namespace SunEngine {
             const auto* w = DamageResolver::ResolveMeleeWeapon(reg, e);
             return (s ? s->strength * 0.4f : 10.0f) + (w ? w->base_damage : 20.0f);
         }
-        // Arma a distanza da usare: la primaria se ha ancora colpi, altrimenti la secondaria (es. il gretchin
-        // non ha primaria e spara con la Grot Blasta). -1 = nessuna arma da fuoco o munizioni finite.
+        // Arma a distanza da usare: la primaria se ha ancora colpi, altrimenti la secondaria (es. il pighcib
+        // non ha primaria e spara con la Pighcib Blasta). -1 = nessuna arma da fuoco o munizioni finite.
         int RangedSlot(entt::registry& reg, entt::entity e) {
             const auto* inv = reg.try_get<InventoryComponent>(e);
             if (!inv) return -1;
@@ -110,7 +110,7 @@ namespace SunEngine {
 
         int CountTeamNear(entt::registry& reg, int team, const glm::vec3& p, float radius, entt::entity except) {
             int n = 0;
-            auto view = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+            auto view = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, GrugnComponent>);
             for (auto e : view) {
                 if (e == except || view.get<TeamComponent>(e).team != team) continue;
                 if (view.get<HealthComponent>(e).currentHealth <= 0.0f) continue;
@@ -234,7 +234,7 @@ namespace SunEngine {
                 brain.lastKnownTargetPos = reg.get<TransformComponent>(brain.target).Position;
             }
 
-            // Dentro una torretta (es. lascannon): mira e spara TurretSystem, qui niente movimento/armi/mischia
+            // Dentro una torretta (es. impulse_cannon): mira e spara TurretSystem, qui niente movimento/armi/mischia
             if (reg.all_of<TurretMountComponent>(self)) {
                 auto& trig = reg.get_or_emplace<WeaponTriggerComponent>(self);
                 trig.fire = false; trig.reload = false; trig.holdEquipment = false;
@@ -302,11 +302,11 @@ namespace SunEngine {
             const glm::vec3 theirFwd = YawForward(reg.get<TransformComponent>(s.e).AimYaw);
             glm::vec3 toMe = t.Position - reg.get<TransformComponent>(s.e).Position; toMe.y = 0.0f;
             const bool facingMe = glm::length(toMe) > 1e-3f && glm::dot(theirFwd, glm::normalize(toMe)) > 0.5f;
-            const float squigPenalty = reg.all_of<SquigComponent>(s.e) ? 35.0f : 0.0f;   // prima le unita', poi gli squig
+            const float grugnPenalty = reg.all_of<GrugnComponent>(s.e) ? 35.0f : 0.0f;   // prima le unita', poi gli grugn
             switch (role) {
-            case BotRole::Ranged:    return squigPenalty + s.dist * 0.5f + frac * 25.0f + (facingMe ? 6.0f : 0.0f) + (s.dist > range ? 30.0f : 0.0f);
-            case BotRole::Versatile: return squigPenalty + s.dist * 1.0f + frac * 15.0f;
-            default:                 return squigPenalty + s.dist + frac * 4.0f;
+            case BotRole::Ranged:    return grugnPenalty + s.dist * 0.5f + frac * 25.0f + (facingMe ? 6.0f : 0.0f) + (s.dist > range ? 30.0f : 0.0f);
+            case BotRole::Versatile: return grugnPenalty + s.dist * 1.0f + frac * 15.0f;
+            default:                 return grugnPenalty + s.dist + frac * 4.0f;
             }
         };
         if (!seen.empty()) {
@@ -359,7 +359,7 @@ namespace SunEngine {
         // ---------------- DECISIONE ----------------
         const BotIntent prevIntent = brain.intent;
 
-        // Rinforzo evocato (vox caster): senza nemici segue il padrone, un paio di metri dietro e di lato; in
+        // Rinforzo evocato (radio): senza nemici segue il padrone, un paio di metri dietro e di lato; in
         // combattimento non si allontana troppo da lui (vedi in fondo).
         const auto* summon = reg.try_get<SummonedComponent>(self);
         const bool followOwner = summon && Alive(reg, summon->owner);
@@ -600,7 +600,7 @@ namespace SunEngine {
                         speed = std::max(1.0f, stats.baseSpeed * stats.speedModifier) * FeralCharge::TickMomentum(reg, self, stats, dir, true, dt);
                         if (const auto* mom = reg.try_get<MomentumComponent>(self)) stats.sprinting = mom->value > 0.45f;
                     }
-                    if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del gretchin
+                    if (const auto* inv = reg.try_get<InventoryComponent>(self)) speed *= inv->HeldSpeedMultiplier();   // es. coltello del pighcib
                     if (const auto* buff = reg.try_get<FactionBuffComponent>(self)) speed *= buff->moveSpeedMult;      // buff di fazione
                     if (const auto* boost = reg.try_get<SpeedBoostComponent>(self)) speed *= boost->mult;             // zaino energetico
                     if (const auto* cry = reg.try_get<WarCryComponent>(self)) speed *= cry->mult;                   // Gruuk
@@ -736,7 +736,7 @@ namespace SunEngine {
         }
     }
 
-    // Curare o attaccare? (solo per chi ha un oggetto che cura, es. zaino di cibo dello yoof: cura tutti nel
+    // Curare o attaccare? (solo per chi ha un oggetto che cura, es. zaino di cibo dello feral_pig: cura tutti nel
     // raggio, lui compreso)
     //  - in mischia (nemico entro 3 m) non cura mai: posare il cibo adesso vorrebbe dire prendere colpi gratis;
     //  - un compagno nel raggio sotto il 50%: cura quasi sempre (90%);
@@ -752,7 +752,7 @@ namespace SunEngine {
             return ubp ? static_cast<float>(std::max(1, ubp->point_cost)) : 10.0f;
         };
         // In mischia con qualcuno?
-        auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+        auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, GrugnComponent>);
         for (auto o : all) {
             if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
             if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 3.0f) return false;
@@ -794,15 +794,15 @@ namespace SunEngine {
         if (!inv || !ammo) { brain.resupplySlot = -1; return; }
         if (ammo->useTimer > 0.0f) return;   // rifornimento in corso: tiene la scatola in mano
 
-        // Vox caster: appena c'e' un nemico noto e nessuno entro 8 m chiama il rinforzo (1 s di chiamata)
+        // Radio caster: appena c'e' un nemico noto e nessuno entro 8 m chiama il rinforzo (1 s di chiamata)
         for (int s = 4; s <= 6; ++s) {
             const auto* bp = BlueprintManager::Get().GetWeapon(inv->GetSlotItemId(s));
-            if (!bp || bp->equipment_type != "vox_caster" || ammo->equipmentUses[s - 4] <= 0) continue;
+            if (!bp || bp->equipment_type != "field_radio" || ammo->equipmentUses[s - 4] <= 0) continue;
             if (brain.resupplySlot != s) {
                 if (brain.target == entt::null) break;
                 const glm::vec3 me = reg.get<TransformComponent>(self).Position;
                 bool enemyNear = false;
-                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, GrugnComponent>);
                 for (auto o : all) {
                     if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                     if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 8.0f) { enemyNear = true; break; }
@@ -866,7 +866,7 @@ namespace SunEngine {
                 }
                 if (!need) break;
                 bool enemyNear = false;
-                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, GrugnComponent>);
                 for (auto o : all) {
                     if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                     if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 10.0f) { enemyNear = true; break; }
@@ -888,7 +888,7 @@ namespace SunEngine {
                 if (h.maxHealth <= 0.0f || h.currentHealth >= h.maxHealth * 0.5f) break;
                 const glm::vec3 me = reg.get<TransformComponent>(self).Position;
                 bool enemyNear = false;
-                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, SquigComponent>);
+                auto all = reg.view<TeamComponent, TransformComponent, HealthComponent>(entt::exclude<CorpseComponent, GrugnComponent>);
                 for (auto o : all) {
                     if (o == self || SameTeam(reg, self, o) || all.get<HealthComponent>(o).currentHealth <= 0.0f) continue;
                     if (HorizontalDist(all.get<TransformComponent>(o).Position, me) <= 10.0f) { enemyNear = true; break; }
@@ -999,7 +999,7 @@ namespace SunEngine {
         brain.resupplySlot = slot;
     }
 
-    // Mine (boy), barricate di scrap (yoof) e muri con feritoia (loota).
+    // Mine (tusker), barricate di scrap (feral_pig) e muri con feritoia (raider).
     // Mina: con un nemico noto fra 8 e 25 m la posa davanti a se', sulla strada che fara' chi lo carica.
     // Barricata: sotto tiro da un nemico in vista fra 10 e 35 m si ferma, la costruisce (3 s) fra se' e lui e ci
     // combatte dietro. Muro con feritoia: appena vede un nemico fra 14 e 70 m. Se il nemico arriva a 6 m o parte
@@ -1073,13 +1073,13 @@ namespace SunEngine {
             if (!Random::Chance(0.35f)) { brain.deployCooldown = 3.0f; return; }
         }
         else {
-            // Il loota (muro con feritoia, tiratore a lunga distanza) costruisce appena vede il nemico lontano
-            // Arma pesante (lascannon): come il muro, appena vede un nemico lontano (poi ci entra e spara)
+            // Il raider (muro con feritoia, tiratore a lunga distanza) costruisce appena vede il nemico lontano
+            // Arma pesante (impulse_cannon): come il muro, appena vede un nemico lontano (poi ci entra e spara)
             const bool farBuild = bp->equipment_type == "slit_wall" || bp->equipment_type == "turret";
             const float maxD = farBuild ? 70.0f : 35.0f;
             const float minD = farBuild ? 14.0f : 10.0f;
             if (!hasTarget || !brain.targetVisible || d < minD || d > maxD) return;
-            // In mischia o in carica (es. yoof) si ferma a costruire solo se lo stanno colpendo da lontano
+            // In mischia o in carica (es. feral_pig) si ferma a costruire solo se lo stanno colpendo da lontano
             if (meleeFight && (brain.intent == BotIntent::Melee || d < 15.0f || brain.recentDamage < 5.0f)) return;
             if (!farBuild && brain.recentDamage < 5.0f && !Random::Chance(0.15f)) { brain.deployCooldown = 3.0f; return; }   // la barricata meglio se sotto tiro
             if (!Random::Chance(0.5f)) { brain.deployCooldown = 4.0f; return; }

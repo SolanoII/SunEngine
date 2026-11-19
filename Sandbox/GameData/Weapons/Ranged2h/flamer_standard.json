@@ -1,7 +1,7 @@
 {
 	"id": "flamer_standard",
-	"displayName": "Lanciafiamme Modello Purge",
-	"faction": "Imperium",
+	"displayName": "Lanciafiamme Modello Purificatore",
+	"faction": "Kingship",
 	"slot_type": "primary",
 	"hand_type": "TwoHanded",
 	"weight_kg": 4.5,

@@ -1,0 +1,52 @@
+{
+  "id": "vrepighs_feral_pig",
+  "displayName": "Feral Pig",
+  "comment": "Feral Pig: Vrepigh giovane e senza pietra, piu' bestia che soldato. Niente armi: artigli in mischia. Corre: andando dritto prende slancio (fino a +75% di velocita'), si butta a quattro zampe e sopra la soglia carica con le zanne chi trova davanti. Si sblocca solo l'armatura, pezzo per pezzo.",
+  "ai_role": "melee",
+  "skeleton": "vrepighs_tusker",
+  "skeleton_scale": 0.85,
+  "animated_body": "vrepigh",
+  "model_scale": 0.85,
+  "point_cost": 11,
+  "stamina": 150.0,
+  "stamina_regen": 12.0,
+  "toughness": 30,
+  "armor_rating": 1,
+  "strength": 34,
+  "accuracy_skill": 18,
+  "melee_skill": 50,
+  "morale": 50,
+  "suppression_threshold": 50,
+  "vision_range": 100,
+  "fov_degrees": 85,
+  "weight_capacity": 90.0,
+  "base_speed": 4.4,
+  "health": 110.0,
+  "ammo_multiplier": 1.0,
+  "default_loadout": {
+    "primary": "",
+    "secondary": "",
+    "melee": "feral_claws",
+    "equipment": [
+      "",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "",
+      "torso": "",
+      "arm_l": "",
+      "arm_r": "",
+      "leg_l": "",
+      "leg_r": ""
+    }
+  },
+  "loadout_version": 4,
+  "strict_loadout": true,
+  "max_per_squad": 5,
+  "momentum_bonus": 0.75,
+  "momentum_time": 2.2,
+  "charge_threshold": 0.7,
+  "charge_damage": 55.0,
+  "quadruped_run": true
+}

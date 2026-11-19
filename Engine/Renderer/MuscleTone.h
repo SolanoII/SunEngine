@@ -3,7 +3,7 @@
 //  - Geometria: la "forma dettagliata" del corpo (differenza fra il corpo e una sua versione levigata) viene
 //    amplificata lungo la normale: i ventri muscolari (pettorali, deltoidi, bicipiti, quadricipiti, addominali)
 //    escono di piu', i solchi fra un muscolo e l'altro si approfondiscono. In piu' un gonfiaggio per zona
-//    (braccia, petto, gambe) da' spessore ai muscoli secondo la razza (ork e astartes piu' massicci).
+//    (braccia, petto, gambe) da' spessore ai muscoli secondo la razza (vrepigh e vanguard piu' massicci).
 //  - Ombreggiatura: nella coordinata texture del vertice restano la curvatura (x: 0.5 = piatto, sopra
 //    convesso, sotto concavo) e un'occlusione ambientale approssimata (y: 1 = esposto). Lo shader della pelle
 //    (detail 1 con u_Baked) ci disegna solchi piu' scuri e rossastri, ventri muscolari piu' chiari e lucidi,
@@ -30,22 +30,22 @@ namespace SunEngine {
     // Parametri per razza (etichetta del corpo come in GameLayer::LoadAnimatedBody)
     inline MuscleToneParams RaceMuscleTone(const std::string& race) {
         MuscleToneParams p;
-        if (race == "ork")            { p.definition = 0.9f; p.bulkArms = 0.0030f; p.bulkChest = 0.0022f; p.bulkLegs = 0.0012f; p.maxShift = 0.008f; }
-        else if (race == "astartes")  { p.definition = 0.8f; p.bulkArms = 0.0024f; p.bulkChest = 0.0026f; p.bulkLegs = 0.0016f; p.maxShift = 0.007f; }
-        else if (race == "neofita")   { p.definition = 0.6f; p.bulkArms = 0.0012f; p.bulkChest = 0.0012f; p.bulkLegs = 0.0008f; }
-        else if (race == "ogryn")     { p.definition = 0.45f; p.bulkArms = 0.0022f; p.bulkChest = 0.0006f; p.bulkLegs = 0.0010f; p.maxShift = 0.006f; }
-        else if (race == "gretchin")  { p.definition = 0.55f; p.maxShift = 0.005f; }   // nervoso e secco: niente massa
+        if (race == "vrepigh")            { p.definition = 0.9f; p.bulkArms = 0.0030f; p.bulkChest = 0.0022f; p.bulkLegs = 0.0012f; p.maxShift = 0.008f; }
+        else if (race == "vanguard")  { p.definition = 0.8f; p.bulkArms = 0.0024f; p.bulkChest = 0.0026f; p.bulkLegs = 0.0016f; p.maxShift = 0.007f; }
+        else if (race == "candidato")   { p.definition = 0.6f; p.bulkArms = 0.0012f; p.bulkChest = 0.0012f; p.bulkLegs = 0.0008f; }
+        else if (race == "ogre")     { p.definition = 0.45f; p.bulkArms = 0.0022f; p.bulkChest = 0.0006f; p.bulkLegs = 0.0010f; p.maxShift = 0.006f; }
+        else if (race == "pighcib")  { p.definition = 0.55f; p.maxShift = 0.005f; }   // nervoso e secco: niente massa
         else                          { p.definition = 0.45f; p.bulkArms = 0.0006f; p.bulkChest = 0.0004f; }   // umano
         return p;
     }
 
     // Stile della pelle per razza (u_SkinStyle): x chiazze, y verruche, z definizione muscolare, w vene
     inline glm::vec4 RaceSkinStyle(const std::string& race) {
-        if (race == "ork")      return { 0.5f, 0.25f, 1.0f, 0.7f };
-        if (race == "gretchin") return { 0.45f, 0.75f, 0.8f, 0.3f };
-        if (race == "ogryn")    return { 0.15f, 0.3f, 0.75f, 0.45f };
-        if (race == "astartes") return { 0.0f, 0.0f, 1.0f, 0.6f };
-        if (race == "neofita")  return { 0.0f, 0.0f, 0.85f, 0.35f };
+        if (race == "vrepigh")      return { 0.5f, 0.25f, 1.0f, 0.7f };
+        if (race == "pighcib") return { 0.45f, 0.75f, 0.8f, 0.3f };
+        if (race == "ogre")    return { 0.15f, 0.3f, 0.75f, 0.45f };
+        if (race == "vanguard") return { 0.0f, 0.0f, 1.0f, 0.6f };
+        if (race == "candidato")  return { 0.0f, 0.0f, 0.85f, 0.35f };
         return { 0.0f, 0.0f, 0.7f, 0.15f };
     }
 

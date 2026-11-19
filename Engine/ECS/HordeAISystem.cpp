@@ -45,10 +45,10 @@ namespace SunEngine {
             entt::exclude<PlayerTag, CorpseComponent, NetGhostComponent>
         );
 
-        // Bersaglio di ogni orco: il piu' vicino, ma resta sul suo finche' un altro non e' nettamente piu' vicino
-        for (auto ork : hordeView) {
-            auto& horde = hordeView.get<HordeAgentComponent>(ork);
-            const glm::vec3 p = hordeView.get<TransformComponent>(ork).Position;
+        // Bersaglio di ogni vrepigh: il piu' vicino, ma resta sul suo finche' un altro non e' nettamente piu' vicino
+        for (auto vrepigh : hordeView) {
+            auto& horde = hordeView.get<HordeAgentComponent>(vrepigh);
+            const glm::vec3 p = hordeView.get<TransformComponent>(vrepigh).Position;
             int best = 0; float bestD = 1e9f;
             for (size_t i = 0; i < targets.size(); ++i) { const float d = glm::distance(p, targets[i].pos); if (d < bestD) { bestD = d; best = static_cast<int>(i); } }
             const int cur = indexOf(horde.target);
@@ -67,8 +67,8 @@ namespace SunEngine {
             }
         }
 
-        for (auto ork : hordeView) {
-            auto& horde = hordeView.get<HordeAgentComponent>(ork);
+        for (auto vrepigh : hordeView) {
+            auto& horde = hordeView.get<HordeAgentComponent>(vrepigh);
             const int ti = indexOf(horde.target);
             if (ti < 0) continue;
             if (horde.state == HordeState::Approaching || horde.state == HordeState::Attacking) {
@@ -79,16 +79,16 @@ namespace SunEngine {
             }
         }
 
-        int totalOrksInHorde = 0;
-        for (auto ork : hordeView) totalOrksInHorde++;
+        int totalVrepighsInHorde = 0;
+        for (auto vrepigh : hordeView) totalVrepighsInHorde++;
 
-        int orkIndex = 0;
-        for (auto ork : hordeView) {
-            auto& horde = hordeView.get<HordeAgentComponent>(ork);
-            auto& trans = hordeView.get<TransformComponent>(ork);
-            auto& melee = reg.get_or_emplace<MeleeStateComponent>(ork);
+        int vrepighIndex = 0;
+        for (auto vrepigh : hordeView) {
+            auto& horde = hordeView.get<HordeAgentComponent>(vrepigh);
+            auto& trans = hordeView.get<TransformComponent>(vrepigh);
+            auto& melee = reg.get_or_emplace<MeleeStateComponent>(vrepigh);
             const int ti = indexOf(horde.target);
-            if (ti < 0) { orkIndex++; continue; }
+            if (ti < 0) { vrepighIndex++; continue; }
             Target& tgt = targets[ti];
             bool* activeSlots = tgt.slots;
             int& activeAttackersCount = tgt.attackers;
@@ -99,7 +99,7 @@ namespace SunEngine {
 
             // ------------------------------------------------------------------
             // LINE OF SIGHT: raycast periodico dagli occhi al petto del player.
-            // Se libero -> aggiorna lastKnownPlayerPos. Se bloccato -> l'ork
+            // Se libero -> aggiorna lastKnownPlayerPos. Se bloccato -> il vrepigh
             // va verso la memoria (l'ultima posizione dove ha VISTO il player).
             // ------------------------------------------------------------------
             horde.losCheckTimer -= deltaTime;
@@ -109,7 +109,7 @@ namespace SunEngine {
                 glm::vec3 eyePos = trans.Position + glm::vec3(0.0f, 1.20f, 0.0f);
                 glm::vec3 targetPos = playerPos + glm::vec3(0.0f, 1.00f, 0.0f);
 
-                horde.hasLOS = HasLineOfSight(scene, eyePos, targetPos, ork);
+                horde.hasLOS = HasLineOfSight(scene, eyePos, targetPos, vrepigh);
                 if (horde.hasLOS) {
                     horde.lastKnownPlayerPos = playerPos;
                     horde.hasEverSeenPlayer = true;   // <-- AGGIUNGI QUESTA RIGA
@@ -147,7 +147,7 @@ namespace SunEngine {
                 }
             }
             else if (!horde.hasLOS) {
-                // Senza LOS: l'Ork si guarda attorno verso l'ultima posizione nota
+                // Senza LOS: il Vrepigh si guarda attorno verso l'ultima posizione nota
                 glm::vec3 dirToMem = effectivePlayerPos - trans.Position;
                 dirToMem.y = 0.0f;
                 if (glm::length(dirToMem) > 0.5f) {
@@ -179,7 +179,7 @@ namespace SunEngine {
                 }
             }
             else if (horde.state == HordeState::Waiting) {
-                float angle = (360.0f / (std::max)(1, totalOrksInHorde)) * orkIndex;
+                float angle = (360.0f / (std::max)(1, totalVrepighsInHorde)) * vrepighIndex;
                 horde.circleAngle = angle;
 
                 targetPos = effectivePlayerPos + glm::vec3(
@@ -226,7 +226,7 @@ namespace SunEngine {
             }
 
             // ESECUZIONE NAVMESH PATHFINDING E MOVIMENTO
-            if (needsToMove && scene.GetRegistry().all_of<VaultComponent>(ork)) {
+            if (needsToMove && scene.GetRegistry().all_of<VaultComponent>(vrepigh)) {
                 // sta scavalcando un ostacolo: lo muove MovementSystem, il percorso si ricalcola all'atterraggio
                 horde.currentPath.clear();
                 horde.pathUpdateTimer = 0.0f;
@@ -238,7 +238,7 @@ namespace SunEngine {
                     horde.currentPath = navQuery.FindPath(trans.Position, targetPos);
                     horde.pathUpdateTimer = Random::Range(0.4f, 0.6f);
 
-                    // Diagnostica: un ork che "cammina" ma non si muove ha quasi sempre un percorso vuoto
+                    // Diagnostica: un vrepigh che "cammina" ma non si muove ha quasi sempre un percorso vuoto
                     // (partenza o destinazione fuori dalla navmesh). Solo le prime segnalazioni.
                     static int s_EmptyPathLogs = 0;
                     if (horde.currentPath.empty() && s_EmptyPathLogs < 6) {
@@ -260,7 +260,7 @@ namespace SunEngine {
                         horde.currentPath.erase(horde.currentPath.begin());
                     }
                     else {
-                        trans.Position += glm::normalize(dirToWaypoint) * moveSpeed * Morale::MoveMult(reg, ork, dirToWaypoint) * deltaTime;   // soppressione
+                        trans.Position += glm::normalize(dirToWaypoint) * moveSpeed * Morale::MoveMult(reg, vrepigh, dirToWaypoint) * deltaTime;   // soppressione
                     }
                 }
             }
@@ -297,7 +297,7 @@ namespace SunEngine {
                     horde.state = HordeState::Cooldown;
 
                     float baseCooldown = Random::Range(2.5f, 4.0f);
-                    float hordeReductionFactor = std::clamp(1.0f - ((totalOrksInHorde - 1) * 0.08f), 0.40f, 1.0f);
+                    float hordeReductionFactor = std::clamp(1.0f - ((totalVrepighsInHorde - 1) * 0.08f), 0.40f, 1.0f);
                     horde.cooldownTimer = std::max(0.7f, baseCooldown * hordeReductionFactor);
 
                     if (horde.assignedSlotIndex >= 0 && horde.assignedSlotIndex < 4) {
@@ -307,7 +307,7 @@ namespace SunEngine {
                 }
             }
 
-            orkIndex++;
+            vrepighIndex++;
         }
     }
 

@@ -185,7 +185,7 @@ namespace SunEngine {
                 bp.throw_speed = j.value("throw_speed", 14.0f);
                 bp.trigger_radius = j.value("trigger_radius", 0.9f);
                 bp.launches_grenade = j.value("launches_grenade", false);
-                bp.melta_shot = j.value("melta_shot", false);
+                bp.fusion_shot = j.value("fusion_shot", false);
                 bp.summon_unit = j.value("summon_unit", std::string());
                 bp.summon_delay = j.value("summon_delay", 5.0f);
                 bp.ammo_per_shot = std::max(1, j.value("ammo_per_shot", 1));
@@ -228,8 +228,8 @@ namespace SunEngine {
                 bp.projectile_length = j.value("projectile_length", 0.5f);
                 bp.projectile_width = j.value("projectile_width", 0.05f);
                 bp.flamer_cone_angle = j.value("flamer_cone_angle", 30.0f);
-                bp.melta_range = j.value("melta_range", 3.0f);
-                bp.melta_multiplier = j.value("melta_multiplier", 2.0f);
+                bp.fusion_range = j.value("fusion_range", 3.0f);
+                bp.fusion_multiplier = j.value("fusion_multiplier", 2.0f);
                 bp.damage_falloff_start = j.value("damage_falloff_start", 0.0f);
                 bp.damage_falloff_end = j.value("damage_falloff_end", 0.0f);
 
@@ -263,21 +263,21 @@ namespace SunEngine {
                 else if (typeStr == "plasma") bp.projectile_type = ProjectileType::Plasma;
                 else if (typeStr == "explosive") bp.projectile_type = ProjectileType::Explosive;
                 else if (typeStr == "flamer") bp.projectile_type = ProjectileType::Flamer;
-                else if (typeStr == "continuous_beam" || typeStr == "melta") bp.projectile_type = ProjectileType::ContinuousBeam;
-                else if (typeStr == "grav") bp.projectile_type = ProjectileType::Grav;
+                else if (typeStr == "continuous_beam" || typeStr == "fusion") bp.projectile_type = ProjectileType::ContinuousBeam;
+                else if (typeStr == "gravity") bp.projectile_type = ProjectileType::Gravity;
                 else if (typeStr == "psychic") bp.projectile_type = ProjectileType::Psychic;
-                else if (typeStr == "bolt") bp.projectile_type = ProjectileType::Bolt;
+                else if (typeStr == "heavy_round") bp.projectile_type = ProjectileType::HeavyRound;
                 else bp.projectile_type = ProjectileType::Laser;
                 // Tipo di munizione: dal JSON, altrimenti dalla famiglia del proiettile
                 bp.ammo_type = j.value("ammo_type", std::string());
                 if (bp.ammo_type.empty()) {
                     if (typeStr == "ballistic") bp.ammo_type = "proiettili";
-                    else if (typeStr == "bolt") bp.ammo_type = "proiettili_pesanti";
+                    else if (typeStr == "heavy_round") bp.ammo_type = "proiettili_pesanti";
                     else if (typeStr == "plasma") bp.ammo_type = "celle_scarica";
                     else if (typeStr == "explosive") bp.ammo_type = "esplosivi";
                     else if (typeStr == "flamer") bp.ammo_type = "carburante";
-                    else if (typeStr == "continuous_beam" || typeStr == "melta") bp.ammo_type = "cariche_fusione";
-                    else if (typeStr == "grav") bp.ammo_type = "celle_grav";
+                    else if (typeStr == "continuous_beam" || typeStr == "fusion") bp.ammo_type = "cariche_fusione";
+                    else if (typeStr == "gravity") bp.ammo_type = "celle_gravita";
                     else if (typeStr == "psychic") bp.ammo_type = "cristalli_psi";
                     else bp.ammo_type = "celle_impulsi";
                 }

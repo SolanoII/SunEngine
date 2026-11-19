@@ -1,6 +1,6 @@
 #pragma once
-// Esplosivi: granate lanciate (es. Stikkbomb dell'ork boy), mine a pressione e l'esplosione condivisa con lo
-// squig esplosivo.
+// Esplosivi: granate lanciate (es. granata a chiodi del Vrepigh), mine a pressione e l'esplosione condivisa con lo
+// grugn esplosivo.
 //   Granata ("equipment_type": "grenade"): click sinistro la lancia nella direzione di mira; vola con la gravita',
 //     rimbalza su muri e terreno e scoppia dopo fuse_time secondi.
 //   Mina ("landmine"): click sinistro la posa davanti ai piedi; dopo fuse_time secondi si arma e scoppia quando un
@@ -40,7 +40,7 @@ namespace SunEngine {
         float damage = 100.0f;
         int ap = 0;
         bool resting = false;
-        bool explodeOnImpact = false;  // stikkbomb: scoppia appena tocca terreno, muro o un nemico
+        bool explodeOnImpact = false;  // nail_grenade: scoppia appena tocca terreno, muro o un nemico
         float structureMult = 1.0f;
     };
 
@@ -63,7 +63,7 @@ namespace SunEngine {
             if (e == owner || !reg.valid(e) || reg.all_of<CorpseComponent>(e)) return false;
             if (!reg.all_of<UnitStatsComponent, TransformComponent, HealthComponent>(e)) return false;
             if (reg.get<HealthComponent>(e).currentHealth <= 0.0f) return false;
-            if (const auto* sq = reg.try_get<SquigComponent>(e); sq && sq->owner == owner) return false;   // il proprio squig
+            if (const auto* sq = reg.try_get<GrugnComponent>(e); sq && sq->owner == owner) return false;   // il proprio grugn
             if (team < 0) return true;
             const auto* t = reg.try_get<TeamComponent>(e);
             return !t || t->team != team;

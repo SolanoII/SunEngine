@@ -1,7 +1,7 @@
 #pragma once
 // Modelli d'autore: personaggi fatti da un artista (FBX, glTF/GLB) con le loro texture PBR.
 //
-// Dove si mettono: GameData/Models/Characters/<corpo>/  (corpo = guardsman, ork, ogryn, gretchin, neophyte, astartes)
+// Dove si mettono: GameData/Models/Characters/<corpo>/  (corpo = footman, vrepigh, ogre, pighcib, candidate, vanguard)
 //   - il modello: model.fbx / model.glb / model.gltf (o qualunque nome con quelle estensioni)
 //   - le texture: accanto al modello o nella sottocartella Textures/, oppure dentro il file (FBX/GLB "embedded")
 //   - model.json (facoltativo): scala, altezza, materiali e texture indicati a mano

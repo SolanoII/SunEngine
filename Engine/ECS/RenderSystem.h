@@ -106,7 +106,7 @@ namespace SunEngine {
                                 nullptr, 1.0f, 0.0f,
                                 1, hIt->second, &bodyEx);   // pelle
                         }
-                        // Parti con materiale proprio (denti e occhi dello squig)
+                        // Parti con materiale proprio (denti e occhi dello grugn)
                         if (const SkinnedPartSet* extra = skinnedInst->extraParts) {
                             for (const auto& g : extra->parts) {
                                 if (!g.mesh) continue;

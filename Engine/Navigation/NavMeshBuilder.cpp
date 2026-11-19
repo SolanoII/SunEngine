@@ -97,7 +97,7 @@ namespace SunEngine {
         rcConfig cfg;
         memset(&cfg, 0, sizeof(cfg));
 
-        // --- CONFIGURAZIONE RECAST (Tarata per soldati/orchi umanoidi) ---
+        // --- CONFIGURAZIONE RECAST (Tarata per soldati/vrepighs umanoidi) ---
         cfg.cs = 0.2f;              // Cell Size (accuratezza X/Z)
         cfg.ch = 0.2f;              // Cell Height (accuratezza Y)
         cfg.walkableSlopeAngle = 45.0f; // Max pendenza rampa
@@ -151,7 +151,7 @@ namespace SunEngine {
         // FIX pathfinding: Recast alloca l'array dei flag dei poligoni ma lo lascia TUTTO A ZERO
         // ("the user is responsible to fill it"). NavMeshQuery usa un filtro con includeFlags = 0xFFFF,
         // quindi con flag 0 nessun poligono lo supera: findNearestPoly ritorna sempre 0 e FindPath
-        // restituisce sempre un percorso vuoto (orchi fermi che "camminano" sul posto).
+        // restituisce sempre un percorso vuoto (vrepighs fermi che "camminano" sul posto).
         // Ogni poligono calpestabile riceve il flag WALK (1).
         for (int i = 0; i < pmesh->npolys; ++i) {
             if (pmesh->areas[i] == RC_WALKABLE_AREA) {
