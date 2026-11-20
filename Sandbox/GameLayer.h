@@ -729,6 +729,7 @@ namespace SunEngine {
             const glm::vec3* gripRightWorld, const glm::vec3* gripLeftWorld);
         bool AnimatedBodyReady(AnimatedBodyKind kind) const;
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
+        void RegisterGearBody(const SkinnedModel& model, const std::string& folder, const SkinnedPartSet* aux);   // forgia (GearMesh.h)
         // Hitbox misurate sul corpo + scheletro a cubi + parti rigide indossate (BoneHitboxes.h), in cache
         const BoneHitboxTemplate& HitboxTemplateFor(AnimatedBodyKind kind, const SkeletonData& skel, const SkinnedModelInstanceComponent& sk);
         std::unordered_map<size_t, BoneHitboxTemplate> m_HitboxTemplates;

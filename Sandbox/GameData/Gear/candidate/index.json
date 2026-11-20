@@ -1,0 +1,35 @@
+{
+ "pieces": {
+  "candidate_arm_guard_l": "arm_plate_1900a479e340.gear",
+  "candidate_arm_guard_r": "arm_plate_bd287e5b905f.gear",
+  "candidate_boot_l": "boot_c84e2ba58b9b.gear",
+  "candidate_boot_r": "boot_b7d5dd5c847d.gear",
+  "candidate_bracer_l": "bracer_867e788f9e91.gear",
+  "candidate_bracer_r": "bracer_726f8d4d1672.gear",
+  "candidate_flak": "flak_6bc55555a3a6.gear",
+  "candidate_leg_guard_l": "leg_plate_12cfb6346078.gear",
+  "candidate_leg_guard_r": "leg_plate_ff16b47bfd07.gear",
+  "candidate_pants_l": "pants_1a73522ce73f.gear",
+  "candidate_pants_r": "pants_560767517a69.gear",
+  "candidate_shirt": "shirt_b914adda15a6.gear",
+  "scout_arm_guard_l": "arm_plate_4730c68e4c34.gear",
+  "scout_arm_guard_r": "arm_plate_b4fcbf1d3bc6.gear",
+  "scout_boot_l": "boot_cd7a21aeb8b4.gear",
+  "scout_boot_r": "boot_1465a99cf50b.gear",
+  "scout_bracer_l": "bracer_fff0a6f6ed14.gear",
+  "scout_bracer_r": "bracer_7d29068d9769.gear",
+  "scout_flak": "flak_73223df195a0.gear",
+  "scout_helmet": "helmet_9655e40ca1e8.gear",
+  "scout_leg_guard_l": "leg_plate_7000bc1660a7.gear",
+  "scout_leg_guard_r": "leg_plate_b9fc87349848.gear",
+  "scout_pants_l": "pants_1a73522ce73f.gear",
+  "scout_pants_r": "pants_560767517a69.gear",
+  "scout_shirt": "shirt_b914adda15a6.gear"
+ },
+ "body": {
+  "name": "candidate",
+  "height": 1.9225,
+  "vertices": 73330
+ },
+ "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
+}

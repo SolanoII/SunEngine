@@ -1,0 +1,14 @@
+{
+ "pieces": {
+  "pighcib_rags_leg_l": "rags_995e938a4318.gear",
+  "pighcib_rags_leg_r": "rags_8cf1f43bf045.gear",
+  "pighcib_rags_torso": "rags_bbd7d1115f57.gear",
+  "pighcib_scrap_helmet": "helmet_f56fe14d1fc0.gear"
+ },
+ "body": {
+  "name": "pighcib",
+  "height": 0.9278,
+  "vertices": 83722
+ },
+ "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
+}

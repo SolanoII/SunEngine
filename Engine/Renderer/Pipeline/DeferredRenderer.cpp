@@ -1215,11 +1215,18 @@ R"(            color.rgb = mix(color.rgb, mix(vec3(lum), color.rgb, 0.78) * 0.94
     else if (u_Detail == 2 || u_Detail == 3) {
         float edge = v_UV.x;                       // distanza dal bordo del vestito
         float n1 = Noise3(pn * 9.0), n2 = Noise3(pn * 40.0), n3 = Noise3(pn * 220.0);
+        if (u_Baked == 1) {
+            // pezzo della forgia (GearMesh.h): occlusione cotta nel vertice (incavi delle pieghe, sotto le piastre)
+            float gao = clamp(v_UV.y, 0.0, 1.0);
+            color.rgb *= mix(1.0, gao, 0.8);
+            aoTex *= mix(1.0, gao, 0.5);
+        }
         if (u_Detail == 2) {
             // Stoffa: pieghe attorno a braccia e gambe (in posa T le braccia stanno lungo X), trama fine, orli
             bool arm = abs(pn.x) > 0.17;
             float c = (arm ? pn.x : pn.y) * 46.0 + n1 * 5.0;
             float folds = (sin(c) * 0.5 + 0.5) * smoothstep(0.25, 0.8, Noise3(pn * 6.0 + 3.1));
+            if (u_Baked == 1) folds *= 0.15;   // pezzo della forgia: le pieghe sono nella geometria
             float weave = Noise3(pn * vec3(900.0, 900.0, 900.0)) * 0.00035;
             if (u_SurfOn == 1 && u_SurfDetail > 0.001) {
                 // trama della saia, fibre, pallini di tessuto consumato (texture generata)

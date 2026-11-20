@@ -2,12 +2,15 @@
 // Strati dei vestiti sul modello animato: costruzione (una volta per corpo + strato) e texture, in cache.
 // Vedi GarmentShell.h per come nasce il guscio.
 #include "GarmentShell.h"
+#include "GearMesh.h"
 #include "SkinnedModel.h"
 #include "TeutonicArmor.h"
 #include "Core/Texture.h"
 #include "../Core/Logger/Log.h"
 #include <filesystem>
+#include <fstream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <memory>
 #include <string>
 #include <utility>
@@ -19,10 +22,17 @@ namespace SunEngine {
         // root = cartella GameData (con la barra finale): i percorsi dei JSON sono relativi a questa
         void SetRoot(const std::string& root) { m_Root = root; }
 
+        // Nome del corpo (cartella in GameData/Gear/: footman, candidate, vrepigh, pighcib...): i pezzi costruiti
+        // dalla forgia (GearMesh.h) per quel corpo prendono il posto dei gusci generati
+        void RegisterBody(const SkinnedModel& body, const std::string& folder) { m_BodyFolder[&body] = folder; }
+
         // Strato 'd' sul corpo 'body'. Ritorna false se non c'e' niente da disegnare (zona vuota, file mancante).
         bool Get(const SkinnedModel& body, const GarmentDef& d, GarmentDraw& out) {
-            if (body.authored) return false;   // modello d'autore: vestiti e armature sono gia' nel modello dell'artista
-            Entry* e = Find(body, d);
+            Entry* e = FindGear(body, d);   // pezzo della forgia, se c'e'
+            if (!e) {
+                if (body.authored) return false;   // modello d'autore senza pezzi della forgia: niente gusci sul suo corpo
+                e = Find(body, d);
+            }
             if (!e || !e->mesh) return false;
             out.mesh = e->mesh.get();
             out.texture = d.texture.empty() ? nullptr : Texture(d.texture);
@@ -34,6 +44,7 @@ namespace SunEngine {
             out.invHeight = 1.0f / std::max(1e-4f, e->height);
             out.detail = d.detail;
             out.emissive = d.emissive;
+            out.baked = e->gear ? 1 : 0;   // pezzo della forgia: occlusione nel vertice, pieghe vere (niente pieghe finte)
             return true;
         }
 
@@ -41,7 +52,59 @@ namespace SunEngine {
         struct Entry {
             std::unique_ptr<SkinnedMesh> mesh;   // null = provato, niente da disegnare
             float height = 1.0f;
+            bool gear = false;                   // pezzo della forgia (GearMesh.h)
         };
+
+        // Indice dei pezzi della forgia di un corpo: GameData/Gear/<corpo>/index.json -> {"pieces": {id: file}}
+        struct GearIndex {
+            bool loaded = false;
+            std::unordered_map<std::string, std::string> files;   // id dello strato -> percorso del .gear
+        };
+
+        const GearIndex& IndexOf(const std::string& folder) {
+            GearIndex& gi = m_GearIndex[folder];
+            if (gi.loaded) return gi;
+            gi.loaded = true;
+            const std::string dir = m_Root + "Gear/" + folder + "/";
+            std::ifstream in(dir + "index.json");
+            if (!in) return gi;
+            try {
+                const nlohmann::json j = nlohmann::json::parse(in, nullptr, true, true);
+                if (j.contains("pieces") && j["pieces"].is_object())
+                    for (auto it = j["pieces"].begin(); it != j["pieces"].end(); ++it)
+                        if (it.value().is_string()) gi.files[it.key()] = dir + it.value().get<std::string>();
+                SUN_CORE_INFO("Forgia: {0} pezzi per il corpo {1}", gi.files.size(), folder);
+            }
+            catch (const std::exception& ex) { SUN_CORE_WARN("Forgia: {0}index.json non valido ({1})", dir, ex.what()); }
+            return gi;
+        }
+
+        // Pezzo della forgia per lo strato 'd' su questo corpo (null = non c'e', si usa il guscio generato)
+        Entry* FindGear(const SkinnedModel& body, const GarmentDef& d) {
+            auto bf = m_BodyFolder.find(&body);
+            if (bf == m_BodyFolder.end() || d.id.empty() || !d.procedural.empty()) return nullptr;
+            const GearIndex& gi = IndexOf(bf->second);
+            auto fit = gi.files.find(d.id);
+            if (fit == gi.files.end()) return nullptr;
+            const std::string key = "gear|" + bf->second + "|" + d.id;
+            auto it = m_Entries.find(key);
+            if (it != m_Entries.end()) return it->second.mesh ? &it->second : nullptr;
+            Entry& e = m_Entries[key];
+            e.gear = true;
+            std::vector<const std::vector<SkinnedVertex>*> parts;
+            for (const auto& m : body.meshes) parts.push_back(&m.vertices);
+            e.height = GarmentMeasure(parts).Height();
+            std::vector<SkinnedVertex> v;
+            std::vector<unsigned int> idx;
+            std::string err;
+            if (!ReadGearPiece(fit->second, body.boneInfoMap, v, idx, &err) || idx.empty()) {
+                SUN_CORE_WARN("Forgia: pezzo '{0}' ({1}) non caricato: {2}", d.id, fit->second, err);
+                return nullptr;   // si torna al guscio generato
+            }
+            SUN_CORE_INFO("Forgia: '{0}' sul corpo {1}, {2} triangoli", d.id, bf->second, idx.size() / 3);
+            e.mesh = std::make_unique<SkinnedMesh>(std::move(v), std::move(idx));
+            return &e;
+        }
 
         static std::string Key(const SkinnedModel& body, const GarmentDef& d) {
             // Stesso id ma parametri diversi (es. due armature che riusano l'id): la chiave include i campi
@@ -114,6 +177,8 @@ namespace SunEngine {
 
         std::string m_Root;
         std::map<std::string, Entry> m_Entries;
+        std::unordered_map<const SkinnedModel*, std::string> m_BodyFolder;
+        std::unordered_map<std::string, GearIndex> m_GearIndex;
         std::map<std::string, std::unique_ptr<GpuTexture>> m_Textures;
     };
 }

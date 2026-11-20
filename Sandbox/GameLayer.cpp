@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 
 #include "GameLayer.h"
+#include "Engine/Renderer/GearMesh.h"
 #include "Engine/Core/Application/Application.h"
 #include "Engine/Core/Random.h"
 #include "Engine/Core/MathUtils.h"
@@ -1424,6 +1425,8 @@ namespace SunEngine {
             if (m_SkinnedModelLoaded && !m_SkinnedTestModel.authored) {
                 ApplyMuscleTone(m_SkinnedTestModel, RaceMuscleTone("footman"));
             }
+            // Vesti e armature della forgia (GearMesh.h): ogni corpo ha la sua cartella in GameData/Gear/
+            if (m_SkinnedModelLoaded) RegisterGearBody(m_SkinnedTestModel, "footman", nullptr);
         }
 
         GLFWwindow* window = glfwGetCurrentContext();
@@ -4604,6 +4607,7 @@ namespace SunEngine {
                     // le clip che mancano nella cartella dell'artista si prendono da quelle del gioco
                     if (!clips.empty()) body.animLoaded = body.controller.LoadClips(clips, info.modelPath, &body.model, info.animsDir.empty() ? std::string() : gameClips);
                     SUN_CORE_INFO("Corpo {0}: modello d'autore {1} (animazioni: {2})", label, info.modelPath, clips);
+                    RegisterGearBody(body.model, AuthoredFolderOf(label), nullptr);
                     return;
                 }
                 SUN_CORE_WARN("Corpo {0}: modello d'autore in {1} non caricato, uso quello del gioco", label, folder);
@@ -4657,6 +4661,7 @@ namespace SunEngine {
             SculptBoarBody(body.model, &body.boar);
             SUN_CORE_INFO("Corpo {0}: uomo-cinghiale ({1} parti di testa)", label, body.boar.parts.parts.size());
         }
+        if (body.modelLoaded) RegisterGearBody(body.model, AuthoredFolderOf(bodyLabel), bodyLabel == "vrepigh" ? &body.boar.parts : nullptr);
         const std::string animsDir = FindValidDir("Animations");
         if (!body.modelLoaded || animsDir.empty()) return;
         const std::string ownDir = animsDir + animFolder + "/";
@@ -4718,6 +4723,22 @@ namespace SunEngine {
         std::vector<std::string> names;
         for (const auto& b : skel.blocks) names.push_back(b.name);
         return m_HitboxTemplates.emplace(h, BuildBoneHitboxes(AnimatedBodyModel(kind), names, extra)).first->second;
+    }
+
+    // Corpo per i pezzi della forgia (GearMesh.h). Con SUN_GEAR_DUMP=<cartella> il corpo viene anche scritto in
+    // <cartella>/<corpo>.body, cosi' com'e' disegnato: la forgia (Tools/GearForge) ci costruisce sopra vesti e armature.
+    void GameLayer::RegisterGearBody(const SkinnedModel& model, const std::string& folder, const SkinnedPartSet* aux) {
+        m_Garments.RegisterBody(model, folder);
+        const char* dumpDir = std::getenv("SUN_GEAR_DUMP");
+        if (!dumpDir || !*dumpDir) return;
+        std::vector<GearBodyPart> parts;
+        for (const auto& m : model.meshes) parts.push_back({ &m.vertices, &m.indices, false });
+        if (aux) for (const auto& g : aux->parts) if (g.mesh) parts.push_back({ &g.mesh->vertices, &g.mesh->indices, true });
+        std::error_code ec;
+        std::filesystem::create_directories(dumpDir, ec);
+        const std::string path = std::string(dumpDir) + "/" + folder + ".body";
+        if (WriteGearBody(path, model.boneInfoMap, parts)) SUN_CORE_INFO("Forgia: corpo {0} scritto in {1}", folder, path);
+        else SUN_CORE_WARN("Forgia: impossibile scrivere {0}", path);
     }
 
     SkinnedModel& GameLayer::AnimatedBodyModel(AnimatedBodyKind kind) {
