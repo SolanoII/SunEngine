@@ -4732,7 +4732,17 @@ namespace SunEngine {
         const char* dumpDir = std::getenv("SUN_GEAR_DUMP");
         if (!dumpDir || !*dumpDir) return;
         std::vector<GearBodyPart> parts;
-        for (const auto& m : model.meshes) parts.push_back({ &m.vertices, &m.indices, false });
+        // Modello d'autore: per la forgia conta solo la pelle. Setole, zanne, occhi, artigli e orecchie e coda
+        // (materiali che non sono pelle, o col nome "ear" / "tail") sono parti aggiunte: non misurano il corpo e non reggono le vesti.
+        auto authoredAux = [&](const SkinnedMesh& m) {
+            if (!model.authored) return false;
+            if (m.materialIndex < 0 || m.materialIndex >= static_cast<int>(model.materials.size())) return false;
+            const SkinnedMaterial& mat = model.materials[m.materialIndex];
+            std::string n = mat.name;
+            std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return mat.kind != SkinMat_Skin || n.find("ear") != std::string::npos || n.find("tail") != std::string::npos;
+        };
+        for (const auto& m : model.meshes) parts.push_back({ &m.vertices, &m.indices, authoredAux(m) });
         if (aux) for (const auto& g : aux->parts) if (g.mesh) parts.push_back({ &g.mesh->vertices, &g.mesh->indices, true });
         std::error_code ec;
         std::filesystem::create_directories(dumpDir, ec);
