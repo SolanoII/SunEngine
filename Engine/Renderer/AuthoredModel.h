@@ -29,7 +29,11 @@ namespace SunEngine {
 
     // Carica modello, materiali, texture e impostazioni di model.json. targetHeightCm = altezza del corpo che
     // sostituisce (per riconoscere le unita' del file: metri, centimetri, millimetri), 0 = sconosciuta.
-    bool LoadAuthoredCharacter(const AuthoredCharacterInfo& info, SkinnedModel& out, float targetHeightCm = 0.0f);
+    bool LoadAuthoredCharacter(const AuthoredCharacterInfo& info, SkinnedModel& out, float targetHeightCm = 0.0f, bool prop = false);
+
+    // Oggetto senza ossa (armi, attrezzi): modello e materiali come sopra, niente controlli sullo scheletro.
+    // I vertici restano nelle unita' del file (metri per i .glb della forgia delle armi).
+    bool LoadAuthoredProp(const std::string& path, SkinnedModel& out);
 
     // Altezza in posa di riposo nelle unita' del file (estensione verticale dei vertici)
     float SkinnedModelHeight(const SkinnedModel& model);

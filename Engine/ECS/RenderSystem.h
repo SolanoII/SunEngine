@@ -182,7 +182,21 @@ namespace SunEngine {
                 else if (scene.GetRegistry().all_of<MeshComponent>(entity)) {
                     // Modello a blocchi (es. arma): disegna i singoli blocchi coi loro materiali
                     const auto* blockModel = scene.GetRegistry().try_get<BlockModelComponent>(entity);
-                    if (blockModel && blockModel->model) {
+                    if (blockModel && blockModel->model && blockModel->model->mesh) {
+                        // Mesh vera dell'arma (forgia delle armi): materiali e texture propri, senza ossa
+                        static const std::vector<glm::mat4> s_NoBones(1, glm::mat4(1.0f));
+                        static const SunEngine::SkinnedMaterial s_Plain;
+                        const SunEngine::SkinnedModel& wm = *blockModel->model->mesh;
+                        const glm::mat4 entityMat = transform.GetTransform();
+                        for (const auto& submesh : wm.meshes) {
+                            DeferredRenderer::SkinnedDrawExtra ex;
+                            ex.material = (submesh.materialIndex >= 0 && submesh.materialIndex < static_cast<int>(wm.materials.size()))
+                                ? &wm.materials[submesh.materialIndex] : &s_Plain;
+                            deferred.DrawSkinnedMesh(submesh, entityMat, s_NoBones, glm::vec4(1.0f), 0.6f, 0.0f, 0.0f,
+                                nullptr, 1.0f, 0.0f, 0, 1.0f, &ex);
+                        }
+                    }
+                    else if (blockModel && blockModel->model) {
                         const glm::mat4 entityMat = transform.GetTransform();
                         for (const auto& part : blockModel->model->parts) {
                             deferred.DrawCube(BlockPartMatrix(entityMat, part), part.color,

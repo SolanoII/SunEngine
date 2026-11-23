@@ -467,18 +467,18 @@ namespace SunEngine {
         return true;
     }
 
-    bool LoadAuthoredCharacter(const AuthoredCharacterInfo& info, SkinnedModel& out, float targetHeightCm) {
-        SUN_CORE_INFO("[Asset] modello d'autore: {0}", info.modelPath);
+    bool LoadAuthoredCharacter(const AuthoredCharacterInfo& info, SkinnedModel& out, float targetHeightCm, bool prop) {
+        if (!prop) SUN_CORE_INFO("[Asset] modello d'autore: {0}", info.modelPath);
         if (!out.LoadModel(info.modelPath, true)) return false;
         out.authored = true;
         // La trasformazione della radice resta applicata: negli export da Blender/Maya contiene il passaggio da Z-su a
         // Y-su e da centimetri a metri (i modelli Mixamo del gioco hanno la radice neutra, per loro non cambia nulla).
         out.m_GlobalInverseTransform = glm::mat4(1.0f);
-        if (out.boneInfoMap.empty()) SUN_CORE_WARN("[Asset] {0}: nessun osso nel modello (serve uno scheletro con pesi per animarlo)", info.modelPath);
-        if (out.boneInfoMap.find(CanonicalBonePrefix() + "Hips") == out.boneInfoMap.end() || out.boneInfoMap.find(CanonicalBonePrefix() + "RightHand") == out.boneInfoMap.end())
+        if (!prop && out.boneInfoMap.empty()) SUN_CORE_WARN("[Asset] {0}: nessun osso nel modello (serve uno scheletro con pesi per animarlo)", info.modelPath);
+        if (!prop && (out.boneInfoMap.find(CanonicalBonePrefix() + "Hips") == out.boneInfoMap.end() || out.boneInfoMap.find(CanonicalBonePrefix() + "RightHand") == out.boneInfoMap.end()))
             SUN_CORE_WARN("[Asset] {0}: scheletro non riconosciuto (mancano Hips/RightHand Mixamo): le animazioni del gioco non si applicheranno", info.modelPath);
 
-        // Verso del modello: i personaggi del gioco (Mixamo) guardano verso +Z. Un modello esportato girato al contrario
+        // Verso del modello: i personaggi del gioco (Mixamo) guardano verso +Z (gli oggetti restano come sono). Un modello esportato girato al contrario
         // camminerebbe all'indietro: si gira la radice di 180 gradi (verso dedotto dalla punta dei piedi).
         {
             std::unordered_map<std::string, glm::mat4> g;
@@ -493,7 +493,7 @@ namespace SunEngine {
                 if (f != g.end() && t != g.end()) fwd += glm::vec3(t->second[3]) - glm::vec3(f->second[3]);
             }
             fwd.y = 0.0f;
-            if (glm::length(fwd) > 1e-6f && fwd.z < 0.0f && std::abs(fwd.z) > std::abs(fwd.x)) {
+            if (!prop && glm::length(fwd) > 1e-6f && fwd.z < 0.0f && std::abs(fwd.z) > std::abs(fwd.x)) {
                 out.rootNode.transformation = glm::rotate(glm::mat4(1.0f), glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f)) * out.rootNode.transformation;
                 SUN_CORE_INFO("[Asset] {0}: modello girato di 180 gradi (guardava all'indietro)", fs::path(info.modelPath).filename().string());
             }
@@ -582,12 +582,19 @@ namespace SunEngine {
         {
             float lo, hi;
             SkinnedBindBounds(out, lo, hi);
-            if (h > 1e-4f && std::abs(lo) > 0.05f * h)
+            if (!prop && h > 1e-4f && std::abs(lo) > 0.05f * h)
                 SUN_CORE_WARN("[Asset] {0}: i piedi sono a {1:.2f} m dall'origine del modello (va messa fra i piedi, a terra)",
                     fs::path(info.modelPath).filename().string(), lo * scale / 100.0f);
         }
-        SUN_CORE_INFO("[Asset] {0}: {1} sotto-mesh, {2} materiali, {3} ossa, altezza {4:.1f} unita' -> scala {5} ({6:.2f} m)",
+        if (!prop) SUN_CORE_INFO("[Asset] {0}: {1} sotto-mesh, {2} materiali, {3} ossa, altezza {4:.1f} unita' -> scala {5} ({6:.2f} m)",
             fs::path(info.modelPath).filename().string(), out.meshes.size(), out.materials.size(), out.boneInfoMap.size(), h, scale, h * scale / 100.0f);
         return true;
+    }
+
+    bool LoadAuthoredProp(const std::string& path, SkinnedModel& out) {
+        AuthoredCharacterInfo info;
+        info.modelPath = path;
+        info.folder = fs::path(path).parent_path().string() + "/";
+        return LoadAuthoredCharacter(info, out, 0.0f, true);
     }
 }

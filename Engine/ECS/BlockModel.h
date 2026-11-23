@@ -12,6 +12,8 @@
 
 namespace SunEngine {
 
+    class SkinnedModel;
+
     // Modello "a blocchi" di un oggetto (es. un'arma): piu' cubi colorati con propri materiali, nello
     // stesso stile dello scheletro a cubi. Si disegna con DrawCube, quindi non servono texture ne' UV.
     //
@@ -38,6 +40,11 @@ namespace SunEngine {
         bool hasGripRight = false;
         bool hasGripLeft = false;
         bool hasMuzzle = false;
+        // Mesh vera dell'oggetto (Models/Weapons/<id>.glb, Tools/WeaponForge): se c'e' si disegna lei al posto dei
+        // blocchi, che restano per l'ingombro, gli appoggi delle mani e la bocca della canna.
+        const SkinnedModel* mesh = nullptr;
+        // Ingombro dei blocchi (spazio del modello), calcolato al caricamento
+        glm::vec3 boundsMin{ 0.0f }, boundsMax{ 0.0f };
     };
 
     // Collegato a un'entity con TransformComponent: al posto del cubo unico vengono disegnati i blocchi.
@@ -76,6 +83,16 @@ namespace SunEngine {
                 }
             }
             return loaded;
+        }
+
+        BlockModel* FindMutable(const std::string& id) {
+            auto it = m_Models.find(id);
+            return it == m_Models.end() ? nullptr : &it->second;
+        }
+        std::vector<std::string> Ids() const {
+            std::vector<std::string> v; v.reserve(m_Models.size());
+            for (const auto& [k, m] : m_Models) v.push_back(k);
+            return v;
         }
 
         const BlockModel* Find(const std::string& id) const {
@@ -117,6 +134,14 @@ namespace SunEngine {
                     if (a.contains("grip_right")) { out.gripRight = vec3(a["grip_right"], glm::vec3(0.0f)); out.hasGripRight = true; }
                     if (a.contains("grip_left")) { out.gripLeft = vec3(a["grip_left"], glm::vec3(0.0f)); out.hasGripLeft = true; }
                     if (a.contains("muzzle")) { out.muzzle = vec3(a["muzzle"], glm::vec3(0.0f)); out.hasMuzzle = true; }
+                }
+                out.boundsMin = glm::vec3(1e9f); out.boundsMax = glm::vec3(-1e9f);
+                for (const auto& p : out.parts) {
+                    const glm::mat4 m = BlockPartMatrix(glm::mat4(1.0f), p);
+                    for (int c = 0; c < 8; ++c) {
+                        const glm::vec3 q = glm::vec3(m * glm::vec4((c & 1) ? 0.5f : -0.5f, (c & 2) ? 0.5f : -0.5f, (c & 4) ? 0.5f : -0.5f, 1.0f));
+                        out.boundsMin = glm::min(out.boundsMin, q); out.boundsMax = glm::max(out.boundsMax, q);
+                    }
                 }
                 return true;
             }

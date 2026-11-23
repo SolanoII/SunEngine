@@ -58,6 +58,7 @@ namespace SunEngine {
         for (auto& a : m_ShowcaseActors) {
             if (reg.valid(a.visual)) m_Scene.DestroyEntity(a.visual);
             if (reg.valid(a.weapon)) m_Scene.DestroyEntity(a.weapon);
+            DestroyGearRack(a.rack);
         }
         m_ShowcaseActors.clear();
         m_ShowcaseBuiltFor = "#";
@@ -90,6 +91,9 @@ namespace SunEngine {
         }
         a.weaponId = !tu.primaryWeaponId.empty() ? tu.primaryWeaponId : tu.secondaryWeaponId;
         a.meleeId = tu.meleeWeaponId;
+        // tutto il resto della dotazione si vede addosso
+        a.gearIds[0] = tu.primaryWeaponId; a.gearIds[1] = tu.secondaryWeaponId; a.gearIds[2] = tu.meleeWeaponId;
+        a.gearIds[3] = ""; a.gearIds[4] = tu.equipmentSlots[0]; a.gearIds[5] = tu.equipmentSlots[1]; a.gearIds[6] = tu.equipmentSlots[2];
 
         a.visual = m_Scene.CreateEntity();
         auto& vt = reg.emplace<TransformComponent>(a.visual);
@@ -326,10 +330,18 @@ namespace SunEngine {
         glm::mat4 basis(1.0f);
         basis[0] = glm::vec4(xAxis, 0.0f); basis[1] = glm::vec4(yAxis, 0.0f); basis[2] = glm::vec4(zAxis, 0.0f);
         wt.Position = anchorWorld - glm::vec3(basis * glm::vec4(anchorLocal, 0.0f));
+        // niente armi dentro il corpo (gobbe, pance, teste: BodyGear.h)
+        const auto* skA = reg.try_get<SkinnedModelInstanceComponent>(a.visual);
+        if (skA && skA->sourceModel) {
+            glm::mat4 w = basis; w[3] = glm::vec4(wt.Position, 1.0f);
+            wt.Position += KeepOutOfBody(*skA->sourceModel, *a.ctrl, vt.GetTransform(), *model, w);
+        }
         float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
         glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);
         wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
         wt.Scale = glm::vec3(1.0f);
+        // il resto della dotazione addosso
+        if (skA && skA->sourceModel) UpdateGearRack(a.rack, skA->sourceModel, a.ctrl.get(), vt, GearItemsFor(a.gearIds, 7, handId, ""), true);
         if (!meleeMode && model->hasGripRight) {
             const glm::vec3 gR = wt.Position + glm::vec3(basis * glm::vec4(model->gripRight, 0.0f));
             const glm::vec3 gL = wt.Position + glm::vec3(basis * glm::vec4(model->gripLeft, 0.0f));

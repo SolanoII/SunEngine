@@ -2436,6 +2436,7 @@ namespace SunEngine {
         for (auto& [e, inst] : m_UnitAnims) {
             if (reg.valid(inst.visual)) m_Scene.DestroyEntity(inst.visual);
             for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
+            DestroyGearRack(inst.rack);
             if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
         }
         m_UnitAnims.clear();
@@ -2462,6 +2463,7 @@ namespace SunEngine {
                 if (reg.valid(e) && reg.all_of<HideProceduralVisualTag>(e)) reg.remove<HideProceduralVisualTag>(e);
             }
             for (auto p : inst.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
+            DestroyGearRack(inst.rack);
             m_UnitAnims.erase(e);
             m_RaceMotion.erase(e);
         }
@@ -2481,6 +2483,7 @@ namespace SunEngine {
             if (it != m_UnitAnims.end() && (it->second.kind != kind || it->second.model != &unitModel)) {   // cambio di corpo: si ricrea
                 if (reg.valid(it->second.visual)) m_Scene.DestroyEntity(it->second.visual);
                 for (auto p : it->second.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
+                DestroyGearRack(it->second.rack);
                 m_UnitAnims.erase(it);
                 it = m_UnitAnims.end();
             }
@@ -2601,6 +2604,23 @@ namespace SunEngine {
                 auto& c = reg.get<ColorComponent>(inst.skinParts[i]);
                 c.Color = parts[i]->color; c.BaseColor = c.Color;
             }
+            // Armi e attrezzi che non sono in mano: addosso, ognuno al suo posto (GameLayerGear.cpp)
+            if (const auto* inv = reg.try_get<InventoryComponent>(e); inv && sk.sourceModel) {
+                std::string held;
+                if (const auto* wid = reg.try_get<WeaponBlueprintId>(e)) held = wid->id;
+                if (!inst.draw.init || held != inst.draw.held) {
+                    // arma nuova in mano: si sfodera (la prima volta e' gia' in mano)
+                    float strength = 50.0f;
+                    if (const auto* st = reg.try_get<UnitStatsComponent>(e)) strength = st->strength;
+                    inst.draw.total = DrawTimeOf(held, strength);
+                    inst.draw.t = inst.draw.init ? 0.0f : inst.draw.total;
+                    if (inst.draw.init) if (auto* ws = reg.try_get<WeaponStateComponent>(e)) ws->fireCooldown = std::max(ws->fireCooldown, inst.draw.total);
+                    inst.draw.held = held; inst.draw.init = true;
+                }
+                else inst.draw.t = std::min(inst.draw.total, inst.draw.t + deltaTime);
+                const std::string ids[7] = { inv->primaryWeaponId, inv->secondaryWeaponId, inv->meleeWeaponId, inv->grenadeId, inv->tool1Id, inv->tool2Id, inv->tool3Id };
+                UpdateGearRack(inst.rack, sk.sourceModel, inst.ctrl.get(), vt, GearItemsFor(ids, 7, held, ""), !inst.bindPose);
+            }
             // Testa del vrepigh (muso, zanne, occhi) sulle stesse ossa del corpo
             sk.extraParts = (inst.kind == AnimatedBodyKind::Vrepigh && !Body(inst.kind).boar.parts.parts.empty()) ? &Body(inst.kind).boar.parts : nullptr;
             // Hitbox mosse dalle ossa del corpo animato (i manichini del campo da tiro sulla posa a T del loro corpo)
@@ -2649,7 +2669,7 @@ namespace SunEngine {
             in.shot = inst.holdShot;
             in.speed = inst.holdSpeed;
             in.dt = inst.poseFresh ? inst.holdDt : 0.0f;
-            held = SolveHoldOnBody(*inst.ctrl, vt, t.Rotation.y, *model, in, inst.hold, wt, basis);
+            held = SolveHoldOnBody(*inst.ctrl, vt, t.Rotation.y, *model, in, inst.hold, wt, basis, inst.model);
             inst.holdShot = false;
         }
         if (!held) {
@@ -2670,6 +2690,13 @@ namespace SunEngine {
         float yaw = 0.0f, pitch = 0.0f, roll = 0.0f;
         glm::extractEulerAngleYXZ(basis, yaw, pitch, roll);
         wt.Rotation = glm::degrees(glm::vec3(pitch, yaw, roll));
+        // Sfoderare: l'arma arriva in mano dal suo posto sul corpo (le mani la seguono)
+        if (held && model && inst.model && inst.draw.total > 0.0f && inst.draw.t < inst.draw.total) {
+            TransformComponent tmp = wt; tmp.Scale = glm::vec3(1.0f);
+            BlendFromMount(*inst.model, *inst.ctrl, vt, *model, inst.draw.t / inst.draw.total, tmp);
+            wt.Position = tmp.Position; wt.Rotation = tmp.Rotation;
+            basis = glm::eulerAngleYXZ(glm::radians(wt.Rotation.y), glm::radians(wt.Rotation.x), glm::radians(wt.Rotation.z));
+        }
         // Mani sulle impugnature vere dell'arma (una volta per posa: in pausa la posa resta quella con l'IK)
         if (inst.poseFresh && model && model->hasGripRight) {
             const glm::vec3 gR = wt.Position + glm::vec3(basis * glm::vec4(model->gripRight, 0.0f));
@@ -5006,7 +5033,8 @@ namespace SunEngine {
     // inclinazione di mira, oppure quello della mano (m_WeaponFollowsHand). Tutto tarabile dalle Opzioni.
     // Corpo di chi impugna (spalle, gomito, mano nel mondo) dalle ossa del fotogramma, poi le leggi di WeaponHold.h
     bool GameLayer::SolveHoldOnBody(RifleAnimationController& ctrl, const TransformComponent& visualT, float bodyYawDeg,
-        const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis) {
+        const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis,
+        const SkinnedModel* bodyModel) {
         const char* strong = in.leftHand ? "Left" : "Right";
         const char* other = in.leftHand ? "Right" : "Left";
         glm::mat4 tS(1.0f), tO(1.0f), tE(1.0f), tH(1.0f);
@@ -5025,6 +5053,13 @@ namespace SunEngine {
         const WeaponHoldResult r = SolveWeaponHold(state, body, WeaponGripsOf(model), in);
         basis = r.basis;
         weaponTransform.Position = r.position;
+        // L'arma non entra nel corpo: spinta fuori dalle ellissi del tronco, della testa e delle cosce (BodyGear.h).
+        // Le mani la seguono con l'IK. Per le armi bianche la lama puo' passare vicino al corpo nei colpi: si spinge
+        // solo di quel che serve.
+        if (bodyModel) {
+            glm::mat4 w = basis; w[3] = glm::vec4(r.position, 1.0f);
+            weaponTransform.Position += KeepOutOfBody(*bodyModel, ctrl, toWorld, model, w);
+        }
         return true;
     }
 
@@ -5087,7 +5122,9 @@ namespace SunEngine {
             in.speed = m_HoldInput.isMoving ? std::max(0.0f, m_HoldInput.groundSpeed) : 0.0f;
             in.dt = m_HoldDt;
             glm::mat4 basis(1.0f);
-            if (SolveHoldOnBody(ActiveAnimController(), *vt, pt->Rotation.y, *model, in, leftHand ? m_HoldLeft : m_HoldRight, weaponTransform, basis)) {
+            const SkinnedModel* playerBody = nullptr;
+            if (const auto* psk = reg.try_get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity)) playerBody = psk->sourceModel;
+            if (SolveHoldOnBody(ActiveAnimController(), *vt, pt->Rotation.y, *model, in, leftHand ? m_HoldLeft : m_HoldRight, weaponTransform, basis, playerBody)) {
                 basis = basis * glm::eulerAngleYXZ(glm::radians(m_WeaponModelRotation.y),
                     glm::radians(m_WeaponModelRotation.x), glm::radians(m_WeaponModelRotation.z));
                 weaponTransform.Position -= glm::vec3(basis * glm::vec4(m_WeaponModelGripOffset, 0.0f));
@@ -5190,6 +5227,23 @@ namespace SunEngine {
                     // Modello animato: arma sull'osso della mano destra (i cubi del corpo restano hitbox)
                     const BlockModel* rightModel = m_BlockModels.Find(rightWeaponId);
                     const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR, rightModel, wBPR, !leftWeaponId.empty());
+                    // sfoderare: l'arma nuova parte dal suo posto sul corpo
+                    if (!m_PlayerDraw.init || rightWeaponId != m_PlayerDraw.held) {
+                        const float strength = m_Scene.GetRegistry().all_of<UnitStatsComponent>(m_PlayerEntity) ? m_Scene.GetRegistry().get<UnitStatsComponent>(m_PlayerEntity).strength : 50.0f;
+                        m_PlayerDraw.total = DrawTimeOf(rightWeaponId, strength);
+                        m_PlayerDraw.t = m_PlayerDraw.init ? 0.0f : m_PlayerDraw.total;
+                        m_PlayerDraw.held = rightWeaponId; m_PlayerDraw.init = true;
+                    }
+                    else m_PlayerDraw.t = std::min(m_PlayerDraw.total, m_PlayerDraw.t + m_HoldDt);
+                    if (placedOnHand && rightModel && m_PlayerDraw.t < m_PlayerDraw.total) {
+                        const auto* psk = m_Scene.GetRegistry().try_get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+                        const auto* pvt = m_Scene.GetRegistry().try_get<TransformComponent>(m_AnimatedPlayerEntity);
+                        if (psk && psk->sourceModel && pvt) {
+                            TransformComponent tmp = wTransR; tmp.Scale = glm::vec3(1.0f);
+                            BlendFromMount(*psk->sourceModel, ActiveAnimController(), *pvt, *rightModel, m_PlayerDraw.t / m_PlayerDraw.total, tmp);
+                            wTransR.Position = tmp.Position; wTransR.Rotation = tmp.Rotation;
+                        }
+                    }
                     if (placedOnHand && rightModel && rightModel->hasGripRight) {
                         ikGripR = weaponPoint(wTransR, rightModel->gripRight); ikR = true;
                         if (rightModel->hasGripLeft && leftWeaponId.empty()) { ikGripL = weaponPoint(wTransR, rightModel->gripLeft); ikL = true; }
@@ -5314,6 +5368,15 @@ namespace SunEngine {
                     ApplyQuadrupedIK(m_PlayerEntity, ActiveAnimController(), m_PlayerPose, *vt);
             }
             m_PlayerPoseFresh = false;
+            // Armi e attrezzi che non sono in mano: addosso al giocatore (GameLayerGear.cpp)
+            {
+                auto& reg = m_Scene.GetRegistry();
+                const auto* psk = reg.valid(m_AnimatedPlayerEntity) ? reg.try_get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity) : nullptr;
+                const auto* pvt = reg.valid(m_AnimatedPlayerEntity) ? reg.try_get<TransformComponent>(m_AnimatedPlayerEntity) : nullptr;
+                const std::string ids[7] = { inv.primaryWeaponId, inv.secondaryWeaponId, inv.meleeWeaponId, inv.grenadeId, inv.tool1Id, inv.tool2Id, inv.tool3Id };
+                if (psk && pvt) UpdateGearRack(m_PlayerRack, psk->sourceModel, &ActiveAnimController(), *pvt, GearItemsFor(ids, 7, rightWeaponId, leftWeaponId), IsAnimatedPlayerActive());
+                else UpdateGearRack(m_PlayerRack, nullptr, nullptr, TransformComponent(), {}, false);
+            }
         }
 
     }
@@ -5626,7 +5689,8 @@ namespace SunEngine {
 
                         wState.isReloading = false;
                         wState.reloadTimer = 0.0f;
-                        wState.fireCooldown = 0.0f;
+                        // si spara solo quando l'arma e' arrivata in mano: tempo dal peso e da dove stava (GameLayerGear.cpp)
+                        wState.fireCooldown = DrawTimeOf(targetWeaponId, stats.strength);
                         wState.currentHeat = 0.0f;
                         wState.isOverheating = false;
                         // Il caricatore NON si riempie piu' cambiando arma: lo scambia Ammo::SyncHeld (WeaponSystem)
@@ -6449,7 +6513,8 @@ namespace SunEngine {
             for (int c = 0; gq.sunShadows && c < ShadowMap::CASCADE_COUNT; ++c) {
                 shadowMap.BeginCascade(c);
 
-                // Disegna TUTTI i cubi della scena (per ora solo i cubi, in futuro le mesh)
+                // Disegna TUTTI i cubi della scena; le armi con la mesh vera vanno dopo, coi personaggi
+                std::vector<std::pair<glm::mat4, const SkinnedModel*>> weaponMeshShadows;
                 auto view = m_Scene.GetRegistry().view<TransformComponent, MeshComponent, ColorComponent>();
                 for (auto entity : view) {
                     // Il giocatore col modello animato non proietta l'ombra del suo cubo hitbox
@@ -6457,6 +6522,10 @@ namespace SunEngine {
                     if (!gq.mapDecor && m_Scene.GetRegistry().all_of<MapDecorTag>(entity)) continue;   // detriti nascosti
                     auto& t = view.get<TransformComponent>(entity);
                     const auto* blockModel = m_Scene.GetRegistry().try_get<BlockModelComponent>(entity);
+                    if (blockModel && blockModel->model && blockModel->model->mesh) {
+                        weaponMeshShadows.emplace_back(t.GetTransform(), blockModel->model->mesh);   // dopo i cubi, col passaggio delle ossa
+                        continue;
+                    }
                     if (blockModel && blockModel->model) {
                         const glm::mat4 entityMat = t.GetTransform();
                         for (const auto& part : blockModel->model->parts) {
@@ -6483,6 +6552,16 @@ namespace SunEngine {
                     for (const auto& g : sk.garments) if (g.mesh) m_DeferredRenderer.DrawShadowSkinned(*g.mesh, true);
                     if (sk.extraParts) for (const auto& g : sk.extraParts->parts) if (g.mesh) m_DeferredRenderer.DrawShadowSkinned(*g.mesh);
                     m_DeferredRenderer.EndShadowSkinned();
+                }
+                // Armi e oggetti con la mesh vera (in mano e appesi al corpo)
+                if (gq.characterShadows && c != ShadowMap::CASCADE_COUNT - 1) {
+                    static const std::vector<glm::mat4> s_NoBones(1, glm::mat4(1.0f));
+                    for (const auto& [mat, wm] : weaponMeshShadows) {
+                        if (!m_DeferredRenderer.IsSphereInShadowCascade(c, glm::vec3(mat[3]), 1.0f)) continue;
+                        if (!m_DeferredRenderer.BeginShadowSkinned(c, mat, s_NoBones)) break;
+                        for (const auto& m : wm->meshes) m_DeferredRenderer.DrawShadowSkinned(m, true);
+                        m_DeferredRenderer.EndShadowSkinned();
+                    }
                 }
 
                 shadowMap.EndCascade();
@@ -7011,6 +7090,20 @@ namespace SunEngine {
         const int n = m_BlockModels.LoadDirectory(dir, &errors);
         for (const auto& e : errors) SUN_CORE_WARN("BlockModels: {0}", e);
         SUN_CORE_INFO("Modelli a blocchi caricati: {0} (cartella: {1})", n, dir);
+        // Mesh vere delle armi (Tools/WeaponForge): Models/Weapons/<id>.glb accanto al modello a blocchi
+        const std::string modelsDir = FindValidDir("Models");
+        int meshes = 0;
+        std::error_code ec;
+        for (const auto& id : m_BlockModels.Ids()) {
+            const std::string path = modelsDir + "Weapons/" + id + ".glb";
+            if (!std::filesystem::is_regular_file(path, ec)) continue;
+            auto wm = std::make_unique<SkinnedModel>();
+            if (!LoadAuthoredProp(path, *wm) || wm->meshes.empty()) { SUN_CORE_WARN("Armi: {0} non caricata", path); continue; }
+            m_BlockModels.FindMutable(id)->mesh = wm.get();
+            m_WeaponMeshes[id] = std::move(wm);
+            ++meshes;
+        }
+        SUN_CORE_INFO("Armi con la mesh vera: {0}", meshes);
     }
 
     // Associa all'entity dell'arma il modello a blocchi corrispondente (se esiste), altrimenti torna al cubo.

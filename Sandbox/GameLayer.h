@@ -13,6 +13,7 @@
 #include "Engine/Renderer/RaceMotion.h"
 #include "Engine/Renderer/MuscleTone.h"
 #include "Engine/Renderer/AuthoredModel.h"
+#include "Engine/Renderer/BodyGear.h"
 #include "Engine/Renderer/SurfaceMaterials.h"
 #include "Engine/Renderer/GrugnModel.h"
 #include "Engine/ECS/HordeAISystem.h"
@@ -491,6 +492,10 @@ namespace SunEngine {
 
         // Corpi animati di tutte le unita' (bot, orda, manichini): ognuna ha il suo controller (clip condivise col
         // corpo), la sua entita' visiva e i pezzi della skin sulle ossa; i cubi restano come hitbox, nascosti.
+        // Oggetti appesi al corpo e sfoderare (GameLayerGear.cpp, BodyGear.h)
+        struct GearRack { std::vector<entt::entity> ents; };
+        struct DrawState { std::string held; float t = 0.0f, total = 0.0f; bool init = false; };
+        struct GearItem { std::string id; GearMount mount = GearMount::Count; };
         struct UnitAnimInstance {
             std::unique_ptr<RifleAnimationController> ctrl;
             ProceduralPose pose;
@@ -511,6 +516,8 @@ namespace SunEngine {
             bool moving = false;
             int moveDir = 0;                       // 0 avanti, 1 indietro, 2 destra, 3 sinistra
             std::vector<entt::entity> skinParts;   // pezzi della skin agganciati alle ossa
+            GearRack rack;                         // armi e attrezzi appesi al corpo
+            DrawState draw;                        // sfoderare l'arma in mano
         };
         std::unordered_map<entt::entity, UnitAnimInstance> m_UnitAnims;
         // Morti: il corpo con le ossa resta e segue il ragdoll (i cubi fanno solo la fisica, nascosti). Ogni osso
@@ -543,6 +550,9 @@ namespace SunEngine {
         enum class ShowcaseAnim { Idle = 0, Aim, Walk, Run, Fire, MeleeNormal, MeleeLow, MeleeHeavy, Parry, Stunned, Roar, Count };
         struct ShowcaseActor {
             std::string unitId, weaponId, meleeId;
+            std::string gearIds[7];                // primaria, secondaria, mischia, granata, 3 attrezzi (si vedono addosso)
+            GearRack rack;
+            WeaponHoldState hold;
             AnimatedBodyKind kind = AnimatedBodyKind::Human;
             std::unique_ptr<RifleAnimationController> ctrl;
             ProceduralPose pose;
@@ -721,7 +731,27 @@ namespace SunEngine {
         void SetActionClip(entt::entity e, const RifleAnimationController& c, RifleAnimInput& in);
         // Leggi dell'impugnatura (WeaponHold.h) sul corpo animato: posa l'arma rispetto alle spalle. basis = rotazione.
         bool SolveHoldOnBody(RifleAnimationController& ctrl, const TransformComponent& visualT, float bodyYawDeg,
-            const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis);
+            const BlockModel& model, WeaponHoldInput in, WeaponHoldState& state, TransformComponent& weaponTransform, glm::mat4& basis,
+            const SkinnedModel* body = nullptr);
+        // --- corpo come ingombro e portaoggetti (GameLayerGear.cpp) ---
+        std::unordered_map<const SkinnedModel*, BodyGearInfo> m_BodyGearCache;
+        std::unordered_map<const BlockModel*, std::vector<glm::vec3>> m_GearSamples;
+        std::vector<BodyGearWorldSeg> m_GearSegsScratch;
+        std::vector<glm::vec3> m_GearPtsScratch;
+        GearRack m_PlayerRack;
+        DrawState m_PlayerDraw;
+        const BodyGearInfo& BodyGearOf(const SkinnedModel& model);
+        void BodyGearWorldSegs(const SkinnedModel& model, RifleAnimationController& ctrl, const glm::mat4& visual, std::vector<BodyGearWorldSeg>& out);
+        const std::vector<glm::vec3>& GearSamplePoints(const BlockModel& m);
+        glm::vec3 KeepOutOfBody(const SkinnedModel& body, RifleAnimationController& ctrl, const glm::mat4& visual, const BlockModel& item, const glm::mat4& itemWorld);
+        bool GearMountWorld(const SkinnedModel& body, RifleAnimationController& ctrl, const glm::mat4& visual, GearMount mount, const BlockModel& item, glm::mat4& out);
+        GearMount DefaultMountOf(const std::string& id, bool& show);
+        std::vector<GearItem> GearItemsFor(const std::string* ids, int count, const std::string& heldR, const std::string& heldL);
+        void UpdateGearRack(GearRack& rack, const SkinnedModel* body, RifleAnimationController* ctrl, const TransformComponent& visualT,
+                            const std::vector<GearItem>& items, bool visible);
+        void DestroyGearRack(GearRack& rack);
+        float DrawTimeOf(const std::string& id, float strength);
+        void BlendFromMount(const SkinnedModel& body, RifleAnimationController& ctrl, const TransformComponent& visualT, const BlockModel& item, float s, TransformComponent& weaponT);
         static WeaponHoldKind HoldKindOf(const WeaponBlueprint* bp, const BlockModel& model, bool otherHandBusy);
         // Bocca della canna nel mondo -> MuzzleComponent dell'unita': il colpo parte da li' (WeaponSystem)
         void PublishMuzzle(entt::entity unit, const TransformComponent& weaponTransform, const BlockModel* model, bool leftHand = false);
@@ -885,6 +915,7 @@ namespace SunEngine {
         glm::vec3 m_HandWeaponRotation = glm::vec3(0.0f);              // correzione in gradi
         float m_WeaponPitchFactor = 1.0f;
         BlockModelLibrary m_BlockModels;
+        std::unordered_map<std::string, std::unique_ptr<SkinnedModel>> m_WeaponMeshes;   // mesh vere delle armi (Models/Weapons)
         float m_HitMarkerLife = 0.6f;          // durata del cerchio di colpo (s)
         float m_HitMarkerWorldRadius = 0.12f;  // raggio del cerchio sul corpo (m)
         float m_WeaponHandAlign = 0.0f;   // 0 = arma dritta lungo la mira, 1 = segue la linea tra le mani

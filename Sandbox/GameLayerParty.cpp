@@ -46,6 +46,7 @@ namespace SunEngine {
         for (auto& pa : m_PartyActors) {
             if (reg.valid(pa.actor.visual)) m_Scene.DestroyEntity(pa.actor.visual);
             if (reg.valid(pa.actor.weapon)) m_Scene.DestroyEntity(pa.actor.weapon);
+            DestroyGearRack(pa.actor.rack);
         }
         m_PartyActors.clear();
     }
