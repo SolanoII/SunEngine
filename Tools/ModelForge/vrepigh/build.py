@@ -6,14 +6,25 @@ import bpy, bmesh
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
-OUT = os.path.abspath(sys.argv[sys.argv.index('--out') + 1]) if '--out' in sys.argv else os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../Sandbox/GameData/Models/Characters/vrepigh/model.glb'))
-TEX = 2048
-random.seed(7); np.random.seed(7)
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 os.chdir(HERE)
 sys.path.insert(0, HERE)
-import sdf
+import sdf, variants
+ARGV = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
+
+
+def arg(name, default=None):
+    return ARGV[ARGV.index(name) + 1] if name in ARGV else default
+
+
+VAR = arg('--variant', variants.BASE)
+CFG = variants.get(VAR)
+CHARS = os.path.abspath(os.path.join(HERE, '../../../Sandbox/GameData/Models/Characters/vrepigh'))
+OUT = os.path.abspath(arg('--out', os.path.join(CHARS, 'model.glb') if VAR == variants.BASE else os.path.join(CHARS, 'variants', 'vrepighs_' + VAR + '.glb')))
+TEX = 2048
+random.seed(CFG.get('seed', 7)); np.random.seed(CFG.get('seed', 7))
+sdf.configure(CFG)
+cf = sdf.cf
 R = json.load(open('rig.json'))
 J = {k: np.array(v) for k, v in R['joints'].items()}
 PAR = dict(R['parent'])
@@ -27,7 +38,17 @@ def hw(p):
 
 
 def hl(off):
-    return hw(H + np.asarray(off, float))
+    o = np.array(off, float)
+    u = -o[..., 1]                                    # in avanti: il grugno si allunga con 'snout'
+    o[..., 1] = np.where(u > 0.10, -(0.10 + (u - 0.10) * cf('snout')), o[..., 1])
+    return hw(H + o)
+
+
+def head_local(V):
+    """mondo -> coordinate della testa senza l'allungamento del grugno (come le vede sdf.head)"""
+    P = H + (V - H - HOFF) / HS
+    fw = np.clip(-(P[..., 1] - H[1]) - 0.10, 0, None); P[..., 1] += fw * (1 - 1 / cf('snout'))
+    return P
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -47,9 +68,11 @@ def activate(ob):
 
 
 # ------------------------------------------------------------------ corpo
-if not os.path.exists('shape.npz'):
-    v_, f_ = sdf.build(); np.savez('shape.npz', v=v_, f=f_)
-d = np.load('shape.npz')
+key = json.dumps({k: v for k, v in CFG.items() if k in variants.SHAPE_KEYS}, sort_keys=True)
+shp = f'shape_{VAR}.npz'
+if not os.path.exists(shp) or str(np.load(shp)['key']) != key:
+    v_, f_ = sdf.build(); np.savez(shp, v=v_, f=f_, key=key)
+d = np.load(shp)
 body = link('Body', d['v'], d['f'])
 activate(body)
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
@@ -112,24 +135,33 @@ parts = []   # (oggetto, regola pesi)
 
 # zanne inferiori: dalla mascella verso l'alto, in fuori e indietro
 for s in (1, -1):
+    side = 'L' if s > 0 else 'R'
+    tl, tr, curl = cf('tusk'), cf('tusk_r'), cf('tusk_curl')
     b = hl([0.043 * s, -0.285, -0.03])
-    pts = [b, b + np.array([0.016 * s, -0.018, 0.065]) * HS, b + np.array([0.055 * s, -0.004, 0.125]) * HS,
-           b + np.array([0.085 * s, 0.045, 0.155]) * HS]
-    parts.append((tube('Tusk_L' if s > 0 else 'Tusk_R', pts, 0.021 * HS, 0.0015, 12, 6), 'Jaw'))
+    pts = [b, b + np.array([0.016 * s, -0.018, 0.065]) * HS * tl, b + np.array([0.055 * s, -0.004 * curl, 0.125]) * HS * tl,
+           b + np.array([0.085 * s, 0.045 * curl, 0.155 - 0.02 * (curl - 1)]) * HS * tl]
+    r1 = 0.0015
+    if CFG.get('tusk_broken') == side:                # zanna spezzata: moncone smussato
+        pts = pts[:2] + [pts[1] + (pts[2] - pts[1]) * 0.45]; r1 = 0.021 * HS * tr * 0.55
+    parts.append((tube('Tusk_' + side, pts, 0.021 * HS * tr, r1, 12, 6), 'Jaw'))
     # zanne superiori, piu' corte, che escono dal labbro e si piegano verso l'alto
-    b = hl([0.04 * s, -0.255, 0.0])
-    pts = [b, b + np.array([0.022 * s, -0.004, -0.005]) * HS, b + np.array([0.04 * s, 0.006, 0.025]) * HS,
-           b + np.array([0.046 * s, 0.022, 0.05]) * HS]
-    parts.append((tube('TuskUp_L' if s > 0 else 'TuskUp_R', pts, 0.011 * HS, 0.001, 10, 5), 'Head'))
+    tu = cf('tusk_up')
+    if tu > 0.05:
+        b = hl([0.04 * s, -0.255, 0.0])
+        pts = [b, b + np.array([0.022 * s, -0.004, -0.005]) * HS * tu, b + np.array([0.04 * s, 0.006, 0.025]) * HS * tu,
+               b + np.array([0.046 * s, 0.022, 0.05]) * HS * tu]
+        parts.append((tube('TuskUp_' + side, pts, 0.011 * HS * min(tu, 1.4) * tr, 0.001, 10, 5), 'Head'))
 
 
 # orecchie: foglie appuntite, un poco a coppa, dritte e piegate in fuori
 def ear(s):
     base = hl([0.072 * s, 0.005, 0.165])
-    ax = np.array([0.55 * s, 0.35, 0.78]); ax /= np.linalg.norm(ax)        # lunghezza
+    dr = cf('ear_droop', 0.0)                                                # orecchie che ricadono in fuori
+    ax = np.array([(0.55 + 0.6 * dr) * s, 0.35 + 0.2 * dr, 0.78 - 1.1 * dr]); ax /= np.linalg.norm(ax)        # lunghezza
     wd = np.array([0.25 * s, -1.0, 0.25]); wd -= ax * (wd @ ax); wd /= np.linalg.norm(wd)   # larghezza
     nn = np.cross(ax, wd) * s
-    Lh, W = 0.16 * HS, 0.09 * HS
+    Lh, W = 0.16 * HS * cf('ear'), 0.09 * HS * cf('ear')
+    if CFG.get('ear_torn') == ('L' if s > 0 else 'R'): Lh *= 0.62          # orecchio mozzato
     nu, nv = 9, 7
     V, F = [], []
     for side in (0, 1):
@@ -163,7 +195,7 @@ for s in (1, -1):
 
 # occhi piccoli e infossati
 for s in (1, -1):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.016 * HS, location=tuple(hw(sdf.EYE * [s, 1, 1] + [0, -0.004, 0]) if s > 0 else hw(np.array([-sdf.EYE[0], sdf.EYE[1] - 0.004, sdf.EYE[2]]))))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.016 * HS, location=tuple(hl((sdf.EYE - H) * [s, 1, 1] + [0, -0.004, 0])))
     o = bpy.context.active_object; o.name = 'Eye_L' if s > 0 else 'Eye_R'
     parts.append((o, 'Head'))
 
@@ -203,22 +235,22 @@ def bristles():
     for p, tg, u in pts:
         tg = tg / np.linalg.norm(tg)
         hump = math.exp(-((u - 0.5) / 0.2) ** 2)
-        spread = 0.025 + 0.06 * hump
-        for _ in range(4):
+        spread = (0.025 + 0.06 * hump) * cf('mane_spread')
+        for _ in range(int(round(4 * cf('mane_n')))):
             q = p + np.array([random.uniform(-spread, spread), random.uniform(-0.01, 0.01), 0])
             loc, n = surf(q)
-            L = (0.045 + 0.085 * hump) * random.uniform(0.7, 1.2) * (0.6 if u > 0.85 else 1.0)
+            L = (0.045 + 0.085 * hump) * random.uniform(0.7, 1.2) * (0.6 if u > 0.85 else 1.0) * cf('mane')
             dvec = n * 0.55 + tg * 0.85 + np.random.normal(0, 0.18, 3)
             dvec /= np.linalg.norm(dvec)
             r = 0.0055 + 0.003 * hump
             spike(V, F, loc - n * 0.004, dvec, L, r)
     # guance: ciuffi che scendono all'indietro
     for s in (1, -1):
-        for _ in range(45):
+        for _ in range(int(45 * cf('cheek'))):
             q = hl([0.1 * s + random.uniform(-0.01, 0.01), random.uniform(-0.12, -0.01), random.uniform(-0.06, 0.02)])
             loc, n = surf(q)
             dvec = n * 0.5 + np.array([0.2 * s, 0.8, -0.45]) + np.random.normal(0, 0.15, 3); dvec /= np.linalg.norm(dvec)
-            spike(V, F, loc - n * 0.003, dvec, random.uniform(0.04, 0.07), 0.0045)
+            spike(V, F, loc - n * 0.003, dvec, random.uniform(0.04, 0.07) * cf('cheek_len'), 0.0045)
     return link('Mane', V, F)
 
 
@@ -261,6 +293,10 @@ arm = bpy.data.objects.new('Armature', arm_data); col.objects.link(arm)
 activate(arm)
 bpy.ops.object.mode_set(mode='EDIT')
 EXTRA = {'Tail': TAIL_BASE, 'Jaw': hl([0, -0.06, 0.0]), 'LeftEar': hl([0.072, 0.005, 0.165]), 'RightEar': hl([-0.072, 0.005, 0.165])}
+if VAR == variants.BASE:
+    json.dump({k: [float(x) for x in v] for k, v in EXTRA.items()}, open('rig_extra.json', 'w'), indent=1)
+else:
+    EXTRA = {k: np.array(v) for k, v in json.load(open('rig_extra.json')).items()}
 POS = dict(J); POS.update(EXTRA)
 CH = {}
 for c, p in PAR.items():
@@ -306,7 +342,7 @@ print('gruppi', len(vg))
 
 # testa e mascella definite dalla forma: dentro la testa = Head, sotto la linea della bocca = Jaw
 V = np.array([v.co[:] for v in body.data.vertices])
-Hl = H + (V - H - HOFF) / HS          # coordinate della testa
+Hl = head_local(V)          # coordinate della testa
 dh = sdf.head(V); db = sdf.body(V)
 in_head = (dh < db - 0.004) & (Hl[:, 1] < 0.0)
 # bocca: sotto la retta dalla punta (y=-0.355, z=-0.022) all'angolo (y=-0.10, z=-0.005)
@@ -375,12 +411,12 @@ def mat(name, color, rough, metal=0.0):
 
 for ob, rule in parts:
     n = ob.name
-    if n.startswith('Tusk'): ob.data.materials.append(mat('Tusk_Ivory', (0.62, 0.55, 0.42), 0.45))
-    elif n.startswith('Eye'): ob.data.materials.append(mat('Eye', (0.12, 0.02, 0.01), 0.15))
+    if n.startswith('Tusk'): ob.data.materials.append(mat('Tusk_Ivory', tuple(CFG.get('tusk_col', (0.62, 0.55, 0.42))), 0.45))
+    elif n.startswith('Eye'): ob.data.materials.append(mat('Eye', tuple(CFG.get('eye', (0.12, 0.02, 0.01))), 0.15))
     elif n.startswith('Ear'): pass
     elif n.startswith('Claw'): ob.data.materials.append(mat('Claw_Horn', (0.06, 0.05, 0.045), 0.4))
-    elif n in ('Mane', 'TailTuft'): ob.data.materials.append(mat('Fur_Bristle', (0.035, 0.028, 0.024), 0.75))
-    elif n == 'Tail': ob.data.materials.append(mat('Skin_Tail', (0.05, 0.036, 0.03), 0.7))
+    elif n in ('Mane', 'TailTuft'): ob.data.materials.append(mat('Fur_Bristle', tuple(CFG.get('mane_col', (0.035, 0.028, 0.024))), 0.75))
+    elif n == 'Tail': ob.data.materials.append(mat('Skin_Tail', tuple(np.array(CFG.get('base', (0.075, 0.055, 0.044))) * 0.65), 0.7))
 
 # pelle: le orecchie si uniscono al corpo (stessa texture, pesi propri)
 ears = [ob for ob, r in parts if ob.name.startswith('Ear')]
@@ -397,11 +433,11 @@ body.name = 'Body'
 # colore per vertice (dipinto qui), poi cotto in una texture
 me = body.data
 V = np.array([v.co[:] for v in me.vertices]); N = np.array([v.normal[:] for v in me.vertices])
-Hl = H + (V - H - HOFF) / HS
-base = np.array([0.075, 0.055, 0.044])          # cuoio bruno-grigio
-belly = np.array([0.12, 0.085, 0.068])
-snout = np.array([0.17, 0.105, 0.088])
-dark = np.array([0.035, 0.026, 0.021])
+Hl = head_local(V)
+base = np.array(CFG.get('base', (0.075, 0.055, 0.044)))          # cuoio bruno-grigio
+belly = np.array(CFG.get('belly_col', (0.12, 0.085, 0.068)))
+snout = np.array(CFG.get('snout_col', (0.17, 0.105, 0.088)))
+dark = np.array(CFG.get('dark', (0.035, 0.026, 0.021)))
 hoof = np.array([0.022, 0.018, 0.016])
 C = np.tile(base, (len(V), 1))
 # ventre e gola piu' chiari (normali verso il basso/davanti nel torso)
@@ -433,6 +469,32 @@ earv = np.zeros(len(V), bool)
 for s in (1, -1):
     earv |= np.linalg.norm(V - hl([0.11 * s, 0.03, 0.23]), axis=1) < 0.1 * HS
 C[earv] = C[earv] * 0.5 + np.array([0.3, 0.17, 0.15]) * 0.5
+# striature dei giovani: bande chiare lungo i fianchi e la schiena
+if cf('stripes', 0.0) > 0:
+    ang = np.arctan2(V[:, 0], V[:, 1] - 0.02)
+    band = (np.cos(ang * 9) > 0.55) & (V[:, 2] > 0.75) & (V[:, 2] < 1.45) & (np.abs(V[:, 0]) < 0.32)
+    C[band] = C[band] * (1 - 0.5 * cf('stripes')) + np.array([0.16, 0.12, 0.09]) * 0.5 * cf('stripes')
+# vecchiaia: grugno, arcate e guance ingrigiti
+g = cf('grizzle', 0.0)
+if g > 0:
+    kk = np.clip((-Hl[:, 1] - 0.05) / 0.2, 0, 1) * (np.linalg.norm(V - hl([0, -0.2, 0.05]), axis=1) < 0.3)
+    kk = np.maximum(kk, ((np.abs(Hl[:, 0]) > 0.06) & (Hl[:, 2] < 0.05) & (np.linalg.norm(V - hl([0, -0.1, 0]), axis=1) < 0.2)) * 0.7)
+    grey = np.array([0.25, 0.23, 0.21])
+    C = C * (1 - kk[:, None] * g) + grey * (kk[:, None] * g)
+# cicatrici: solchi chiari e rosati su testa, spalle e braccia
+rng = np.random.RandomState(CFG.get('seed', 7) + 3)
+for _ in range(int(cf('scars', 0.0))):
+    ctr = rng.choice(['head', 'chest', 'arm'], p=[0.45, 0.3, 0.25])
+    if ctr == 'head': p0 = hl([rng.uniform(-0.09, 0.09), rng.uniform(-0.3, -0.05), rng.uniform(0.0, 0.16)])
+    elif ctr == 'chest': p0 = np.array([rng.uniform(-0.25, 0.25), -0.22, rng.uniform(1.0, 1.35)])
+    else:
+        sgn = rng.choice([-1, 1]); p0 = J['LeftArm'] * [sgn, 1, 1] + (J['LeftForeArm'] - J['LeftArm']) * [sgn, 1, 1] * rng.uniform(0, 1.2)
+    dvec = rng.normal(0, 1, 3); dvec /= np.linalg.norm(dvec)
+    p0, _n = surf(p0); p1 = p0 + dvec * rng.uniform(0.06, 0.16)
+    t = np.clip(((V - p0) @ (p1 - p0)) / ((p1 - p0) @ (p1 - p0)), 0, 1)
+    dd = np.linalg.norm(V - (p0 + t[:, None] * (p1 - p0)), axis=1)
+    kk = np.clip(1 - dd / 0.012, 0, 1)
+    C = C * (1 - kk[:, None] * 0.8) + np.array([0.26, 0.13, 0.11]) * (kk[:, None] * 0.8)
 # macchie e cicatrici: rumore a bassa frequenza
 ph = np.random.rand(6, 3) * 10
 nz = sum(np.sin(V @ (np.random.normal(0, 9, 3)) + ph[i, 0]) for i in range(6)) / 6
@@ -496,7 +558,9 @@ print('orecchie', len(earo.data.vertices))
 
 # ------------------------------------------------------------------ esporta
 for o in bpy.context.view_layer.objects: o.select_set(o.type in ('MESH', 'ARMATURE'))
-bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath('vrepigh.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(f'vrepigh_{VAR}.blend'))
+os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=os.path.abspath(OUT), export_format='GLB', use_selection=True,
-                          export_skins=True, export_animations=False, export_apply=False, export_yup=True)
+                          export_skins=True, export_animations=False, export_apply=False, export_yup=True,
+                          export_image_format='JPEG', export_jpeg_quality=92)
 print('esportato', OUT)

@@ -5,7 +5,7 @@
   "point_cost": 75,
   "animated_body": "vrepigh",
   "skeleton": "vrepighs_tusker",
-  "model_scale": 1.38,
+  "model_scale": 1.45,
   "base_speed": 3.15,
   "stamina": 380.0,
   "stamina_regen": 27.142857142857142,

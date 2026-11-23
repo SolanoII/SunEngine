@@ -20,6 +20,9 @@ BODY_OF_DIR = {
     'Vrepighs': ['vrepigh'],
 }
 BODY_OF_UNIT = {'human': 'footman', 'candidate': 'candidate', 'vrepigh': 'vrepigh', 'pighcib': 'pighcib'}
+# Varianti di un corpo per unita' (Models/Characters/<corpo>/variants/<id unita'>.glb): il gioco le esporta come
+# <id unita'>.body e ricevono gli stessi strati del corpo da cui nascono
+VARIANT_PREFIX = {'vrepigh': 'vrepighs_'}
 # triangoli massimi per tipo di pezzo (un soldato completo resta sui 40-50 mila)
 BUDGET = {'shirt': 9000, 'pants': 6000, 'rags': 6000, 'boot': 3500, 'helmet': 5000, 'band': 1500, 'bracer': 2200,
           'arm_plate': 4500, 'leg_plate': 4000, 'flak': 10000, 'chest_plate': 6000, 'heavy_torso': 9000, 'belt': 2500}
@@ -88,7 +91,7 @@ def main():
     ap.add_argument('--bodies', required=True)
     ap.add_argument('--gamedata', required=True)
     ap.add_argument('--out', default=None, help='cartella di uscita (predefinita: <gamedata>/Gear)')
-    ap.add_argument('--only', default='', help='corpi da fare, separati da virgola')
+    ap.add_argument('--only', default='', help='corpi da fare, separati da virgola (anche le varianti: vrepighs_kragh...)')
     ap.add_argument('--ids', default='', help='solo questi strati (id separati da virgola)')
     ap.add_argument('--kinds', default='', help='solo questi tipi (shirt,pants,boot,helmet,...)')
     ap.add_argument('--preview', default='', help='cartella per le anteprime')
@@ -98,6 +101,11 @@ def main():
     only = set(filter(None, a.only.split(','))); ids = set(filter(None, a.ids.split(','))); kinds = set(filter(None, a.kinds.split(',')))
     todo = collect(a.gamedata)
     by_body = {}
+    variants = {}
+    for base, pre in VARIANT_PREFIX.items():
+        for f in sorted(glob.glob(os.path.join(a.bodies, pre + '*.body'))):
+            variants[os.path.splitext(os.path.basename(f))[0]] = base
+    todo = todo + [(v, g, src) for v, base in variants.items() for b, g, src in todo if b == base]
     for b, g, src in todo:
         if only and b not in only: continue
         if ids and g['id'] not in ids: continue

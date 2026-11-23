@@ -497,6 +497,7 @@ namespace SunEngine {
             float poseTime = 0.0f, climb = 0.0f;
             entt::entity visual = entt::null;
             AnimatedBodyKind kind = AnimatedBodyKind::Human;
+            const SkinnedModel* model = nullptr;   // modello disegnato (il corpo o la sua variante per l'unita')
             glm::vec3 lastPos{ 0.0f };
             bool hasLast = false;
             int lastAmmo = -1;
@@ -729,6 +730,12 @@ namespace SunEngine {
             const glm::vec3* gripRightWorld, const glm::vec3* gripLeftWorld);
         bool AnimatedBodyReady(AnimatedBodyKind kind) const;
         SkinnedModel& AnimatedBodyModel(AnimatedBodyKind kind);
+        // Variante del corpo per un'unita' (Characters/<corpo>/variants/<id unita'>.glb): stesse ossa del corpo,
+        // carne diversa (es. Kragh e Gorvakh piu' massicci, il Feral Pig magro). Senza variante: il corpo.
+        SkinnedModel& UnitBodyModel(AnimatedBodyKind kind, const std::string& unitId);
+        void LoadBodyVariants(const SkinnedModel& base, const std::string& folder, const std::string& label);
+        std::unordered_map<std::string, std::unique_ptr<SkinnedModel>> m_BodyVariants;   // id unita' -> variante
+        const SkinnedModel* m_AnimatedModelInUse = nullptr;   // modello assegnato ora al giocatore animato
         void RegisterGearBody(const SkinnedModel& model, const std::string& folder, const SkinnedPartSet* aux);   // forgia (GearMesh.h)
         // Hitbox misurate sul corpo + scheletro a cubi + parti rigide indossate (BoneHitboxes.h), in cache
         const BoneHitboxTemplate& HitboxTemplateFor(AnimatedBodyKind kind, const SkeletonData& skel, const SkinnedModelInstanceComponent& sk);

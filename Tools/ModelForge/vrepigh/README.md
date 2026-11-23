@@ -35,22 +35,45 @@ Materiali, che il gioco riconosce dal nome:
 Per la forgia delle vesti conta solo `Skin`: orecchie, coda, setole, zanne e artigli sono parti aggiunte e non reggono
 le vesti (`GameLayer::RegisterGearBody`).
 
+## Le varianti (una per unità)
+
+Ogni unità Vrepigh ha il suo modello, costruito con lo stesso scheletro: cambia solo la carne. La taglia in partita resta
+quella del `model_scale` nel JSON dell'unità.
+
+| unità | variante | com'è |
+|---|---|---|
+| `vrepighs_tusker` (Vrepigh) | base, `model.glb` | il soldato tipo |
+| `vrepighs_raider` (Razziatore) | `variants/vrepighs_raider.glb` | asciutto e nervoso, cresta di setole alta, cuoio rossiccio |
+| `vrepighs_gunner` (Sparammazza) | `variants/vrepighs_gunner.glb` | tarchiato, avambracci grossi, una zanna scheggiata, un orecchio mozzato |
+| `vrepighs_feral_pig` (Feral Pig) | `variants/vrepighs_feral_pig.glb` | giovane e magro, testa grande, criniera arruffata, zanne appena spuntate, striature da cucciolo |
+| `vrepighs_kragh` (Kragh) | `variants/vrepighs_kragh.glb` | un muro di muscoli, gobba enorme, zanne grosse, cicatrici |
+| `vrepighs_gorvakh` (Gorvakh) | `variants/vrepighs_gorvakh.glb` | enorme e quasi nero, zanne da ariete arrotolate, giogaie pesanti, cicatrici ovunque |
+| `vrepighs_zhelvar` (Zhelvar, il Vecchio) | `variants/vrepighs_zhelvar.glb` | pancia che cade, zanne lunghissime (una spezzata), criniera e grugno grigi, orecchie che ricadono |
+
+I numeri delle varianti sono in `variants.py`. Il gioco carica `variants/<id unità>.glb` accanto al modello del corpo:
+anima lo scheletro del corpo e disegna la variante (`GameLayer::LoadBodyVariants`). Ogni variante ha anche le sue vesti
+in `GameData/Gear/<id unità>/`, che la forgia costruisce come per il corpo base.
+
 ## Rifarlo
 
 ```
 pip install bpy numpy scipy scikit-image pillow
-python Tools/ModelForge/vrepigh/build.py
+python Tools/ModelForge/vrepigh/build.py                      # modello base (Vrepigh)
+python Tools/ModelForge/vrepigh/build.py --variant gorvakh    # una variante
 ```
+Il modello base va fatto per primo: scrive `rig_extra.json` (posizione delle ossa della mascella, delle orecchie e della
+coda), che le varianti riusano.
 
 Lo script scrive `model.glb` nella cartella del gioco (oppure dove indica `--out <file>`) e lascia qui
-`vrepigh.blend`, utile per ritoccarlo a mano. Per cambiare la forma, modifica `sdf.py` e cancella `shape.npz`, che
-contiene la forma già calcolata. Per un'anteprima rapida:
+`vrepigh_<variante>.blend`, utile per ritoccarlo a mano. La forma già calcolata resta in `shape_<variante>.npz` e si
+rifà da sola quando cambiano i numeri della variante; se modifichi `sdf.py`, cancella quei file. Per un'anteprima rapida:
 
 ```
-python Tools/ModelForge/vrepigh/check.py --pose --blend Tools/ModelForge/vrepigh/vrepigh.blend anteprima.png
+python Tools/ModelForge/vrepigh/check.py --pose --blend Tools/ModelForge/vrepigh/vrepigh_tusker.blend anteprima.png
 ```
 
 Dopo ogni modifica al corpo bisogna rifare le vesti e le armature:
 
 1. esporta i corpi dal gioco con `SUN_GEAR_DUMP`;
-2. lancia `Tools/GearForge/forge.py --only vrepigh` (vedi il README della forgia).
+2. lancia `Tools/GearForge/forge.py --only vrepigh,vrepighs_raider,...` (le varianti si chiamano come l'unità; vedi il
+   README della forgia).

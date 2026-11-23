@@ -1,0 +1,26 @@
+{
+ "pieces": {
+  "feral_pig_scrap_arm_l": "arm_plate_e7e3a0938321.gear",
+  "feral_pig_scrap_arm_r": "arm_plate_decbc9fb1f3b.gear",
+  "feral_pig_scrap_chest": "chest_plate_ac7742657974.gear",
+  "feral_pig_scrap_helmet": "helmet_7174eb0f86dd.gear",
+  "feral_pig_scrap_leg_l": "leg_plate_037f1fc112b7.gear",
+  "feral_pig_scrap_leg_r": "leg_plate_29ec14cfd1d9.gear",
+  "raider_plate_arm_r": "arm_plate_42dbad54eadc.gear",
+  "tusker_heavy_torso": "heavy_torso_3f06cae6645f.gear",
+  "tusker_helmet": "helmet_31d2e0d57d13.gear",
+  "tusker_plate_arm_l": "arm_plate_e46882ae5245.gear",
+  "tusker_plate_arm_r": "arm_plate_9926f4158f24.gear",
+  "tusker_plate_chest": "chest_plate_5ed8231b7570.gear",
+  "tusker_plate_leg_l": "leg_plate_e42c95b27910.gear",
+  "tusker_plate_leg_r": "leg_plate_7a61542897c9.gear",
+  "vrepigh_belt": "belt_d9a31261f2e7.gear",
+  "vrepigh_trousers": "pants_3352c544484f.gear"
+ },
+ "body": {
+  "name": "vrepighs_raider",
+  "height": 1.6338,
+  "vertices": 171230
+ },
+ "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
+}

@@ -1,5 +1,5 @@
-shape.npz
-vrepigh.blend
-vrepigh.blend1
+shape*.npz
+vrepigh*.blend
+vrepigh*.blend1
 Skin_BaseColor.png
 __pycache__/

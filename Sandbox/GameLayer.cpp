@@ -2477,7 +2477,8 @@ namespace SunEngine {
             const AnimatedBodyKind kind = BodyKindForUnit(unitId);
             if (!AnimatedBodyReady(kind)) continue;
             auto it = m_UnitAnims.find(e);
-            if (it != m_UnitAnims.end() && it->second.kind != kind) {   // cambio di corpo: si ricrea
+            SkinnedModel& unitModel = UnitBodyModel(kind, unitId);
+            if (it != m_UnitAnims.end() && (it->second.kind != kind || it->second.model != &unitModel)) {   // cambio di corpo: si ricrea
                 if (reg.valid(it->second.visual)) m_Scene.DestroyEntity(it->second.visual);
                 for (auto p : it->second.skinParts) if (reg.valid(p)) m_Scene.DestroyEntity(p);
                 m_UnitAnims.erase(it);
@@ -2486,6 +2487,7 @@ namespace SunEngine {
             if (it == m_UnitAnims.end()) {
                 UnitAnimInstance inst;
                 inst.kind = kind;
+                inst.model = &unitModel;
                 inst.bindPose = reg.all_of<TrainingDummyComponent>(e);
                 inst.ctrl = std::make_unique<RifleAnimationController>();
                 inst.ctrl->ShareClipsFrom(AnimatedBodyController(kind));
@@ -2494,7 +2496,7 @@ namespace SunEngine {
                 reg.emplace<TransformComponent>(inst.visual);
                 reg.emplace<ColorComponent>(inst.visual);
                 auto& sk = reg.emplace<SkinnedModelInstanceComponent>(inst.visual);
-                sk.sourceModel = &AnimatedBodyModel(kind);
+                sk.sourceModel = &unitModel;
                 sk.boneMatrices = inst.bindPose ? &s_BindPose : &inst.ctrl->GetFinalBoneMatrices();
                 it = m_UnitAnims.emplace(e, std::move(inst)).first;
             }
@@ -4608,6 +4610,7 @@ namespace SunEngine {
                     if (!clips.empty()) body.animLoaded = body.controller.LoadClips(clips, info.modelPath, &body.model, info.animsDir.empty() ? std::string() : gameClips);
                     SUN_CORE_INFO("Corpo {0}: modello d'autore {1} (animazioni: {2})", label, info.modelPath, clips);
                     RegisterGearBody(body.model, AuthoredFolderOf(label), nullptr);
+                    LoadBodyVariants(body.model, folder, label);
                     return;
                 }
                 SUN_CORE_WARN("Corpo {0}: modello d'autore in {1} non caricato, uso quello del gioco", label, folder);
@@ -4756,6 +4759,73 @@ namespace SunEngine {
         return Body(kind).model;
     }
 
+    SkinnedModel& GameLayer::UnitBodyModel(AnimatedBodyKind kind, const std::string& unitId) {
+        if (!unitId.empty()) {
+            auto it = m_BodyVariants.find(unitId);
+            if (it != m_BodyVariants.end() && it->second && BodyKindForUnit(unitId) == kind) return *it->second;
+        }
+        return AnimatedBodyModel(kind);
+    }
+
+    // Varianti del corpo d'autore: <cartella>/variants/<id unita'>.glb (o .gltf, .fbx). Devono avere le stesse ossa,
+    // nella stessa posa di riposo, del modello del corpo: si anima lo scheletro del corpo e si disegna la variante.
+    // Le ossa dei vertici vengono riportate agli indici del corpo per nome.
+    void GameLayer::LoadBodyVariants(const SkinnedModel& base, const std::string& folder, const std::string& label) {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        const fs::path dir = fs::path(folder) / "variants";
+        if (!fs::is_directory(dir, ec)) return;
+        for (const auto& de : fs::directory_iterator(dir, ec)) {
+            std::string ext = de.path().extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            if (ext != ".glb" && ext != ".gltf" && ext != ".fbx") continue;
+            const std::string unitId = de.path().stem().string();
+            AuthoredCharacterInfo info;
+            info.folder = dir.string() + "/";
+            info.modelPath = de.path().string();
+            auto m = std::make_unique<SkinnedModel>();
+            if (!LoadAuthoredCharacter(info, *m, DefaultBodyHeightCm(label))) {
+                SUN_CORE_WARN("Corpo {0}: variante {1} non caricata", label, info.modelPath);
+                continue;
+            }
+            std::unordered_map<int, int> idOf;   // osso della variante -> osso del corpo
+            int missing = 0;
+            for (const auto& [name, bi] : m->boneInfoMap) {
+                auto it = base.boneInfoMap.find(name);
+                idOf[bi.id] = it == base.boneInfoMap.end() ? -1 : it->second.id;
+                if (it == base.boneInfoMap.end()) ++missing;
+            }
+            std::vector<SkinnedMesh> rebuilt;
+            rebuilt.reserve(m->meshes.size());
+            for (auto& mm : m->meshes) {
+                for (auto& v : mm.vertices) {
+                    float sum = 0.0f;
+                    for (int k = 0; k < MAX_BONE_INFLUENCE; ++k) {
+                        if (v.BoneIDs[k] < 0) continue;
+                        auto f = idOf.find(v.BoneIDs[k]);
+                        const int nid = f == idOf.end() ? -1 : f->second;
+                        if (nid < 0) { v.BoneIDs[k] = -1; v.Weights[k] = 0.0f; }
+                        else v.BoneIDs[k] = nid;
+                        sum += v.Weights[k];
+                    }
+                    if (sum > 1e-5f) for (float& w : v.Weights) w /= sum;
+                }
+                if (mm.VAO) { glDeleteVertexArrays(1, &mm.VAO); glDeleteBuffers(1, &mm.VBO); glDeleteBuffers(1, &mm.EBO); mm.VAO = mm.VBO = mm.EBO = 0; }
+                const int mat = mm.materialIndex;
+                rebuilt.emplace_back(std::move(mm.vertices), std::move(mm.indices));
+                rebuilt.back().materialIndex = mat;
+            }
+            m->meshes = std::move(rebuilt);
+            m->boneInfoMap = base.boneInfoMap;
+            m->boneCounter = base.boneCounter;
+            m->unitScale = base.unitScale;
+            SUN_CORE_INFO("Corpo {0}: variante per {1} ({2} sotto-mesh{3})", label, unitId, m->meshes.size(),
+                          missing ? ", " + std::to_string(missing) + " ossa sconosciute" : std::string());
+            RegisterGearBody(*m, unitId, nullptr);   // vesti della forgia: GameData/Gear/<id unita'>/
+            m_BodyVariants[unitId] = std::move(m);
+        }
+    }
+
     RifleAnimationController& GameLayer::AnimatedBodyController(AnimatedBodyKind kind) {
         if (kind == AnimatedBodyKind::Human || kind == AnimatedBodyKind::Count) return m_RifleAnimController;
         return Body(kind).controller;
@@ -4825,10 +4895,13 @@ namespace SunEngine {
             reg.emplace<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
             m_AnimatedBodyAssigned = false;   // forza l'assegnazione del modello qui sotto
         }
-        if (!m_AnimatedBodyAssigned || m_AnimatedBodyInUse != kind) {
+        const auto* playerUid = reg.try_get<UnitBlueprintId>(m_PlayerEntity);
+        SkinnedModel& playerModel = UnitBodyModel(kind, playerUid ? playerUid->id : std::string());
+        if (!m_AnimatedBodyAssigned || m_AnimatedBodyInUse != kind || m_AnimatedModelInUse != &playerModel) {
             // Cambio di unita' (es. footman -> ogre nel garage): stessa entity, altro modello
             auto& inst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
-            inst.sourceModel = &AnimatedBodyModel(kind);
+            inst.sourceModel = &playerModel;
+            m_AnimatedModelInUse = &playerModel;
             inst.boneMatrices = &controller.GetFinalBoneMatrices();
             m_AnimatedBodyInUse = kind;
             m_AnimatedBodyAssigned = true;

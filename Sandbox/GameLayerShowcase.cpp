@@ -99,7 +99,7 @@ namespace SunEngine {
         vt.Scale = glm::vec3(m_AnimatedModelScale * a.scale * AnimatedBodyModel(a.kind).unitScale);
         reg.emplace<ColorComponent>(a.visual);
         auto& sk = reg.emplace<SkinnedModelInstanceComponent>(a.visual);
-        sk.sourceModel = &AnimatedBodyModel(a.kind);
+        sk.sourceModel = &UnitBodyModel(a.kind, id);   // variante dell'unita', se c'e'
         sk.boneMatrices = &a.ctrl->GetFinalBoneMatrices();
         sk.albedo = glm::vec4(SkinFor(static_cast<int>(a.kind)), 1.0f);
         if (a.kind == AnimatedBodyKind::Vrepigh && !Body(a.kind).boar.parts.parts.empty()) sk.extraParts = &Body(a.kind).boar.parts;   // testa del vrepigh

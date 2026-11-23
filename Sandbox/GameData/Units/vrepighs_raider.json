@@ -4,6 +4,7 @@
   "ai_role": "ranged",
   "skeleton": "vrepighs_tusker",
   "animated_body": "vrepigh",
+  "model_scale": 0.97,
   "point_cost": 20,
   "stamina": 160.0,
   "stamina_regen": 12.0,

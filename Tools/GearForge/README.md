@@ -44,6 +44,10 @@ ambientale cotta con Cycles. I colori, le texture e le varianti restano quelli d
    Un corpo intero richiede pochi minuti (la stoffa è la parte lenta).
 4. Ricompila (la cartella GameData viene copiata accanto all'eseguibile) e controlla in Vetrina.
 
+Varianti dei corpi: se un corpo d'autore ha delle varianti per unità (`Models/Characters/vrepigh/variants/<id unità>.glb`),
+il gioco le esporta come `<id unità>.body` (es. `vrepighs_kragh.body`) e la forgia dà loro gli stessi strati del corpo
+base, in `GameData/Gear/<id unità>/`. Si fanno con `--only vrepighs_kragh,...` o tutte insieme al corpo base.
+
 Pezzi con la stessa forma (stessa zona e spessore, colore diverso, per esempio recluta e veterano) vengono costruiti
 una volta sola: `index.json` collega ogni id al suo file.
 
