@@ -1,30 +1,31 @@
 # Modello del Pighcib
 
-Il Pighcib è un porcellino d'India guastato dalla pietra, grottesco come un goblin. Il modello d'autore finisce in
-`Sandbox/GameData/Models/Characters/pighcib/model.glb` e il gioco lo usa al posto del corpo procedurale. La prima
-versione, quella carina, è tenuta da parte come `indianpig` (`../indianpig/`).
+Il Pighcib è una bestiola viva e arrabbiata, a metà tra un Vrepigh, un porcellino d'India, un ratto e un goblin. Il
+modello d'autore finisce in `Sandbox/GameData/Models/Characters/pighcib/model.glb` e il gioco lo usa al posto del corpo
+procedurale. Le versioni precedenti sono tenute da parte: quella carina come `indianpig` (`../indianpig/`), quella
+non morta come `zombie_indianpig` (`../zombie_indianpig/`).
 
 ## Com'è fatto
 
-- **Corpo:** gobbo, con le costole in vista sopra una pancia gonfia e cadente, le vertebre a nodi lungo la schiena e
-  bubboni sparsi. Gli arti sono magri e nodosi, con mani ossute dalle dita lunghe e piedi lunghi.
-- **Testa:** ancora da porcellino d'India, ma stirata e scavata. Ha arcate pesanti sopra orbite infossate, zigomi aguzzi e
-  tempie incavate. Dai Vrepigh prende il disco del naso, a carne viva.
-- **Bocca:** larga da goblin, taglia le guance. Ha incisivi da roditore gialli e lunghi, file di denti a spillo storti
-  sopra e sotto e due zannette, una spezzata. I denti di sotto sono sull'osso `Jaw`.
-- **Orecchie:** lunghe e appuntite, ricadono all'indietro e hanno tacche e buchi (ossa `LeftEar` / `RightEar`).
-- **Occhi:** piccoli, in fondo alle orbite, con un riflesso rosso.
-- **La pietra:** schegge scure, appena luminose di verde malato, bucano la pelle su spalla, schiena, cranio, braccio e
-  fianco. Attorno hanno carne viva e un reticolo di vene nere.
-- **Pelle:** grigio-rosata e rognosa, con croste, chiazze di pelo sporco (fulvo, fuliggine, crema ingiallito) e ciuffi
-  infeltriti. Mani e piedi sono neri di sporco.
+- **Corpo:** nervoso, con la gobba dei Vrepigh, petto e braccia asciutti, mani grandi da goblin con dita lunghe e
+  artigli, cosce piene e piedi lunghi da ratto.
+- **Testa:** da porcellino d'India, col muso lungo e appuntito del ratto. Dai Vrepigh prende il disco del naso e le
+  zanne, che escono dalla mandibola e si piegano verso l'alto (osso `Jaw`).
+- **Espressione:** fronte aggrottata a V, naso arricciato, labbro alzato su incisivi gialli e denti a spillo, occhi
+  stretti color ambra.
+- **Orecchie:** appuntite, schiacciate all'indietro, con tacche e buchi (ossa `LeftEar` / `RightEar`).
+- **Pelo:** mantello a chiazze (fulvo, nero, crema sporco), con la criniera irta dei Vrepigh dalla fronte alla schiena
+  e baffi lunghi sul muso.
+- **Coda:** lunga e nuda da ratto, legata all'anca (`Hips`).
+- **La pietra:** poche schegge scure, appena luminose, su spalla, schiena e braccio, con un po' di vene attorno.
 
 Lo scheletro è quello del gioco (`rig.json`, dal `pighcib_master.fbx`), più `Jaw` e le due orecchie.
 
 I materiali sono questi:
 
 - `Skin` e `Skin_Ears`: pelle cotta in una texture;
-- `Fur_Rust`, `Fur_Soot`, `Fur_Dirty`: ciuffi di pelo;
+- `Fur_Rust`, `Fur_Soot`, `Fur_Dirty`, `Fur_Whiskers`: pelo, criniera e baffi;
+- `Skin_Tail`: coda;
 - `Stone_Shard`: le schegge, con una leggera emissione;
 - `Eye`: occhi, con una leggera emissione;
 - `Teeth_Bone`: denti;
@@ -42,7 +43,7 @@ python Tools/ModelForge/pighcib/build.py
 Usa le primitive di `../vrepigh/sdf.py`. Se modifichi `sdf.py`, cancella `shape.npz`. Per un'anteprima a colori:
 
 ```
-python Tools/ModelForge/vrepigh/render.py Tools/ModelForge/pighcib/pighcib.blend anteprima.png 0.95 -0.19 0.76
+python Tools/ModelForge/vrepigh/render.py Tools/ModelForge/pighcib/pighcib.blend anteprima.png 0.95 -0.21 0.76
 ```
 
 Dopo ogni modifica bisogna rifare anche gli stracci:

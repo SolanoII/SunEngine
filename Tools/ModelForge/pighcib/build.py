@@ -1,7 +1,8 @@
-# Modello d'autore del Pighcib: un porcellino d'India guastato dalla pietra, grottesco come un goblin. Corpo gobbo
-# con costole, vertebre e bubboni sopra una pancia gonfia (sdf.py); testa scavata con una bocca larga piena di denti
-# a spillo e incisivi gialli, orecchie sbrindellate, occhi rossi in fondo alle orbite; pelle rognosa con chiazze di pelo
-# sporco e infeltrito; schegge di pietra verdastra che bucano spalla, schiena, cranio e braccio, con vene scure attorno.
+# Modello d'autore del Pighcib: una bestiola viva e arrabbiata, a meta' tra un Vrepigh, un porcellino d'India, un
+# ratto e un goblin. Corpo nervoso con la gobba dei Vrepigh e mani grandi da goblin (sdf.py); testa da porcellino
+# d'India col muso lungo da ratto, disco del naso e zanne dei Vrepigh, fronte aggrottata, naso arricciato e labbro
+# alzato sui denti a spillo; orecchie schiacciate all'indietro; pelo a chiazze con la criniera irta lungo la schiena,
+# baffi, coda nuda da ratto; poche schegge di pietra su spalla e schiena.
 # Scheletro del gioco (rig.json, quello del pighcib_master.fbx) + Jaw e orecchie. Uscita:
 # Sandbox/GameData/Models/Characters/pighcib/model.glb
 import sys, os, json, math, random
@@ -155,16 +156,16 @@ for s in (1, -1):
             tip = base + np.array([random.uniform(-0.004, 0.004) + 0.002 * s, random.uniform(-0.004, 0.003), -L * up]) * HS
             parts.append((tube('TeethUp' if up > 0 else 'TeethLow', [base, (base + tip) / 2 + np.random.normal(0, 0.001, 3), tip],
                                random.uniform(0.0022, 0.0032) * HS, 0.0004, 5, 2), rule))
-    # zannette dei Vrepigh dalla mandibola, spezzate e storte
-    b0 = hw(sdf.JAW_B + [0.024 * s, 0.03, 0.006])
-    parts.append((tube('Tusk', [b0, b0 + np.array([0.008 * s, -0.004, 0.02]) * HS, b0 + np.array([0.016 * s, 0.004, 0.034]) * HS],
-                       0.006 * HS, 0.0018 if s > 0 else 0.0035, 7, 3), 'Jaw'))
+    # zanne dei Vrepigh: escono dalla mandibola fuori dal labbro e si piegano in alto e in fuori
+    b0 = hw(sdf.JAW_B + [0.022 * s, 0.035, 0.008])
+    parts.append((tube('Tusk', [b0, b0 + np.array([0.01 * s, -0.008, 0.026]) * HS, b0 + np.array([0.026 * s, -0.002, 0.048]) * HS,
+                                b0 + np.array([0.036 * s, 0.014, 0.058]) * HS], 0.0085 * HS, 0.0012, 8, 4), 'Jaw'))
 
 
 # orecchie da goblin: grandi, aperte all'indietro, sbrindellate, con buchi e tacche
 def ear(s):
     base = hw(H + [0.075 * s, -0.01, 0.13])
-    ax = np.array([0.62 * s, 0.6, 0.5]); ax /= np.linalg.norm(ax)
+    ax = np.array([0.5 * s, 0.82, 0.3]); ax /= np.linalg.norm(ax)
     wd = np.array([0.0, -0.35, 1.0]); wd -= ax * (wd @ ax); wd /= np.linalg.norm(wd)
     nn = np.cross(ax, wd) * s
     Lh, W = 0.17 * HS, 0.085 * HS
@@ -212,7 +213,7 @@ for s in (1, -1):
 # occhi piccoli in fondo alle orbite, con un riflesso rosso malato
 for s in (1, -1):
     c = hw(sdf.EYE * [s, 1, 1] + [0.004 * s, 0.004, 0.0]) if s > 0 else hw(np.array([-sdf.EYE[0] - 0.004, sdf.EYE[1] + 0.004, sdf.EYE[2]]))
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.011 * HS, location=tuple(c))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.0115 * HS, location=tuple(c))
     o = bpy.context.active_object; o.name = 'Eye_' + ('L' if s > 0 else 'R')
     parts.append((o, 'Head'))
 
@@ -254,8 +255,7 @@ def shard(V, F, base, dirv, L, r, sides=6):
 
 
 SV, SF = [], []
-CLUSTERS = [((-0.1, 0.06, 0.7), 5, 0.18), ((0.0, 0.12, 0.62), 3, 0.14), ((0.0, 0.115, 0.53), 2, 0.1),
-            (tuple(hw(H + [0.055, -0.01, 0.14])), 3, 0.12), ((0.26, -0.03, 0.66), 2, 0.07), ((-0.12, -0.08, 0.46), 2, 0.08)]
+CLUSTERS = [((-0.1, 0.06, 0.7), 4, 0.1), ((0.04, 0.12, 0.6), 2, 0.07), ((0.26, -0.03, 0.66), 2, 0.05)]
 for ctr, n, Lmax in CLUSTERS:
     loc, nrm = surf(np.array(ctr))
     CRYSTALS.append((loc, nrm))
@@ -270,19 +270,19 @@ parts.append((link('Stone_Shards', SV, SF), 'near'))
 me = body.data
 V = np.array([v.co[:] for v in me.vertices]); N = np.array([v.normal[:] for v in me.vertices])
 Hl = H + (V - H) / HS
-SKIN = np.array([0.085, 0.062, 0.056])          # pelle malata, grigio-rosata
-RUST = np.array([0.11, 0.05, 0.022])           # pelo fulvo sporco
-SOOT = np.array([0.025, 0.021, 0.019])         # pelo nero di fuliggine
-DIRTY = np.array([0.12, 0.1, 0.072])           # pelo crema ingiallito
+SKIN = np.array([0.15, 0.085, 0.075])          # pelle nuda (muso, orecchie, mani, piedi, coda): rosa scuro
+RUST = np.array([0.13, 0.055, 0.022])          # pelo fulvo
+SOOT = np.array([0.028, 0.022, 0.019])         # pelo nero
+DIRTY = np.array([0.16, 0.13, 0.09])           # pelo crema sporco
 ph = np.random.rand(6) * 6.28
 dirs = np.random.normal(0, 1, (6, 3)); dirs /= np.linalg.norm(dirs, axis=1)[:, None]
 fur = sum(np.sin(V @ dirs[i] * 17.0 + ph[i]) for i in range(6)) / 6         # dove resta il pelo
 tone = sum(np.sin(V @ dirs[(i + 3) % 6] * 9.0 + ph[i] * 1.3) for i in range(6)) / 6
 furcol = np.where(tone[:, None] > 0.15, RUST, np.where(tone[:, None] < -0.2, SOOT, DIRTY))
-hasfur = fur > -0.05
+hasfur = np.ones(len(V), bool)                                          # pelo ovunque, tranne dove e' pelle nuda
 C = np.where(hasfur[:, None], furcol, SKIN)
-# piaghe e croste
-for _ in range(26):
+# cicatrici di zuffe
+for _ in range(6):
     c = V[np.random.randint(len(V))]
     k = np.clip(1 - np.linalg.norm(V - c, axis=1) / random.uniform(0.008, 0.02), 0, 1)
     C = C * (1 - k[:, None] * 0.85) + np.array([0.12, 0.025, 0.02]) * (k[:, None] * 0.85)
@@ -290,51 +290,96 @@ for _ in range(26):
 vn = np.abs(sum(np.sin(V @ (np.random.normal(0, 60, 3)) + i) for i in range(4)) / 4)
 for loc, nrm in CRYSTALS:
     dist = np.linalg.norm(V - loc, axis=1)
-    raw = np.clip(1 - dist / 0.04, 0, 1)                              # carne viva attorno alla scheggia
-    vein = np.clip(1 - dist / 0.14, 0, 1) * (vn < 0.08)
+    raw = np.clip(1 - dist / 0.025, 0, 1)                             # pelle tirata attorno alla scheggia
+    vein = np.clip(1 - dist / 0.07, 0, 1) * (vn < 0.06)
     C = C * (1 - raw[:, None] * 0.8) + np.array([0.1, 0.012, 0.02]) * (raw[:, None] * 0.8)
     C = C * (1 - vein[:, None] * 0.85) + np.array([0.035, 0.01, 0.04]) * (vein[:, None] * 0.85)
 # grugno e bocca a carne viva, orbite nere, gengive scure
 nose = np.linalg.norm(Hl - sdf.NOSE, axis=1) < 0.028
-C[nose] = np.array([0.24, 0.06, 0.05])
+C[nose] = np.array([0.16, 0.07, 0.06])
+# punta del muso nuda, rosa scuro
+snout = np.clip((-(Hl[:, 1] - H[1]) - 0.2) / 0.04, 0, 1) * (Hl[:, 2] < H[2] + 0.07)
+C = C * (1 - snout[:, None] * 0.8) + SKIN * (snout[:, None] * 0.8)
 mt = np.clip(((mir(Hl) - sdf.MOUTH_FRONT) @ (sdf.MOUTH_BACK - sdf.MOUTH_FRONT)) / np.sum((sdf.MOUTH_BACK - sdf.MOUTH_FRONT) ** 2), 0, 1)
 md = np.linalg.norm(mir(Hl) - (sdf.MOUTH_FRONT + mt[:, None] * (sdf.MOUTH_BACK - sdf.MOUTH_FRONT)), axis=1)
 k = np.clip(1 - (md - 0.008) / 0.012, 0, 1)
 C = C * (1 - k[:, None]) + np.array([0.08, 0.012, 0.012]) * k[:, None]
 ed = np.linalg.norm(mir(Hl) - sdf.EYE, axis=1)
-k = np.clip(1 - (ed - 0.01) / 0.012, 0, 1)
+k = np.clip(1 - (ed - 0.008) / 0.008, 0, 1)
 C = C * (1 - k[:, None] * 0.9) + np.array([0.02, 0.01, 0.01]) * (k[:, None] * 0.9)
-# mani e piedi neri di sporco
+# mani e piedi nudi, scuri di sporco
+bare = np.zeros(len(V))
+for pre in ('Left', 'Right'):
+    bare = np.maximum(bare, np.clip(1 - np.linalg.norm(V - J[pre + 'Hand'], axis=1) / 0.08, 0, 1))
+bare = np.maximum(bare, np.clip((0.09 - V[:, 2]) / 0.05, 0, 1))
+C = C * (1 - bare[:, None]) + SKIN * bare[:, None]
 dk = np.zeros(len(V))
 for pre in ('Left', 'Right'):
     dk = np.maximum(dk, np.clip(1 - np.linalg.norm(V - J[pre + 'Hand'], axis=1) / 0.12, 0, 1))
 dk = np.maximum(dk, np.clip((0.12 - V[:, 2]) / 0.1, 0, 1))
-C = C * (1 - dk[:, None] * 0.6) + np.array([0.03, 0.025, 0.02]) * (dk[:, None] * 0.6)
+C = C * (1 - dk[:, None] * 0.45) + np.array([0.04, 0.03, 0.025]) * (dk[:, None] * 0.45)
 C *= (1 + 0.15 * (sum(np.sin(V @ (np.random.normal(0, 25, 3)) + i) for i in range(5)) / 5))[:, None]
 C = np.clip(C, 0, 1)
 
 
-# ------------------------------------------------------------------ pelo infeltrito, a ciuffi radi, del colore della chiazza
-def mange():
+# ------------------------------------------------------------------ pelo: mantello a ciuffi, criniera irta dei Vrepigh, baffi
+def coat():
     KD = cKDTree(V)
     out = {}
-    areas = [((0.08, 0.06, 0.69), 0.07), ((-0.04, 0.1, 0.66), 0.06), (tuple(hw(H + [0.0, 0.02, 0.15])), 0.05),
-             ((0.09, 0.07, 0.44), 0.06), ((-0.1, 0.06, 0.42), 0.05), ((0.0, 0.11, 0.57), 0.04)]
-    for ctr, rad in areas:
-        cs, cn = surf(np.array(ctr))
-        for _ in range(int(900 * rad)):
-            loc, n = surf(cs + np.random.normal(0, rad * 0.5, 3))
-            _, vi = KD.query(loc)
-            if not hasfur[vi]: continue
-            key = 'Fur_Rust' if tone[vi] > 0.15 else ('Fur_Soot' if tone[vi] < -0.2 else 'Fur_Dirty')
-            dvec = n * 0.45 + np.array([0, 0.45, -0.75]) + np.random.normal(0, 0.25, 3); dvec /= np.linalg.norm(dvec)
-            out.setdefault(key, ([], []))
-            spike(*out[key], loc - n * 0.002, dvec, random.uniform(0.012, 0.03), 0.0028, 4)
-    return [link(k, *vf) for k, vf in out.items()]
+
+    def add(loc, n, dvec, L, r, sides=4):
+        _, vi = KD.query(loc)
+        if bare[vi] > 0.5 or snout[vi] > 0.5: return
+        key = 'Fur_Rust' if tone[vi] > 0.15 else ('Fur_Soot' if tone[vi] < -0.2 else 'Fur_Dirty')
+        out.setdefault(key, ([], []))
+        spike(*out[key], loc - n * 0.002, dvec, L, r, sides)
+
+    # mantello: ciuffi sparsi su tutto il corpo, pettinati all'indietro e in basso
+    idx = np.random.choice(len(V), 2600, replace=False)
+    for i in idx:
+        if V[i, 2] < 0.12: continue
+        n = N[i]
+        dvec = n * 0.35 + np.array([0, 0.55, -0.7]) + np.random.normal(0, 0.2, 3); dvec /= np.linalg.norm(dvec)
+        add(V[i], n, dvec, random.uniform(0.01, 0.022), 0.0024)
+    # criniera irta: dalla fronte lungo la gobba fino ai reni, alta come quella di un Vrepigh arrabbiato
+    path = [hw(H + [0, -0.11, 0.135]), hw(H + [0, -0.03, 0.17]), hw(H + [0, 0.05, 0.15]), np.array([0, 0.13, 0.7]),
+            np.array([0, 0.16, 0.62]), np.array([0, 0.15, 0.53]), np.array([0, 0.12, 0.45])]
+    for i in range(len(path) - 1):
+        for k in range(16):
+            t = k / 16
+            p = path[i] * (1 - t) + path[i + 1] * t
+            u = (i + t) / (len(path) - 1)
+            hump = math.exp(-((u - 0.45) / 0.25) ** 2)
+            for _ in range(3):
+                loc, n = surf(p + np.array([random.uniform(-1, 1) * (0.012 + 0.03 * hump), 0, 0]))
+                tg = path[i + 1] - path[i]; tg /= np.linalg.norm(tg)
+                dvec = n * 0.85 + tg * 0.35 + np.random.normal(0, 0.15, 3); dvec /= np.linalg.norm(dvec)
+                _, vi = KD.query(loc)
+                key = 'Fur_Soot'
+                out.setdefault(key, ([], []))
+                spike(*out[key], loc - n * 0.003, dvec, (0.025 + 0.045 * hump) * random.uniform(0.75, 1.2), 0.0035)
+    objs = [link(k, *vf) for k, vf in out.items()]
+    # baffi: lunghi e sottili dai lati del muso
+    WV, WF = [], []
+    for s in (1, -1):
+        for k in range(6):
+            base = hw(H + [0.026 * s, -0.235 + 0.012 * (k % 3), 0.012 + 0.008 * (k // 3)])
+            loc, n = surf(base)
+            dvec = np.array([0.85 * s, 0.3, random.uniform(-0.25, 0.15)]) + np.random.normal(0, 0.08, 3); dvec /= np.linalg.norm(dvec)
+            spike(WV, WF, loc - n * 0.002, dvec, random.uniform(0.06, 0.09), 0.0011, 3)
+    objs.append(link('Fur_Whiskers', WV, WF))
+    return objs
 
 
-for o in mange():
-    parts.append((o, 'near'))
+for o in coat():
+    parts.append((o, 'Head' if o.name.startswith('Fur_Whiskers') else 'near'))
+
+# coda da ratto: lunga e nuda, che esce sotto la gobba e striscia dietro (segue i fianchi)
+tb, tn_ = surf(np.array([0, 0.14, 0.43]))
+tp = [tb - tn_ * 0.005, tb + np.array([0, 0.07, -0.05]), tb + np.array([0.03, 0.14, -0.17]), tb + np.array([0.08, 0.2, -0.3]),
+      tb + np.array([0.06, 0.28, -0.39]), tb + np.array([-0.02, 0.34, -0.41])]
+tail = tube('Tail', tp, 0.016, 0.003, 9, 7)
+parts.append((tail, 'tail'))
 
 # ------------------------------------------------------------------ scheletro
 arm_data = bpy.data.armatures.new('Armature')
@@ -407,6 +452,10 @@ KD = cKDTree(V)
 for ob, rule in parts:
     ob.parent = arm
     mod = ob.modifiers.new('Armature', 'ARMATURE'); mod.object = arm
+    if rule == 'tail':
+        g = ob.vertex_groups.new(name=PREFIX + 'Hips')
+        g.add(list(range(len(ob.data.vertices))), 1.0, 'REPLACE')
+        continue
     if rule == 'near':
         pv = np.array([v.co[:] for v in ob.data.vertices])
         _, nn = KD.query(pv)
@@ -439,14 +488,15 @@ def shared(name, *a, **k):
     return MATS[name]
 
 
-FURCOL = {'Fur_Rust': RUST, 'Fur_Soot': SOOT, 'Fur_Dirty': DIRTY}
+FURCOL = {'Fur_Rust': RUST, 'Fur_Soot': SOOT, 'Fur_Dirty': DIRTY, 'Fur_Whiskers': np.array([0.02, 0.018, 0.016])}
 for ob, rule in parts:
     n = ob.name
     if n.startswith('Teeth'): ob.data.materials.append(shared('Teeth_Bone', (0.34, 0.27, 0.13), 0.55))
     elif n.startswith('Tusk'): ob.data.materials.append(shared('Tusk_Ivory', (0.38, 0.31, 0.18), 0.5))
-    elif n.startswith('Eye'): ob.data.materials.append(shared('Eye', (0.02, 0.003, 0.0), 0.08, emit=(0.3, 0.03, 0.005), strength=0.6))
+    elif n.startswith('Eye'): ob.data.materials.append(shared('Eye', (0.09, 0.03, 0.005), 0.05, emit=(0.22, 0.06, 0.0), strength=0.35))
     elif n.startswith('Claw'): ob.data.materials.append(shared('Claw_Horn', (0.03, 0.025, 0.02), 0.45))
     elif n.startswith('Stone'): ob.data.materials.append(shared('Stone_Shard', (0.012, 0.016, 0.012), 0.12, emit=(0.06, 0.11, 0.02), strength=0.45, metal=0.35))
+    elif n == 'Tail': ob.data.materials.append(shared('Skin_Tail', tuple(SKIN * 0.8), 0.55))
     elif n.startswith('Fur_'): ob.data.materials.append(shared(n.split('.')[0], tuple(FURCOL[n.split('.')[0]] * 0.9), 0.85))
 
 ears = [ob for ob, r in parts if ob.name.startswith('Ear')]
