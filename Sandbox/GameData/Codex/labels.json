@@ -1,0 +1,685 @@
+{
+ "comment": "Etichette del Codex (scheda nel gioco e pagina web): campo -> [nome, unita'], gruppi per tipo di scheda, traduzioni dei valori. I campi senza etichetta finiscono in \"Altro\" col nome del file.",
+ "labels": {
+  "base_damage": [
+   "Danno per colpo",
+   ""
+  ],
+  "pellet_count": [
+   "Pallini per colpo",
+   ""
+  ],
+  "rate_of_fire": [
+   "Cadenza",
+   "colpi/min"
+  ],
+  "fire_modes": [
+   "Modalità di fuoco",
+   ""
+  ],
+  "armor_penetration": [
+   "Perforazione",
+   ""
+  ],
+  "impact_force": [
+   "Forza d'impatto",
+   ""
+  ],
+  "toughness_bypass": [
+   "Ignora robustezza",
+   "%"
+  ],
+  "explosion_damage": [
+   "Danno d'esplosione",
+   ""
+  ],
+  "explosion_radius": [
+   "Raggio d'esplosione",
+   "m"
+  ],
+  "fusion_shot": [
+   "Colpo a fusione",
+   ""
+  ],
+  "fusion_range": [
+   "Portata della fusione",
+   "m"
+  ],
+  "fusion_multiplier": [
+   "Moltiplicatore fusione",
+   "×"
+  ],
+  "charge_time": [
+   "Carica",
+   "s"
+  ],
+  "overcharge_time": [
+   "Sovraccarica",
+   "s"
+  ],
+  "overcharge_damage": [
+   "Danno in sovraccarica",
+   ""
+  ],
+  "flamer_cone_angle": [
+   "Cono di fiamma",
+   "°"
+  ],
+  "structure_damage_multiplier": [
+   "Danno alle strutture",
+   "×"
+  ],
+  "backstab_multiplier": [
+   "Colpo alle spalle",
+   "×"
+  ],
+  "magazine_size": [
+   "Caricatore",
+   "colpi"
+  ],
+  "spare_magazines": [
+   "Caricatori di riserva",
+   ""
+  ],
+  "reload_time_sec": [
+   "Ricarica",
+   "s"
+  ],
+  "ammo_type": [
+   "Munizioni",
+   ""
+  ],
+  "ammo_per_shot": [
+   "Munizioni per colpo",
+   ""
+  ],
+  "heat_capacity": [
+   "Capacità termica",
+   ""
+  ],
+  "heat_recoil_multiplier": [
+   "Rinculo da surriscaldamento",
+   "×"
+  ],
+  "range_effective": [
+   "Portata efficace",
+   "m"
+  ],
+  "damage_falloff_start": [
+   "Il danno cala da",
+   "m"
+  ],
+  "damage_falloff_end": [
+   "Danno minimo a",
+   "m"
+  ],
+  "spread_base": [
+   "Dispersione",
+   "°"
+  ],
+  "spread_auto_multiplier": [
+   "Dispersione in automatico",
+   "×"
+  ],
+  "recoil_force": [
+   "Rinculo",
+   ""
+  ],
+  "scope_zoom_fov": [
+   "Campo visivo in mira",
+   "°"
+  ],
+  "has_scope": [
+   "Ottica",
+   ""
+  ],
+  "has_underbarrel": [
+   "Arma sottocanna",
+   ""
+  ],
+  "launches_grenade": [
+   "Lancia granate",
+   ""
+  ],
+  "projectile_type": [
+   "Proiettile",
+   ""
+  ],
+  "projectile_speed": [
+   "Velocità del proiettile",
+   "m/s"
+  ],
+  "is_beam": [
+   "A raggio continuo",
+   ""
+  ],
+  "suppression_value": [
+   "Soppressione",
+   ""
+  ],
+  "suppression_slow": [
+   "Rallentamento da soppressione",
+   "%"
+  ],
+  "shake_intensity": [
+   "Scossone della visuale",
+   ""
+  ],
+  "fov_kick": [
+   "Contraccolpo della visuale",
+   ""
+  ],
+  "default_melee_type": [
+   "Colpo di base",
+   ""
+  ],
+  "melee_reach": [
+   "Portata",
+   "m"
+  ],
+  "heavy_lunge_distance": [
+   "Affondo del colpo pesante",
+   "m"
+  ],
+  "parry_blocks_ranged": [
+   "La parata ferma i proiettili",
+   ""
+  ],
+  "equipment_type": [
+   "Tipo",
+   ""
+  ],
+  "equipment_uses": [
+   "Usi",
+   ""
+  ],
+  "equipment_use_time": [
+   "Tempo d'uso",
+   "s"
+  ],
+  "equipment_cooldown": [
+   "Ricarica dell'attrezzo",
+   "s"
+  ],
+  "equipment_range": [
+   "Raggio d'azione",
+   "m"
+  ],
+  "fuse_time": [
+   "Spoletta",
+   "s"
+  ],
+  "explode_on_impact": [
+   "Esplode all'impatto",
+   ""
+  ],
+  "throw_speed": [
+   "Velocità di lancio",
+   "m/s"
+  ],
+  "trigger_radius": [
+   "Raggio d'innesco",
+   "m"
+  ],
+  "effect_duration": [
+   "Durata dell'effetto",
+   "s"
+  ],
+  "heal_amount": [
+   "Cura",
+   ""
+  ],
+  "morale_bonus": [
+   "Bonus morale",
+   ""
+  ],
+  "crate_charges": [
+   "Ricariche nella cassa",
+   ""
+  ],
+  "repair_rate": [
+   "Riparazione",
+   "/s"
+  ],
+  "repair_range": [
+   "Raggio di riparazione",
+   "m"
+  ],
+  "summon_unit": [
+   "Evoca",
+   ""
+  ],
+  "summon_delay": [
+   "Arrivo dopo",
+   "s"
+  ],
+  "companion_speed": [
+   "Velocità del compagno",
+   "m/s"
+  ],
+  "companion_health": [
+   "Salute del compagno",
+   ""
+  ],
+  "companion_evasion": [
+   "Schivata del compagno",
+   ""
+  ],
+  "companion_attack_interval": [
+   "Attacco del compagno ogni",
+   "s"
+  ],
+  "structure_health": [
+   "Salute della struttura",
+   ""
+  ],
+  "structure_armor": [
+   "Armatura della struttura",
+   ""
+  ],
+  "barricade_size": [
+   "Dimensione",
+   ""
+  ],
+  "wielder_speed_bonus": [
+   "Bonus velocità",
+   ""
+  ],
+  "move_speed_bonus": [
+   "Bonus velocità",
+   ""
+  ],
+  "ammo_capacity_bonus": [
+   "Bonus munizioni",
+   ""
+  ],
+  "ai_role": [
+   "Ruolo dei bot",
+   ""
+  ],
+  "health": [
+   "Salute",
+   ""
+  ],
+  "toughness": [
+   "Robustezza",
+   ""
+  ],
+  "armor_rating": [
+   "Armatura",
+   ""
+  ],
+  "stamina": [
+   "Stamina",
+   ""
+  ],
+  "stamina_regen": [
+   "Recupero stamina",
+   "/s"
+  ],
+  "base_speed": [
+   "Velocità",
+   "m/s"
+  ],
+  "strength": [
+   "Forza",
+   ""
+  ],
+  "accuracy_skill": [
+   "Mira",
+   ""
+  ],
+  "melee_skill": [
+   "Abilità in mischia",
+   ""
+  ],
+  "morale": [
+   "Morale",
+   ""
+  ],
+  "suppression_threshold": [
+   "Soglia di soppressione",
+   ""
+  ],
+  "vision_range": [
+   "Vista",
+   "m"
+  ],
+  "fov_degrees": [
+   "Campo visivo",
+   "°"
+  ],
+  "weight_capacity": [
+   "Portata di peso",
+   "kg"
+  ],
+  "max_per_squad": [
+   "Massimo per squadra",
+   ""
+  ],
+  "ammo_multiplier": [
+   "Munizioni di scorta",
+   "×"
+  ],
+  "model_scale": [
+   "Scala del modello",
+   "×"
+  ],
+  "skeleton_scale": [
+   "Scala dello scheletro",
+   "×"
+  ],
+  "climb_height": [
+   "Si arrampica fino a",
+   "m"
+  ],
+  "climb_speed": [
+   "Velocità d'arrampicata",
+   "m/s"
+  ],
+  "momentum_bonus": [
+   "Bonus di slancio",
+   ""
+  ],
+  "momentum_time": [
+   "Tempo per lo slancio pieno",
+   "s"
+  ],
+  "charge_threshold": [
+   "Slancio per caricare",
+   ""
+  ],
+  "charge_damage": [
+   "Danno della carica",
+   ""
+  ],
+  "quadruped_run": [
+   "Corre a quattro zampe",
+   ""
+  ],
+  "no_melee": [
+   "Niente arma da mischia",
+   ""
+  ],
+  "melee_fallback": [
+   "Colpo di riserva",
+   ""
+  ],
+  "strict_loadout": [
+   "Solo equipaggiamento dedicato",
+   ""
+  ],
+  "animated_body": [
+   "Corpo",
+   ""
+  ],
+  "location": [
+   "Parte del corpo",
+   ""
+  ],
+  "coverage": [
+   "Copertura",
+   "%"
+  ],
+  "max_durability": [
+   "Resistenza",
+   ""
+  ],
+  "weight": [
+   "Peso",
+   "kg"
+  ],
+  "blocks_headshot_bonus": [
+   "Protegge dai colpi in testa",
+   ""
+  ],
+  "aim_bonus": [
+   "Bonus di mira",
+   "%"
+  ],
+  "morale_cap_bonus": [
+   "Tetto del morale",
+   ""
+  ],
+  "morale_start_bonus": [
+   "Morale di partenza",
+   ""
+  ]
+ },
+ "groups": {
+  "weapon": [
+   [
+    "Fuoco",
+    [
+     "base_damage",
+     "pellet_count",
+     "rate_of_fire",
+     "fire_modes",
+     "armor_penetration",
+     "impact_force",
+     "toughness_bypass",
+     "explosion_damage",
+     "explosion_radius",
+     "fusion_shot",
+     "fusion_range",
+     "fusion_multiplier",
+     "charge_time",
+     "overcharge_time",
+     "overcharge_damage",
+     "flamer_cone_angle",
+     "structure_damage_multiplier",
+     "backstab_multiplier"
+    ]
+   ],
+   [
+    "Munizioni",
+    [
+     "magazine_size",
+     "spare_magazines",
+     "reload_time_sec",
+     "ammo_type",
+     "ammo_per_shot",
+     "heat_capacity",
+     "heat_recoil_multiplier"
+    ]
+   ],
+   [
+    "Gittata e precisione",
+    [
+     "range_effective",
+     "damage_falloff_start",
+     "damage_falloff_end",
+     "spread_base",
+     "spread_auto_multiplier",
+     "recoil_force",
+     "scope_zoom_fov",
+     "has_scope",
+     "has_underbarrel",
+     "launches_grenade",
+     "projectile_type",
+     "projectile_speed",
+     "is_beam"
+    ]
+   ],
+   [
+    "Effetti sul bersaglio",
+    [
+     "suppression_value",
+     "suppression_slow",
+     "shake_intensity",
+     "fov_kick"
+    ]
+   ],
+   [
+    "Corpo a corpo",
+    [
+     "default_melee_type",
+     "melee_reach",
+     "heavy_lunge_distance",
+     "parry_blocks_ranged"
+    ]
+   ],
+   [
+    "Attrezzo",
+    [
+     "equipment_type",
+     "equipment_uses",
+     "equipment_use_time",
+     "equipment_cooldown",
+     "equipment_range",
+     "fuse_time",
+     "explode_on_impact",
+     "throw_speed",
+     "trigger_radius",
+     "effect_duration",
+     "heal_amount",
+     "morale_bonus",
+     "crate_charges",
+     "repair_rate",
+     "repair_range",
+     "summon_unit",
+     "summon_delay",
+     "companion_speed",
+     "companion_health",
+     "companion_evasion",
+     "companion_attack_interval",
+     "structure_health",
+     "structure_armor",
+     "barricade_size",
+     "wielder_speed_bonus",
+     "move_speed_bonus",
+     "ammo_capacity_bonus"
+    ]
+   ]
+  ],
+  "unit": [
+   [
+    "Sopravvivenza",
+    [
+     "health",
+     "toughness",
+     "armor_rating",
+     "stamina",
+     "stamina_regen",
+     "morale",
+     "suppression_threshold"
+    ]
+   ],
+   [
+    "Movimento",
+    [
+     "base_speed",
+     "weight_capacity",
+     "climb_height",
+     "climb_speed",
+     "momentum_bonus",
+     "momentum_time",
+     "charge_threshold",
+     "charge_damage",
+     "quadruped_run"
+    ]
+   ],
+   [
+    "Combattimento",
+    [
+     "strength",
+     "accuracy_skill",
+     "melee_skill",
+     "vision_range",
+     "fov_degrees",
+     "ammo_multiplier",
+     "no_melee",
+     "melee_fallback"
+    ]
+   ],
+   [
+    "Squadra",
+    [
+     "ai_role",
+     "max_per_squad",
+     "strict_loadout",
+     "animated_body",
+     "model_scale",
+     "skeleton_scale"
+    ]
+   ]
+  ],
+  "armor": [
+   [
+    "Protezione",
+    [
+     "location",
+     "armor_rating",
+     "coverage",
+     "max_durability",
+     "blocks_headshot_bonus",
+     "aim_bonus",
+     "morale_cap_bonus",
+     "morale_start_bonus"
+    ]
+   ]
+  ]
+ },
+ "values": {
+  "ai_role": {
+   "ranged": "tiratore",
+   "melee": "mischia",
+   "versatile": "versatile"
+  },
+  "fire_modes": {
+   "auto": "automatico",
+   "semi": "semiautomatico",
+   "burst": "raffica",
+   "single": "colpo singolo",
+   "pump": "a pompa",
+   "bolt": "otturatore",
+   "charge": "carica",
+   "beam": "raggio"
+  },
+  "projectile_type": {
+   "ballistic": "balistico",
+   "energy": "energia",
+   "plasma": "plasma",
+   "beam": "raggio",
+   "grenade": "granata",
+   "rocket": "razzo",
+   "flame": "fiamma"
+  },
+  "location": {
+   "Head": "Testa",
+   "Torso": "Torso",
+   "LeftArm": "Braccio sinistro",
+   "RightArm": "Braccio destro",
+   "LeftLeg": "Gamba sinistra",
+   "RightLeg": "Gamba destra"
+  },
+  "default_melee_type": {
+   "Light": "veloce",
+   "Normal": "normale",
+   "Heavy": "pesante"
+  },
+  "animated_body": {
+   "human": "umano",
+   "vrepigh": "vrepigh",
+   "pighcib": "pighcib",
+   "candidate": "candidato",
+   "vanguard": "Vanguard Armor",
+   "ogre": "ogre"
+  }
+ },
+ "percent": [
+  "toughness_bypass",
+  "suppression_slow",
+  "coverage",
+  "aim_bonus"
+ ],
+ "factions": {
+  "Kingship": "Regno",
+  "Vanguard": "Vanguardia",
+  "Vrepighs": "Vrepigh",
+  "Grey_Knights": "Grey Knights",
+  "Imperium": "Imperium (vecchio)",
+  "Orks": "Orks (vecchio)",
+  "Spacemarines": "Space Marines (vecchio)"
+ }
+}

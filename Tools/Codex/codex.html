@@ -1,0 +1,384 @@
+<title>Codex di SunCollector</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Codex da armeria: schede come cartellini di magazzino su fondo canna di fucile, timbri di fazione, schede per categoria.
+   Un solo tema scuro, scelto apposta (grimdark): tutti i colori sono espliciti. */
+:root {
+  color-scheme: dark;
+  --bg: #111315;
+  --panel: #1a1d20;
+  --panel-2: #22262a;
+  --line: #2f3439;
+  --fg: #ddd8cb;
+  --muted: #8f8b7e;
+  --brass: #c09346;
+  --hazard: #d6a51c;
+  --ok: #7fa36a;
+  --warn: #d0823b;
+  --k: #8b9356;
+  --v: #b3372b;
+  --x: #b06430;
+  --g: #8796a8;
+  --display: "Big Shoulders Stencil Display", "Impact", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(44px, 8vw, 88px); line-height: .9; margin: 0; letter-spacing: .01em; }
+.lede { color: var(--muted); max-width: 70ch; margin: 0; }
+
+.tabs { display: flex; gap: 0; overflow-x: auto; border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; background: var(--bg); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.tab { flex: 0 0 auto; font: 700 17px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: none; border: 0; border-bottom: 3px solid transparent; padding: 12px 16px 9px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--brass); }
+.tab small { font: 500 11px var(--mono); color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+
+.filters { display: grid; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row .lab { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 74px; }
+.chip { font: 500 12px var(--body); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 5px 10px; cursor: pointer; }
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.chip:focus-visible, .card:focus-visible, input:focus-visible, select:focus-visible, .close:focus-visible, .tab:focus-visible { outline: 2px solid var(--hazard); outline-offset: 2px; }
+input[type=search], select { font: 13px var(--body); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 6px 10px; }
+input[type=search] { flex: 1 1 220px; min-width: 0; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.grid.compact { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); display: grid; grid-template-rows: auto 1fr; cursor: pointer; color: inherit; position: relative; }
+.card:hover { border-color: #4a5056; }
+.f-Kingship { --fac: var(--k); } .f-Vanguard { --fac: var(--v); } .f-Vrepighs { --fac: var(--x); } .f-Grey_Knights, .f-, .f-Imperium, .f-Orks, .f-Spacemarines { --fac: var(--g); }
+.shot { aspect-ratio: 720 / 416; max-width: 100%; background: #24282c; display: grid; place-items: center; overflow: hidden; border-bottom: 1px solid var(--line); position: relative; }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.noimg { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 12px; text-align: center; }
+.stamp { position: absolute; left: 0; top: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; padding: 3px 8px; color: #111315; background: var(--fac); }
+.stripe { height: 4px; background: var(--fac); }
+.cbody { padding: 12px 14px 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.name { font-family: var(--display); font-weight: 700; font-size: 24px; line-height: 1.05; letter-spacing: .01em; text-wrap: balance; }
+.meta { font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.meta .t { color: var(--brass); }
+.bars { display: grid; gap: 5px; }
+.bar { display: grid; grid-template-columns: 82px 1fr 56px; gap: 8px; align-items: center; font-size: 11px; }
+.bar span:first-child { color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+.track { height: 6px; background: var(--panel-2); position: relative; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--fac); }
+.val { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.who { display: flex; flex-wrap: wrap; gap: 4px; }
+.u { font-size: 11px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 2px; color: var(--fg); }
+.u.base { border-color: var(--brass); color: var(--brass); }
+.u.none { color: var(--muted); font-style: italic; }
+.empty { color: var(--muted); font-family: var(--mono); padding: 40px 0; text-align: center; }
+.legend { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.legend .u { font-size: 10px; }
+
+/* panoramica */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 2px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.tile:hover { border-color: #4a5056; }
+.tile b { font: 900 40px/1 var(--display); }
+.tile span { font: 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.ov { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+.box { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+h2.sec { font: 700 22px var(--display); letter-spacing: .03em; margin: 0; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font: 500 10.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); }
+td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.todo { display: grid; gap: 4px; }
+.todo .h { font-family: var(--mono); font-size: 12px; }
+.todo .h.ok { color: var(--ok); } .todo .h.warn { color: var(--warn); }
+.todo .l { color: var(--muted); font-size: 12.5px; }
+
+/* scheda */
+.sheet { position: fixed; inset: 0; z-index: 20; background: rgba(5, 6, 7, .82); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.dlg { background: var(--panel); border: 1px solid var(--line); width: min(1020px, 100%); max-height: 100%; overflow: auto; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.dlg .shot { aspect-ratio: auto; height: min(520px, 70vh); border-bottom: 0; border-right: 1px solid var(--line); align-self: start; position: sticky; top: 0; }
+.dlg .shot img { object-fit: contain; }
+.dinfo { padding: 18px 20px 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.dinfo h2 { font-family: var(--display); font-weight: 900; font-size: 36px; line-height: 1; margin: 0; text-wrap: balance; }
+.comment { color: var(--muted); margin: 0; }
+.dinfo td:last-child { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; padding-right: 0; }
+.dinfo td:first-child { color: var(--muted); }
+h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); margin: 6px 0 0; font-weight: 500; }
+.close { position: sticky; top: 0; justify-self: end; font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); padding: 6px 10px; cursor: pointer; }
+.uses p { margin: 0; font-size: 12.5px; }
+.uses b { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; }
+@media (max-width: 860px) { .ov { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .dlg { grid-template-columns: 1fr; } .dlg .shot { position: static; height: auto; min-height: 200px; border-right: 0; border-bottom: 1px solid var(--line); } }
+@media (prefers-reduced-motion: no-preference) { .card, .tile { transition: border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Project SunCollector · dati da Sandbox/GameData · <span id="stamp"></span></div>
+    <h1>Codex</h1>
+    <p class="lede">Tutto quello che c'è nel gioco: unità, nemici e personaggi, armi, equipaggiamento e armature, con le foto dei modelli e le statistiche dei file. Nel gioco c'è la stessa cosa nella scheda CODEX del menu principale.</p>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Categorie"></nav>
+
+  <section id="overview" hidden></section>
+
+  <section id="listing" hidden>
+    <div class="filters">
+      <div class="row" id="facRow"><span class="lab">Fazione</span></div>
+      <div class="row">
+        <span class="lab">Cerca</span>
+        <input type="search" id="q" placeholder="Nome, id o unità">
+        <select id="sort" aria-label="Ordina per"></select>
+      </div>
+      <div class="legend" id="legend"><span class="u base">Unità</span> ce l'ha nella dotazione base <span class="u">Unità</span> la può sbloccare o sceglierla</div>
+    </div>
+    <div class="grid" id="grid" style="margin-top:16px"></div>
+    <div class="empty" id="empty" hidden>Niente con questi filtri.</div>
+  </section>
+</div>
+
+<div class="sheet" id="sheet" hidden></div>
+
+<script>
+const TABS = [
+  ['panoramica', 'Panoramica', null],
+  ['unita', 'Unità', 'unit'],
+  ['nemici', 'Nemici, élite e storia', 'other'],
+  ['armi-da-fuoco', 'Armi da fuoco', 'ranged'],
+  ['armi-bianche', 'Armi bianche', 'melee'],
+  ['equipaggiamento', 'Equipaggiamento', 'equipment'],
+  ['armature', 'Armature', 'armor'],
+];
+const HAND = { OneHanded: 'una mano', TwoHanded: 'due mani' };
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+let D = null, E = [], LBL = {}, tab = 'panoramica', fac = 'all';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const num = v => typeof v === 'number' ? (Number.isInteger(v) ? v : +v.toFixed(2)).toLocaleString('it-IT') : v;
+const facName = f => (LBL.factions || {})[f] || f || '—';
+const label = k => ((LBL.labels || {})[k] || [k])[0];
+function fmt(k, v) {
+  if (typeof v === 'boolean') return v ? 'sì' : 'no';
+  const words = (LBL.values || {})[k] || {};
+  if (Array.isArray(v)) return v.map(x => words[x] || num(x)).join(', ');
+  if (typeof v === 'string') return words[v] || v;
+  if (typeof v === 'number') {
+    if ((LBL.percent || []).includes(k)) return Math.round(v * 1000) / 10 + '%';
+    const u = ((LBL.labels || {})[k] || [])[1];
+    return num(v) + (u ? ' ' + u : '');
+  }
+  return '';
+}
+const dps = w => (w.is_melee || !w.rate_of_fire || !w.base_damage) ? null : w.base_damage * (w.pellet_count || 1) * w.rate_of_fire / 60;
+
+function bars(e) {
+  switch (e._cat) {
+    case 'unit': case 'other': return [['Salute', e.health ?? 0, 'hp'], ['Robustezza', e.toughness ?? 0, 'tg'], ['Velocità', e.base_speed ?? 0, 'sp'], ['Mira', e.accuracy_skill ?? 0, 'ac'], ['Mischia', e.melee_skill ?? 0, 'ml']];
+    case 'equipment': return [['Danno', e.explosion_damage ?? e.base_damage ?? 0, 'dmg'], ['Raggio', e.explosion_radius ?? e.equipment_range ?? e.trigger_radius ?? 0, 'rad'], ['Usi', e.equipment_uses ?? 0, 'uses']];
+    case 'melee': return [['Danno', e.base_damage ?? 0, 'dmg'], ['Colpo max', (e.base_damage ?? 0) * (e._maxmul || 1), 'maxhit'], ['Perforaz.', e.armor_penetration ?? 0, 'ap']];
+    case 'armor': return [['Armatura', e.armor_rating ?? 0, 'ar'], ['Copertura', Math.round((e.coverage ?? 0) * 100), 'cv'], ['Resistenza', e.max_durability ?? 0, 'du']];
+    default: return [['Danno/s', dps(e) ?? 0, 'dps'], ['Colpo', (e.base_damage ?? 0) * (e.pellet_count || 1), 'dmg'], ['Portata', e.range_effective ?? 0, 'rng'], ['Perforaz.', e.armor_penetration ?? 0, 'ap']];
+  }
+}
+let MAX = {};
+function computeMax() {
+  MAX = {};
+  for (const e of E) for (const [, v, k] of bars(e)) { const key = (e._cat === 'other' ? 'unit' : e._cat) + k; MAX[key] = Math.max(MAX[key] || 0, v || 0); }
+}
+function whoHTML(e) {
+  if (!e._who || !e._who.length) return '<span class="u none">Nessuna unità può usarla</span>';
+  return e._who.map(u => `<span class="u${u.base ? ' base' : ''}" title="${u.base ? 'Dotazione base' : 'Sbloccabile o a scelta'}">${esc(u.name)}</span>`).join('');
+}
+function shot(e, big) {
+  if (e._img) return `<img src="${e._img}" alt="${esc(e.displayName)}" loading="${big ? 'eager' : 'lazy'}">`;
+  const why = e._kind === 'armor' ? 'Si vede addosso alle unità' : e._kind === 'unit' ? 'Foto non ancora fatta' : /claws/.test(e.id) ? 'Arma naturale: artigli del corpo' : 'Nessun modello 3D';
+  return `<div class="noimg">${why}</div>`;
+}
+function metaHTML(e) {
+  const m = [];
+  const r = e._research;
+  if (e._kind === 'unit') {
+    if (r) m.push(`<span class="t">${r.premium ? 'Élite' : 'Grado ' + ROMAN[r.tier]}</span>`); else m.push('<span class="t">Non si ricerca</span>');
+    m.push(`<span>${esc(fmt('ai_role', e.ai_role))}</span>`, `<span>${e.point_cost} pt</span>`);
+  } else {
+    if (e._kind === 'armor') m.push(`<span>${esc(fmt('location', e.location))}</span>`, `<span>${num(e.weight)} kg</span>`);
+    else m.push(`<span>${HAND[e.hand_type] || ''}</span>`, `<span>${num(e.weight_kg)} kg</span>`);
+    m.push(`<span>${e.point_cost} pt</span>`);
+    if (r) m.push(`<span class="t">Grado ${ROMAN[r.tier]}</span>`);
+  }
+  return m.join('');
+}
+function card(e) {
+  const cat = e._cat === 'other' ? 'unit' : e._cat;
+  const b = bars(e).map(([lab, v, k]) => {
+    const m = MAX[cat + k] || 1;
+    const shown = ['dps', 'maxhit'].includes(k) ? Math.round(v) : num(v);
+    return `<div class="bar"><span>${lab}</span><div class="track"><div class="fill" style="width:${Math.max(2, 100 * v / m)}%"></div></div><span class="val">${shown}</span></div>`;
+  }).join('');
+  const top = e._kind === 'armor' ? `<div class="stripe"></div>` : `<div class="shot">${shot(e)}<span class="stamp">${esc(facName(e.faction))}</span></div>`;
+  const foot = e._kind === 'unit'
+    ? `<div class="who">${(e._base || []).slice(0, 3).map(([, n]) => `<span class="u base">${esc(n)}</span>`).join('')}</div>`
+    : `<div class="who">${whoHTML(e)}</div>`;
+  return `<div class="card f-${esc(e.faction || '')}" role="button" tabindex="0" data-id="${esc(e.id)}" aria-label="${esc(e.displayName)}: tutti i dettagli">
+    ${top}
+    <div class="cbody">
+      <div class="name">${esc(e.displayName)}</div>
+      <div class="meta">${e._kind === 'armor' ? `<span>${esc(facName(e.faction))}</span>` : ''}${metaHTML(e)}</div>
+      <div class="bars">${b}</div>
+      ${foot}
+    </div></div>`;
+}
+
+const SORTS = {
+  unit: [['name', 'nome'], ['tier', 'grado'], ['hp', 'salute'], ['cost', 'costo in punti']],
+  ranged: [['name', 'nome'], ['dps', 'danno al secondo'], ['dmg', 'danno per colpo'], ['cost', 'costo in punti'], ['weight', 'peso']],
+  melee: [['name', 'nome'], ['dmg', 'danno'], ['cost', 'costo in punti'], ['weight', 'peso']],
+  equipment: [['name', 'nome'], ['dmg', 'danno'], ['cost', 'costo in punti'], ['weight', 'peso']],
+  armor: [['name', 'nome'], ['ar', 'armatura'], ['cost', 'costo in punti'], ['weight', 'peso']],
+};
+const KEYS = {
+  tier: e => -(e._research ? (e._research.premium ? 9 : e._research.tier) : 10), hp: e => e.health || 0, cost: e => e.point_cost || 0,
+  dps: e => dps(e) ?? -1, dmg: e => (e.base_damage ?? e.explosion_damage ?? 0) * (e.pellet_count || 1), weight: e => e.weight_kg ?? e.weight ?? 0, ar: e => e.armor_rating || 0,
+};
+function catOf(t) { return (TABS.find(x => x[0] === t) || [])[2]; }
+function renderList() {
+  const cat = catOf(tab);
+  const q = $('#q').value.trim().toLowerCase();
+  const s = $('#sort').value;
+  let list = E.filter(e => e._cat === cat && (fac === 'all' || (e.faction || '') === fac) &&
+    (!q || (e.displayName + ' ' + e.id + ' ' + (e._who || []).map(u => u.name).join(' ')).toLowerCase().includes(q)));
+  const key = KEYS[s];
+  list.sort(key ? (a, b) => key(b) - key(a) || a.displayName.localeCompare(b.displayName, 'it') : (a, b) => a.displayName.localeCompare(b.displayName, 'it'));
+  $('#grid').className = 'grid' + (cat === 'armor' ? ' compact' : '');
+  $('#grid').innerHTML = list.map(card).join('');
+  $('#empty').hidden = list.length > 0;
+}
+function setupListing() {
+  const cat = catOf(tab);
+  const sk = cat === 'other' ? 'unit' : cat;
+  $('#sort').innerHTML = SORTS[sk].map(([v, t]) => `<option value="${v}">Ordina: ${t}</option>`).join('');
+  const facs = [...new Set(E.filter(e => e._cat === cat).map(e => e.faction || ''))].sort();
+  if (fac !== 'all' && !facs.includes(fac)) fac = 'all';
+  const row = $('#facRow');
+  row.innerHTML = '<span class="lab">Fazione</span>' + [['all', 'Tutte']].concat(facs.map(f => [f, facName(f) + ' · ' + E.filter(e => e._cat === cat && (e.faction || '') === f).length]))
+    .map(([v, t]) => `<button class="chip" data-v="${esc(v)}" aria-pressed="${v === fac}">${esc(t)}</button>`).join('');
+  $('#legend').hidden = sk === 'unit';
+  renderList();
+}
+
+function overview() {
+  const cats = TABS.slice(1);
+  const count = c => E.filter(e => e._cat === c).length;
+  const facs = [...new Set(E.map(e => e.faction || ''))].sort();
+  const rows = facs.map(f => `<tr><td>${esc(facName(f))}</td>${cats.map(([, , c]) => `<td class="num">${E.filter(e => e._cat === c && (e.faction || '') === f).length || '·'}</td>`).join('')}</tr>`).join('');
+  const items = E.filter(e => e._kind !== 'unit');
+  const todo = [
+    ['Armi e attrezzi senza modello 3D (in gioco si vedono a cubi)', E.filter(e => e._kind === 'weapon' && !e._model && !/claws/.test(e.id))],
+    ['Armi e attrezzi che nessuna unità può usare', E.filter(e => e._kind === 'weapon' && !e._who.length)],
+    ['Armature che nessuna unità può indossare', E.filter(e => e._kind === 'armor' && !e._who.length)],
+    ['Unità senza foto', E.filter(e => e._kind === 'unit' && !e._img)],
+    ['Unità senza commento nel file', E.filter(e => e._kind === 'unit' && !e.comment)],
+  ];
+  const units = E.filter(e => e._kind === 'unit').sort((a, b) => (a.faction || '').localeCompare(b.faction || '') || (a._research?.tier ?? 9) - (b._research?.tier ?? 9));
+  $('#overview').innerHTML = `
+    <div class="tiles">${cats.map(([id, t, c]) => `<button class="tile" data-tab="${id}"><b>${count(c)}</b><span>${t}</span></button>`).join('')}</div>
+    <div class="ov" style="margin-top:22px">
+      <div class="box"><h2 class="sec">Per fazione</h2><div class="tbl"><table><thead><tr><th>Fazione</th>${cats.map(([, t]) => `<th class="num">${t}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></div>
+      <div class="box"><h2 class="sec">Da fare</h2>${todo.map(([t, l]) => `<div class="todo"><div class="h ${l.length ? 'warn' : 'ok'}">${l.length ? '▲' : '✓'} ${t}: ${l.length}</div>${l.length ? `<div class="l">${l.map(e => esc(e.displayName)).join(', ')}</div>` : ''}</div>`).join('')}</div>
+    </div>
+    <div class="box" style="margin-top:22px"><h2 class="sec">Unità in gioco</h2><div class="tbl"><table>
+      <thead><tr><th>Unità</th><th>Fazione</th><th>Grado</th><th class="num">Salute</th><th class="num">Robustezza</th><th class="num">Velocità</th><th class="num">Mira</th><th class="num">Mischia</th><th class="num">Punti</th><th>Arma base</th></tr></thead>
+      <tbody>${units.map(u => `<tr data-id="${esc(u.id)}" style="cursor:pointer"><td>${esc(u.displayName)}</td><td>${esc(facName(u.faction))}</td><td>${u._research ? (u._research.premium ? 'élite' : ROMAN[u._research.tier]) : 'storia'}</td><td class="num">${num(u.health)}</td><td class="num">${num(u.toughness)}</td><td class="num">${num(u.base_speed)}</td><td class="num">${num(u.accuracy_skill)}</td><td class="num">${num(u.melee_skill)}</td><td class="num">${u.point_cost}</td><td>${esc((u._base || [])[0]?.[1] || '—')}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function table(rows) { return `<table>${rows.map(([a, b]) => `<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`).join('')}</table>`; }
+function open(id) {
+  const e = E.find(x => x.id === id); if (!e) return;
+  const used = new Set();
+  const r = e._research;
+  const top = [['Fazione', facName(e.faction)], ['Categoria', (TABS.find(t => t[2] === e._cat) || [])[1]]];
+  if (e.point_cost != null) top.push(['Costo in punti', e.point_cost]);
+  if (e.weight_kg != null) top.push(['Peso', num(e.weight_kg) + ' kg']);
+  if (e.hand_type) top.push(['Mani', HAND[e.hand_type] || e.hand_type]);
+  const d = dps(e); if (d) top.push(['Danno al secondo (calcolato)', Math.round(d)]);
+  if (e.magazine_size && e.spare_magazines != null) top.push(['Colpi in tutto', e.magazine_size * (1 + e.spare_magazines)]);
+  if (e._combo) top.push(['Attacchi nella combo', e._combo], ['Colpo più forte', '×' + num(e._maxmul) + ' (' + Math.round((e.base_damage || 0) * e._maxmul) + ')']);
+  if (r) {
+    top.push(['Grado', r.premium ? 'élite' : ROMAN[r.tier]]);
+    if (r.premium) top.push(['Sblocco', num(r.premium_cost) + ' Vanguardio']);
+    else {
+      if (r.research) top.push(['Ricerca', num(r.research) + ' punti studio']);
+      if (r.purchase) top.push([e._kind === 'unit' ? 'Reclutamento' : 'Acquisto', num(r.purchase) + ' energia']);
+      if (r.from) top.push(['Si sblocca da', r.from]);
+    }
+  } else if (e._kind === 'unit') top.push(['Ricerca', 'non si ricerca: nemico o personaggio delle storie']);
+  let html = `<h3>Scheda</h3>${table(top)}`;
+  const gk = e._kind;
+  for (const [title, keys] of ((LBL.groups || {})[gk] || [])) {
+    const rows = keys.filter(k => e[k] !== undefined && e[k] !== null && !(Array.isArray(e[k]) && !e[k].length)).map(k => { used.add(k); return [label(k), fmt(k, e[k])]; }).filter(x => x[1] !== '');
+    if (rows.length) html += `<h3>${esc(title)}</h3>${table(rows)}`;
+  }
+  const SKIP = new Set(['id', 'displayName', 'faction', 'slot_type', 'hand_type', 'weight_kg', 'point_cost', 'comment', 'allowed_units', 'unit_restriction', 'is_melee', 'repair_tags', 'projectile_length', 'projectile_width', 'loadout_version', 'weightCapacity']);
+  const rest = Object.keys(e).filter(k => !k.startsWith('_') && !SKIP.has(k) && !used.has(k) && (typeof e[k] !== 'object' || Array.isArray(e[k])));
+  const restRows = rest.map(k => [label(k), fmt(k, e[k])]).filter(x => x[1] !== '');
+  if (restRows.length) html += `<h3>Altro</h3>${table(restRows)}`;
+  if (e._kind === 'unit') {
+    if (e._base && e._base.length) html += `<h3>Dotazione base</h3>${table(e._base)}`;
+    const U = e._uses || {};
+    html += `<h3>Può usare</h3><div class="uses">${[['ranged', 'Armi da fuoco'], ['melee', 'Armi bianche'], ['equipment', 'Equipaggiamento'], ['armor', 'Armature']].map(([k, t]) => `<p><b>${t} (${(U[k] || []).length})</b>${esc((U[k] || []).join(', ') || '—')}</p>`).join('')}</div>`;
+  }
+  const whoBlock = e._kind === 'unit' ? '' : `<h3>Chi la usa</h3><div class="who">${whoHTML(e)}</div>`;
+  $('#sheet').innerHTML = `<div class="dlg f-${esc(e.faction || '')}" role="dialog" aria-modal="true" aria-labelledby="dt">
+    <div class="shot">${shot(e, true)}<span class="stamp">${esc(facName(e.faction))}</span></div>
+    <div class="dinfo">
+      <button class="close" id="close">Chiudi</button>
+      <div class="eyebrow">${esc(e.id)}</div>
+      <h2 id="dt">${esc(e.displayName)}</h2>
+      ${e.comment ? `<p class="comment">${esc(e.comment)}</p>` : ''}
+      ${whoBlock}
+      ${html}
+    </div></div>`;
+  $('#sheet').hidden = false;
+  $('#close').focus();
+  $('#close').onclick = close;
+}
+function close() { $('#sheet').hidden = true; }
+
+function show(t) {
+  tab = TABS.some(x => x[0] === t) ? t : 'panoramica';
+  document.querySelectorAll('.tab').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+  $('#overview').hidden = tab !== 'panoramica';
+  $('#listing').hidden = tab === 'panoramica';
+  if (tab === 'panoramica') overview(); else setupListing();
+}
+function go(t) { if (location.hash !== '#' + t) location.hash = t; else show(t); }
+
+$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') close(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') close();
+  const c = e.target.closest && e.target.closest('.card');
+  if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(c.dataset.id); }
+});
+document.addEventListener('click', e => {
+  const c = e.target.closest('.card, tr[data-id]'); if (c) { open(c.dataset.id); return; }
+  const t = e.target.closest('[data-tab]'); if (t) go(t.dataset.tab);
+});
+$('#facRow').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; fac = b.dataset.v; setupListing(); });
+$('#q').addEventListener('input', renderList);
+$('#sort').addEventListener('change', renderList);
+window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+fetch('data.json').then(r => r.json()).then(data => {
+  D = data; E = data.entries; LBL = data.labels || {};
+  for (const e of E) e.displayName = e.displayName || e.id;
+  computeMax();
+  $('#stamp').textContent = 'aggiornato il ' + (data.updated || '');
+  $('#tabs').innerHTML = TABS.map(([id, t, c]) => `<button class="tab" role="tab" data-tab="${id}" aria-selected="false">${t}${c ? `<small>${E.filter(e => e._cat === c).length}</small>` : ''}</button>`).join('');
+  show(location.hash.slice(1));
+}).catch(() => { $('#overview').hidden = false; $('#overview').innerHTML = '<div class="empty">Non riesco a caricare i dati del Codex (data.json).</div>'; });
+</script>

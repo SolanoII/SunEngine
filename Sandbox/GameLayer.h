@@ -77,7 +77,8 @@ namespace SunEngine {
         Shop,       // negozio (Pietra Nera): per ora WIP
         Showcase,   // vetrina: razze affiancate (o un'unita' dall'albero di ricerca) con le loro animazioni
         Servers,    // lobby aperte in rete locale e sul server d'incontro, apertura della propria
-        Story       // PVE-STORY: le storie del mondo da rigiocare, fuori dal sistema delle squadre
+        Story,      // PVE-STORY: le storie del mondo da rigiocare, fuori dal sistema delle squadre
+        Codex       // tutto quello che c'e' nel gioco: unita', nemici, armi, equipaggiamento, armature, con le statistiche
     };
 
     enum class EditorGizmoMode {
@@ -702,6 +703,7 @@ namespace SunEngine {
         std::string m_ShowcaseFocusUnit;            // vuoto = tutte le razze in fila; altrimenti anteprima di un'unita'
         std::string m_ShowcaseBuiltFor = "#";       // per cosa sono stati creati gli attori
         bool m_ShowcaseFromResearch = false;
+        bool m_ShowcaseFromCodex = false;           // aperta dal Codex: c'e' il pulsante per tornarci
         bool m_ShowcaseStyle = true;                // stile di movimento della razza acceso/spento (per confrontare)
         bool m_ShowcaseAutoRotate = true;
         bool m_ShowcaseCycle = false;               // tutte le animazioni in sequenza
@@ -715,6 +717,24 @@ namespace SunEngine {
         void RenderShowcaseUI();
         void OpenShowcasePreview(const std::string& unitId);
         void UpdateShowcaseActor(ShowcaseActor& a, float deltaTime);
+
+        // --- Codex (GameLayerCodex.cpp): schede di unita', nemici, armi, equipaggiamento e armature lette da GameData ---
+        struct CodexEntry;
+        struct CodexData;
+        std::shared_ptr<CodexData> m_Codex;   // shared_ptr: il tipo e' completo solo in GameLayerCodex.cpp
+        int m_CodexCategory = 0;
+        std::string m_CodexSelected;
+        char m_CodexSearch[64] = {};
+        void LoadCodex();
+        void RenderCodexUI();
+        unsigned int CodexImage(const std::string& id);   // texture della foto (GameData/Codex/img/<id>.jpg), 0 se manca
+        // Foto per il Codex (SUN_CODEX_SHOTS=<cartella>): ogni unita' in vetrina, una foto a testa, poi il gioco si chiude
+        std::string m_CodexShotDir;
+        std::vector<std::string> m_CodexShotQueue;
+        int m_CodexShotFrame = 0;
+        bool m_CodexShotNow = false;
+        void UpdateCodexShots();
+        void CaptureCodexShot();
         static RaceMotionKind RaceMotionOf(AnimatedBodyKind k);
         void ApplyRaceStyle(entt::entity e, ProceduralPose& pose, RifleAnimationController& controller, float legLen, float deltaTime);
         void UpdateUnitAnimations(float deltaTime);

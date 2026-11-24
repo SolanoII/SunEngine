@@ -5397,6 +5397,7 @@ namespace SunEngine {
             const int vs = m_DeferredRenderer.GetQuality().vsync ? 1 : 0;
             if (vs != m_AppliedVSync && glfwGetCurrentContext()) { glfwSwapInterval(vs); m_AppliedVSync = vs; }
         }
+        UpdateCodexShots();   // SUN_CODEX_SHOTS: foto delle unita' per il Codex
         m_DeferredRenderer.SetFrameDelta(deltaTime);
         GLFWwindow* window = glfwGetCurrentContext();
         UpdateWindowSize();
@@ -6731,6 +6732,7 @@ namespace SunEngine {
     {
         GLFWwindow* window = glfwGetCurrentContext();
         if (!window) return;
+        if (m_CodexShotNow) CaptureCodexShot();   // foto per il Codex: la scena e' gia' disegnata, l'interfaccia non ancora
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -6764,6 +6766,9 @@ namespace SunEngine {
             }
             else if (m_CurrentTab == MenuTab::Story) {
                 RenderStoryUI();
+            }
+            else if (m_CurrentTab == MenuTab::Codex) {
+                RenderCodexUI();
             }
 
             if (m_CurrentTab == MenuTab::StasisVault || m_CurrentTab == MenuTab::Deployment) RenderPartyPanel();
@@ -6984,6 +6989,7 @@ namespace SunEngine {
             { "RICERCA", inMenu && m_CurrentTab == MenuTab::Research, Ui::Col::Gold },
             { "NEGOZIO", inMenu && m_CurrentTab == MenuTab::Shop, Ui::Col::Amethyst },
             { "VETRINA", inMenu && m_CurrentTab == MenuTab::Showcase, Ui::Col::Gold },
+            { "CODEX", inMenu && m_CurrentTab == MenuTab::Codex, Ui::Col::Phosphor },
             { "EDITOR", m_GameState == GameState::MapEditor, Ui::Col::Rust },
             { "OPZIONI", false, Ui::Col::Phosphor },
         };
@@ -7002,7 +7008,7 @@ namespace SunEngine {
             currencyW = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "ENERGIA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, eb).x
                       + 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "VANGUARDIO").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, sb).x + 80.0f;
             const float avail = io.DisplaySize.x - 300.0f - currencyW;
-            const float padTab = std::clamp((avail - textW) / static_cast<float>(kNavCount), 12.0f, 34.0f);
+            const float padTab = std::clamp((avail - textW) / static_cast<float>(kNavCount), 4.0f, 34.0f);   // con il CODEX le schede sono 10
             for (int i = 0; i < kNavCount; ++i) { navW[i] += padTab; totalNav += navW[i]; }
         }
         ImGui::SetCursorPos(ImVec2(std::max(300.0f, std::min(io.DisplaySize.x * 0.5f - totalNav * 0.5f, io.DisplaySize.x - currencyW - totalNav)), 0.0f));
@@ -7019,6 +7025,10 @@ namespace SunEngine {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Servers;
             m_Party.RefreshServerList();
+        }
+        if (nav == "CODEX") {   // tutto quello che c'e' nel gioco, scheda per scheda
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Codex;
         }
         if (nav == "PVE-STORY") {   // le storie si giocano con i loro personaggi, non con la squadra del garage
             m_GameState = GameState::MainMenu;
@@ -7053,6 +7063,7 @@ namespace SunEngine {
             m_CurrentTab = MenuTab::Showcase;
             m_ShowcaseFocusUnit.clear();
             m_ShowcaseFromResearch = false;
+            m_ShowcaseFromCodex = false;
         }
         else if (clickedNav == 5) {
             m_GameState = GameState::MapEditor;

@@ -7,6 +7,7 @@
 #include "Engine/ECS/WeaponSystem.h"
 #include "Engine/ECS/DamageResolver.h"
 #include "Engine/ECS/VfxEvents.h"
+#include "Engine/ECS/Tags.h"
 #include <imgui.h>
 #include <glm/gtx/euler_angles.hpp>
 #include <cmath>
@@ -356,6 +357,8 @@ namespace SunEngine {
         // Il giocatore del garage sparisce mentre c'e' la vetrina
         for (entt::entity e : { m_AnimatedPlayerEntity, m_WeaponEntity, m_LeftWeaponEntity })
             if (reg.valid(e)) if (auto* t = reg.try_get<TransformComponent>(e)) t->Scale = glm::vec3(0.0f);
+        // anche il corpo a cubi (modalita' cuboni): torna quando si esce, col garage
+        if (reg.valid(m_PlayerEntity) && !reg.all_of<HideProceduralVisualTag>(m_PlayerEntity)) reg.emplace<HideProceduralVisualTag>(m_PlayerEntity);
 
         // Animazioni in sequenza (per la presentazione)
         if (m_ShowcaseCycle) {
@@ -411,7 +414,12 @@ namespace SunEngine {
                 m_ShowcaseFocusUnit.clear();
                 m_ShowcaseFromResearch = false;
             }
-            if (Ui::PlainButton("Tutte le razze", ImVec2(-1, 26))) { m_ShowcaseFocusUnit.clear(); m_ShowcaseFromResearch = false; }
+            if (m_ShowcaseFromCodex && Ui::PlainButton("< Torna al Codex", ImVec2(-1, 30))) {
+                m_CurrentTab = MenuTab::Codex;
+                m_ShowcaseFocusUnit.clear();
+                m_ShowcaseFromCodex = false;
+            }
+            if (Ui::PlainButton("Tutte le razze", ImVec2(-1, 26))) { m_ShowcaseFocusUnit.clear(); m_ShowcaseFromResearch = false; m_ShowcaseFromCodex = false; }
         }
         else ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Le razze di Project SunCollector");
         ImGui::Separator();
