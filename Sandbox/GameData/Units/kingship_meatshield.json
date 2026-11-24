@@ -1,0 +1,44 @@
+{
+  "id": "kingship_meatshield",
+  "displayName": "Meatshield",
+  "comment": "Grado I del Kingship. Prigionieri condannati a vita, costretti a servire con il minimo indispensabile per ammazzare il nemico: fucile a impulsi scadente, coltello e una picca lunga. Messi in prima linea a fermare la carica delle unita' piu' grosse (cavalcature, mostri, macchine, robot). Niente armatura, morale basso: si sacrificano, non si addestrano.",
+  "ai_role": "melee",
+  "skeleton": "kingship_footman",
+  "animated_body": "human",
+  "point_cost": 2,
+  "max_per_squad": 8,
+  "stamina": 95.0,
+  "stamina_regen": 10.0,
+  "toughness": 9,
+  "armor_rating": 0,
+  "strength": 20,
+  "accuracy_skill": 18,
+  "melee_skill": 22,
+  "morale": 25,
+  "suppression_threshold": 25,
+  "vision_range": 95,
+  "fov_degrees": 80,
+  "weight_capacity": 60.0,
+  "base_speed": 2.7,
+  "health": 65.0,
+  "default_loadout": {
+    "primary": "recruit_impulse_rifle",
+    "secondary": "",
+    "melee": "meatshield_pike",
+    "equipment": [
+      "",
+      "",
+      ""
+    ],
+    "armor": {
+      "head": "",
+      "torso": "torso_recruit_fatigues",
+      "arm_l": "",
+      "arm_r": "",
+      "leg_l": "leg_l_recruit_fatigues",
+      "leg_r": "leg_r_recruit_fatigues"
+    }
+  },
+  "strict_loadout": true,
+  "loadout_version": 1
+}

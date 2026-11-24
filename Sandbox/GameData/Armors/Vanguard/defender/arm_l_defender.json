@@ -1,6 +1,6 @@
 {
   "id": "arm_l_defender",
-  "displayName": "Spallaccio da Difensore Vanguardio (sx)",
+  "displayName": "Spallaccio della Vanguard Armor (sx)",
   "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Spallaccio enorme bordato e guanto corazzato. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
   "location": "LeftArm",
   "faction": "Vanguard",

@@ -54,6 +54,7 @@ namespace SunEngine {
         bool premium = false;
         int64_t premiumCost = 0;   // Vanguardio
         std::string rowLabel;
+        std::string description;   // a cosa serve l'unita' (idee non ancora giocabili, rami nuovi); si legge nella ricerca e nel Codex
     };
 
     // Sezioni di sola consultazione dentro una fazione ("sections"), es. la gerarchia dell'Ordo Domus Humilitatis
@@ -180,6 +181,7 @@ namespace SunEngine {
                         n.premium = jn.value("premium", false);
                         n.premiumCost = std::max<int64_t>(0, jn.value("premium_cost", 0));
                         n.rowLabel = jn.value("row_label", std::string());
+                        n.description = jn.value("description", std::string());
                         if (jn.contains("color") && jn["color"].is_array() && jn["color"].size() >= 4) {
                             for (int i = 0; i < 4; ++i) n.color[i] = jn["color"][i].get<float>();
                         }

@@ -5,7 +5,7 @@
   "location": "LeftLeg",
   "faction": "Kingship",
   "allowed_units": [
-    "kingship_levy"
+    "kingship_recruit"
   ],
   "armor_rating": 7,
   "coverage": 0.65,

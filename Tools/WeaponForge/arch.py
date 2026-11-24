@@ -766,3 +766,29 @@ def kit_box(B, lay, style, rng, kind='medkit'):
             B.add(cyl((c[0] + dx, c[1], c[2]), s[2] * 0.3, s[1] * 0.95, 'y', 16, 0.004), 'steel')
             B.add(box((c[0] + dx, c[1], c[2] - s[2] * 0.3), (0.006, s[1] * 0.6, 0.004)), 'glow')
         B.glow_color = (0.3, 0.6, 1.0)
+
+
+def pike(B, lay, style, rng):
+    """picca del condannato: asta lunga di frassino con legature di ferro, punta a foglia con le ali sotto (per fermare
+    chi carica), puntale in fondo all'asta"""
+    gR = lay.gR; tip = lay.M
+    yh = gR[1]; zt = tip[2]; zb = lay.hi[2]
+    r = 0.017
+    zh = zt + 0.3                                    # fine della punta, inizio del cannone
+    B.add(lathe([(zh + 0.06, r * 0.95), (zb - 0.08, r), (zb - 0.06, r * 0.9)], 'z', 14, (0, yh, 0)), 'wood_dark')
+    for z in np.linspace(zh + 0.25, zb - 0.3, 5):   # legature di ferro e pelle per le mani
+        B.add(lathe([(z - 0.012, r * 1.12), (z + 0.012, r * 1.12)], 'z', 14, (0, yh, 0)), 'steel')
+    for zc in (gR[2], lay.gL[2] if lay.gL is not None else gR[2] - 0.5):
+        wire_wrap(B, (0, yh, zc), r * 1.05, 0.14, 12, 0.0022, 'z', 'leather')
+    # cannone della punta con chiodi, ali, lama a foglia
+    B.add(lathe([(zh - 0.01, r * 0.8), (zh + 0.02, r * 1.25), (zh + 0.1, r * 1.15), (zh + 0.12, r * 1.05)], 'z', 14, (0, yh, 0)), 'steel')
+    rivets_line(B, [(r * 1.2, yh, zh + 0.05), (-r * 1.2, yh, zh + 0.07)], 0.004, 1, 'steel')
+    for s in (1, -1):   # ali di arresto
+        B.add(profile([(zh + 0.0, yh + s * 0.012), (zh - 0.02, yh + s * 0.09), (zh - 0.04, yh + s * 0.1), (zh - 0.03, yh + s * 0.012)], -0.006, 0.006, 0.001, 1), 'steel')
+    L = zh - zt
+    blade = profile([(zh, yh - 0.016), (zh - L * 0.35, yh - 0.04), (zt, yh), (zh - L * 0.35, yh + 0.04), (zh, yh + 0.016)], -0.006, 0.006, 0.0008, 1, 30)
+    for v in blade.verts:
+        k = min(1.0, abs(v.co.y - yh) / 0.04)
+        v.co.x *= 1.0 - 0.75 * k                    # filo sottile ai bordi, costola al centro
+    B.add(blade, 'bare')
+    B.add(lathe([(zb - 0.07, r * 0.95), (zb - 0.04, r * 1.05), (zb + 0.02, r * 0.4), (zb + 0.04, 0.0)], 'z', 12, (0, yh, 0)), 'steel')

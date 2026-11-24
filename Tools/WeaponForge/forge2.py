@@ -21,7 +21,7 @@ ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 BLOCKS = os.path.join(ROOT, 'Sandbox', 'GameData', 'BlockModels')
 OUT = os.path.join(ROOT, 'Sandbox', 'GameData', 'Models', 'Weapons')
 
-FACTION = {'k': ('footman', 'cadet', 'levy', 'recruit', 'auto_pistol_standard', 'auto_rifle_mg', 'combat_knife', 'impulse_pistol_standard', 'standard_toothsword'),
+FACTION = {'k': ('meatshield', 'footman', 'cadet', 'levy', 'recruit', 'auto_pistol_standard', 'auto_rifle_mg', 'combat_knife', 'impulse_pistol_standard', 'standard_toothsword'),
            'v': ('candidate', 'defender', 'explorer', 'konrad'),
            'x': ('gunner', 'pighcib', 'raider', 'tusker', 'kragh', 'vrepigh', 'zhelvar')}
 SKIP = ('banner', '_base', 'wall', 'barricade', 'pillar')
@@ -38,6 +38,7 @@ def archetype(wid, style):
     A = arch
     has = lambda *k: any(x in wid for x in k)
     if has(*SKIP): return None
+    if has('pike'): return A.pike, {}
     if has('knife'): return A.knife, {}
     if has('toothsword'): return A.toothsword, {}
     if has('heavy_cleaver'): return A.cleaver, {'heavy': True}

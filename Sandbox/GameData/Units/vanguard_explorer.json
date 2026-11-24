@@ -1,6 +1,6 @@
 {
   "id": "vanguard_explorer",
-  "displayName": "Esploratore Vanguardio",
+  "displayName": "Vanguard Iniziate",
   "ai_role": "ranged",
   "skeleton": "vanguard_candidate",
   "animated_body": "candidate",

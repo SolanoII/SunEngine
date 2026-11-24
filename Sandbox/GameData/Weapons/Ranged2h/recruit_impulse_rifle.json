@@ -1,6 +1,6 @@
 {
   "id": "recruit_impulse_rifle",
-  "displayName": "Fucile a Impulsi da Recluta",
+  "displayName": "Fucile a Impulsi del Condannato",
   "faction": "Kingship",
   "slot_type": "primary",
   "hand_type": "TwoHanded",
@@ -45,8 +45,8 @@
     -0.2
   ],
   "allowed_units": [
-    "kingship_recruit"
+    "kingship_meatshield"
   ],
   "spare_magazines": 1,
-  "comment": "Dotazione base del coscritto: fucile a impulsi semplice, 20 colpi nel caricatore e 20 di riserva."
+  "comment": "Dotazione base del Meatshield (condannato a vita): fucile a impulsi semplice, 20 colpi nel caricatore e 20 di riserva."
 }

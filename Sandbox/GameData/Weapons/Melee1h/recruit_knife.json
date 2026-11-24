@@ -1,6 +1,6 @@
 {
   "id": "recruit_knife",
-  "displayName": "Coltello da Recluta",
+  "displayName": "Coltello del Condannato",
   "faction": "Kingship",
   "is_melee": true,
   "hand_type": "OneHanded",
@@ -149,7 +149,7 @@
     }
   },
   "allowed_units": [
-    "kingship_recruit"
+    "kingship_meatshield"
   ],
-  "comment": "Dotazione base del coscritto: semplice coltello, senza bonus di velocita' ne' colpi alle spalle."
+  "comment": "Dotazione base del Meatshield (condannato a vita): semplice coltello, senza bonus di velocita' ne' colpi alle spalle."
 }

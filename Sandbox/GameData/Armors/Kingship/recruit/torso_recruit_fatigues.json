@@ -1,11 +1,11 @@
 {
   "id": "torso_recruit_fatigues",
-  "displayName": "Uniforme da Recluta",
-  "comment": "Dotazione base del coscritto: giubba di tela, nessuna armatura, solo aspetto.",
+  "displayName": "Casacca del Condannato",
+  "comment": "Dotazione base del Meatshield (condannato a vita): giubba di tela, nessuna armatura, solo aspetto.",
   "location": "Torso",
   "faction": "Kingship",
   "allowed_units": [
-    "kingship_recruit"
+    "kingship_meatshield"
   ],
   "armor_rating": 0,
   "coverage": 0.0,

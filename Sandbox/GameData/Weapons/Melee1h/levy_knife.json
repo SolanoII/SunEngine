@@ -149,7 +149,7 @@
     }
   },
   "allowed_units": [
-    "kingship_levy"
+    "kingship_recruit"
   ],
   "comment": "Dotazione base del Recluta di Leva: semplice coltello (come quello dei coscritti), senza bonus."
 }

@@ -152,15 +152,32 @@ def main():
         e.update(_kind='unit', _cat='unit' if (rn and not rn.get('premium')) else 'other', faction=fac, _base=base, _uses=uses, _research=research(rn))
         entries.append(e)
 
+    # idee: unita' dell'albero che non esistono ancora (anche oltre il grado mostrato) e gerarchie delle fazioni
+    hier = []
+    maxt = tree.get('max_tier', 0)
+    FAC = {'kingship': 'Kingship', 'vanguard': 'Vanguard', 'vrepighs': 'Vrepighs'}
+    for fa in tree['factions']:
+        names = {n['id']: n.get('name', '') for n in fa['nodes']}
+        for n in fa['nodes']:
+            uid = n.get('unit')
+            if not uid or uid in units: continue
+            entries.append({'id': uid, 'displayName': n.get('name', uid), 'faction': FAC.get(fa['id'], fa['id']), 'comment': n.get('description', ''),
+                            'tier': n.get('tier', 1), 'caste': n.get('caste', ''), 'default_name': n.get('default_name', ''),
+                            '_kind': 'idea', '_cat': 'idea', '_parent': names.get(n.get('parent') or '', ''), '_hidden': bool(maxt and n.get('tier', 1) > maxt),
+                            '_research': {'tier': n.get('tier', 1), 'research': n.get('research_cost', 0), 'purchase': 0, 'premium': bool(n.get('premium')), 'premium_cost': 0, 'from': names.get(n.get('parent') or '')}})
+        for sct in fa.get('sections', []):
+            hier.append(dict(sct, faction=FAC.get(fa['id'], fa['id'])))
+
     if not a.no_photos: photograph_weapons(todo)
     for e in entries:
         e['_img'] = ('img/' + e['id'] + '.jpg') if os.path.exists(os.path.join(IMG, e['id'] + '.jpg')) else None
 
+    shutil.rmtree(os.path.join(a.out, 'img'), ignore_errors=True)   # niente foto vecchie di cose cancellate
     os.makedirs(os.path.join(a.out, 'img'), exist_ok=True)
     for p in glob.glob(os.path.join(IMG, '*.jpg')): shutil.copy2(p, os.path.join(a.out, 'img', os.path.basename(p)))
     with open(os.path.join(a.out, 'data.json'), 'w', encoding='utf-8') as f:
         import datetime
-        json.dump({'updated': datetime.date.today().strftime('%d/%m/%Y'), 'labels': labels, 'entries': entries}, f, ensure_ascii=False)
+        json.dump({'updated': datetime.date.today().strftime('%d/%m/%Y'), 'labels': labels, 'entries': entries, 'hierarchies': hier}, f, ensure_ascii=False)
     shutil.copy(os.path.join(HERE, 'codex.html'), os.path.join(a.out, 'codex.html'))
     print(f'[codex] {len(entries)} schede, {sum(1 for e in entries if e["_img"])} con foto, {len(todo)} foto di armi rifatte -> {a.out}')
 

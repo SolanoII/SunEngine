@@ -39,7 +39,7 @@
   "boy_mines": "tusker_mines",
   "boy_slugga": "tusker_crude_pistol",
   "boy_stikkbomb": "tusker_nail_grenade",
-  "conscript_frag": "recruit_frag",
+  "conscript_frag": "levy_frag",
   "conscript_knife": "recruit_knife",
   "conscript_lasgun": "recruit_impulse_rifle",
   "conscript_medkit": "recruit_medkit",
@@ -75,7 +75,7 @@
   "guardsman_vox_caster": "footman_field_radio",
   "head_boy_helmet": "head_tusker_helmet",
   "head_cadian_veteran": "head_footman_veteran",
-  "head_conscript_helmet": "head_recruit_helmet",
+  "head_conscript_helmet": "head_levy_helmet",
   "head_firstborn_mk7": "head_defender",
   "head_grot_scrap_helmet": "head_pighcib_scrap_helmet",
   "head_guardsman_helmet": "head_footman_helmet",
@@ -336,7 +336,7 @@
   "torso_boy_plate": "torso_tusker_plate",
   "torso_cadian_veteran": "torso_footman_veteran",
   "torso_conscript_fatigues": "torso_recruit_fatigues",
-  "torso_conscript_flak": "torso_recruit_flak",
+  "torso_conscript_flak": "torso_levy_flak",
   "torso_firstborn_mk7": "torso_defender",
   "torso_grot_rags": "torso_pighcib_rags",
   "torso_guardsman_flak": "torso_footman_flak",
@@ -357,6 +357,11 @@
   "whiteshield_lasgun": "levy_impulse_rifle",
   "whiteshield_laspistol": "levy_impulse_pistol",
   "zhelvar_choppa": "zhelvar_cleaver",
-  "zhelvar_shoota": "zhelvar_rifle"
+  "zhelvar_shoota": "zhelvar_rifle",
+  "kingship_levy": "kingship_recruit",
+  "kg_levy": "kg_recruit",
+  "recruit_frag": "levy_frag",
+  "torso_recruit_flak": "torso_levy_flak",
+  "head_recruit_helmet": "head_levy_helmet"
  }
 }

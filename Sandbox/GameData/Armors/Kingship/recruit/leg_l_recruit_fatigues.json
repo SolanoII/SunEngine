@@ -1,11 +1,11 @@
 {
   "id": "leg_l_recruit_fatigues",
-  "displayName": "Pantaloni da Recluta (sx)",
-  "comment": "Dotazione base: pantaloni di tela, nessuna armatura.",
+  "displayName": "Calzoni del Condannato (sx)",
+  "comment": "Dotazione base del Meatshield (condannato a vita): pantaloni di tela, nessuna armatura.",
   "location": "LeftLeg",
   "faction": "Kingship",
   "allowed_units": [
-    "kingship_recruit"
+    "kingship_meatshield"
   ],
   "armor_rating": 0,
   "coverage": 0.0,

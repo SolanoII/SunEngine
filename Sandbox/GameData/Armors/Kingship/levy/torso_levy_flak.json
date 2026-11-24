@@ -5,7 +5,7 @@
   "location": "Torso",
   "faction": "Kingship",
   "allowed_units": [
-    "kingship_levy"
+    "kingship_recruit"
   ],
   "armor_rating": 9,
   "coverage": 0.85,

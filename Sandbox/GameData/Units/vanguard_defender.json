@@ -1,6 +1,6 @@
 {
   "id": "vanguard_defender",
-  "displayName": "Difensore Vanguardio",
+  "displayName": "Vanguard Armor",
   "ai_role": "versatile",
   "point_cost": 40,
   "animated_body": "vanguard",

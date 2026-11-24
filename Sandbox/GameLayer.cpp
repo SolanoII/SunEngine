@@ -803,7 +803,7 @@ namespace SunEngine {
         const std::string skelId = (bp && !bp->skeleton_id.empty()) ? bp->skeleton_id : unitId;
         outScale = (bp && bp->skeleton_scale > 0.05f) ? bp->skeleton_scale : 1.0f;
         if (auto data = SkeletonLoader::LoadFromFile(skeletonsDir + skelId + ".json")) return data;
-        SUN_CORE_WARN("Scheletro '{0}' per l'unita' '{1}' non trovato: uso quello del Fante del Regno", skelId, unitId);
+        SUN_CORE_WARN("Scheletro '{0}' per l'unita' '{1}' non trovato: uso quello del Fante", skelId, unitId);
         outScale = 1.0f;
         return SkeletonLoader::LoadFromFile(skeletonsDir + "kingship_footman.json");
     }
@@ -7173,7 +7173,7 @@ namespace SunEngine {
             }
         }
         if (m_PlayerRoster.empty()) {
-            m_PlayerRoster.push_back(TrainedUnit{ "Recluta Teren", "kingship_recruit", glm::vec4(0.55f, 0.45f, 0.30f, 1.0f) });
+            m_PlayerRoster.push_back(TrainedUnit{ "Condannato Brask", "kingship_meatshield", glm::vec4(0.42f, 0.36f, 0.30f, 1.0f) });
             m_PlayerRoster.push_back(TrainedUnit{ "Candidato Corvo", "vanguard_candidate", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f) });
             m_PlayerRoster.push_back(TrainedUnit{ "Snuffo", "vrepighs_pighcib", glm::vec4(kPighcibSkin, 1.0f) });
             for (auto& u : m_PlayerRoster) u.ApplyDefaultLoadout();
@@ -7426,8 +7426,9 @@ namespace SunEngine {
             // triumvirato: filo che unisce le carte del grado piu' alto
             if (tier == topTier && nDiv > 1) {
                 const float ly = y + rowH * 0.5f;
-                for (int c = 0; c + 1 < nDiv; ++c)
-                    dl->AddLine(ImVec2(colX(c) + colW, ly), ImVec2(colX(c + 1), ly), Ui::U32(Ui::Col::Gold, 0.85f), 2.0f);
+                auto hasTop = [&](int c) { for (const auto& r : section.divisions[c].ranks) if (r.tier == topTier) return true; return false; };
+                for (int c = 0; c + 1 < nDiv; ++c)   // solo fra le caste che arrivano al grado piu' alto (non i Serventi)
+                    if (hasTop(c) && hasTop(c + 1)) dl->AddLine(ImVec2(colX(c) + colW, ly), ImVec2(colX(c + 1), ly), Ui::U32(Ui::Col::Gold, 0.85f), 2.0f);
             }
             y += rowH + vGap;
         }
@@ -7710,6 +7711,12 @@ namespace SunEngine {
                 else ImGui::TextColored(Ui::Col::Ember, "Blueprint '%s' non trovato in GameData/Weapons.", n.itemId.c_str());
             }
             else if (bp) {
+                if (!n.description.empty()) {
+                    ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + leftW);
+                    ImGui::TextColored(Ui::Col::Ash, "%s", n.description.c_str());
+                    ImGui::PopTextWrapPos();
+                    ImGui::Spacing();
+                }
                 tile("SALUTE", 92.0f, "%.0f", bp->health);
                 tile("VELOCITA'", 92.0f, "%.1f", bp->base_speed);
                 tile("ARMATURA", 92.0f, "%d", bp->armor_rating);
@@ -7733,6 +7740,7 @@ namespace SunEngine {
             else {
                 ImGui::TextColored(Ui::Col::Rust, "UNITA' IN ARRIVO");
                 ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + leftW);
+                if (!n.description.empty()) { ImGui::TextColored(Ui::Col::Bone, "%s", n.description.c_str()); ImGui::Spacing(); }
                 ImGui::TextColored(Ui::Col::Ash, "Non ancora giocabile ('%s' non e' in GameData/Units): si puo' gia' ricercare per proseguire "
                                    "nel ramo, ma non ancora acquistare.", n.unitId.c_str());
                 ImGui::PopTextWrapPos();
@@ -8123,7 +8131,7 @@ namespace SunEngine {
                 };
 
                 if (m_SelectedFaction == "Kingship") {
-                    if (Ui::PlainButton("Fante del Regno (10 Pti)\n(Recluta)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Fante (10 Pti)\n(Fante)", ImVec2(280, 50))) {
                         recruitAction("kingship_footman", "Fante Hessel", glm::vec4(0.65f, 0.50f, 0.35f, 1.0f));
                     }
                 }
@@ -8131,7 +8139,7 @@ namespace SunEngine {
                     if (Ui::PlainButton("Candidato Umano (40 Pti)\n(Candidato)", ImVec2(280, 50))) {
                         recruitAction("vanguard_candidate", "Candidato Corvo", glm::vec4(0.92f, 0.72f, 0.68f, 1.0f));
                     }
-                    if (Ui::PlainButton("Difensore Vanguardio (75 Pti)\n(Difensore)", ImVec2(280, 50))) {
+                    if (Ui::PlainButton("Vanguard Armor (75 Pti)\n(Vanguard Armor)", ImVec2(280, 50))) {
                         recruitAction("vanguard_defender", "Dietrich Falken", glm::vec4(0.74f, 0.58f, 0.48f, 1.0f));
                     }
                 }
@@ -9550,7 +9558,8 @@ namespace SunEngine {
             if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftLegId, "leg_l_gunner_plate"); tryUpgrade(1.0f, u.armorRightLegId, "leg_r_gunner_plate"); }
             tryUpgrade(0.20f, u.armorTorsoId, "torso_gunner_heavy");
         }
-        else if (u.blueprintId == "kingship_levy") {
+        else if (u.blueprintId == "kingship_recruit") {   // la Recluta (unita' alla vecchia Recluta di Leva)
+            tryUpgrade(0.25f, u.equipmentSlots[1], "recruit_medkit");
             tryUpgrade(0.5f, u.primaryWeaponId, "levy_auto_rifle");     // alternativa base alla impulse_rifle
             tryUpgrade(0.30f, u.meleeWeaponId, "levy_toothsword");
             if (Random::Chance(0.30f)) { tryUpgrade(1.0f, u.armorLeftArmId, "arm_l_levy_guard"); tryUpgrade(1.0f, u.armorRightArmId, "arm_r_levy_guard"); }
@@ -9602,12 +9611,6 @@ namespace SunEngine {
             tryUpgrade(0.25f, u.primaryWeaponId, "candidate_shotgun");
             tryUpgrade(0.35f, u.secondaryWeaponId, "candidate_impulse_pistol");
             tryUpgrade(0.30f, u.meleeWeaponId, "candidate_toothsword");
-        }
-        else if (u.blueprintId == "kingship_recruit") {
-            tryUpgrade(0.30f, u.equipmentSlots[0], "recruit_frag");
-            tryUpgrade(0.25f, u.equipmentSlots[1], "recruit_medkit");
-            tryUpgrade(0.35f, u.armorTorsoId, "torso_recruit_flak");
-            tryUpgrade(0.35f, u.armorHeadId, "head_recruit_helmet");
         }
         else if (u.blueprintId == "vrepighs_raider") {
             const float r = Random::Float01();

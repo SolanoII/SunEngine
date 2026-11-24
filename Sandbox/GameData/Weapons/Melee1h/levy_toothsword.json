@@ -203,6 +203,6 @@
   },
   "comment": "Sbloccabile del Recluta di Leva: spada a denti meccanici a una mano a misura d'uomo, piu' piccola e leggera di quella dei Vanguard Armors (danno base 36).",
   "allowed_units": [
-    "kingship_levy"
+    "kingship_recruit"
   ]
 }

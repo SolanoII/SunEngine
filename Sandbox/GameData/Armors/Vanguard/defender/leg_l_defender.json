@@ -1,6 +1,6 @@
 {
   "id": "leg_l_defender",
-  "displayName": "Gambale da Difensore Vanguardio (sx)",
+  "displayName": "Gambale della Vanguard Armor (sx)",
   "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Cosciale, ginocchiera bordata, schiniere e stivale. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
   "location": "LeftLeg",
   "faction": "Vanguard",

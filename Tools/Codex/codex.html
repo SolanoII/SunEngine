@@ -137,6 +137,7 @@ h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-tran
       </div>
       <div class="legend" id="legend"><span class="u base">Unità</span> ce l'ha nella dotazione base <span class="u">Unità</span> la può sbloccare o sceglierla</div>
     </div>
+    <div id="hier"></div>
     <div class="grid" id="grid" style="margin-top:16px"></div>
     <div class="empty" id="empty" hidden>Niente con questi filtri.</div>
   </section>
@@ -153,6 +154,7 @@ const TABS = [
   ['armi-bianche', 'Armi bianche', 'melee'],
   ['equipaggiamento', 'Equipaggiamento', 'equipment'],
   ['armature', 'Armature', 'armor'],
+  ['idee', 'Idee e progetti', 'idea'],
 ];
 const HAND = { OneHanded: 'una mano', TwoHanded: 'due mani' };
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
@@ -181,6 +183,7 @@ function bars(e) {
     case 'unit': case 'other': return [['Salute', e.health ?? 0, 'hp'], ['Robustezza', e.toughness ?? 0, 'tg'], ['Velocità', e.base_speed ?? 0, 'sp'], ['Mira', e.accuracy_skill ?? 0, 'ac'], ['Mischia', e.melee_skill ?? 0, 'ml']];
     case 'equipment': return [['Danno', e.explosion_damage ?? e.base_damage ?? 0, 'dmg'], ['Raggio', e.explosion_radius ?? e.equipment_range ?? e.trigger_radius ?? 0, 'rad'], ['Usi', e.equipment_uses ?? 0, 'uses']];
     case 'melee': return [['Danno', e.base_damage ?? 0, 'dmg'], ['Colpo max', (e.base_damage ?? 0) * (e._maxmul || 1), 'maxhit'], ['Perforaz.', e.armor_penetration ?? 0, 'ap']];
+    case 'idea': return [];
     case 'armor': return [['Armatura', e.armor_rating ?? 0, 'ar'], ['Copertura', Math.round((e.coverage ?? 0) * 100), 'cv'], ['Resistenza', e.max_durability ?? 0, 'du']];
     default: return [['Danno/s', dps(e) ?? 0, 'dps'], ['Colpo', (e.base_damage ?? 0) * (e.pellet_count || 1), 'dmg'], ['Portata', e.range_effective ?? 0, 'rng'], ['Perforaz.', e.armor_penetration ?? 0, 'ap']];
   }
@@ -202,6 +205,12 @@ function shot(e, big) {
 function metaHTML(e) {
   const m = [];
   const r = e._research;
+  if (e._kind === 'idea') {
+    m.push(`<span class="t">Grado ${ROMAN[e.tier] || e.tier}</span>`);
+    if (e.caste) m.push(`<span>${esc(e.caste)}</span>`);
+    m.push(`<span>${e._hidden ? 'nascosta nell\'albero' : 'in arrivo nell\'albero'}</span>`);
+    return m.join('');
+  }
   if (e._kind === 'unit') {
     if (r) m.push(`<span class="t">${r.premium ? 'Élite' : 'Grado ' + ROMAN[r.tier]}</span>`); else m.push('<span class="t">Non si ricerca</span>');
     m.push(`<span>${esc(fmt('ai_role', e.ai_role))}</span>`, `<span>${e.point_cost} pt</span>`);
@@ -220,6 +229,9 @@ function card(e) {
     const shown = ['dps', 'maxhit'].includes(k) ? Math.round(v) : num(v);
     return `<div class="bar"><span>${lab}</span><div class="track"><div class="fill" style="width:${Math.max(2, 100 * v / m)}%"></div></div><span class="val">${shown}</span></div>`;
   }).join('');
+  if (e._kind === 'idea') return `<div class="card f-${esc(e.faction || '')}" role="button" tabindex="0" data-id="${esc(e.id)}" aria-label="${esc(e.displayName)}: dettagli">
+    <div class="stripe"></div><div class="cbody"><div class="name">${esc(e.displayName)}</div><div class="meta"><span>${esc(facName(e.faction))}</span>${metaHTML(e)}</div>
+    ${e.comment ? `<div class="comment" style="font-size:12.5px">${esc(e.comment)}</div>` : ''}${e._parent ? `<div class="meta"><span>Dopo: ${esc(e._parent)}</span></div>` : ''}</div></div>`;
   const top = e._kind === 'armor' ? `<div class="stripe"></div>` : `<div class="shot">${shot(e)}<span class="stamp">${esc(facName(e.faction))}</span></div>`;
   const foot = e._kind === 'unit'
     ? `<div class="who">${(e._base || []).slice(0, 3).map(([, n]) => `<span class="u base">${esc(n)}</span>`).join('')}</div>`
@@ -239,6 +251,7 @@ const SORTS = {
   ranged: [['name', 'nome'], ['dps', 'danno al secondo'], ['dmg', 'danno per colpo'], ['cost', 'costo in punti'], ['weight', 'peso']],
   melee: [['name', 'nome'], ['dmg', 'danno'], ['cost', 'costo in punti'], ['weight', 'peso']],
   equipment: [['name', 'nome'], ['dmg', 'danno'], ['cost', 'costo in punti'], ['weight', 'peso']],
+  idea: [['tier', 'grado'], ['name', 'nome']],
   armor: [['name', 'nome'], ['ar', 'armatura'], ['cost', 'costo in punti'], ['weight', 'peso']],
 };
 const KEYS = {
@@ -254,7 +267,8 @@ function renderList() {
     (!q || (e.displayName + ' ' + e.id + ' ' + (e._who || []).map(u => u.name).join(' ')).toLowerCase().includes(q)));
   const key = KEYS[s];
   list.sort(key ? (a, b) => key(b) - key(a) || a.displayName.localeCompare(b.displayName, 'it') : (a, b) => a.displayName.localeCompare(b.displayName, 'it'));
-  $('#grid').className = 'grid' + (cat === 'armor' ? ' compact' : '');
+  $('#grid').className = 'grid' + (cat === 'armor' || cat === 'idea' ? ' compact' : '');
+  $('#hier').innerHTML = cat === 'idea' ? hierHTML() : '';
   $('#grid').innerHTML = list.map(card).join('');
   $('#empty').hidden = list.length > 0;
 }
@@ -267,10 +281,20 @@ function setupListing() {
   const row = $('#facRow');
   row.innerHTML = '<span class="lab">Fazione</span>' + [['all', 'Tutte']].concat(facs.map(f => [f, facName(f) + ' · ' + E.filter(e => e._cat === cat && (e.faction || '') === f).length]))
     .map(([v, t]) => `<button class="chip" data-v="${esc(v)}" aria-pressed="${v === fac}">${esc(t)}</button>`).join('');
-  $('#legend').hidden = sk === 'unit';
+  $('#legend').hidden = sk === 'unit' || sk === 'idea';
   renderList();
 }
 
+function hierHTML() {
+  return (D.hierarchies || []).filter(h => fac === 'all' || h.faction === fac).map(h => `<div class="box" style="margin-top:16px"><h2 class="sec">Gerarchia: ${esc(h.name)}</h2>
+    ${h.intro ? `<p class="comment">${esc(h.intro)}</p>` : ''}
+    <div class="hgrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">${(h.divisions || []).map(d => `<div>
+      <div style="font:700 18px var(--display);letter-spacing:.04em;color:rgb(${(d.color || [.8,.8,.8]).map(x => Math.round(x * 255)).join(',')})">${esc(d.name)}</div>
+      <div class="meta" style="margin-bottom:8px"><span>${esc(d.role || '')}</span></div>
+      ${(d.ranks || []).map(r => `<div style="border-top:1px solid var(--line);padding:6px 0"><div><b>${esc(r.title)}</b> <span class="meta" style="display:inline"><span class="t">grado ${ROMAN[r.tier] || r.tier}</span></span></div>
+        ${r.text ? `<div class="comment" style="font-size:12.5px">${esc(r.text)}</div>` : ''}${r.member ? `<div style="color:var(--brass);font-size:12.5px">${esc(r.member)}</div>` : ''}</div>`).join('')}</div>`).join('')}</div>
+    ${h.footer ? `<h3>${esc(h.footer_title || '')}</h3><p class="comment">${esc(h.footer)}</p>` : ''}</div>`).join('');
+}
 function overview() {
   const cats = TABS.slice(1);
   const count = c => E.filter(e => e._cat === c).length;
@@ -283,6 +307,7 @@ function overview() {
     ['Armature che nessuna unità può indossare', E.filter(e => e._kind === 'armor' && !e._who.length)],
     ['Unità senza foto', E.filter(e => e._kind === 'unit' && !e._img)],
     ['Unità senza commento nel file', E.filter(e => e._kind === 'unit' && !e.comment)],
+    ['Unità in progetto (nell\'albero, non ancora giocabili)', E.filter(e => e._kind === 'idea')],
   ];
   const units = E.filter(e => e._kind === 'unit').sort((a, b) => (a.faction || '').localeCompare(b.faction || '') || (a._research?.tier ?? 9) - (b._research?.tier ?? 9));
   $('#overview').innerHTML = `
@@ -301,6 +326,17 @@ function open(id) {
   const e = E.find(x => x.id === id); if (!e) return;
   const used = new Set();
   const r = e._research;
+  if (e._kind === 'idea') {
+    const rows = [['Fazione', facName(e.faction)], ['Grado', ROMAN[e.tier] || e.tier]];
+    if (e.caste) rows.push(['Casta', e.caste]);
+    if (e._parent) rows.push(['Si ricerca da', e._parent]);
+    if (r && r.research) rows.push(['Ricerca', num(r.research) + ' punti studio']);
+    rows.push(['Nell\'albero', e._hidden ? 'nascosta: oltre il grado mostrato' : 'visibile, "in arrivo"'], ['Nome del primo', e.default_name || '—']);
+    $('#sheet').innerHTML = `<div class="dlg f-${esc(e.faction || '')}" role="dialog" aria-modal="true" aria-labelledby="dt" style="grid-template-columns:1fr;width:min(640px,100%)">
+      <div class="dinfo"><button class="close" id="close">Chiudi</button><div class="eyebrow">${esc(e.id)} · in progetto</div><h2 id="dt">${esc(e.displayName)}</h2>
+      ${e.comment ? `<p class="comment">${esc(e.comment)}</p>` : ''}<h3>Nell'albero di ricerca</h3>${table(rows)}</div></div>`;
+    $('#sheet').hidden = false; $('#close').focus(); $('#close').onclick = close; return;
+  }
   const top = [['Fazione', facName(e.faction)], ['Categoria', (TABS.find(t => t[2] === e._cat) || [])[1]]];
   if (e.point_cost != null) top.push(['Costo in punti', e.point_cost]);
   if (e.weight_kg != null) top.push(['Peso', num(e.weight_kg) + ' kg']);

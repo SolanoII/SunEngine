@@ -13,14 +13,33 @@
       ],
       "nodes": [
         {
-          "id": "kg_recruit",
-          "unit": "kingship_recruit",
-          "name": "Reclute",
+          "id": "kg_meatshield",
+          "unit": "kingship_meatshield",
+          "name": "Meatshield",
           "tier": 1,
           "col": 0,
           "row": 2.5,
           "parent": "",
           "research_cost": 0,
+          "purchase_cost": 8000,
+          "default_name": "Condannato Brask",
+          "color": [
+            0.42,
+            0.36,
+            0.3,
+            1
+          ],
+          "description": "Prigionieri condannati a vita, costretti a servire con il minimo indispensabile per ammazzare il nemico. In prima linea a fermare la carica di cavalcature, mostri, macchine e robot."
+        },
+        {
+          "id": "kg_recruit",
+          "unit": "kingship_recruit",
+          "name": "Reclute",
+          "tier": 2,
+          "col": 1,
+          "row": 2.5,
+          "parent": "kg_meatshield",
+          "research_cost": 15000,
           "purchase_cost": 15000,
           "default_name": "Recluta Teren",
           "color": [
@@ -28,34 +47,19 @@
             0.45,
             0.3,
             1
-          ]
-        },
-        {
-          "id": "kg_levy",
-          "unit": "kingship_levy",
-          "name": "Reclute di Leva",
-          "tier": 2,
-          "col": 1,
-          "row": 2.5,
-          "parent": "kg_recruit",
-          "research_cost": 15000,
-          "purchase_cost": 15000,
-          "default_name": "Recluta di Leva Brann",
-          "color": [
-            0.78,
-            0.74,
-            0.66,
-            1
+          ],
+          "renamed_from": [
+            "kg_levy"
           ]
         },
         {
           "id": "kg_footman",
           "unit": "kingship_footman",
-          "name": "Fanti del Regno",
+          "name": "Fanti",
           "tier": 3,
           "col": 2,
           "row": 1,
-          "parent": "kg_levy",
+          "parent": "kg_recruit",
           "research_cost": 25000,
           "purchase_cost": 30000,
           "default_name": "Fante Hessel",
@@ -87,7 +91,7 @@
         {
           "id": "kg_captain",
           "unit": "kingship_captain",
-          "name": "Capitano del Regno",
+          "name": "Capitano del Kingship",
           "tier": 6,
           "col": 5,
           "row": 2,
@@ -202,7 +206,7 @@
           "tier": 3,
           "col": 2,
           "row": 4,
-          "parent": "kg_levy",
+          "parent": "kg_recruit",
           "research_cost": 25000,
           "purchase_cost": 30000,
           "default_name": "Cadetta Ilse",
@@ -286,48 +290,15 @@
           ]
         },
         {
-          "id": "kg_recruit_item_frag",
-          "item": "recruit_frag",
-          "name": "Granata a Frammentazione",
-          "tier": 1,
-          "col": 1,
-          "row": 3,
-          "parent": "kg_recruit",
-          "research_cost": 10000,
-          "purchase_cost": 20000
-        },
-        {
           "id": "kg_recruit_item_medkit",
           "item": "recruit_medkit",
           "name": "Medikit",
-          "tier": 1,
+          "tier": 2,
           "col": 1,
-          "row": 4,
+          "row": 3,
           "parent": "kg_recruit",
           "research_cost": 15000,
           "purchase_cost": 25000
-        },
-        {
-          "id": "kg_recruit_item_flak",
-          "item": "torso_recruit_flak",
-          "name": "Corpetto Antischegge",
-          "tier": 1,
-          "col": 1,
-          "row": 5,
-          "parent": "kg_recruit",
-          "research_cost": 10000,
-          "purchase_cost": 20000
-        },
-        {
-          "id": "kg_recruit_item_helmet",
-          "item": "head_recruit_helmet",
-          "name": "Elmetto",
-          "tier": 1,
-          "col": 2,
-          "row": 5,
-          "parent": "kg_recruit_item_flak",
-          "research_cost": 8000,
-          "purchase_cost": 15000
         },
         {
           "id": "kg_levy_item_toothsword",
@@ -335,7 +306,7 @@
           "tier": 2,
           "col": 2,
           "row": 6,
-          "parent": "kg_levy",
+          "parent": "kg_recruit",
           "research_cost": 20000,
           "purchase_cost": 35000,
           "item": "levy_toothsword"
@@ -346,7 +317,7 @@
           "tier": 2,
           "col": 2,
           "row": 7,
-          "parent": "kg_levy",
+          "parent": "kg_recruit",
           "research_cost": 15000,
           "purchase_cost": 25000,
           "items": [
@@ -374,7 +345,7 @@
           "tier": 2,
           "col": 2,
           "row": 8,
-          "parent": "kg_levy",
+          "parent": "kg_recruit",
           "research_cost": 35000,
           "purchase_cost": 70000,
           "item": "levy_impulse_cannon"
@@ -565,12 +536,12 @@
           "id": "ordo_domus_humilitatis",
           "name": "ORDO DOMUS HUMILITATIS",
           "comment": "Sezione di sola consultazione dentro la scheda delle Vanguard Armor: la gerarchia dell'Ordine, nessuna unita' da ricercare. Divisioni in colonne, cariche dal grado piu' alto al piu' basso.",
-          "intro": "L'Ordine e' retto da un triumvirato fra tre divisioni: i Cavalieri, dotati di armatura, si occupano dell'attacco; i Sacerdoti, di cui alcune delle cariche piu' alte portano l'armatura, del supporto e dell'approvvigionamento; fra le due sta la linea dei Battle Priest, che si occupa della difesa.",
+          "intro": "L'Ordine e' retto da tre caste: i Cavalieri (Ritterbrüder) per il comando militare, la tattica navale e la prima linea; i Preti Guerrieri (Schwertpriester) per il fanatismo, l'inquisizione, il supporto psichico in battaglia e la disciplina; i Sacerdoti (Priesterbrüder) per logistica, finanze, medicina, scienza, archivi e burocrazia. Sotto di loro i Fratelli Serventi, i tecnici dal mantello grigio. Nell'albero ogni casta comincia al grado III, dopo la Vanguard Armor; i Serventi al grado II, dopo il Candidato.",
           "top_label": "TRIUMVIRATO",
           "divisions": [
             {
               "name": "CAVALIERI",
-              "role": "Attacco",
+              "role": "Ritterbrüder - comando militare, tattica navale, prima linea",
               "color": [
                 0.86,
                 0.84,
@@ -580,35 +551,50 @@
                 {
                   "tier": 10,
                   "title": "Hochmeister",
-                  "text": "E' la massima autorita' dell'Ordine."
+                  "text": "Gran Maestro. Capo supremo dell'Ordine."
                 },
                 {
                   "tier": 9,
                   "title": "Großkomtur",
-                  "text": "Secondo in comando e sostituto del Gran Maestro in sua assenza."
+                  "text": "Gran Commendatore. Vice del Gran Maestro."
                 },
                 {
                   "tier": 8,
                   "title": "Ordensmarschall",
-                  "text": "Comandante supremo delle forze militari sul campo."
+                  "text": "Maresciallo dell'Ordine. Comandante delle flotte e degli eserciti."
                 },
                 {
                   "tier": 7,
                   "title": "Landmeister",
-                  "text": "Governa ampie zone della galassia.",
+                  "text": "Maestro Territoriale. Governatore di un settore stellare (Konrad von Eber).",
                   "member": "Konrad von Eber",
                   "member_node": "va_konrad"
                 },
                 {
                   "tier": 6,
                   "title": "Landkomtur",
-                  "text": "Governa piccole zone della galassia."
+                  "text": "Commendatore Provinciale. Capo di un sistema solare."
+                },
+                {
+                  "tier": 5,
+                  "title": "Hauskomtur",
+                  "text": "Commendatore di Casa. Comandante di una singola astronave o fortezza."
+                },
+                {
+                  "tier": 4,
+                  "title": "Ritterbruder",
+                  "text": "Fratello Cavaliere. Guerriero d'élite e ufficiale."
+                },
+                {
+                  "tier": 3,
+                  "title": "Schildknappe",
+                  "text": "Scudiero. Iniziato dell'aristocrazia in addestramento."
                 }
               ]
             },
             {
-              "name": "BATTLE PRIEST",
-              "role": "Difesa - cariche sia da cavaliere che da sacerdote",
+              "name": "PRETI GUERRIERI",
+              "role": "Schwertpriester - fanatismo, inquisizione, supporto psichico, disciplina",
               "color": [
                 0.78,
                 0.66,
@@ -617,34 +603,49 @@
               "ranks": [
                 {
                   "tier": 10,
-                  "title": "Gran Chappelan",
-                  "text": ""
+                  "title": "Großkaplan",
+                  "text": "Gran Cappellano. Capo spirituale e inquisitore supremo (ex Gran Chappelan)."
                 },
                 {
                   "tier": 9,
-                  "title": "Chappelan",
-                  "text": ""
+                  "title": "Kaplan",
+                  "text": "Alto Cappellano. Alto cappellano di flotta (ex Chappelan)."
                 },
                 {
                   "tier": 8,
                   "title": "Prior",
-                  "text": ""
+                  "text": "Priore. Guida spirituale di una provincia o di un grande incrociatore."
                 },
                 {
                   "tier": 7,
                   "title": "Komtur",
-                  "text": ""
+                  "text": "Commendatore. Guida di un convento-fortezza."
                 },
                 {
                   "tier": 6,
-                  "title": "Balivo",
-                  "text": ""
+                  "title": "Vogt",
+                  "text": "Giudice. Amministratore della legge marziale e inquisitore locale (ex Balivo)."
+                },
+                {
+                  "tier": 5,
+                  "title": "Subprior",
+                  "text": "Sottopriore. Vice del Priore, supervisore del dogma a bordo."
+                },
+                {
+                  "tier": 4,
+                  "title": "Streitpriester",
+                  "text": "Prete Guerriero. Cappellano da combattimento in prima linea."
+                },
+                {
+                  "tier": 3,
+                  "title": "Novize",
+                  "text": "Novizio. Apprendista del culto bellico."
                 }
               ]
             },
             {
               "name": "SACERDOTI",
-              "role": "Supporto e approvvigionamento",
+              "role": "Priesterbrüder - logistica, finanze, medicina, scienza, archivi",
               "color": [
                 0.62,
                 0.56,
@@ -654,33 +655,79 @@
                 {
                   "tier": 10,
                   "title": "Großspittler",
-                  "text": "Sovrintende a tutte le riunioni del Gran Maestro perche' le decisioni prese siano conformi all'Ordine. E' il custode del libro delle leggi dell'Ordine."
+                  "text": "Gran Ospitaliere. Capo della medicina, delle biotecnologie e del supporto vitale."
                 },
                 {
                   "tier": 9,
                   "title": "Ordenstrappier",
-                  "text": "Incaricato della manutenzione e dell'assegnazione delle armature e della sacralita' di tutte le macchine dell'Ordine."
+                  "text": "Intendente dell'Ordine. Capo delle forniture, delle armi e delle armature."
                 },
                 {
                   "tier": 8,
-                  "title": "Ordenstressler",
-                  "text": "Incaricato della distribuzione delle risorse dell'Ordine all'interno della flotta e della distribuzione della carita'."
+                  "title": "Ordenstreßler",
+                  "text": "Tesoriere dell'Ordine. Capo delle finanze e delle risorse."
                 },
                 {
                   "tier": 7,
-                  "title": "Bishop",
-                  "text": ""
+                  "title": "Bischof",
+                  "text": "Vescovo. Alto prelato e amministratore di grandi archivi e ospedali (ex Bishop)."
                 },
                 {
                   "tier": 6,
                   "title": "Pfarrer",
-                  "text": ""
+                  "text": "Parroco. Responsabile liturgico e medico di una nave o stazione."
+                },
+                {
+                  "tier": 5,
+                  "title": "Kellermeister",
+                  "text": "Maestro Cantiniere. Responsabile delle razioni, del carburante e delle stive."
+                },
+                {
+                  "tier": 4,
+                  "title": "Schreiber",
+                  "text": "Scriba. Burocrate, archivista e analista dati."
+                },
+                {
+                  "tier": 3,
+                  "title": "Akoleth",
+                  "text": "Accolito. Assistente ai riti e alla manutenzione degli archivi."
+                }
+              ]
+            },
+            {
+              "name": "FRATELLI SERVENTI",
+              "role": "Dienende Brüder / Graumäntler - tecnici, ingegneri, reattori, elettronica",
+              "color": [
+                0.62,
+                0.62,
+                0.62
+              ],
+              "ranks": [
+                {
+                  "tier": 4,
+                  "title": "Werkmeister",
+                  "text": "Maestro d'Opera. Ingegnere capo di flotta o di cantiere."
+                },
+                {
+                  "tier": 3,
+                  "title": "Büchsenmeister",
+                  "text": "Maestro d'Artiglieria. Capo tecnico dei sistemi d'arma e dei motori."
+                },
+                {
+                  "tier": 2,
+                  "title": "Halbbruder",
+                  "text": "Fratello Servente. Tecnico specializzato ed elettricista di bordo."
+                },
+                {
+                  "tier": 1,
+                  "title": "Knecht",
+                  "text": "Servo. Manovale per le riparazioni piu' pesanti e pericolose; non si schiera."
                 }
               ]
             }
           ],
           "footer_title": "FRATELLI SERVENTI",
-          "footer": "Tutti coloro che non hanno ancora un'armatura o non sono adatti a portarne una. Non possono intraprendere la via del sacerdozio perche' non hanno risvegliato i poteri."
+          "footer": "Chi non regge l'armatura e non ha risvegliato i poteri serve l'Ordine come tecnico: portavano tradizionalmente il mantello grigio (Graumäntler)."
         }
       ],
       "nodes": [
@@ -705,14 +752,14 @@
         {
           "id": "va_explorer",
           "unit": "vanguard_explorer",
-          "name": "Vanguard Explorer",
+          "name": "Vanguard Iniziate",
           "tier": 2,
           "col": 1,
           "row": 1.5,
           "parent": "va_candidate",
           "research_cost": 20000,
           "purchase_cost": 85000,
-          "default_name": "Esploratore Ilex",
+          "default_name": "Iniziato Ilex",
           "color": [
             0.78,
             0.62,
@@ -723,7 +770,7 @@
         {
           "id": "va_defender",
           "unit": "vanguard_defender",
-          "name": "Difensori Vanguardii",
+          "name": "Vanguard Armor",
           "tier": 3,
           "col": 2,
           "row": 1.5,
@@ -736,7 +783,8 @@
             0.5,
             0.52,
             1
-          ]
+          ],
+          "description": "La Vanguard Armor generica, pietra centrale viola. Da qui partono le fazioni personalizzate (si mescolano i pezzi sbloccati da tutti gli ordini) e, una volta sbloccata, uno dei 14 ordini: per ora l'Ordo Domus Humilitatis."
         },
         {
           "id": "va_line_guard",
@@ -1204,6 +1252,546 @@
           "parent": "va_defender",
           "research_cost": 30000,
           "purchase_cost": 55000
+        },
+        {
+          "id": "va_ordo_schildknappe",
+          "unit": "ordo_schildknappe",
+          "name": "Schildknappe",
+          "tier": 3,
+          "col": 2,
+          "row": 4,
+          "parent": "va_defender",
+          "research_cost": 40000,
+          "purchase_cost": 0,
+          "default_name": "Schildknappe",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Scudiero. Iniziato dell'aristocrazia in addestramento"
+        },
+        {
+          "id": "va_ordo_ritterbruder",
+          "unit": "ordo_ritterbruder",
+          "name": "Ritterbruder",
+          "tier": 4,
+          "col": 3,
+          "row": 4,
+          "parent": "va_ordo_schildknappe",
+          "research_cost": 60000,
+          "purchase_cost": 0,
+          "default_name": "Ritterbruder",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Fratello Cavaliere. Guerriero d'élite e ufficiale"
+        },
+        {
+          "id": "va_ordo_hauskomtur",
+          "unit": "ordo_hauskomtur",
+          "name": "Hauskomtur",
+          "tier": 5,
+          "col": 4,
+          "row": 4,
+          "parent": "va_ordo_ritterbruder",
+          "research_cost": 90000,
+          "purchase_cost": 0,
+          "default_name": "Hauskomtur",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Commendatore di Casa. Comandante di una singola astronave o fortezza"
+        },
+        {
+          "id": "va_ordo_landkomtur",
+          "unit": "ordo_landkomtur",
+          "name": "Landkomtur",
+          "tier": 6,
+          "col": 5,
+          "row": 4,
+          "parent": "va_ordo_hauskomtur",
+          "research_cost": 130000,
+          "purchase_cost": 0,
+          "default_name": "Landkomtur",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Commendatore Provinciale. Capo di un sistema solare"
+        },
+        {
+          "id": "va_ordo_landmeister",
+          "unit": "ordo_landmeister",
+          "name": "Landmeister",
+          "tier": 7,
+          "col": 6,
+          "row": 4,
+          "parent": "va_ordo_landkomtur",
+          "research_cost": 180000,
+          "purchase_cost": 0,
+          "default_name": "Landmeister",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Maestro Territoriale. Governatore di un settore stellare (Konrad von Eber)"
+        },
+        {
+          "id": "va_ordo_ordensmarschall",
+          "unit": "ordo_ordensmarschall",
+          "name": "Ordensmarschall",
+          "tier": 8,
+          "col": 7,
+          "row": 4,
+          "parent": "va_ordo_landmeister",
+          "research_cost": 250000,
+          "purchase_cost": 0,
+          "default_name": "Ordensmarschall",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Maresciallo dell'Ordine. Comandante delle flotte e degli eserciti"
+        },
+        {
+          "id": "va_ordo_grosskomtur",
+          "unit": "ordo_grosskomtur",
+          "name": "Großkomtur",
+          "tier": 9,
+          "col": 8,
+          "row": 4,
+          "parent": "va_ordo_ordensmarschall",
+          "research_cost": 350000,
+          "purchase_cost": 0,
+          "default_name": "Großkomtur",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Gran Commendatore. Vice del Gran Maestro"
+        },
+        {
+          "id": "va_ordo_hochmeister",
+          "unit": "ordo_hochmeister",
+          "name": "Hochmeister",
+          "tier": 10,
+          "col": 9,
+          "row": 4,
+          "parent": "va_ordo_grosskomtur",
+          "research_cost": 350000,
+          "purchase_cost": 0,
+          "default_name": "Hochmeister",
+          "color": [
+            0.86,
+            0.84,
+            0.78,
+            1
+          ],
+          "caste": "Cavalieri (Ritterbrüder)",
+          "description": "Gran Maestro. Capo supremo dell'Ordine"
+        },
+        {
+          "id": "va_ordo_novize",
+          "unit": "ordo_novize",
+          "name": "Novize",
+          "tier": 3,
+          "col": 2,
+          "row": 5,
+          "parent": "va_defender",
+          "research_cost": 40000,
+          "purchase_cost": 0,
+          "default_name": "Novize",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Novizio. Apprendista del culto bellico"
+        },
+        {
+          "id": "va_ordo_streitpriester",
+          "unit": "ordo_streitpriester",
+          "name": "Streitpriester",
+          "tier": 4,
+          "col": 3,
+          "row": 5,
+          "parent": "va_ordo_novize",
+          "research_cost": 60000,
+          "purchase_cost": 0,
+          "default_name": "Streitpriester",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Prete Guerriero. Cappellano da combattimento in prima linea"
+        },
+        {
+          "id": "va_ordo_subprior",
+          "unit": "ordo_subprior",
+          "name": "Subprior",
+          "tier": 5,
+          "col": 4,
+          "row": 5,
+          "parent": "va_ordo_streitpriester",
+          "research_cost": 90000,
+          "purchase_cost": 0,
+          "default_name": "Subprior",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Sottopriore. Vice del Priore, supervisore del dogma a bordo"
+        },
+        {
+          "id": "va_ordo_vogt",
+          "unit": "ordo_vogt",
+          "name": "Vogt",
+          "tier": 6,
+          "col": 5,
+          "row": 5,
+          "parent": "va_ordo_subprior",
+          "research_cost": 130000,
+          "purchase_cost": 0,
+          "default_name": "Vogt",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Giudice. Amministratore della legge marziale e inquisitore locale (ex Balivo)"
+        },
+        {
+          "id": "va_ordo_komtur",
+          "unit": "ordo_komtur",
+          "name": "Komtur",
+          "tier": 7,
+          "col": 6,
+          "row": 5,
+          "parent": "va_ordo_vogt",
+          "research_cost": 180000,
+          "purchase_cost": 0,
+          "default_name": "Komtur",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Commendatore. Guida di un convento-fortezza"
+        },
+        {
+          "id": "va_ordo_prior",
+          "unit": "ordo_prior",
+          "name": "Prior",
+          "tier": 8,
+          "col": 7,
+          "row": 5,
+          "parent": "va_ordo_komtur",
+          "research_cost": 250000,
+          "purchase_cost": 0,
+          "default_name": "Prior",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Priore. Guida spirituale di una provincia o di un grande incrociatore"
+        },
+        {
+          "id": "va_ordo_kaplan",
+          "unit": "ordo_kaplan",
+          "name": "Kaplan",
+          "tier": 9,
+          "col": 8,
+          "row": 5,
+          "parent": "va_ordo_prior",
+          "research_cost": 350000,
+          "purchase_cost": 0,
+          "default_name": "Kaplan",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Alto Cappellano. Alto cappellano di flotta (ex Chappelan)"
+        },
+        {
+          "id": "va_ordo_grosskaplan",
+          "unit": "ordo_grosskaplan",
+          "name": "Großkaplan",
+          "tier": 10,
+          "col": 9,
+          "row": 5,
+          "parent": "va_ordo_kaplan",
+          "research_cost": 350000,
+          "purchase_cost": 0,
+          "default_name": "Großkaplan",
+          "color": [
+            0.78,
+            0.66,
+            0.42,
+            1
+          ],
+          "caste": "Preti Guerrieri (Schwertpriester)",
+          "description": "Gran Cappellano. Capo spirituale e inquisitore supremo (ex Gran Chappelan)"
+        },
+        {
+          "id": "va_ordo_akoleth",
+          "unit": "ordo_akoleth",
+          "name": "Akoleth",
+          "tier": 3,
+          "col": 2,
+          "row": 6,
+          "parent": "va_defender",
+          "research_cost": 40000,
+          "purchase_cost": 0,
+          "default_name": "Akoleth",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Accolito. Assistente ai riti e alla manutenzione degli archivi"
+        },
+        {
+          "id": "va_ordo_schreiber",
+          "unit": "ordo_schreiber",
+          "name": "Schreiber",
+          "tier": 4,
+          "col": 3,
+          "row": 6,
+          "parent": "va_ordo_akoleth",
+          "research_cost": 60000,
+          "purchase_cost": 0,
+          "default_name": "Schreiber",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Scriba. Burocrate, archivista e analista dati"
+        },
+        {
+          "id": "va_ordo_kellermeister",
+          "unit": "ordo_kellermeister",
+          "name": "Kellermeister",
+          "tier": 5,
+          "col": 4,
+          "row": 6,
+          "parent": "va_ordo_schreiber",
+          "research_cost": 90000,
+          "purchase_cost": 0,
+          "default_name": "Kellermeister",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Maestro Cantiniere. Responsabile delle razioni, del carburante e delle stive"
+        },
+        {
+          "id": "va_ordo_pfarrer",
+          "unit": "ordo_pfarrer",
+          "name": "Pfarrer",
+          "tier": 6,
+          "col": 5,
+          "row": 6,
+          "parent": "va_ordo_kellermeister",
+          "research_cost": 130000,
+          "purchase_cost": 0,
+          "default_name": "Pfarrer",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Parroco. Responsabile liturgico e medico di una nave o stazione"
+        },
+        {
+          "id": "va_ordo_bischof",
+          "unit": "ordo_bischof",
+          "name": "Bischof",
+          "tier": 7,
+          "col": 6,
+          "row": 6,
+          "parent": "va_ordo_pfarrer",
+          "research_cost": 180000,
+          "purchase_cost": 0,
+          "default_name": "Bischof",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Vescovo. Alto prelato e amministratore di grandi archivi e ospedali (ex Bishop)"
+        },
+        {
+          "id": "va_ordo_ordenstressler",
+          "unit": "ordo_ordenstressler",
+          "name": "Ordenstreßler",
+          "tier": 8,
+          "col": 7,
+          "row": 6,
+          "parent": "va_ordo_bischof",
+          "research_cost": 250000,
+          "purchase_cost": 0,
+          "default_name": "Ordenstreßler",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Tesoriere dell'Ordine. Capo delle finanze e delle risorse"
+        },
+        {
+          "id": "va_ordo_ordenstrappier",
+          "unit": "ordo_ordenstrappier",
+          "name": "Ordenstrappier",
+          "tier": 9,
+          "col": 8,
+          "row": 6,
+          "parent": "va_ordo_ordenstressler",
+          "research_cost": 350000,
+          "purchase_cost": 0,
+          "default_name": "Ordenstrappier",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Intendente dell'Ordine. Capo delle forniture, delle armi e delle armature"
+        },
+        {
+          "id": "va_ordo_grossspittler",
+          "unit": "ordo_grossspittler",
+          "name": "Großspittler",
+          "tier": 10,
+          "col": 9,
+          "row": 6,
+          "parent": "va_ordo_ordenstrappier",
+          "research_cost": 350000,
+          "purchase_cost": 0,
+          "default_name": "Großspittler",
+          "color": [
+            0.62,
+            0.56,
+            0.8,
+            1
+          ],
+          "caste": "Sacerdoti (Priesterbrüder)",
+          "description": "Gran Ospitaliere. Capo della medicina, delle biotecnologie e del supporto vitale"
+        },
+        {
+          "id": "va_ordo_halbbruder",
+          "unit": "ordo_halbbruder",
+          "name": "Halbbruder",
+          "tier": 2,
+          "col": 1,
+          "row": 7,
+          "parent": "va_candidate",
+          "research_cost": 20000,
+          "purchase_cost": 0,
+          "default_name": "Halbbruder",
+          "color": [
+            0.55,
+            0.55,
+            0.55,
+            1
+          ],
+          "caste": "Fratelli Serventi (Dienende Brüder)",
+          "description": "Fratello Servente. Tecnico specializzato ed elettricista di bordo"
+        },
+        {
+          "id": "va_ordo_buechsenmeister",
+          "unit": "ordo_buechsenmeister",
+          "name": "Büchsenmeister",
+          "tier": 3,
+          "col": 2,
+          "row": 7,
+          "parent": "va_ordo_halbbruder",
+          "research_cost": 40000,
+          "purchase_cost": 0,
+          "default_name": "Büchsenmeister",
+          "color": [
+            0.55,
+            0.55,
+            0.55,
+            1
+          ],
+          "caste": "Fratelli Serventi (Dienende Brüder)",
+          "description": "Maestro d'Artiglieria. Capo tecnico dei sistemi d'arma e dei motori"
+        },
+        {
+          "id": "va_ordo_werkmeister",
+          "unit": "ordo_werkmeister",
+          "name": "Werkmeister",
+          "tier": 4,
+          "col": 3,
+          "row": 7,
+          "parent": "va_ordo_buechsenmeister",
+          "research_cost": 60000,
+          "purchase_cost": 0,
+          "default_name": "Werkmeister",
+          "color": [
+            0.55,
+            0.55,
+            0.55,
+            1
+          ],
+          "caste": "Fratelli Serventi (Dienende Brüder)",
+          "description": "Maestro d'Opera. Ingegnere capo di flotta o di cantiere"
         },
         {
           "id": "va_konrad",

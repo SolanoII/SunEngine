@@ -27,16 +27,17 @@
 #include <set>
 #include <map>
 #include <array>
+#include <tuple>
 
 namespace SunEngine {
 
     namespace fs = std::filesystem;
 
-    enum CodexCategory { kCodexOverview = 0, kCodexUnits, kCodexOthers, kCodexRanged, kCodexMelee, kCodexEquipment, kCodexArmor, kCodexCount };
-    static const char* kCodexCategoryNames[kCodexCount] = { "Panoramica", "Unita'", "Nemici, elite e storia", "Armi da fuoco", "Armi bianche", "Equipaggiamento", "Armature" };
+    enum CodexCategory { kCodexOverview = 0, kCodexUnits, kCodexOthers, kCodexRanged, kCodexMelee, kCodexEquipment, kCodexArmor, kCodexIdeas, kCodexCount };
+    static const char* kCodexCategoryNames[kCodexCount] = { "Panoramica", "Unita'", "Nemici, elite e storia", "Armi da fuoco", "Armi bianche", "Equipaggiamento", "Armature", "Idee e progetti" };
 
     struct GameLayer::CodexEntry {
-        std::string id, name, faction, comment, kind;   // kind: "unit", "weapon", "armor"
+        std::string id, name, faction, comment, kind;   // kind: "unit", "weapon", "armor", "idea" (unita' non ancora giocabile), "hierarchy"
         int category = kCodexUnits;
         nlohmann::json j;
         bool hasModel = false;                          // armi: c'e' la mesh in Models/Weapons
@@ -137,7 +138,39 @@ namespace SunEngine {
             e.faction = e.j.value("faction", std::string());
             add(std::move(e));
         }
-        std::sort(data->entries.begin(), data->entries.end(), [](const CodexEntry& a, const CodexEntry& b) { return a.name < b.name; });
+        // idee: le unita' dell'albero di ricerca che non esistono ancora (anche oltre il grado mostrato) e le gerarchie
+        nlohmann::json tree;
+        if (LoadJson(fs::path(kDataDir) / "Research" / "research_tree.json", tree) && tree.contains("factions")) {
+            const int maxTier = tree.value("max_tier", 0);
+            for (const auto& jf : tree["factions"]) {
+                const std::string fid = jf.value("id", std::string());
+                const std::string fac = fid == "kingship" ? "Kingship" : fid == "vanguard" ? "Vanguard" : fid == "vrepighs" ? "Vrepighs" : fid;
+                std::unordered_map<std::string, std::string> names;
+                for (const auto& jn : jf.value("nodes", nlohmann::json::array())) names[jn.value("id", std::string())] = jn.value("name", std::string());
+                for (const auto& jn : jf.value("nodes", nlohmann::json::array())) {
+                    const std::string uid = jn.value("unit", std::string());
+                    if (uid.empty() || BlueprintManager::Get().GetUnit(uid)) continue;
+                    CodexEntry e; e.kind = "idea"; e.category = kCodexIdeas; e.faction = fac;
+                    e.id = uid; e.name = jn.value("name", uid); e.comment = jn.value("description", std::string());
+                    e.j = jn;
+                    e.j["_parent_name"] = names[jn.value("parent", std::string())];
+                    e.j["_hidden"] = maxTier > 0 && jn.value("tier", 1) > maxTier;
+                    add(std::move(e));
+                }
+                for (const auto& js : jf.value("sections", nlohmann::json::array())) {
+                    CodexEntry e; e.kind = "hierarchy"; e.category = kCodexIdeas; e.faction = fac;
+                    e.id = "gerarchia_" + js.value("id", std::string());
+                    std::string nm = js.value("name", e.id);
+                    e.name = "Gerarchia: " + nm;
+                    e.comment = js.value("intro", std::string());
+                    e.j = js;
+                    add(std::move(e));
+                }
+            }
+        }
+        // in ordine di nome; le idee: prima le gerarchie, poi per grado
+        auto key = [](const CodexEntry& e) { return std::make_tuple(e.kind == "hierarchy" ? 0 : 1, e.kind == "idea" ? e.j.value("tier", 0) : 0, e.name); };
+        std::sort(data->entries.begin(), data->entries.end(), [&](const CodexEntry& a, const CodexEntry& b) { return key(a) < key(b); });
         data->byId.clear();
         for (size_t i = 0; i < data->entries.size(); ++i) data->byId[data->entries[i].id] = i;
         m_Codex = data;
@@ -307,7 +340,7 @@ namespace SunEngine {
             ImGui::BeginChild("##codex_over", ImVec2(0.0f, 0.0f), false);
             Ui::Title("A che punto siamo");
             ImGui::Spacing();
-            const float tileW = 150.0f;
+            const float tileW = 128.0f;
             for (int c = 1; c < kCodexCount; ++c) {
                 if (c > 1) ImGui::SameLine();
                 Ui::StatTile(kCodexCategoryNames[c], std::to_string(counts[c]).c_str(), tileW, Ui::Col::Gold);
@@ -328,7 +361,7 @@ namespace SunEngine {
                 ImGui::EndTable();
             }
             ImGui::Spacing(); Ui::Heading("DA FARE");
-            std::vector<std::string> noModel, nobodyW, nobodyA, noPhoto;
+            std::vector<std::string> noModel, nobodyW, nobodyA, noPhoto, ideas;
             for (const auto& e : cd.entries) {
                 if (e.kind == "weapon") {
                     if (!e.hasModel && e.id.find("claws") == std::string::npos) noModel.push_back(e.name);   // gli artigli sono il corpo
@@ -344,6 +377,7 @@ namespace SunEngine {
                     if (!any) nobodyA.push_back(e.name);
                 }
                 else if (e.kind == "unit" && !CodexImage(e.id)) noPhoto.push_back(e.name);
+                else if (e.kind == "idea") ideas.push_back(e.name);
             }
             auto list = [](const char* title, const std::vector<std::string>& v) {
                 ImGui::TextColored(v.empty() ? Ui::Col::Verdigris : Ui::Col::Rust, "%s: %d", title, static_cast<int>(v.size()));
@@ -356,6 +390,7 @@ namespace SunEngine {
             list("Armi e attrezzi che nessuna unita' puo' usare", nobodyW);
             list("Armature che nessuna unita' puo' indossare", nobodyA);
             list("Unita' senza foto nel Codex", noPhoto);
+            ImGui::TextColored(Ui::Col::Phosphor, "Unita' in progetto (nell'albero, non ancora giocabili): %d", static_cast<int>(ideas.size()));
             ImGui::EndChild();
             ImGui::End();
             return;
@@ -400,6 +435,57 @@ namespace SunEngine {
         ImGui::TextColored(Ui::Col::Ash, "%s", e.id.c_str());
         ImGui::SameLine(); Ui::Chip(F.Faction(e.faction).c_str(), FactionColor(e.faction));
         ImGui::Spacing();
+
+        if (e.kind == "hierarchy") {   // gerarchia: caste in colonne, gradi dall'alto
+            if (!e.comment.empty()) { ImGui::PushTextWrapPos(0.0f); ImGui::TextColored(Ui::Col::Ash, "%s", e.comment.c_str()); ImGui::PopTextWrapPos(); }
+            const auto divs = j.value("divisions", nlohmann::json::array());
+            if (!divs.empty() && ImGui::BeginTable("##gerarchia", static_cast<int>(divs.size()), ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchSame)) {
+                for (const auto& d : divs) ImGui::TableSetupColumn(d.value("name", std::string()).c_str());
+                ImGui::TableNextRow();
+                int c = 0;
+                for (const auto& d : divs) {
+                    ImGui::TableSetColumnIndex(c++);
+                    const auto col = d.value("color", std::vector<float>{ 0.8f, 0.8f, 0.8f });
+                    const ImVec4 dc(col[0], col[1], col[2], 1.0f);
+                    ImGui::TextColored(dc, "%s", d.value("name", std::string()).c_str());
+                    ImGui::PushTextWrapPos(0.0f);
+                    ImGui::TextColored(Ui::Col::Ash, "%s", d.value("role", std::string()).c_str());
+                    for (const auto& r : d.value("ranks", nlohmann::json::array())) {
+                        ImGui::Spacing();
+                        ImGui::TextColored(dc, "%s  -  grado %s", r.value("title", std::string()).c_str(), Ui::Roman(r.value("tier", 1)));
+                        if (!r.value("text", std::string()).empty()) ImGui::TextColored(Ui::Col::Bone, "%s", r.value("text", std::string()).c_str());
+                        if (!r.value("member", std::string()).empty()) ImGui::TextColored(Ui::Col::Gold, "%s", r.value("member", std::string()).c_str());
+                    }
+                    ImGui::PopTextWrapPos();
+                }
+                ImGui::EndTable();
+            }
+            if (!j.value("footer", std::string()).empty()) {
+                ImGui::Spacing(); Ui::Heading(j.value("footer_title", std::string("NOTA")).c_str());
+                ImGui::PushTextWrapPos(0.0f); ImGui::TextColored(Ui::Col::Ash, "%s", j.value("footer", std::string()).c_str()); ImGui::PopTextWrapPos();
+            }
+            ImGui::EndChild(); ImGui::End();
+            return;
+        }
+        if (e.kind == "idea") {   // unita' in progetto: cosa sara', dove sta nell'albero
+            ImGui::TextColored(Ui::Col::Rust, "IN PROGETTO - non ancora giocabile");
+            ImGui::Spacing();
+            if (!e.comment.empty()) { ImGui::PushTextWrapPos(0.0f); ImGui::TextColored(Ui::Col::Bone, "%s", e.comment.c_str()); ImGui::PopTextWrapPos(); }
+            ImGui::Spacing(); Ui::Heading("NELL'ALBERO DI RICERCA");
+            if (BeginStats("##idea")) {
+                Row("Fazione", F.Faction(e.faction), FactionColor(e.faction));
+                Row("Grado", Ui::Roman(j.value("tier", 1)));
+                if (!j.value("caste", std::string()).empty()) Row("Casta", j.value("caste", std::string()));
+                if (!j.value("_parent_name", std::string()).empty()) Row("Si ricerca da", j.value("_parent_name", std::string()));
+                if (j.value("research_cost", 0) > 0) Row("Ricerca", Trim(j.value("research_cost", 0.0)) + " punti studio");
+                if (j.value("premium", false)) Row("Unita' d'elite", "si'", Ui::Col::Amethyst);
+                Row("Nell'albero", j.value("_hidden", false) ? "nascosta: oltre il grado mostrato" : "visibile, \"in arrivo\"", j.value("_hidden", false) ? Ui::Col::Ash : Ui::Col::Gold);
+                Row("Nome del primo", j.value("default_name", std::string("-")));
+                ImGui::EndTable();
+            }
+            ImGui::EndChild(); ImGui::End();
+            return;
+        }
 
         const float avail = ImGui::GetContentRegionAvail().x;
         const float imgW = std::min(460.0f, avail * 0.48f), imgH = imgW * 416.0f / 720.0f;

@@ -1,7 +1,7 @@
 {
   "id": "torso_defender",
-  "displayName": "Corazza da Difensore Vanguardio",
-  "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Piastra del petto col nucleo di Vanguardio, schiena, cintura. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
+  "displayName": "Corazza della Vanguard Armor",
+  "comment": "Dotazione base del Vanguard Armor: Vestment generica, grigio non dipinto. Piastra del petto col nucleo di Vanguardio viola, schiena, cintura. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
   "location": "Torso",
   "faction": "Vanguard",
   "allowed_units": [
@@ -68,9 +68,9 @@
         0.03
       ],
       "color": [
-        0.82,
-        0.42,
-        0.9,
+        0.52,
+        0.26,
+        0.95,
         1
       ],
       "roughness": 0.12,
@@ -173,9 +173,9 @@
       "id": "fb_core",
       "procedural": "vanguard_core_medium",
       "color": [
-        1.15,
-        0.55,
-        1.25,
+        0.68,
+        0.28,
+        1.35,
         1
       ],
       "roughness": 0.08,

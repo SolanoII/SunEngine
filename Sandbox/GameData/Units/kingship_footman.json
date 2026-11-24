@@ -1,6 +1,6 @@
 {
   "id": "kingship_footman",
-  "displayName": "Fante del Regno",
+  "displayName": "Fante",
   "ai_role": "ranged",
   "point_cost": 10,
   "animated_body": "human",

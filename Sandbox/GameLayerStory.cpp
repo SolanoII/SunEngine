@@ -600,7 +600,7 @@ namespace SunEngine {
                 for (int i = 0; i < 6; ++i) {
                     const float a = 6.2831853f * static_cast<float>(i) / 6.0f + 0.4f * static_cast<float>(k);
                     const glm::vec3 p = kGatherPoints[k] + glm::vec3(std::cos(a) * 6.5f, 0.5f, std::sin(a) * 6.5f);
-                    SpawnStoryBot("kingship_levy", "Guardia del punto", 1, p, 0.0f, &p, 12.0f); ++n;
+                    SpawnStoryBot("kingship_recruit", "Guardia del punto", 1, p, 0.0f, &p, 12.0f); ++n;
                 }
             }
             // ...e il resto sulle linee di difesa: avamposti nei campi e la linea della strada di servizio
@@ -608,18 +608,18 @@ namespace SunEngine {
             for (const auto& o : outposts)
                 for (int i = 0; i < 4; ++i) {
                     const glm::vec3 p = o + glm::vec3(-3.0f + 2.0f * static_cast<float>(i), 0.0f, (i % 2) * 1.5f);
-                    SpawnStoryBot("kingship_levy", "Difensore", 1, p, 0.0f, &p, 18.0f); ++n;
+                    SpawnStoryBot("kingship_recruit", "Difensore", 1, p, 0.0f, &p, 18.0f); ++n;
                 }
             for (int i = 0; i < 10; ++i) {
                 float x = -56.0f + 12.0f * static_cast<float>(i);
                 if (x > -10.0f && x < 14.0f) x += 26.0f;   // non dentro il rifugio
                 const glm::vec3 p(x, 0.5f, 58.0f);
-                SpawnStoryBot("kingship_levy", "Difensore della linea", 1, p, 0.0f, &p, 16.0f); ++n;
+                SpawnStoryBot("kingship_recruit", "Difensore della linea", 1, p, 0.0f, &p, 16.0f); ++n;
             }
             for (int k = 0; k < 3; ++k)   // strade che portano ai punti
                 for (int i = 0; i < 2; ++i) {
                     const glm::vec3 p = kGatherPoints[k] + glm::vec3(i == 0 ? -12.0f : 12.0f, 0.5f, -14.0f);
-                    SpawnStoryBot("kingship_levy", "Sentinella", 1, p, 0.0f, &p, 16.0f); ++n;
+                    SpawnStoryBot("kingship_recruit", "Sentinella", 1, p, 0.0f, &p, 16.0f); ++n;
                 }
             SUN_CORE_INFO("PVE-STORY: sbarco, {0} glatt in campo", n);
             // i punti di raccolta: casse di provviste, tenda, antenna con la luce
