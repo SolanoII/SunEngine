@@ -26,7 +26,51 @@ della canna. Se una mesh manca, l'arma torna a cubi.
 
 Il materiale `Weapon` è metallo per il motore, `Weapon_Glow` è la parte luminosa.
 
-## Rifarla
+## Seconda forgia: armi modellate (forge2.py)
+
+`forge2.py` non parte più dai cubi. Ogni arma viene costruita da un archetipo (`arch2.py` o `arch.py`) con gli
+attrezzi di `kit.py`:
+profili estrusi, pezzi torniti, fori e feritoie (booleane), rivetti, filo avvolto e punte saldate. Le misure e i punti
+d'appoggio (mani, bocca della canna) vengono dal modello a blocchi, quindi in gioco tutto resta dov'era.
+
+- **Armi da fuoco e a energia (`arch2.py`): armi da guerra, non tubi.** Le sagome sono massicce:
+  - castelli alti e squadrati con smussi, pannelli incassati, feritoie e piastre imbullonate o saldate;
+  - camicie di raffreddamento e freni di bocca enormi;
+  - caricatori spessi o a tamburo, calci pieni;
+  - baionette seghettate, lame da sega e punte.
+- **Fucili:** automatico, pesante, di precisione (ottica e bipiede), a pompa, mitragliatrice con cassetta e nastro.
+  La Vanguardia ha mirini elettronici e un lanciagranate sotto la canna.
+- **Pistole:** cannoni da mano con compensatore, revolver enorme con sottocanna, a energia con cavi, doppia canna di
+  rottami.
+- **Energia:**
+  - impulso: dissipatori a lamelle;
+  - scarica: bobine di rame, isolatori di ceramica e punte a forca;
+  - fusione: camere gemelle;
+  - raggio dei Vrepigh.
+
+  Tutte hanno il capacitore col vetro acceso sopra il castello.
+- **Altri archetipi (`arch.py`):** lanciafiamme, lanciagranate, lanciarazzi, archibugio.
+  - Armi bianche: coltello da trincea, mannaia (anche pesante), spada a denti, chiave.
+  - Equipaggiamento: granate, mine, bomba da demolizione, medikit, radio, rilevatore, zaino energetico, mantello,
+    casse e zaini di munizioni.
+- **Stile per fazione** (dal prefisso dell'id):
+  - Regno (stile trincea): acciaio rivettato, noce massiccio, ottone, tamburi, baionette seghettate.
+  - Vanguardia: gusci d'acciaio lavorati a macchina, piastre rosso sangue, strisce di pericolo gialle e nere.
+  - Vrepigh: lamiere sovrapposte e saldate, punte, lame da sega, ruggine.
+- **Texture cotte con Cycles.**
+  - BaseColor, ORM e normal map.
+  - Usura: spigoli consumati (rilevati col nodo Bevel), sporco negli incavi, polvere, graffi.
+  - Ruggine in quantità diversa per ogni materiale.
+  - Rilievo: venatura del legno, butterature, lamiera martellata, grana del cuoio.
+
+Barricate, muri, pilastri, basi e stendardi non hanno archetipo e restano quelli della v1.
+
+```
+python Tools/WeaponForge/forge2.py                                        # tutte (texture 1024, 512 per le piccole)
+python Tools/WeaponForge/forge2.py --only footman_auto_rifle --preview anteprime/
+```
+
+## Rifarla (v1)
 
 ```
 pip install bpy numpy
