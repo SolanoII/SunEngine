@@ -37,6 +37,7 @@ namespace SunEngine {
             it.itemId = j.value("item", std::string());
             it.rarity = std::clamp(j.value("rarity", 0), 0, 4);
             it.condition = std::clamp(j.value("condition", 100.0f), 0.0f, 100.0f);
+            it.insured = std::max(0, j.value("insured", 0));
             if (j.contains("traits") && j["traits"].is_array())
                 for (const auto& t : j["traits"]) if (t.is_string() && FindTrait(t.get<std::string>())) it.traits.push_back(t.get<std::string>());
             const bool exists = BlueprintManager::Get().GetWeapon(it.itemId) || BlueprintManager::Get().GetArmorPiece(it.itemId);
@@ -49,7 +50,7 @@ namespace SunEngine {
     void GameLayer::InventoryToProfile() {
         m_Profile.inventory = nlohmann::json::array();
         for (const auto& it : m_Inventory)
-            m_Profile.inventory.push_back({ {"uid", it.uid}, {"item", it.itemId}, {"rarity", it.rarity}, {"condition", it.condition}, {"traits", it.traits} });
+            m_Profile.inventory.push_back({ {"uid", it.uid}, {"item", it.itemId}, {"rarity", it.rarity}, {"condition", it.condition}, {"traits", it.traits}, {"insured", it.insured} });
         m_Profile.nextItemUid = m_NextItemUid;
     }
 
@@ -315,6 +316,7 @@ namespace SunEngine {
             const int holder = ItemHolder(it->uid);
             std::string label = nameOf(it->itemId);
             if (it->Broken()) label += "  (rotto)";
+            if (it->insured > 0) label += "  [assicurato " + std::to_string(it->insured) + "]";
             ImGui::PushStyleColor(ImGuiCol_Text, it->Broken() ? Ui::Col::Ash : Rarity(it->rarity).color);
             if (ImGui::Selectable(label.c_str(), m_SelectedItemUid == it->uid)) m_SelectedItemUid = it->uid;
             ImGui::PopStyleColor();
@@ -398,6 +400,14 @@ namespace SunEngine {
             }
             ImGui::EndTable();
         }
+        {   // costo in punti battaglia (PvP): cresce con la potenza dell'esemplare
+            int pb = 0, pv = 0;
+            if (const auto* b = bpm.GetWeapon(sel->itemId)) { pb = b->point_cost; pv = bpm.GetWeapon(ref)->point_cost; }
+            else if (const auto* a = bpm.GetArmorPiece(sel->itemId)) { pb = a->pointCost; pv = bpm.GetArmorPiece(ref)->pointCost; }
+            ImGui::TextColored(Ui::Col::Ash, "Costo in punti battaglia:"); ImGui::SameLine();
+            ImGui::TextColored(pv > pb ? Ui::Col::Gold : Ui::Col::Bone, "%d", pv); ImGui::SameLine();
+            ImGui::TextColored(Ui::Col::Ash, pv != pb ? "(base %d: piu' forte = costa di piu' nelle code)" : "(come la versione base)", pb);
+        }
         // tipi di danno / difese (DamageTypes.h)
         if (const auto* b = bpm.GetWeapon(sel->itemId); b && (b->base_damage > 0.0f || b->explosion_damage > 0.0f)) {
             const auto* v = bpm.GetWeapon(ref);
@@ -459,6 +469,27 @@ namespace SunEngine {
                 say(name + " riparato");
             }
         }
+        // assicurazione (PvP): non si perde nel bottino della battaglia per le prossime N partite PvP in cui e' in squadra
+        ImGui::Spacing();
+        if (sel->insured > 0) ImGui::TextColored(Ui::Col::Gold, "Assicurato per %d %s PvP: se l'unita' che lo porta cade e la tua squadra perde, resta tuo.",
+                                                 sel->insured, sel->insured == 1 ? "partita" : "partite");
+        else ImGui::TextColored(Ui::Col::Ash, "Non assicurato: in PvP, se l'unita' che lo porta cade e la tua squadra perde, va ai vincitori.");
+        for (int k = 0; k < 4; ++k) {
+            const int n = kInsurePacks[k];
+            const int64_t c = InsureCost(value, sel->rarity, n);
+            if (k) ImGui::SameLine();
+            ImGui::PushID(1000 + k);
+            const std::string lab = "+" + std::to_string(n) + (n == 1 ? " partita" : " partite") + "\n" + std::to_string(static_cast<long long>(c)) + " energia";
+            if (Ui::Button(lab.c_str(), ImVec2(120.0f, 40.0f), Ui::Btn::Normal, m_Profile.energy >= c)) {
+                m_Profile.energy -= c;
+                const bool was = sel->insured > 0;
+                sel->insured += n;
+                if (!was) RefreshItemRefs(sel->uid);
+                say(name + " assicurato per altre " + std::to_string(n) + (n == 1 ? " partita" : " partite"));
+            }
+            ImGui::PopID();
+        }
+        ImGui::Spacing();
         const int64_t dv = DismantleValue(value, sel->rarity);
         if (Ui::Button(("SMONTA  (+" + std::to_string(static_cast<long long>(dv)) + " energia)").c_str(), ImVec2(380.0f, 28.0f), Ui::Btn::Ghost)) {
             m_Profile.energy += dv;
@@ -468,5 +499,143 @@ namespace SunEngine {
         if (m_StoreMessageTimer > 0.0f) { m_StoreMessageTimer -= io.DeltaTime; ImGui::Spacing(); ImGui::TextColored(Ui::Col::Verdigris, "%s", m_StoreMessage.c_str()); }
         ImGui::EndChild();
         ImGui::End();
+    }
+
+    // ------------------------------------------------------------------------------------ bottino della battaglia (PvP)
+    // Solo Vs Bot con giocatori veri in entrambe le squadre. Contro i soli bot gli oggetti non si perdono (si consumano).
+    bool GameLayer::VsBotIsPvp() const {
+        if (!m_VsBotActive || !m_Net.active) return false;
+        bool team[2] = { false, false };
+        for (const auto& p : m_VsBotPlayers) if (p.human) team[p.team == 1 ? 1 : 0] = true;
+        return team[0] && team[1];
+    }
+
+    // Punti fatti in partita: esperienza dei danni e delle uccisioni (decide la parte del bottino)
+    int64_t GameLayer::MatchCombatScore() const {
+        int64_t s = 0;
+        for (const auto& [unit, lines] : m_MatchXp)
+            s += lines[static_cast<size_t>(XpCategory::Damage)].xp + lines[static_cast<size_t>(XpCategory::Kill)].xp;
+        return s;
+    }
+
+    // Fine partita (o abbandono) per me: se ho perso, gli oggetti addosso alle mie unita' cadute sono persi, tranne
+    // quelli assicurati; a ogni partita PvP l'assicurazione degli oggetti in squadra scende di uno.
+    void GameLayer::SettleBattleItems(bool lost) {
+        if (m_BattleLootSettled || !VsBotIsPvp()) return;
+        m_BattleLootSettled = true;
+        const int me = VsBotMeIndex();
+        if (me < 0) return;
+        std::set<uint64_t> done;
+        for (const auto& slot : m_VsBotPlayers[me].squad) {
+            TrainedUnit u = slot.unit;
+            for (auto* ref : u.Slots()) {
+                const uint64_t uid = InstanceUidOf(*ref);
+                if (!uid || !done.insert(uid).second) continue;
+                ItemInstance* it = FindItem(uid);
+                if (!it) continue;
+                if (lost && slot.state == VsBotSlotState::Fallen) {
+                    if (it->insured <= 0) {
+                        m_BattleLoot.push_back({ it->Ref(), 1, u.customName });
+                        SUN_CORE_INFO("Bottino della battaglia: perso {0}", it->itemId);
+                        RemoveItem(uid);
+                        continue;
+                    }
+                    m_BattleLoot.push_back({ it->Ref(), 2, u.customName });
+                }
+                if (it->insured > 0 && --it->insured == 0) RefreshItemRefs(uid);
+            }
+        }
+        SaveProfileIfChanged();
+    }
+
+    // Host: divide gli oggetti caduti della squadra sconfitta fra i giocatori veri della squadra vincitrice. Ognuno
+    // riceve una parte del valore proporzionale ai punti che ha fatto: gli oggetti, dal piu' prezioso, vanno a chi e'
+    // piu' indietro rispetto alla sua parte. Ritorna (destinatario, esemplare) e in 'from' chi lo perde.
+    std::vector<std::pair<std::uint64_t, std::string>> GameLayer::ComputeBattleLoot(int winnerTeam, std::vector<std::uint64_t>* from) const {
+        std::vector<std::pair<std::uint64_t, std::string>> out;
+        if (winnerTeam < 0) return out;
+        struct Item { std::string ref; std::uint64_t owner; double value; };
+        std::vector<Item> pool;
+        struct Winner { std::uint64_t owner; double score; double got = 0.0; };
+        std::vector<Winner> winners;
+        for (const auto& p : m_VsBotPlayers) {
+            if (!p.human) continue;
+            const std::uint64_t owner = p.local ? m_Party.SelfId() : p.owner;
+            if ((p.team == 1 ? 1 : 0) == winnerTeam) {
+                winners.push_back({ owner, static_cast<double>(std::max<int64_t>(0, p.local ? MatchCombatScore() : p.score)) });
+                continue;
+            }
+            std::set<uint64_t> seen;
+            for (const auto& slot : p.squad) {
+                if (slot.state != VsBotSlotState::Fallen) continue;
+                TrainedUnit u = slot.unit;
+                for (auto* ref : u.Slots()) {
+                    const ItemRefInfo info = ParseItemRef(*ref);
+                    if (!info.isInstance || info.insured || !seen.insert(info.uid).second) continue;
+                    pool.push_back({ *ref, owner, LootValue(ItemValue(*ref), info) });
+                }
+            }
+        }
+        if (winners.empty() || pool.empty()) return out;
+        std::sort(pool.begin(), pool.end(), [](const Item& a, const Item& b) { return a.value != b.value ? a.value > b.value : a.ref < b.ref; });
+        std::sort(winners.begin(), winners.end(), [](const Winner& a, const Winner& b) { return a.score != b.score ? a.score > b.score : a.owner < b.owner; });
+        double total = 0.0;
+        for (const auto& w : winners) total += w.score;
+        double given = 0.0;
+        for (const auto& it : pool) {
+            given += it.value;
+            int best = 0; double bestNeed = -1e300;
+            for (int i = 0; i < static_cast<int>(winners.size()); ++i) {
+                const double share = total > 0.0 ? winners[i].score / total : 1.0 / winners.size();
+                const double need = share * given - winners[i].got;
+                if (need > bestNeed + 1e-9) { bestNeed = need; best = i; }
+            }
+            winners[best].got += it.value;
+            out.emplace_back(winners[best].owner, it.ref);
+            if (from) from->push_back(it.owner);
+        }
+        return out;
+    }
+
+    // Un oggetto del bottino e' mio: diventa un esemplare del mio magazzino (stessa rarita', condizione e tratti)
+    void GameLayer::ReceiveBattleLoot(std::uint64_t fromOwner, const std::string& ref) {
+        if (!m_BattleLootSeen.insert(std::to_string(fromOwner) + "|" + ref).second) return;
+        const std::string base = BlueprintManager::BaseId(ref);
+        if (!BlueprintManager::Get().GetWeapon(base) && !BlueprintManager::Get().GetArmorPiece(base)) return;
+        const ItemRefInfo info = ParseItemRef(ref);
+        ItemInstance it;
+        it.uid = m_NextItemUid++;
+        it.itemId = base;
+        it.rarity = info.rarity;
+        it.condition = info.condition;
+        for (const auto& t : info.traits) if (FindTrait(t)) it.traits.push_back(t);
+        m_Inventory.push_back(it);
+        std::string who = "un avversario";
+        for (const auto& p : m_VsBotPlayers) if (p.human && p.owner == fromOwner && !p.name.empty()) who = p.name;
+        m_BattleLoot.push_back({ it.Ref(), 0, who });
+        SUN_CORE_INFO("Bottino della battaglia: preso {0} ({1}) da {2}", base, Rarity(it.rarity).name, who);
+        SaveProfileIfChanged();
+    }
+
+    void GameLayer::RenderBattleLoot() {
+        if (!VsBotIsPvp() && m_BattleLoot.empty()) return;
+        auto& bpm = BlueprintManager::Get();
+        Ui::Heading("BOTTINO DELLA BATTAGLIA");
+        if (m_BattleLoot.empty()) {
+            ImGui::TextColored(Ui::Col::Ash, m_VsBotResult == 1 ? "In arrivo dall'host... (gli sconfitti non avevano oggetti in palio)" :
+                                             m_VsBotResult == 2 ? "Nessun oggetto perso." : "Pareggio: nessun bottino.");
+            return;
+        }
+        for (const auto& l : m_BattleLoot) {
+            const ItemRefInfo r = ParseItemRef(l.ref);
+            const std::string base = BlueprintManager::BaseId(l.ref);
+            std::string name = base;
+            if (const auto* w = bpm.GetWeapon(base)) name = w->displayName; else if (const auto* a = bpm.GetArmorPiece(base)) name = a->displayName;
+            ImGui::TextColored(Rarity(r.rarity).color, "%s  [%s]", name.c_str(), Rarity(r.rarity).name);
+            ImGui::SameLine(330.0f);
+            if (l.kind == 0) ImGui::TextColored(Ui::Col::Verdigris, "PRESO a %s", l.other.c_str());
+            else if (l.kind == 1) ImGui::TextColored(Ui::Col::Ember, "PERSO (era addosso a %s)", l.other.c_str());
+            else ImGui::TextColored(Ui::Col::Gold, "SALVATO dall'assicurazione");
+        }
     }
 }

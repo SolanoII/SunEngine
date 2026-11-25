@@ -185,15 +185,24 @@ namespace SunEngine {
         // gia' rivisto, cioe' con "allowed_units" (armi, dotazione, armature: es. tutto il kit di pighcib e feral_pig).
         // Le armi e armature vecchie (senza "allowed_units") non contano finche' non vengono rifatte, cosi' le
         // unita' non ancora rivedute restano nelle loro code.
+        // Esemplari (rarita', tratti, ItemRarity.h): il loro costo cresce con la potenza; per gli oggetti vecchi la sola
+        // differenza rispetto alla versione base conta comunque (niente passa inosservato).
         int CalculateBattlePoints() const {
+            auto& bpm = BlueprintManager::Get();
             int points = 0;
-            if (const auto* unitBp = BlueprintManager::Get().GetUnit(blueprintId)) points += unitBp->point_cost;
+            if (const auto* unitBp = bpm.GetUnit(blueprintId)) points += unitBp->point_cost;
             for (const std::string* wId : { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId,
                                             &equipmentSlots[0], &equipmentSlots[1], &equipmentSlots[2] }) {
-                if (const auto* wBp = BlueprintManager::Get().GetWeapon(*wId); wBp && !wBp->allowed_units.empty()) points += wBp->point_cost;
+                const auto* wBp = bpm.GetWeapon(*wId);
+                if (!wBp) continue;
+                if (!wBp->allowed_units.empty()) points += wBp->point_cost;
+                else if (wId->find('#') != std::string::npos) if (const auto* b = bpm.GetWeapon(BlueprintManager::BaseId(*wId))) points += std::max(0, wBp->point_cost - b->point_cost);
             }
             for (const std::string* aId : { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId }) {
-                if (const auto* aBp = BlueprintManager::Get().GetArmorPiece(*aId); aBp && !aBp->allowed_units.empty()) points += aBp->pointCost;
+                const auto* aBp = bpm.GetArmorPiece(*aId);
+                if (!aBp) continue;
+                if (!aBp->allowed_units.empty()) points += aBp->pointCost;
+                else if (aId->find('#') != std::string::npos) if (const auto* b = bpm.GetArmorPiece(BlueprintManager::BaseId(*aId))) points += std::max(0, aBp->pointCost - b->pointCost);
             }
             return points;
         }
@@ -288,6 +297,7 @@ namespace SunEngine {
         std::vector<VsBotSlot> squad;
         int active = -1;                         // slot in campo, -1 = in attesa di rientrare
         float respawnTimer = 0.0f;
+        int64_t score = 0;                       // punti fatti in partita (danni e uccisioni): decide il bottino della battaglia
         int CountState(VsBotSlotState st) const { int n = 0; for (const auto& s : squad) n += s.state == st ? 1 : 0; return n; }
         int PointsState(VsBotSlotState st) const { int n = 0; for (const auto& s : squad) n += s.state == st ? s.points : 0; return n; }
         int TotalPoints() const { int n = 0; for (const auto& s : squad) n += s.points; return n; }
@@ -766,6 +776,20 @@ namespace SunEngine {
         bool DrawSlotChoices(TrainedUnit& unit, std::string& slotRef, const std::string& itemId, const std::string& name, bool isArmor);
         std::string ItemLabel(const std::string& slotId, const std::string& baseName) const;
         void RenderStorehouseUI();
+        // Bottino della battaglia (PvP: Vs Bot con giocatori veri in entrambe le squadre). Chi perde perde gli oggetti
+        // addosso alle sue unita' cadute (non quelli assicurati); l'host li divide fra i giocatori veri della squadra
+        // vincitrice in proporzione ai punti fatti. Vedi GameLayerItems.cpp.
+        struct BattleLootLine { std::string ref; int kind = 0; std::string other; };   // kind: 0 preso, 1 perso, 2 salvato (assicurato)
+        std::vector<BattleLootLine> m_BattleLoot;
+        std::set<std::string> m_BattleLootSeen;    // voci del bottino gia' ricevute (l'host le manda a pezzi)
+        bool m_BattleLootSettled = false;          // perdite e assicurazioni di questa partita gia' applicate
+        bool VsBotIsPvp() const;
+        int64_t MatchCombatScore() const;
+        void SettleBattleItems(bool lost);         // a fine partita (o abbandono): perdite, assicurazioni consumate
+        std::vector<std::pair<std::uint64_t, std::string>> ComputeBattleLoot(int winnerTeam, std::vector<std::uint64_t>* from) const;   // host
+        void ReceiveBattleLoot(std::uint64_t fromOwner, const std::string& ref);
+        void RenderBattleLoot();
+        void NetSendBattleLoot(int winnerTeam);    // host: il bottino a tutti (GameLayerNetMatch.cpp)
 
         // --- Codex (GameLayerCodex.cpp): schede di unita', nemici, armi, equipaggiamento e armature lette da GameData ---
         struct CodexEntry;

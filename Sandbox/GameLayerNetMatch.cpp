@@ -49,6 +49,7 @@ namespace SunEngine {
             NM_VsLineup = 'F',    // host: roster aggiornato (qualcuno ha preso il posto di un bot), per chi l'ha chiesto e per tutti
             NM_VsJoinNo = 'N',    // host: troppo tardi o niente posti, aspetta la prossima partita
             NM_Aid = 'A',         // aiuto a chi e' vicino o a un compagno: ognuno lo applica a cio' che simula lui
+            NM_Loot = 'O',        // Vs Bot PvP, host: bottino della battaglia (a chi va, da chi viene, l'esemplare)
         };
         // tipi di aiuto (NM_Aid)
         enum AidMsg : std::uint8_t { AM_HealZone = 1, AM_CratePlaced = 2, AM_CrateTaken = 3, AM_AmmoRefill = 4, AM_WarCry = 5 };
@@ -1137,8 +1138,18 @@ namespace SunEngine {
                 sl.state = st == 1 ? VsBotSlotState::InField : (st == 2 ? VsBotSlotState::Fallen : VsBotSlotState::Reserve);
                 squad.push_back(sl);
             }
+            const std::uint32_t score = r.U32();   // punti fatti in partita (bottino della battaglia)
             if (!r.ok) break;
-            for (auto& p : m_VsBotPlayers) if (p.human && !p.local && p.owner == from) { p.squad = std::move(squad); p.active = active < static_cast<int>(p.squad.size()) ? active : -1; break; }
+            for (auto& p : m_VsBotPlayers) if (p.human && !p.local && p.owner == from) { p.squad = std::move(squad); p.active = active < static_cast<int>(p.squad.size()) ? active : -1; p.score = score; break; }
+            break;
+        }
+        case NM_Loot: {   // dall'host: oggetti del bottino della battaglia; prendo quelli per me
+            const int n = r.U8();
+            for (int i = 0; i < n && r.ok; ++i) {
+                const std::uint64_t to = r.U64(), fromOwner = r.U64();
+                const std::string ref = r.Str();
+                if (r.ok && to == m_Party.SelfId()) ReceiveBattleLoot(fromOwner, ref);
+            }
             break;
         }
         case NM_Roster: {   // Vs Bot, dall'host: squadre, bot, tempi, fine partita
@@ -1222,7 +1233,9 @@ namespace SunEngine {
         const int me = VsBotMeIndex();
         if (me >= 0) {
             Writer w; w.U8(NM_Squad); w.U32(m_Net.matchId); WriteSquad(w, m_VsBotPlayers[me]);
-            const std::string key(w.b.begin(), w.b.end());
+            const std::string key(w.b.begin(), w.b.end());   // il punteggio non conta per il rinvio (cambia a ogni colpo)
+            m_VsBotPlayers[me].score = MatchCombatScore();
+            w.U32(static_cast<std::uint32_t>(std::clamp<int64_t>(m_VsBotPlayers[me].score, 0, 0x7fffffff)));
             m_Net.squadTimer -= realDt;
             if (key != m_Net.squadKey || m_Net.squadTimer <= 0.0f) {
                 m_Net.squadKey = key; m_Net.squadTimer = 3.0f;
@@ -1346,5 +1359,22 @@ namespace SunEngine {
         const ImVec2 a(io.DisplaySize.x * 0.5f - ts.x * 0.5f - 12.0f, y0), b(io.DisplaySize.x * 0.5f + ts.x * 0.5f + 12.0f, y0 + 4.0f + ts.y + 6.0f);
         Ui::ChamferRect(fg, a, b, 5.0f, IM_COL32(10, 10, 12, 170), Ui::U32(Ui::Col::Brass, 0.6f), 1.0f);
         fg->AddText(ImVec2(a.x + 12.0f, a.y + 5.0f), Ui::U32(Ui::Col::Bone, 0.9f), line);
+    }
+
+    // Host, fine di un Vs Bot PvP: divide il bottino della battaglia, prende la sua parte e manda a tutti la lista
+    // (a pezzi, per stare in un pacchetto). Ognuno prende le voci col suo id.
+    void GameLayer::NetSendBattleLoot(int winnerTeam) {
+        std::vector<std::uint64_t> from;
+        const auto loot = ComputeBattleLoot(winnerTeam, &from);
+        if (loot.empty()) return;
+        for (size_t i = 0; i < loot.size(); ++i) if (loot[i].first == m_Party.SelfId()) ReceiveBattleLoot(from[i], loot[i].second);
+        constexpr size_t kPerPacket = 12;
+        for (size_t at = 0; at < loot.size(); at += kPerPacket) {
+            const size_t n = std::min(kPerPacket, loot.size() - at);
+            Writer w; w.U8(NM_Loot); w.U32(m_Net.matchId); w.U8(static_cast<std::uint8_t>(n));
+            for (size_t i = at; i < at + n; ++i) { w.U64(loot[i].first); w.U64(from[i]); w.Str(loot[i].second); }
+            m_Party.SendToAll(w.b.data(), w.b.size(), true);
+        }
+        SUN_CORE_INFO("Bottino della battaglia: {0} oggetti divisi fra i vincitori", loot.size());
     }
 }

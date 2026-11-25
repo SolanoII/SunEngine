@@ -402,7 +402,8 @@ namespace SunEngine {
             }
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextColored(Ui::Col::Ash, "Nuovi = comuni. Si potenziano nel MAGAZZINO, si trovano come bottino nella PVE-STORY e, piu' avanti, si prendono agli avversari. "
-                                             "Si consumano con l'uso (colpi sparati e in mischia, danni presi dalle armature) e morendo con l'oggetto addosso (5v5, sopravvivenza); a zero si rompono. %d tratti possibili.", [] {
+                                             "Si consumano con l'uso (colpi sparati e in mischia, danni presi dalle armature) e morendo con l'oggetto addosso (5v5, sopravvivenza); a zero si rompono. In PvP costano in punti quanto sono forti, chi perde perde quelli delle unita' cadute (vanno ai vincitori "
+                                             "secondo i punti fatti) e si possono assicurare per qualche partita. %d tratti possibili.", [] {
                                                  std::set<std::string> u; for (const auto& t : ItemTraits()) u.insert(t.code); return static_cast<int>(u.size()); }());
             ImGui::PopTextWrapPos();
             // tipi di danno (DamageTypes.h)

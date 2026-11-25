@@ -862,7 +862,8 @@
    "Gli oggetti appena creati in officina sono comuni (grigi).",
    "Si sale di rarita' potenziando l'oggetto nel magazzino con l'energia, trovandolo come bottino alla fine delle missioni della PVE-STORY e, in futuro, prendendolo agli avversari.",
    "Dal raro in su ogni livello aggiunge un tratto a caso.",
-   "Gli oggetti si consumano con l'uso: ogni colpo sparato toglie lo 0,03% di condizione, ogni colpo in mischia a segno lo 0,15%, e le armature perdono fino al 25% in proporzione ai colpi che hanno preso. Morire con l'oggetto addosso toglie un altro 34%. Vale nella 5v5 e nella sopravvivenza, non nella storia. A zero l'oggetto si rompe e va riparato; sotto il 100% l'arma fa meno danno ed e' meno precisa, l'armatura regge meno. La dotazione base non si consuma mai."
+   "Gli oggetti si consumano con l'uso: ogni colpo sparato toglie lo 0,03% di condizione, ogni colpo in mischia a segno lo 0,15%, e le armature perdono fino al 25% in proporzione ai colpi che hanno preso. Morire con l'oggetto addosso toglie un altro 34%. Vale nella 5v5 e nella sopravvivenza, non nella storia. A zero l'oggetto si rompe e va riparato; sotto il 100% l'arma fa meno danno ed e' meno precisa, l'armatura regge meno. La dotazione base non si consuma mai.",
+   "PvP (Vs Bot con giocatori veri in entrambe le squadre): ogni esemplare costa in punti battaglia quanto e' piu' forte della versione base (ogni miglioramento almeno +1). A fine partita chi perde perde gli oggetti addosso alle sue unita' cadute (anche abbandonando); l'host li divide fra i giocatori veri della squadra vincitrice in proporzione ai punti fatti. Un oggetto assicurato (energia, nel magazzino: 1, 3, 5 o 10 partite PvP) non si perde; l'assicurazione scende di una partita a ogni PvP in cui e' in squadra."
   ]
  },
  "damage": {

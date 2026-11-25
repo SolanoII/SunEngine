@@ -139,6 +139,7 @@ namespace SunEngine {
         int rarity = 0;
         float condition = 100.0f;         // 0 = rotto (non si equipaggia finche' non si ripara)
         std::vector<std::string> traits;
+        int insured = 0;                  // partite PvP in cui e' ancora assicurato (non si perde nel bottino della battaglia)
         bool Broken() const { return condition <= 0.0f; }
         // id da mettere nello slot dell'unita' (e nei componenti in partita)
         std::string Ref() const {
@@ -147,12 +148,13 @@ namespace SunEngine {
                 s += "#t";
                 for (size_t i = 0; i < traits.size(); ++i) s += (i ? "." : "") + traits[i];
             }
+            if (insured > 0) s += "#i1";   // gli altri giocatori sanno che non lo possono prendere
             return s;
         }
     };
 
     // Legge "#u12#r3#c80#tdmg.mag" (i pezzi mancanti restano ai valori base)
-    struct ItemRefInfo { uint64_t uid = 0; int rarity = 0; float condition = 100.0f; std::vector<std::string> traits; bool isInstance = false; };
+    struct ItemRefInfo { uint64_t uid = 0; int rarity = 0; float condition = 100.0f; std::vector<std::string> traits; bool isInstance = false; bool insured = false; };
     inline ItemRefInfo ParseItemRef(const std::string& id) {
         ItemRefInfo r;
         size_t p = id.find('#');
@@ -164,6 +166,7 @@ namespace SunEngine {
                 switch (part[0]) {
                 case 'u': r.uid = std::strtoull(v.c_str(), nullptr, 10); r.isInstance = true; break;
                 case 'r': r.rarity = std::clamp(std::atoi(v.c_str()), 0, 4); break;
+                case 'i': r.insured = v != "0"; break;
                 case 'c': r.condition = std::clamp(static_cast<float>(std::atof(v.c_str())), 0.0f, 100.0f); break;
                 case 't': { size_t a = 0; while (a <= v.size()) { size_t b = v.find('.', a); if (b == std::string::npos) b = v.size(); if (b > a) r.traits.push_back(v.substr(a, b - a)); a = b + 1; } break; }
                 default: break;
@@ -179,7 +182,7 @@ namespace SunEngine {
     // Rarita': danno x1,05 / 1,10 / 1,16 / 1,24; ricarica -5% per livello, dispersione -7%, portata +4%; caricatore
     // +10% dal raro, +15% epico, +25% leggendario. Condizione: sotto il 100% il danno cala fino a -20% e la
     // dispersione sale fino a +30%.
-    inline void ApplyWeaponRarity(WeaponBlueprint& w, const std::string& suffix) {
+    inline void ApplyWeaponRarityStats(WeaponBlueprint& w, const std::string& suffix) {
         const ItemRefInfo r = ParseItemRef(suffix);
         const float m = Rarity(r.rarity).statMult;
         const float lv = static_cast<float>(r.rarity);
@@ -228,7 +231,7 @@ namespace SunEngine {
     }
 
     // Armature: armatura +6% per livello (+1 dal raro), resistenza +10% per livello; condizione: resistenza fino a -40%
-    inline void ApplyArmorRarity(ArmorBlueprint& a, const std::string& suffix) {
+    inline void ApplyArmorRarityStats(ArmorBlueprint& a, const std::string& suffix) {
         const ItemRefInfo r = ParseItemRef(suffix);
         const float lv = static_cast<float>(r.rarity);
         const float cond = r.condition / 100.0f;
@@ -243,6 +246,66 @@ namespace SunEngine {
         for (float& v : a.resist) if (v > 0.0f) v = std::min(0.9f, v * (1.0f + 0.05f * lv) * (0.8f + 0.2f * cond));
     }
 
+    // ------------------------------------------------------------------------------------ costo in punti (PvP)
+    // Un esemplare costa in punti battaglia quanto e' piu' forte della versione base: il rapporto di potenza (danno,
+    // caricatore, ricarica, precisione, portata, perforazione...; per le armature armatura, resistenza, copertura,
+    // difese per tipo, peso) moltiplica il costo base. Ogni miglioramento costa almeno 1 punto in piu': niente passa
+    // inosservato. Un oggetto consumato (meno forte) costa meno.
+    inline float SafeRatio(float a, float b) { return (b > 1e-4f && a > 1e-4f) ? a / b : 1.0f; }
+    inline float WeaponPowerRatio(const WeaponBlueprint& b, const WeaponBlueprint& v) {
+        float k = 1.0f;
+        if (v.is_equipment) {
+            k *= SafeRatio(std::max(v.explosion_damage, v.base_damage), std::max(b.explosion_damage, b.base_damage));
+            k *= std::pow(SafeRatio(v.explosion_radius, b.explosion_radius), 0.5f);
+            k *= std::pow(SafeRatio(static_cast<float>(v.equipment_uses), static_cast<float>(b.equipment_uses)), 0.6f);
+            k *= std::pow(SafeRatio(b.equipment_use_time, v.equipment_use_time), 0.3f);
+            k *= SafeRatio(v.heal_amount, b.heal_amount);
+            return k;
+        }
+        k *= SafeRatio(v.base_damage, b.base_damage);
+        k *= 1.0f + 0.05f * static_cast<float>(v.armor_penetration - b.armor_penetration);
+        if (v.is_melee) {
+            k *= std::pow(SafeRatio(v.melee_reach, b.melee_reach), 0.5f);
+            k *= 1.0f + 0.05f * (v.heavy_lunge_distance - b.heavy_lunge_distance);
+            return k;
+        }
+        k *= std::pow(SafeRatio(static_cast<float>(v.magazine_size), static_cast<float>(b.magazine_size)), 0.3f);
+        k *= std::pow(SafeRatio(b.reload_time_sec, v.reload_time_sec), 0.3f);
+        k *= std::pow(SafeRatio(b.spread_base, v.spread_base), 0.2f);
+        k *= std::pow(SafeRatio(v.range_effective, b.range_effective), 0.2f);
+        k *= std::pow(SafeRatio(static_cast<float>(v.suppression_value), static_cast<float>(b.suppression_value)), 0.1f);
+        k *= std::pow(SafeRatio(b.recoil_force, v.recoil_force), 0.1f);
+        k *= SafeRatio(std::max(1.0f, v.explosion_damage), std::max(1.0f, b.explosion_damage));
+        return k;
+    }
+    inline float ArmorPowerRatio(const ArmorBlueprint& b, const ArmorBlueprint& v) {
+        float k = std::pow(SafeRatio(static_cast<float>(v.armorRating), static_cast<float>(b.armorRating)), 0.6f);
+        if (b.armorRating <= 0 && v.armorRating > 0) k *= 1.0f + 0.05f * static_cast<float>(v.armorRating);
+        k *= std::pow(SafeRatio(v.maxDurability, b.maxDurability), 0.4f);
+        k *= SafeRatio(v.coverage, b.coverage);
+        k *= std::pow(SafeRatio(b.weight, v.weight), 0.1f);
+        float res = 0.0f;
+        for (int t = 0; t < kDamageTypeCount; ++t) res += v.resist[t] - b.resist[t];
+        k *= 1.0f + res;
+        return k;
+    }
+    inline int ScaledPointCost(int base, float ratio) {
+        if (std::abs(ratio - 1.0f) < 1e-4f) return base;
+        if (base <= 0) return ratio > 1.0f ? static_cast<int>(std::ceil((ratio - 1.0f) * 10.0f)) : 0;
+        if (ratio > 1.0f) return std::max(base + 1, static_cast<int>(std::ceil(static_cast<float>(base) * ratio - 1e-3f)));
+        return std::max(1, static_cast<int>(std::lround(static_cast<float>(base) * ratio)));
+    }
+    inline void ApplyWeaponRarity(WeaponBlueprint& w, const std::string& suffix) {
+        const WeaponBlueprint base = w;
+        ApplyWeaponRarityStats(w, suffix);
+        w.point_cost = ScaledPointCost(base.point_cost, WeaponPowerRatio(base, w));
+    }
+    inline void ApplyArmorRarity(ArmorBlueprint& a, const std::string& suffix) {
+        const ArmorBlueprint base = a;
+        ApplyArmorRarityStats(a, suffix);
+        a.pointCost = ScaledPointCost(base.pointCost, ArmorPowerRatio(base, a));
+    }
+
     // ------------------------------------------------------------------------------------ costi
     // Valore dell'oggetto: il suo prezzo d'acquisto nell'albero di ricerca, o 4000 per la dotazione base
     inline int64_t UpgradeCost(int64_t value, int rarity) {
@@ -253,6 +316,19 @@ namespace SunEngine {
         return static_cast<int64_t>(std::llround(static_cast<double>(value) * 0.3 * (1.0 - it.condition / 100.0) * (1.0 + 0.5 * it.rarity)));
     }
     inline int64_t DismantleValue(int64_t value, int rarity) { return static_cast<int64_t>(std::llround(static_cast<double>(value) * 0.2 * (1.0 + rarity))); }
+
+    // Assicurazione (PvP): per 'matches' partite l'oggetto non si perde nel bottino della battaglia. A partita costa il
+    // 6% del valore, x(1 + rarita'); pacchetti piu' lunghi costano meno a partita.
+    inline constexpr int kInsurePacks[4] = { 1, 3, 5, 10 };
+    inline int64_t InsureCost(int64_t value, int rarity, int matches) {
+        const double perMatch = static_cast<double>(value) * 0.06 * (1.0 + rarity);
+        const double discount = matches >= 10 ? 0.70 : matches >= 5 ? 0.80 : matches >= 3 ? 0.90 : 1.0;
+        return static_cast<int64_t>(std::llround(perMatch * matches * discount));
+    }
+    // Valore di un esemplare per il bottino della battaglia (chi ha fatto piu' punti prende di piu')
+    inline double LootValue(int64_t value, const ItemRefInfo& r) {
+        return static_cast<double>(value) * (1.0 + 0.6 * r.rarity) * (0.5 + 0.5 * r.condition / 100.0) * (1.0 + 0.1 * r.traits.size());
+    }
 
     // Un tratto nuovo a caso, fra quelli del tipo di oggetto non ancora presi. Pesi: ogni tratto normale 1, ogni
     // rinforzo di un tipo 0,6, i tratti che aggiungono un tipo nuovo 2,5 in tutto (cosi' non sommergono gli altri).

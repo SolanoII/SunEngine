@@ -6873,6 +6873,7 @@ namespace SunEngine {
 
                 bool backToMenu = Ui::PlainButton("Torna al Menu Principale", ImVec2(-1, 40));
                 if (backToMenu && m_VsBotActive) {
+                    if (m_VsBotResult == 0) SettleBattleItems(true);   // PvP: chi abbandona perde gli oggetti delle unita' cadute
                     LeaveVsBotMatch();   // abbandono della partita Vs Bot: nessuna ricompensa
                     backToMenu = false;
                 }
@@ -9826,6 +9827,7 @@ namespace SunEngine {
     bool GameLayer::VsBotLaunch(int tierIdx, std::vector<VsBotPlayer> players) {
         const VsBotQueueTier& tier = kVsBotTiers[std::clamp(tierIdx, 0, 2)];
         const std::uint64_t self = m_Party.SelfId();
+        m_BattleLoot.clear(); m_BattleLootSeen.clear(); m_BattleLootSettled = false;
         int me = -1;
         for (int i = 0; i < static_cast<int>(players.size()); ++i) {
             auto& p = players[i];
@@ -10162,6 +10164,9 @@ namespace SunEngine {
             outcome = m_MatchPlayerDied ? 0.5f : 0.75f;
             label = std::string(result == 3 ? "Pareggio" : "Sconfitta") + (m_MatchPlayerDied ? ", e sei caduto" : ", ma sei sopravvissuto");
         }
+        // Bottino della battaglia (PvP): le mie perdite e assicurazioni; l'host divide gli oggetti fra i vincitori
+        SettleBattleItems(result == 2);
+        if (NetIsAuthority() && VsBotIsPvp() && m_VsBotWinner >= 0) NetSendBattleLoot(m_VsBotWinner);
         ApplyMatchXp(outcome, label);
         m_VsBotReward = static_cast<int>(m_MatchEnergy);
         m_IsPaused = true;   // la simulazione si ferma sotto la schermata dei risultati
@@ -10181,6 +10186,7 @@ namespace SunEngine {
         }
         m_VsBotUnits.clear();
         m_VsBotPlayers.clear();
+        m_BattleLoot.clear(); m_BattleLootSeen.clear(); m_BattleLootSettled = false;
         ClearSummons();
         ResetFactionBuff();
         if (reg.all_of<TeamComponent>(m_PlayerEntity)) reg.remove<TeamComponent>(m_PlayerEntity);
@@ -10558,7 +10564,7 @@ namespace SunEngine {
         const bool leave = Ui::PlainButton("Abbandona la partita", ImVec2(-1, 32));
         ImGui::End();
         if (chosen >= 0) VsBotRespawnHuman(chosen);
-        else if (leave) LeaveVsBotMatch();
+        else if (leave) { if (m_VsBotResult == 0) SettleBattleItems(true); LeaveVsBotMatch(); }
     }
 
     // TAB: nomi dei giocatori. Alleati: tutta la squadra con le icone (in campo / riserva / caduta) e i punti
@@ -10652,6 +10658,8 @@ namespace SunEngine {
         ImGui::Text("Avversari eliminati dalla squadra: %d", m_VsBotEnemyKills);
         ImGui::Spacing();
         RenderMatchRecap();
+        ImGui::Spacing();
+        RenderBattleLoot();
         ImGui::Spacing();
         const bool back = Ui::PlainButton("Torna al garage", ImVec2(-1, 44));
         ImGui::End();
