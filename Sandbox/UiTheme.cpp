@@ -301,12 +301,12 @@ namespace SunEngine::Ui {
     static float s_NavTextScale = 1.0f;
     void SetNavTextScale(float s) { s_NavTextScale = s; }
 
-    bool NavTab(const char* label, float width, float height, bool active, const ImVec4& accent) {
+    bool NavTab(const char* label, float width, float height, bool active, const ImVec4& accent, float leftPad) {
         const char* end = ImGui::FindRenderedTextEnd(label);
         ImFont* f = FontHeading();
         const float fs = f->FontSize * 0.92f * s_NavTextScale;
         const ImVec2 ts = f->CalcTextSizeA(fs, FLT_MAX, 0.0f, label, end);
-        if (width <= 0.0f) width = ts.x + 30.0f;
+        if (width <= 0.0f) width = ts.x + 30.0f + leftPad;   // leftPad: spazio a sinistra per un'icona
         const ImVec2 a = ImGui::GetCursorScreenPos(), b(a.x + width, a.y + height);
         const bool clicked = ImGui::InvisibleButton(label, ImVec2(width, height));
         const bool hov = ImGui::IsItemHovered();
@@ -321,7 +321,7 @@ namespace SunEngine::Ui {
             dl->AddRectFilled(ImVec2(a.x, b.y - 1.0f), b, U32(Col::Brass, 0.7f));
         }
         const ImVec4 tc = active ? ImVec4(1.0f, 0.95f, 0.82f, 1.0f) : (hov ? Col::Bone : Col::Ash);
-        const ImVec2 tp(a.x + (width - ts.x) * 0.5f, a.y + (height - ts.y) * 0.5f - 1.0f);
+        const ImVec2 tp(a.x + leftPad + (width - leftPad - ts.x) * 0.5f, a.y + (height - ts.y) * 0.5f - 1.0f);
         if (active) BoldText(dl, f, fs, tp, U32(tc), label, end); else   // senza la parte "##id" dell'etichetta
         dl->AddText(f, fs, tp, U32(tc), label, end);
         return clicked;

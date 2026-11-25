@@ -201,6 +201,13 @@ def main():
     if not a.no_photos: photograph_weapons(todo)
     for e in entries:
         e['_img'] = ('img/' + e['id'] + '.jpg') if os.path.exists(os.path.join(IMG, e['id'] + '.jpg')) else None
+        if e.get('_kind') in ('weapon', 'armor') and os.path.exists(os.path.join(GD, 'Icons', 'Items', e['id'] + '.png')):
+            e['_icon'] = 'icons/items/' + e['id'] + '.png'
+    # icone (Tools/Icons): oggetti e fazioni
+    shutil.rmtree(os.path.join(a.out, 'icons'), ignore_errors=True)
+    for sub in ('Items', 'Factions'):
+        dst = os.path.join(a.out, 'icons', sub.lower()); os.makedirs(dst, exist_ok=True)
+        for p in glob.glob(os.path.join(GD, 'Icons', sub, '*.png')): shutil.copy2(p, os.path.join(dst, os.path.basename(p)))
 
     shutil.rmtree(os.path.join(a.out, 'img'), ignore_errors=True)   # niente foto vecchie di cose cancellate
     os.makedirs(os.path.join(a.out, 'img'), exist_ok=True)

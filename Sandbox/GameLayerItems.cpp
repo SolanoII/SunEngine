@@ -8,10 +8,16 @@
 #include "UiTheme.h"
 #include "DamageUi.h"
 #include "Engine/Core/Logger/Log.h"
+#include "Engine/Renderer/Core/Texture.h"
 #include <imgui.h>
 #include <algorithm>
+#include <filesystem>
+#include <memory>
+#include <set>
+#include <unordered_map>
 #include <random>
 
+extern std::string FindValidDir(const std::string& targetDirName);
 namespace SunEngine {
 
     namespace {
@@ -280,6 +286,74 @@ namespace SunEngine {
         return changed;
     }
 
+    // ------------------------------------------------------------------------------------ icone
+    struct GameLayer::IconCacheImpl {
+        std::unordered_map<std::string, std::unique_ptr<GpuTexture>> tex;
+        std::set<std::string> missing;
+        std::string dir;
+    };
+    unsigned int GameLayer::IconTexture(const std::string& rel) {
+        if (!m_Icons) { m_Icons = std::make_shared<IconCacheImpl>(); m_Icons->dir = FindValidDir("Icons"); }
+        if (m_Icons->missing.count(rel)) return 0;
+        if (auto it = m_Icons->tex.find(rel); it != m_Icons->tex.end()) return it->second->GetID();
+        const std::string path = m_Icons->dir + rel + ".png";
+        std::error_code ec;
+        auto t = std::make_unique<GpuTexture>();
+        if (m_Icons->dir.empty() || !std::filesystem::exists(path, ec) || !t->LoadFromFile(path, false, false)) { m_Icons->missing.insert(rel); return 0; }
+        const unsigned int id = t->GetID();
+        m_Icons->tex[rel] = std::move(t);
+        return id;
+    }
+
+    // Tessera del magazzino: icona su fondo chiaro, bordo del colore della rarita'. Passandoci sopra: nome, rarita',
+    // condizione (durabilita' rimasta), chi lo ha addosso, assicurazione.
+    bool GameLayer::DrawItemTile(const ItemInstance& it, float size, bool selected) {
+        auto& bpm = BlueprintManager::Get();
+        std::string name = it.itemId;
+        if (const auto* w = bpm.GetWeapon(it.itemId)) name = w->displayName; else if (const auto* a = bpm.GetArmorPiece(it.itemId)) name = a->displayName;
+        const RarityInfo& ri = Rarity(it.rarity);
+        ImGui::PushID(static_cast<int>(it.uid));
+        const ImVec2 p = ImGui::GetCursorScreenPos(), q(p.x + size, p.y + size);
+        const bool clicked = ImGui::InvisibleButton("##tile", ImVec2(size, size));
+        const bool hov = ImGui::IsItemHovered();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImU32 rc = ImGui::GetColorU32(ri.color);
+        if (selected) dl->AddRect(ImVec2(p.x - 4, p.y - 4), ImVec2(q.x + 4, q.y + 4), ImGui::GetColorU32(ImVec4(1.0f, 0.92f, 0.6f, 0.9f)), 4.0f, 0, 2.0f);
+        dl->AddRectFilled(p, q, it.Broken() ? IM_COL32(120, 112, 104, 255) : (hov ? IM_COL32(242, 236, 222, 255) : IM_COL32(226, 219, 203, 255)), 3.0f);
+        if (const unsigned int tex = IconTexture("Items/" + it.itemId)) {
+            const float pad = size * 0.08f;
+            dl->AddImage(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(tex)), ImVec2(p.x + pad, p.y + pad), ImVec2(q.x - pad, q.y - pad),
+                         ImVec2(0, 0), ImVec2(1, 1), it.Broken() ? IM_COL32(255, 255, 255, 110) : IM_COL32_WHITE);
+        }
+        else dl->AddText(ImVec2(p.x + 6, p.y + size * 0.4f), IM_COL32(20, 20, 20, 255), name.substr(0, 10).c_str());
+        dl->AddRect(p, q, rc, 3.0f, 0, 4.0f);                                 // bordo = rarita'
+        // condizione: barretta in basso
+        const float c = std::clamp(it.condition / 100.0f, 0.0f, 1.0f);
+        dl->AddRectFilled(ImVec2(p.x + 5, q.y - 9), ImVec2(q.x - 5, q.y - 5), IM_COL32(0, 0, 0, 90));
+        dl->AddRectFilled(ImVec2(p.x + 5, q.y - 9), ImVec2(p.x + 5 + (size - 10) * c, q.y - 5),
+                          c > 0.6f ? IM_COL32(96, 160, 90, 255) : (c > 0.25f ? IM_COL32(200, 130, 50, 255) : IM_COL32(200, 60, 40, 255)));
+        if (it.Broken()) { dl->AddLine(ImVec2(p.x + 8, p.y + 8), ImVec2(q.x - 8, q.y - 12), IM_COL32(190, 40, 30, 255), 4.0f); dl->AddLine(ImVec2(q.x - 8, p.y + 8), ImVec2(p.x + 8, q.y - 12), IM_COL32(190, 40, 30, 255), 4.0f); }
+        if (it.insured > 0) {   // scudetto: assicurato
+            const ImVec2 s(q.x - 16, p.y + 6);
+            dl->AddTriangleFilled(ImVec2(s.x, s.y), ImVec2(s.x + 11, s.y), ImVec2(s.x + 5.5f, s.y + 13), IM_COL32(214, 172, 60, 255));
+            dl->AddRectFilled(ImVec2(s.x, s.y), ImVec2(s.x + 11, s.y + 5), IM_COL32(214, 172, 60, 255));
+        }
+        const int holder = ItemHolder(it.uid);
+        if (holder >= 0) dl->AddCircleFilled(ImVec2(p.x + 10, p.y + 10), 5.0f, IM_COL32(40, 40, 40, 230));   // addosso a qualcuno
+        if (hov) {
+            ImGui::BeginTooltip();
+            ImGui::Text("%s", name.c_str());
+            ImGui::TextColored(ri.color, "%s", ri.name);
+            ImGui::TextColored(c > 0.6f ? Ui::Col::Verdigris : (c > 0.25f ? Ui::Col::Rust : Ui::Col::Ember), it.Broken() ? "Durabilita': 0%% (ROTTO)" : "Durabilita': %d%%",
+                               static_cast<int>(std::lround(it.condition)));
+            if (holder >= 0) ImGui::TextColored(Ui::Col::Ash, "Addosso a %s", m_PlayerRoster[holder].customName.c_str());
+            if (it.insured > 0) ImGui::TextColored(Ui::Col::Gold, "Assicurato: %d %s PvP", it.insured, it.insured == 1 ? "partita" : "partite");
+            ImGui::EndTooltip();
+        }
+        ImGui::PopID();
+        return clicked;
+    }
+
     // ------------------------------------------------------------------------------------ magazzino
     void GameLayer::RenderStorehouseUI() {
         ImGuiIO& io = ImGui::GetIO();
@@ -311,18 +385,15 @@ namespace SunEngine {
                                              "si trovano come bottino alla fine delle missioni della PVE-STORY e, piu' avanti, si prendono agli avversari.");
             ImGui::PopTextWrapPos();
         }
-        for (ItemInstance* it : shown) {
-            ImGui::PushID(static_cast<int>(it->uid));
-            const int holder = ItemHolder(it->uid);
-            std::string label = nameOf(it->itemId);
-            if (it->Broken()) label += "  (rotto)";
-            if (it->insured > 0) label += "  [assicurato " + std::to_string(it->insured) + "]";
-            ImGui::PushStyleColor(ImGuiCol_Text, it->Broken() ? Ui::Col::Ash : Rarity(it->rarity).color);
-            if (ImGui::Selectable(label.c_str(), m_SelectedItemUid == it->uid)) m_SelectedItemUid = it->uid;
-            ImGui::PopStyleColor();
-            ImGui::SameLine(300.0f);
-            ImGui::TextColored(Ui::Col::Ash, "%s", holder >= 0 ? m_PlayerRoster[holder].customName.c_str() : "-");
-            ImGui::PopID();
+        {   // griglia di icone (bordo = rarita'; passandoci sopra: nome, rarita', durabilita')
+            const float tile = 76.0f, gap = 10.0f;
+            const int perRow = std::max(1, static_cast<int>((ImGui::GetContentRegionAvail().x + gap) / (tile + gap)));
+            int col = 0;
+            for (ItemInstance* it : shown) {
+                if (col > 0) ImGui::SameLine(0.0f, gap);
+                if (DrawItemTile(*it, tile, m_SelectedItemUid == it->uid)) m_SelectedItemUid = it->uid;
+                if (++col >= perRow) { col = 0; ImGui::Dummy(ImVec2(0.0f, gap * 0.4f)); }
+            }
         }
         ImGui::EndChild();
         ImGui::SameLine();

@@ -60,7 +60,7 @@ namespace SunEngine::Ui {
     // Come ImGui::Button (stessi colori dello stile, anche quelli messi con PushStyleColor), ma con gli angoli smussati
     bool PlainButton(const char* label, const ImVec2& size = ImVec2(0.0f, 0.0f));
     // Scheda di navigazione (barra in alto, fazioni): sottolineata e accesa se attiva
-    bool NavTab(const char* label, float width, float height, bool active, const ImVec4& accent = Col::Gold);
+    bool NavTab(const char* label, float width, float height, bool active, const ImVec4& accent = Col::Gold, float leftPad = 0.0f);
     void SetNavTextScale(float s);   // schede della barra in alto: carattere piu' piccolo quando non ci stanno (1 = normale)
     // Riquadro con etichetta piccola e valore grande
     void StatTile(const char* label, const char* value, float width, const ImVec4& valueCol = Col::Bone);

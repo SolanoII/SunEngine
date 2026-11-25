@@ -777,6 +777,11 @@ namespace SunEngine {
         bool DrawSlotChoices(TrainedUnit& unit, std::string& slotRef, const std::string& itemId, const std::string& name, bool isArmor);
         std::string ItemLabel(const std::string& slotId, const std::string& baseName) const;
         void RenderStorehouseUI();
+        // Icone (GameData/Icons, disegnate da Tools/Icons/icons.py): "Items/<id>" e "Factions/<fazione>". 0 = manca
+        struct IconCacheImpl;
+        std::shared_ptr<IconCacheImpl> m_Icons;
+        unsigned int IconTexture(const std::string& rel);
+        bool DrawItemTile(const ItemInstance& it, float size, bool selected);   // tessera del magazzino; true = cliccata
         // Bottino della battaglia (PvP: Vs Bot con giocatori veri in entrambe le squadre). Chi perde perde gli oggetti
         // addosso alle sue unita' cadute (non quelli assicurati); l'host li divide fra i giocatori veri della squadra
         // vincitrice in proporzione ai punti fatti. Vedi GameLayerItems.cpp.

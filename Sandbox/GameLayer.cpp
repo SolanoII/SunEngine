@@ -7321,9 +7321,16 @@ namespace SunEngine {
             const ResearchNode* gate = f.requiresNode.empty() ? nullptr : m_ResearchTree.FindNode(f.requiresNode);
             const bool closed = gate && !m_ResearchTree.IsResearched(m_Profile, *gate);
             if (closed) label += " (CHIUSO)";
+            const unsigned int icon = IconTexture("Factions/" + f.id);   // icona della fazione (Tools/Icons)
             label += "##fac_" + f.id;
             const ImVec4 acc(f.accent[0], f.accent[1], f.accent[2], 1.0f);
-            if (Ui::NavTab(label.c_str(), 0.0f, 38.0f, current == &f, closed ? ImVec4(acc.x * 0.5f, acc.y * 0.5f, acc.z * 0.5f, 1.0f) : acc)) { s_Faction = f.id; current = &f; }
+            if (Ui::NavTab(label.c_str(), 0.0f, 38.0f, current == &f, closed ? ImVec4(acc.x * 0.5f, acc.y * 0.5f, acc.z * 0.5f, 1.0f) : acc, icon ? 36.0f : 0.0f)) { s_Faction = f.id; current = &f; }
+            if (icon) {
+                const ImVec2 r0 = ImGui::GetItemRectMin(), r1 = ImGui::GetItemRectMax();
+                const float sz = std::min(28.0f, r1.y - r0.y - 8.0f), y = (r0.y + r1.y - sz) * 0.5f - 1.0f;
+                ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(icon)), ImVec2(r0.x + 12.0f, y), ImVec2(r0.x + 12.0f + sz, y + sz),
+                                                     ImVec2(0, 0), ImVec2(1, 1), closed ? IM_COL32(255, 255, 255, 120) : IM_COL32_WHITE);
+            }
             if (closed && ImGui::IsItemHovered()) ImGui::SetTooltip("Si apre quando sblocchi %s", gate->name.c_str());
             ImGui::SameLine();
         }

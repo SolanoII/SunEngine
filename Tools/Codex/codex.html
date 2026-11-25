@@ -64,6 +64,12 @@ input[type=search] { flex: 1 1 220px; min-width: 0; }
 .f-Kingship { --fac: var(--k); } .f-Vanguard { --fac: var(--v); } .f-Vrepighs { --fac: var(--x); } .f-Grey_Knights, .f-, .f-Imperium, .f-Orks, .f-Spacemarines { --fac: var(--g); }
 .shot { aspect-ratio: 720 / 416; max-width: 100%; background: #24282c; display: grid; place-items: center; overflow: hidden; border-bottom: 1px solid var(--line); position: relative; }
 .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.icobox { display: grid; place-items: center; width: 100%; height: 100%; background: #e2dbcb; }
+.icobox img { width: 62%; height: auto; }
+.ico { width: 54px; height: 54px; background: #e2dbcb; border-radius: 3px; padding: 4px; flex: none; }
+.nmrow { display: flex; gap: 12px; align-items: center; }
+.stamp { display: inline-flex; align-items: center; }
+.chip img, .stamp img { width: 16px; height: 16px; vertical-align: -3px; margin-right: 6px; }
 .noimg { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 12px; text-align: center; }
 .stamp { position: absolute; left: 0; top: 0; font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; padding: 3px 8px; color: #111315; background: var(--fac); }
 .stripe { height: 4px; background: var(--fac); }
@@ -204,8 +210,11 @@ function whoHTML(e) {
   if (!e._who || !e._who.length) return '<span class="u none">Nessuna unità può usarla</span>';
   return e._who.map(u => `<span class="u${u.base ? ' base' : ''}" title="${u.base ? 'Dotazione base' : 'Sbloccabile o a scelta'}">${esc(u.name)}</span>`).join('');
 }
+const FICON = { Kingship: 'kingship', Vanguard: 'vanguard', Vrepighs: 'vrepighs' };
+const facIcon = f => FICON[f] ? `<img src="icons/factions/${FICON[f]}.png" alt="">` : '';
 function shot(e, big) {
   if (e._img) return `<img src="${e._img}" alt="${esc(e.displayName)}" loading="${big ? 'eager' : 'lazy'}">`;
+  if (e._icon) return `<div class="icobox"><img src="${e._icon}" alt="${esc(e.displayName)}"></div>`;
   const why = e._kind === 'armor' ? 'Si vede addosso alle unità' : e._kind === 'unit' ? 'Foto non ancora fatta' : /claws/.test(e.id) ? 'Arma naturale: artigli del corpo' : 'Nessun modello 3D';
   return `<div class="noimg">${why}</div>`;
 }
@@ -239,14 +248,14 @@ function card(e) {
   if (e._kind === 'idea') return `<div class="card f-${esc(e.faction || '')}" role="button" tabindex="0" data-id="${esc(e.id)}" aria-label="${esc(e.displayName)}: dettagli">
     <div class="stripe"></div><div class="cbody"><div class="name">${esc(e.displayName)}</div><div class="meta"><span>${esc(facName(e.faction))}</span>${metaHTML(e)}</div>
     ${e.comment ? `<div class="comment" style="font-size:12.5px">${esc(e.comment)}</div>` : ''}${e._parent ? `<div class="meta"><span>Dopo: ${esc(e._parent)}</span></div>` : ''}</div></div>`;
-  const top = e._kind === 'armor' ? `<div class="stripe"></div>` : `<div class="shot">${shot(e)}<span class="stamp">${esc(facName(e.faction))}</span></div>`;
+  const top = e._kind === 'armor' ? `<div class="stripe"></div>` : `<div class="shot">${shot(e)}<span class="stamp">${facIcon(e.faction)}${esc(facName(e.faction))}</span></div>`;
   const foot = e._kind === 'unit'
     ? `<div class="who">${(e._base || []).slice(0, 3).map(([, n]) => `<span class="u base">${esc(n)}</span>`).join('')}</div>`
     : `<div class="who">${whoHTML(e)}</div>`;
   return `<div class="card f-${esc(e.faction || '')}" role="button" tabindex="0" data-id="${esc(e.id)}" aria-label="${esc(e.displayName)}: tutti i dettagli">
     ${top}
     <div class="cbody">
-      <div class="name">${esc(e.displayName)}</div>
+      ${e._kind === 'armor' && e._icon ? `<div class="nmrow"><img class="ico" src="${e._icon}" alt=""><div class="name">${esc(e.displayName)}</div></div>` : `<div class="name">${esc(e.displayName)}</div>`}
       <div class="meta">${e._kind === 'armor' ? `<span>${esc(facName(e.faction))}</span>` : ''}${metaHTML(e)}</div>
       <div class="bars">${b}</div>
       ${e._kind === 'weapon' ? dmgHTML(e) : e._kind === 'armor' ? resHTML(e) : ''}
@@ -288,7 +297,7 @@ function setupListing() {
   if (fac !== 'all' && !facs.includes(fac)) fac = 'all';
   const row = $('#facRow');
   row.innerHTML = '<span class="lab">Fazione</span>' + [['all', 'Tutte']].concat(facs.map(f => [f, facName(f) + ' · ' + E.filter(e => e._cat === cat && (e.faction || '') === f).length]))
-    .map(([v, t]) => `<button class="chip" data-v="${esc(v)}" aria-pressed="${v === fac}">${esc(t)}</button>`).join('');
+    .map(([v, t]) => `<button class="chip" data-v="${esc(v)}" aria-pressed="${v === fac}">${v !== 'all' ? facIcon(v) : ''}${esc(t)}</button>`).join('');
   $('#legend').hidden = sk === 'unit' || sk === 'idea';
   renderList();
 }
@@ -414,7 +423,7 @@ function open(id) {
   }
   const whoBlock = e._kind === 'unit' ? '' : `<h3>Chi la usa</h3><div class="who">${whoHTML(e)}</div>`;
   $('#sheet').innerHTML = `<div class="dlg f-${esc(e.faction || '')}" role="dialog" aria-modal="true" aria-labelledby="dt">
-    <div class="shot">${shot(e, true)}<span class="stamp">${esc(facName(e.faction))}</span></div>
+    <div class="shot">${shot(e, true)}<span class="stamp">${facIcon(e.faction)}${esc(facName(e.faction))}</span></div>
     <div class="dinfo">
       <button class="close" id="close">Chiudi</button>
       <div class="eyebrow">${esc(e.id)}</div>
