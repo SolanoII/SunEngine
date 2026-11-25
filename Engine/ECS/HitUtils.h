@@ -134,6 +134,10 @@ namespace SunEngine {
             marker->targetMaxHealth = (health->maxHealth > 1.0f) ? health->maxHealth : 100.0f;
         }
         marker->damage += dealt;
+        if (const auto* ts = reg.try_get<UnitStatsComponent>(target)) {   // media dell'effetto del tipo di danno sulla raffica
+            marker->typeMult = (marker->typeMult * marker->hits + ts->lastTypeMult) / (marker->hits + 1);
+            ++marker->hits;
+        }
         marker->killed = marker->killed || killed;
         marker->graze = graze;
         marker->localOffset = hitPoint - tTrans->Position;

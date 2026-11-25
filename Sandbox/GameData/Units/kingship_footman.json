@@ -1,5 +1,6 @@
 {
   "id": "kingship_footman",
+  "race": "human",
   "displayName": "Fante",
   "ai_role": "ranged",
   "point_cost": 10,

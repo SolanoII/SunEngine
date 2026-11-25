@@ -111,13 +111,14 @@ namespace SunEngine {
         }
     };
 
-    using DamageResist = std::array<float, kDamageTypeCount>;   // 0.15 = -15% di quel tipo di danno
+    using DamageResist = std::array<float, kDamageTypeCount>;   // 0.15 = -15% di quel tipo di danno; negativo = debolezza
+    // "Perforazione +10%, Luce -20%" (+ = difesa, - = debolezza)
     inline std::string ResistText(const DamageResist& r, const char* none = "nessuna") {
         std::string s;
         for (int i = 0; i < kDamageTypeCount; ++i) {
             if (std::abs(r[i]) < 0.005f) continue;
             if (!s.empty()) s += ", ";
-            s += std::string(DamageInfo(i).name) + " " + (r[i] > 0 ? "" : "+") + std::to_string(static_cast<int>(std::lround(std::abs(r[i]) * 100.0f))) + "%";
+            s += std::string(DamageInfo(i).name) + " " + (r[i] > 0 ? "+" : "-") + std::to_string(static_cast<int>(std::lround(std::abs(r[i]) * 100.0f))) + "%";
         }
         return s.empty() ? std::string(none) : s;
     }

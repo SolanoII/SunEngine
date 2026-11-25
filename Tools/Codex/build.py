@@ -83,6 +83,8 @@ def main():
         labels.setdefault('rarity', {})
         labels['rarity'].update({'levels': lv, 'traits': tr})
         with open(os.path.join(GD, 'Codex', 'labels.json'), 'w', encoding='utf-8') as f: json.dump(labels, f, ensure_ascii=False, indent=1)
+    races = (load(os.path.join(GD, 'Races', 'races.json')) or {}).get('races', {}) if os.path.exists(os.path.join(GD, 'Races', 'races.json')) else {}
+    labels.setdefault('damage', {})['races'] = {k: {'name': v.get('name', k), 'resistances': v.get('resistances', {})} for k, v in races.items()}
     units = {}
     for f in glob.glob(os.path.join(GD, 'Units', '*.json')):
         j = load(f); units[j['id']] = j
@@ -173,6 +175,10 @@ def main():
         for v in uses.values(): v.sort()
         e = {k: v for k, v in u.items() if k not in ('default_loadout', 'base_skin', 'skeleton')}
         fac = 'Kingship' if uid.startswith('kingship_') else 'Vanguard' if uid.startswith('vanguard_') else 'Vrepighs' if uid.startswith('vrepighs_') else ''
+        rr = dict((races.get(u.get('race', '')) or {}).get('resistances', {}))
+        for k, v in (u.get('resistances') or {}).items(): rr[k] = rr.get(k, 0) + v
+        e['_race'] = (races.get(u.get('race', '')) or {}).get('name', '')
+        e['_res'] = {k: v for k, v in rr.items() if v}
         e.update(_kind='unit', _cat='unit' if (rn and not rn.get('premium')) else 'other', faction=fac, _base=base, _uses=uses, _research=research(rn))
         entries.append(e)
 

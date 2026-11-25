@@ -1,5 +1,6 @@
 {
   "id": "kingship_meatshield",
+  "race": "human",
   "displayName": "Meatshield",
   "comment": "Grado I del Kingship. Prigionieri condannati a vita, costretti a servire con il minimo indispensabile per ammazzare il nemico: fucile a impulsi scadente, coltello e una picca lunga. Messi in prima linea a fermare la carica delle unita' piu' grosse (cavalcature, mostri, macchine, robot). Niente armatura, morale basso: si sacrificano, non si addestrano.",
   "ai_role": "melee",

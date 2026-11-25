@@ -1,5 +1,6 @@
 {
   "id": "kingship_recruit",
+  "race": "human",
   "displayName": "Recluta",
   "comment": "Recluta del Kingship, grado II (unisce la vecchia Recluta e la Recluta di Leva). Dotazione base: fucile a impulsi, pistola a impulsi, coltello, granata, elmetto e giubba antischegge. Sbloccabili: medikit, spada a denti meccanici, spallacci e gambali, cannone a impulsi pesante.",
   "ai_role": "ranged",

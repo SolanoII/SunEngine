@@ -1,5 +1,6 @@
 {
   "id": "vrepighs_gorvakh",
+  "race": "vrepigh",
   "displayName": "Gorvakh",
   "ai_role": "melee",
   "point_cost": 75,

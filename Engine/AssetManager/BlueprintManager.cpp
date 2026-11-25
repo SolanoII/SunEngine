@@ -404,6 +404,26 @@ namespace SunEngine {
             SUN_CORE_WARN("Cartella unita non trovata: {0}", folderPath);
             return;
         }
+        // Razze: GameData/Races/races.json, accanto alla cartella delle unita'
+        {
+            const fs::path racesFile = fs::path(folderPath).lexically_normal().parent_path().parent_path() / "Races" / "races.json";
+            const fs::path racesFile2 = fs::path(folderPath).parent_path() / "Races" / "races.json";
+            std::ifstream rf(fs::exists(racesFile) ? racesFile : racesFile2);
+            if (rf.is_open()) {
+                try {
+                    nlohmann::json rj; rf >> rj;
+                    if (rj.contains("races") && rj["races"].is_object()) {
+                        for (const auto& kv : rj["races"].items()) {
+                            RaceInfo r; r.id = kv.key(); r.name = kv.value().value("name", kv.key());
+                            if (kv.value().contains("resistances")) ParseResist(kv.value()["resistances"], r.resist);
+                            m_Races[r.id] = r;
+                        }
+                    }
+                }
+                catch (...) { SUN_CORE_ERROR("Errore nel file delle razze (Races/races.json)"); }
+            }
+            else SUN_CORE_WARN("Razze non trovate (Races/races.json)");
+        }
 
         for (const auto& entry : fs::recursive_directory_iterator(folderPath)) {
             if (entry.is_regular_file() && entry.path().extension() == ".json") {
@@ -456,6 +476,12 @@ namespace SunEngine {
                 bp.no_melee = j.value("no_melee", false);
                 bp.melee_fallback = j.value("melee_fallback", std::string());
                 bp.strict_loadout = j.value("strict_loadout", false);
+                bp.race = j.value("race", std::string());
+                if (const RaceInfo* r = GetRace(bp.race)) bp.resist = r->resist;
+                if (j.contains("resistances")) {
+                    DamageResist own{}; ParseResist(j["resistances"], own);
+                    for (int t = 0; t < kDamageTypeCount; ++t) bp.resist[t] = std::clamp(bp.resist[t] + own[t], -1.0f, 0.9f);
+                }
                 if (j.contains("base_skin") && j["base_skin"].is_object()) ParseSkin(j["base_skin"], bp.baseSkinBlockColors, bp.baseSkinParts, &bp.baseGarments);
                 if (j.contains("default_loadout") && j["default_loadout"].is_object()) {
                     const auto& lj = j["default_loadout"];

@@ -757,6 +757,7 @@ namespace SunEngine {
         enemyColor.BaseColor = enemyColor.Color;
 
         auto& enemyStats = scene.GetRegistry().emplace<UnitStatsComponent>(enemyEntity);
+        if (const RaceInfo* r = BlueprintManager::Get().GetRace("vrepigh")) enemyStats.raceResist = r->resist;   // l'orda e' di vrepigh
         enemyStats.armorSet.torso.armorRating = 2;
         enemyStats.armorSet.torso.maxDurability = 50.0f;
         enemyStats.armorSet.torso.currentDurability = 50.0f;
@@ -827,6 +828,7 @@ namespace SunEngine {
         unitHealth.maxHealth = bp->health;
         unitHealth.currentHealth = bp->health;
         stats.toughness = bp->toughness;
+        stats.raceResist = bp->resist;
         stats.strength = bp->strength;
         stats.climbHeight = bp->climb_height;
         stats.momentumBonus = bp->momentum_bonus;   // slancio e carica (Feral Pig)
@@ -2149,7 +2151,7 @@ namespace SunEngine {
             auto& stats = reg.emplace<UnitStatsComponent>(e);
             stats.maxHealth = maxHp;
             stats.currentHealth = maxHp;
-            if (bp) stats.toughness = bp->toughness;
+            if (bp) { stats.toughness = bp->toughness; stats.raceResist = bp->resist; }
             const int armorRating = bp ? bp->armor_rating : 0;
             for (ArmorPiece* piece : { &stats.armorSet.head, &stats.armorSet.torso, &stats.armorSet.leftArm,
                                        &stats.armorSet.rightArm, &stats.armorSet.leftLeg, &stats.armorSet.rightLeg }) {
@@ -4493,7 +4495,7 @@ namespace SunEngine {
     }
 
     // Cerchio sul punto colpito, grande quanto m_HitMarkerWorldRadius sul corpo del bersaglio.
-    // Colore = efficacia del colpo (verde poco danno -> rosso colpo pesante); uccisione = croce rossa.
+    // Colore = effetto del tipo di danno (rosso resistito, verde debolezza, bianco normale); uccisione = croce.
     // Scritte della mischia che salgono (PARATA!, GUARDIA ROTTA!, INTERROTTO!, PUNITO!), solo vicino al giocatore
     void GameLayer::RenderVfxTexts() {
         const auto& texts = m_ParticleSystem.Texts();
@@ -4542,7 +4544,9 @@ namespace SunEngine {
             const float life = std::clamp(m.age / m_HitMarkerLife, 0.0f, 1.0f);
             const float alpha = 1.0f - life * life;               // svanisce verso la fine
             const float grow = 1.0f + 0.35f * life;               // si allarga leggermente
-            const glm::vec3 c = HitEffectivenessColor(m.damage, m.targetMaxHealth, m.killed);
+            // Colore = tipo di danno contro le difese del bersaglio: rosso = resistito (meno danno del dovuto),
+            // verde = debolezza (piu' danno), bianco = normale
+            const glm::vec3 c = m.typeMult < 0.97f ? glm::vec3(1.0f, 0.2f, 0.15f) : (m.typeMult > 1.03f ? glm::vec3(0.3f, 1.0f, 0.35f) : glm::vec3(0.95f, 0.93f, 0.88f));
             const ImU32 col = ImGui::GetColorU32(ImVec4(c.r, c.g, c.b, alpha));
             const ImU32 fill = ImGui::GetColorU32(ImVec4(c.r, c.g, c.b, 0.25f * alpha));
             const ImVec2 center(sp.x, sp.y);
@@ -8041,6 +8045,12 @@ namespace SunEngine {
                 if (m_Scene.GetRegistry().all_of<UnitStatsComponent>(m_PlayerEntity)) {
                     int avgArmor = m_Scene.GetRegistry().get<UnitStatsComponent>(m_PlayerEntity).armorSet.GetAverageRating();
                     ImGui::Text("Valore Armatura Medio: %d", avgArmor);
+                }
+                if (const RaceInfo* race = BlueprintManager::Get().GetRace(currentBp->race)) {
+                    ImGui::PushTextWrapPos(0.0f);
+                    ImGui::Text("Razza: %s", race->name.c_str());
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Difese di razza: %s", ResistText(currentBp->resist).c_str());
+                    ImGui::PopTextWrapPos();
                 }
                 ImGui::Text("Velocita' Base: %.1f m/s", currentBp->base_speed);
                 ImGui::Text("Forza Fisica: %.0f", currentBp->strength);

@@ -1,5 +1,6 @@
 {
   "id": "vrepighs_kragh",
+  "race": "vrepigh",
   "displayName": "Kragh",
   "ai_role": "melee",
   "point_cost": 45,

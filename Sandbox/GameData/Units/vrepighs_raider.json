@@ -1,5 +1,6 @@
 {
   "id": "vrepighs_raider",
+  "race": "vrepigh",
   "displayName": "Vrepigh Razziatore",
   "ai_role": "ranged",
   "skeleton": "vrepighs_tusker",

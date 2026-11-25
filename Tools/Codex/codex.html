@@ -312,16 +312,18 @@ function dmgHTML(e) {
   return `<div class="dmgbar">${ks.map(k => `<i style="width:${d[k] * 100}%;background:${rgb(dtOf(k).color)}"></i>`).join('')}</div>
     <div class="dmgleg">${ks.map(k => `<span style="color:${rgb(dtOf(k).color)}">${esc(dtOf(k).name)}${ks.length > 1 ? ' ' + Math.round(d[k] * 100) + '%' : ''}</span>`).join('')}${e.damage_pure ? '<span class="pure">· puro</span>' : ''}</div>`;
 }
-function resHTML(e) {
-  const r = e.resistances; if (!r || !Object.keys(r).length) return '';
-  return `<div class="res">${Object.keys(r).sort((a, b) => r[b] - r[a]).map(k => `<span style="color:${rgb(dtOf(k).color)}">${esc(dtOf(k).name)} ${r[k]}%</span>`).join('')}</div>`;
+function resHTML(e, r = e.resistances) {
+  if (!r || !Object.keys(r).length) return '';
+  return `<div class="res">${Object.keys(r).sort((a, b) => r[b] - r[a]).map(k => `<span style="color:${r[k] < 0 ? '#d0603b' : rgb(dtOf(k).color)}">${esc(dtOf(k).name)} ${r[k] > 0 ? '+' : ''}${r[k]}%</span>`).join('')}</div>`;
 }
 function damageOverviewHTML() {
   const D = LBL.damage; if (!D || !D.types) return '';
   return `<div class="box" style="margin-top:22px"><h2 class="sec">Tipi di danno</h2>
     ${(D.rules || []).map(r => `<p class="comment" style="margin:0 0 6px">${esc(r)}</p>`).join('')}
     <div class="tbl"><table class="dtype"><thead><tr><th>Tipo</th><th>Gruppo</th><th>Chi lo fa</th><th>Sull'arma</th><th>Arma: aggiunge</th><th>Arma: rinforza</th><th>Armatura: aggiunge</th><th>Armatura: rinforza</th></tr></thead>
-    <tbody>${D.types.map(t => `<tr><td style="color:${rgb(t.color)}">${esc(t.name)}</td><td>${esc(t.group)}</td><td>${esc(t.desc)}</td><td>${esc(t.fx || '—')}</td><td>${esc(t.split)}</td><td>${esc(t.boost)}</td><td>${esc(t.armor_new)}</td><td>${esc(t.armor_boost)}</td></tr>`).join('')}</tbody></table></div></div>`;
+    <tbody>${D.types.map(t => `<tr><td style="color:${rgb(t.color)}">${esc(t.name)}</td><td>${esc(t.group)}</td><td>${esc(t.desc)}</td><td>${esc(t.fx || '—')}</td><td>${esc(t.split)}</td><td>${esc(t.boost)}</td><td>${esc(t.armor_new)}</td><td>${esc(t.armor_boost)}</td></tr>`).join('')}</tbody></table></div>
+    ${D.races ? `<h3 style="margin-top:18px">Difese di razza</h3><p class="comment" style="margin:0 0 6px">Su tutto il corpo, anche dove l'armatura non copre, e in più a quella dei pezzi (+ difesa, − debolezza).</p>
+    <div class="tbl"><table class="dtype"><tbody>${Object.values(D.races).map(r => `<tr><td>${esc(r.name)}</td><td>${resHTML(r, r.resistances)}</td></tr>`).join('')}</tbody></table></div>` : ''}</div>`;
 }
 function rarityHTML() {
   const R = LBL.rarity; if (!R || !R.levels) return '';
@@ -394,13 +396,14 @@ function open(id) {
   } else if (e._kind === 'unit') top.push(['Ricerca', 'non si ricerca: nemico o personaggio delle storie']);
   let html = `<h3>Scheda</h3>${table(top)}`;
   if (e._kind === 'weapon' && e._dmg) html += `<h3>Tipo di danno</h3>${dmgHTML(e)}<p class="comment" style="margin:4px 0 0">${e.damage_pure ? 'Arma pura: i tratti possono solo rinforzare il suo tipo.' : 'I tratti possono aggiungere altri tipi o rinforzare questi.'}</p>`;
+  if (e._kind === 'unit' && e._race) html += `<h3>Razza: ${esc(e._race)}</h3><p class="comment" style="margin:0">Difese su tutto il corpo, oltre all'armatura (+ difesa, − debolezza).</p>${resHTML(e, e._res)}`;
   if (e._kind === 'armor') html += `<h3>Difese</h3>${resHTML(e) || '<p class="comment">Nessuna difesa dai tipi di danno.</p>'}${e.resist_pure ? '<p class="comment" style="margin:4px 0 0">Difese pure: i tratti possono solo rinforzare quelle che ci sono.</p>' : ''}`;
   const gk = e._kind;
   for (const [title, keys] of ((LBL.groups || {})[gk] || [])) {
     const rows = keys.filter(k => e[k] !== undefined && e[k] !== null && !(Array.isArray(e[k]) && !e[k].length)).map(k => { used.add(k); return [label(k), fmt(k, e[k])]; }).filter(x => x[1] !== '');
     if (rows.length) html += `<h3>${esc(title)}</h3>${table(rows)}`;
   }
-  const SKIP = new Set(['id', 'displayName', 'faction', 'slot_type', 'hand_type', 'weight_kg', 'point_cost', 'comment', 'allowed_units', 'unit_restriction', 'is_melee', 'repair_tags', 'projectile_length', 'projectile_width', 'loadout_version', 'weightCapacity', 'damage_pure', 'resist_pure']);
+  const SKIP = new Set(['id', 'displayName', 'faction', 'slot_type', 'hand_type', 'weight_kg', 'point_cost', 'comment', 'allowed_units', 'unit_restriction', 'is_melee', 'repair_tags', 'projectile_length', 'projectile_width', 'loadout_version', 'weightCapacity', 'damage_pure', 'resist_pure', 'race']);
   const rest = Object.keys(e).filter(k => !k.startsWith('_') && !SKIP.has(k) && !used.has(k) && (typeof e[k] !== 'object' || Array.isArray(e[k])));
   const restRows = rest.map(k => [label(k), fmt(k, e[k])]).filter(x => x[1] !== '');
   if (restRows.length) html += `<h3>Altro</h3>${table(restRows)}`;

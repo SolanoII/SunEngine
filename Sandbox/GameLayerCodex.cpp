@@ -305,7 +305,7 @@ namespace SunEngine {
             "moveset", "primary_color", "core_color", "weapon_scale", "hold_offset", "barrel_offset", "skin_parts", "skin_blocks", "garments",
             "default_loadout", "base_skin", "skeleton", "loadout_version", "point_cost", "weight_kg", "slot_type", "hand_type", "_folder",
             "projectile_length", "projectile_width", "repair_tags", "weightCapacity",
-            "damage_types", "damage_pure", "damage_fx", "resistances", "resist_pure" };
+            "damage_types", "damage_pure", "damage_fx", "resistances", "resist_pure", "race" };
     }
 
     void GameLayer::RenderCodexUI() {
@@ -584,6 +584,14 @@ namespace SunEngine {
                 ImGui::Spacing(); Ui::Heading("TIPO DI DANNO");
                 DamageUi::SplitBar(w->damage, std::min(360.0f, ImGui::GetContentRegionAvail().x), w->damage_pure ? "(puro)" : nullptr);
                 ImGui::TextColored(Ui::Col::Ash, w->damage_pure ? "Arma pura: i tratti possono solo rinforzare il suo tipo." : "I tratti possono aggiungere altri tipi o rinforzare questi.");
+            }
+        }
+        else if (e.kind == "unit") {
+            if (const auto* u = bpm.GetUnit(e.id)) {
+                const RaceInfo* race = bpm.GetRace(u->race);
+                ImGui::Spacing(); Ui::Heading(race ? ("RAZZA: " + race->name).c_str() : "RAZZA");
+                ImGui::TextColored(Ui::Col::Ash, "Difese su tutto il corpo, oltre all'armatura (+ difesa, - debolezza):");
+                DamageUi::ResistRows(u->resist, 140.0f);
             }
         }
         else if (e.kind == "armor") {

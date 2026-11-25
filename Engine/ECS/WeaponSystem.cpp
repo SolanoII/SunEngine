@@ -808,7 +808,10 @@ namespace SunEngine {
             else if (ps.type == ProjectileType::Psychic) {
                 // passa l'armatura, ma non le sue difese per tipo (es. glifi contro il magico)
                 const ArmorPiece* piece = targetStats.armorSet.GetPiece(ps.location);
-                if (piece && piece->currentDurability > 0.0f) finalDamage *= ps.split.Through(piece->resist);
+                float typeMult = ps.split.Through(targetStats.raceResist);
+                if (piece && piece->currentDurability > 0.0f) typeMult *= ps.split.Through(piece->resist);
+                finalDamage *= typeMult;
+                targetStats.lastTypeMult = typeMult;
                 targetHealth.currentHealth -= finalDamage;
             }
             else {

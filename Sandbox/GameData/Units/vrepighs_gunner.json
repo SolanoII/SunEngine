@@ -1,5 +1,6 @@
 {
   "id": "vrepighs_gunner",
+  "race": "vrepigh",
   "displayName": "Vrepigh Sparammazza",
   "ai_role": "versatile",
   "skeleton": "vrepighs_tusker",

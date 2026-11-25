@@ -273,6 +273,8 @@ namespace SunEngine {
         float maxHealth = 100.0f;
         float currentHealth = 100.0f;
         float toughness = 50.0f;
+        DamageResist raceResist{};   // difese di razza per tipo di danno (UnitBlueprint::resist), su tutto il corpo
+        float lastTypeMult = 1.0f;   // ultimo colpo preso: quanto ha contato il tipo di danno (<1 resistito, >1 debolezza)
         float strength = 50.0f;
         float vaultModifier = 1.0f;
         float climbHeight = 0.0f;   // arrampicata lenta oltre lo scavalcamento (m, 0 = no)
@@ -737,6 +739,8 @@ namespace SunEngine {
         float targetMaxHealth = 100.0f;
         bool killed = false;
         bool graze = false;              // ultimo colpo preso di striscio (danno ridotto)
+        float typeMult = 1.0f;           // effetto del tipo di danno sui colpi della raffica: <1 resistito (rosso), >1 debolezza (verde)
+        int hits = 0;
         float age = 0.0f;
     };
 

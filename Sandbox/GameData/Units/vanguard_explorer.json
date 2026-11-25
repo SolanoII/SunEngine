@@ -1,5 +1,6 @@
 {
   "id": "vanguard_explorer",
+  "race": "human",
   "displayName": "Vanguard Iniziate",
   "ai_role": "ranged",
   "skeleton": "vanguard_candidate",

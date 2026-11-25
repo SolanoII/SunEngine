@@ -1,0 +1,19 @@
+{
+  "comment": "Difese di razza (DamageTypes.h): valgono sempre, su tutto il corpo, anche dove l'armatura non copre, e si sommano a quelle dei pezzi d'armatura. Percentuali: positivo = meno danno di quel tipo, negativo = debolezza. Ogni unita' sceglie la razza con \"race\" nel suo file (e puo' aggiungere \"resistances\" sue).",
+  "races": {
+    "human": {
+      "name": "Umano",
+      "resistances": {"holy": 20, "dark": -20}
+    },
+    "vrepigh": {
+      "name": "Vrepigh",
+      "resistances": {"pierce": 10, "slash": 10, "blunt": 10, "dark": 10, "fire": -10, "holy": -20}
+    },
+    "vanguard_armor": {
+      "name": "Vanguard Armor",
+      "resistances": {"pierce": 10, "slash": 10, "blunt": 10, "holy": 15, "dark": 15,
+                      "energy": -5, "rad": -5, "shock": -5, "blast": -5, "fire": -5, "acid": -5,
+                      "poison": -5, "frost": -5, "nature": -5, "arcane": -5}
+    }
+  }
+}

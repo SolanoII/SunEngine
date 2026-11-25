@@ -1,5 +1,6 @@
 {
   "id": "vrepighs_zhelvar",
+  "race": "vrepigh",
   "displayName": "Il Vecchio (Zhelvar)",
   "ai_role": "versatile",
   "point_cost": 45,

@@ -1,5 +1,6 @@
 {
   "id": "vanguard_defender",
+  "race": "vanguard_armor",
   "displayName": "Vanguard Armor",
   "ai_role": "versatile",
   "point_cost": 40,

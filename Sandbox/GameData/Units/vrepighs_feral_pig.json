@@ -1,5 +1,6 @@
 {
   "id": "vrepighs_feral_pig",
+  "race": "vrepigh",
   "displayName": "Feral Pig",
   "comment": "Feral Pig: Vrepigh giovane e senza pietra, piu' bestia che soldato. Niente armi: artigli in mischia. Corre: andando dritto prende slancio (fino a +75% di velocita'), si butta a quattro zampe e sopra la soglia carica con le zanne chi trova davanti. Si sblocca solo l'armatura, pezzo per pezzo.",
   "ai_role": "melee",

@@ -1,5 +1,6 @@
 {
   "id": "vanguard_candidate",
+  "race": "human",
   "displayName": "Candidato Umano",
   "ai_role": "versatile",
   "point_cost": 9,

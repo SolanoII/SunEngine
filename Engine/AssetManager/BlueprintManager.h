@@ -333,6 +333,15 @@ namespace SunEngine {
         int loadout_version = 0;
         bool has_default_armor = false;
         std::string default_armor[6];      // testa, torso, braccio sx, braccio dx, gamba sx, gamba dx ("" = scoperto)
+        // Razza ("race", GameData/Races/races.json: umano, vrepigh, vanguard_armor) e difese di razza per tipo di danno:
+        // quelle della razza piu' le "resistances" dell'unita'. Valgono su tutto il corpo, oltre all'armatura.
+        std::string race;
+        DamageResist resist{};
+    };
+
+    struct RaceInfo {
+        std::string id, name;
+        DamageResist resist{};
     };
 
     struct ArmorBlueprint {
@@ -387,6 +396,8 @@ namespace SunEngine {
         void LoadUnitsFromDirectory(const std::string& folderPath);
 
         const UnitBlueprint* GetUnit(const std::string& id) const;
+        const RaceInfo* GetRace(const std::string& id) const { auto it = m_Races.find(id); return it == m_Races.end() ? nullptr : &it->second; }
+        const std::unordered_map<std::string, RaceInfo>& GetRaces() const { return m_Races; }
         const WeaponBlueprint* GetWeapon(const std::string& id) const;
         const ArmorBlueprint* GetArmorPiece(const std::string& id) const;
 
@@ -424,6 +435,7 @@ namespace SunEngine {
     private:
         BlueprintManager() = default;
         std::unordered_map<std::string, UnitBlueprint> m_Units;
+        std::unordered_map<std::string, RaceInfo> m_Races;
         std::unordered_map<std::string, WeaponBlueprint> m_Weapons;
         std::unordered_map<std::string, ArmorBlueprint> m_Armors;
         mutable std::unordered_map<std::string, std::unique_ptr<WeaponBlueprint>> m_WeaponVariants;   // mai cancellati: i puntatori restano validi

@@ -1,5 +1,6 @@
 {
   "id": "vanguard_konrad",
+  "race": "vanguard_armor",
   "displayName": "Konrad (Landmeister)",
   "ai_role": "versatile",
   "point_cost": 85,

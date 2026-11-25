@@ -1,5 +1,6 @@
 {
   "id": "kingship_college_cadet",
+  "race": "human",
   "displayName": "Cadetto del Collegio",
   "comment": "Cadetto del Collegio. Dotazione base come il Fante del Regno (armatura antischegge completa, fucile a impulsi o auto_rifle, pistola a impulsi o pistola automatica, coltello, frag). Sbloccabili: armatura in rigida, ad alta potenza fucile a impulsi, ad alta potenza pistola a impulsi, cassa di munizioni.",
   "ai_role": "ranged",

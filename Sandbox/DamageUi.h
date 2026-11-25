@@ -50,12 +50,14 @@ namespace SunEngine::DamageUi {
             const float h = ImGui::GetTextLineHeight() * 0.6f, y = p.y + ImGui::GetTextLineHeight() * 0.2f;
             dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + width, y + h), ImGui::GetColorU32(ImVec4(1, 1, 1, 0.07f)));
             dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + width * std::clamp(v / 0.5f, 0.0f, 1.0f), y + h), ImGui::GetColorU32(Col(i, 0.85f)));
+            if (v < 0.0f) dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + width * std::clamp(-v / 0.5f, 0.0f, 1.0f), y + h), ImGui::GetColorU32(ImVec4(0.75f, 0.2f, 0.15f, 0.85f)));
             ImGui::Dummy(ImVec2(width, ImGui::GetTextLineHeight()));
             ImGui::SameLine();
             if (base && std::abs(b - v) > 0.004f)
                 ImGui::TextColored(v > b ? ImVec4(0.45f, 0.8f, 0.55f, 1.0f) : ImVec4(0.9f, 0.4f, 0.3f, 1.0f), "%d%%  (base %d%%)",
                     static_cast<int>(std::lround(v * 100.0f)), static_cast<int>(std::lround(b * 100.0f)));
-            else ImGui::Text("%d%%", static_cast<int>(std::lround(v * 100.0f)));
+            else if (v < 0.0f) ImGui::TextColored(ImVec4(0.9f, 0.4f, 0.3f, 1.0f), "%d%%  (debolezza)", static_cast<int>(std::lround(v * 100.0f)));
+            else ImGui::Text("+%d%%", static_cast<int>(std::lround(v * 100.0f)));
         }
         if (!any) ImGui::TextDisabled("Nessuna difesa dai tipi di danno.");
     }

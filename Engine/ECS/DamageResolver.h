@@ -22,14 +22,15 @@ namespace SunEngine {
             ArmorPiece* armor = stats.armorSet.GetPiece(location);
             float finalHpDamage = rawDamage;
 
-            bool helmetHeld = false;   // elmetto che ha retto il colpo: niente moltiplicatore della testa
+            bool helmetHeld = false;
+            float typeMult = 1.0f;   // effetto del tipo di danno (difese dell'armatura e della razza)   // elmetto che ha retto il colpo: niente moltiplicatore della testa
             if (armor && armor->currentDurability > 0.0f && armor->armorRating > 0) {
                 if (Random::Chance(armor->coverage)) {
                     helmetHeld = armor->blocksHeadshotBonus;
                     int effectiveArmor = std::max(0, armor->armorRating - weaponAP);
                     float mitigation = 100.0f / (100.0f + static_cast<float>(effectiveArmor));
                     finalHpDamage = rawDamage * mitigation;
-                    if (split) finalHpDamage *= split->Through(armor->resist);
+                    if (split) { const float k = split->Through(armor->resist); finalHpDamage *= k; typeMult *= k; }
 
                     armor->currentDurability -= rawDamage * 0.2f;
                     if (armor->currentDurability < 0.0f) {
@@ -37,6 +38,9 @@ namespace SunEngine {
                     }
                 }
             }
+
+            if (split) { const float k = split->Through(stats.raceResist); finalHpDamage *= k; typeMult *= k; }   // difese di razza: sempre, anche senza armatura
+            stats.lastTypeMult = typeMult;
 
             float toughnessMitigation = 100.0f / (100.0f + stats.toughness);
             finalHpDamage *= toughnessMitigation;
