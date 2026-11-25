@@ -51,6 +51,9 @@ namespace SunEngine {
         // Modello d'autore (AuthoredModel.h): texture PBR proprie per ogni sotto-mesh, niente dettagli procedurali,
         // niente vestiti generati. unitScale porta le sue unita' a quelle dei modelli del gioco (centimetri).
         bool authored = false;
+        // Corpo che e' gia' un'armatura completa (model.json "complete_armor", es. Vanguard Armor): le armature e le vesti
+        // dell'unita' non si disegnano sopra (resterebbero due gusci uno sull'altro); contano solo per le statistiche.
+        bool completeArmor = false;
         std::vector<SkinnedMaterial> materials;
         float unitScale = 1.0f;
 

@@ -2576,11 +2576,12 @@ namespace SunEngine {
             vt.Scale = glm::vec3(m_AnimatedModelScale * unitScale * AnimatedBodyModel(inst.kind).unitScale);
             auto& sk = reg.get<SkinnedModelInstanceComponent>(inst.visual);
             if (const auto* uc = reg.try_get<ColorComponent>(e)) sk.albedo = uc->BaseColor;
+            if (sk.sourceModel && sk.sourceModel->completeArmor) sk.albedo = glm::vec4(1.0f);   // armatura d'autore: i suoi colori, niente tinta
             ApplySkinStyle(sk, static_cast<int>(inst.kind));
             // Vestiti e armature (stesse ossa del corpo)
             sk.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(e);
-            if (skin && sk.sourceModel) {
+            if (skin && sk.sourceModel && !sk.sourceModel->completeArmor) {
                 for (const auto& d : skin->garments) {
                     if (BareSculptedBody(inst.kind) && !d.sculptedFit) continue;   // corpo nudo: solo i pezzi fatti per lui
                     GarmentDraw draw;
@@ -4819,6 +4820,7 @@ namespace SunEngine {
                 SUN_CORE_WARN("Corpo {0}: variante {1} non caricata", label, info.modelPath);
                 continue;
             }
+            m->completeArmor = base.completeArmor;   // le varianti sono dello stesso tipo del corpo
             std::unordered_map<int, int> idOf;   // osso della variante -> osso del corpo
             int missing = 0;
             for (const auto& [name, bi] : m->boneInfoMap) {
@@ -4956,7 +4958,8 @@ namespace SunEngine {
 
         // Colore armatura scelto nel garage come albedo del modello
         if (auto* pc = reg.try_get<ColorComponent>(m_PlayerEntity)) {
-            reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity).albedo = pc->BaseColor;
+            auto& pinst = reg.get<SkinnedModelInstanceComponent>(m_AnimatedPlayerEntity);
+            pinst.albedo = (pinst.sourceModel && pinst.sourceModel->completeArmor) ? glm::vec4(1.0f) : pc->BaseColor;   // armatura d'autore: i suoi colori
         }
         // Testa del vrepigh e hitbox mosse dalle ossa del corpo animato
         {
@@ -4990,7 +4993,7 @@ namespace SunEngine {
             ApplySkinStyle(inst, static_cast<int>(m_AnimatedBodyInUse));
             inst.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity);
-            if (skin && inst.sourceModel && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
+            if (skin && inst.sourceModel && !inst.sourceModel->completeArmor && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
                 for (const auto& d : skin->garments) {
                     if (BareSculptedBody(m_AnimatedBodyInUse) && !d.sculptedFit) continue;
                     GarmentDraw draw;
