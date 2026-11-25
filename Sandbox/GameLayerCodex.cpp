@@ -145,7 +145,7 @@ namespace SunEngine {
             const int maxTier = tree.value("max_tier", 0);
             for (const auto& jf : tree["factions"]) {
                 const std::string fid = jf.value("id", std::string());
-                const std::string fac = fid == "kingship" ? "Kingship" : fid == "vanguard" ? "Vanguard" : fid == "vrepighs" ? "Vrepighs" : fid;
+                const std::string fac = fid == "kingship" ? "Kingship" : (fid == "vanguard" || jf.value("parent_faction", std::string()) == "vanguard") ? "Vanguard" : fid == "vrepighs" ? "Vrepighs" : fid;
                 std::unordered_map<std::string, std::string> names;
                 for (const auto& jn : jf.value("nodes", nlohmann::json::array())) names[jn.value("id", std::string())] = jn.value("name", std::string());
                 for (const auto& jn : jf.value("nodes", nlohmann::json::array())) {

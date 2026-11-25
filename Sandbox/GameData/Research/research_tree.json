@@ -531,205 +531,6 @@
         0.55,
         0.95
       ],
-      "sections": [
-        {
-          "id": "ordo_domus_humilitatis",
-          "name": "ORDO DOMUS HUMILITATIS",
-          "comment": "Sezione di sola consultazione dentro la scheda delle Vanguard Armor: la gerarchia dell'Ordine, nessuna unita' da ricercare. Divisioni in colonne, cariche dal grado piu' alto al piu' basso.",
-          "intro": "L'Ordine e' retto da tre caste: i Cavalieri (Ritterbrüder) per il comando militare, la tattica navale e la prima linea; i Preti Guerrieri (Schwertpriester) per il fanatismo, l'inquisizione, il supporto psichico in battaglia e la disciplina; i Sacerdoti (Priesterbrüder) per logistica, finanze, medicina, scienza, archivi e burocrazia. Sotto di loro i Fratelli Serventi, i tecnici dal mantello grigio. Nell'albero ogni casta comincia al grado III, dopo la Vanguard Armor; i Serventi al grado II, dopo il Candidato.",
-          "top_label": "TRIUMVIRATO",
-          "divisions": [
-            {
-              "name": "CAVALIERI",
-              "role": "Ritterbrüder - comando militare, tattica navale, prima linea",
-              "color": [
-                0.86,
-                0.84,
-                0.78
-              ],
-              "ranks": [
-                {
-                  "tier": 10,
-                  "title": "Hochmeister",
-                  "text": "Gran Maestro. Capo supremo dell'Ordine."
-                },
-                {
-                  "tier": 9,
-                  "title": "Großkomtur",
-                  "text": "Gran Commendatore. Vice del Gran Maestro."
-                },
-                {
-                  "tier": 8,
-                  "title": "Ordensmarschall",
-                  "text": "Maresciallo dell'Ordine. Comandante delle flotte e degli eserciti."
-                },
-                {
-                  "tier": 7,
-                  "title": "Landmeister",
-                  "text": "Maestro Territoriale. Governatore di un settore stellare (Konrad von Eber).",
-                  "member": "Konrad von Eber",
-                  "member_node": "va_konrad"
-                },
-                {
-                  "tier": 6,
-                  "title": "Landkomtur",
-                  "text": "Commendatore Provinciale. Capo di un sistema solare."
-                },
-                {
-                  "tier": 5,
-                  "title": "Hauskomtur",
-                  "text": "Commendatore di Casa. Comandante di una singola astronave o fortezza."
-                },
-                {
-                  "tier": 4,
-                  "title": "Ritterbruder",
-                  "text": "Fratello Cavaliere. Guerriero d'élite e ufficiale."
-                },
-                {
-                  "tier": 3,
-                  "title": "Schildknappe",
-                  "text": "Scudiero. Iniziato dell'aristocrazia in addestramento."
-                }
-              ]
-            },
-            {
-              "name": "PRETI GUERRIERI",
-              "role": "Schwertpriester - fanatismo, inquisizione, supporto psichico, disciplina",
-              "color": [
-                0.78,
-                0.66,
-                0.42
-              ],
-              "ranks": [
-                {
-                  "tier": 10,
-                  "title": "Großkaplan",
-                  "text": "Gran Cappellano. Capo spirituale e inquisitore supremo (ex Gran Chappelan)."
-                },
-                {
-                  "tier": 9,
-                  "title": "Kaplan",
-                  "text": "Alto Cappellano. Alto cappellano di flotta (ex Chappelan)."
-                },
-                {
-                  "tier": 8,
-                  "title": "Prior",
-                  "text": "Priore. Guida spirituale di una provincia o di un grande incrociatore."
-                },
-                {
-                  "tier": 7,
-                  "title": "Komtur",
-                  "text": "Commendatore. Guida di un convento-fortezza."
-                },
-                {
-                  "tier": 6,
-                  "title": "Vogt",
-                  "text": "Giudice. Amministratore della legge marziale e inquisitore locale (ex Balivo)."
-                },
-                {
-                  "tier": 5,
-                  "title": "Subprior",
-                  "text": "Sottopriore. Vice del Priore, supervisore del dogma a bordo."
-                },
-                {
-                  "tier": 4,
-                  "title": "Streitpriester",
-                  "text": "Prete Guerriero. Cappellano da combattimento in prima linea."
-                },
-                {
-                  "tier": 3,
-                  "title": "Novize",
-                  "text": "Novizio. Apprendista del culto bellico."
-                }
-              ]
-            },
-            {
-              "name": "SACERDOTI",
-              "role": "Priesterbrüder - logistica, finanze, medicina, scienza, archivi",
-              "color": [
-                0.62,
-                0.56,
-                0.8
-              ],
-              "ranks": [
-                {
-                  "tier": 10,
-                  "title": "Großspittler",
-                  "text": "Gran Ospitaliere. Capo della medicina, delle biotecnologie e del supporto vitale."
-                },
-                {
-                  "tier": 9,
-                  "title": "Ordenstrappier",
-                  "text": "Intendente dell'Ordine. Capo delle forniture, delle armi e delle armature."
-                },
-                {
-                  "tier": 8,
-                  "title": "Ordenstreßler",
-                  "text": "Tesoriere dell'Ordine. Capo delle finanze e delle risorse."
-                },
-                {
-                  "tier": 7,
-                  "title": "Bischof",
-                  "text": "Vescovo. Alto prelato e amministratore di grandi archivi e ospedali (ex Bishop)."
-                },
-                {
-                  "tier": 6,
-                  "title": "Pfarrer",
-                  "text": "Parroco. Responsabile liturgico e medico di una nave o stazione."
-                },
-                {
-                  "tier": 5,
-                  "title": "Kellermeister",
-                  "text": "Maestro Cantiniere. Responsabile delle razioni, del carburante e delle stive."
-                },
-                {
-                  "tier": 4,
-                  "title": "Schreiber",
-                  "text": "Scriba. Burocrate, archivista e analista dati."
-                },
-                {
-                  "tier": 3,
-                  "title": "Akoleth",
-                  "text": "Accolito. Assistente ai riti e alla manutenzione degli archivi."
-                }
-              ]
-            },
-            {
-              "name": "FRATELLI SERVENTI",
-              "role": "Dienende Brüder / Graumäntler - tecnici, ingegneri, reattori, elettronica",
-              "color": [
-                0.62,
-                0.62,
-                0.62
-              ],
-              "ranks": [
-                {
-                  "tier": 4,
-                  "title": "Werkmeister",
-                  "text": "Maestro d'Opera. Ingegnere capo di flotta o di cantiere."
-                },
-                {
-                  "tier": 3,
-                  "title": "Büchsenmeister",
-                  "text": "Maestro d'Artiglieria. Capo tecnico dei sistemi d'arma e dei motori."
-                },
-                {
-                  "tier": 2,
-                  "title": "Halbbruder",
-                  "text": "Fratello Servente. Tecnico specializzato ed elettricista di bordo."
-                },
-                {
-                  "tier": 1,
-                  "title": "Knecht",
-                  "text": "Servo. Manovale per le riparazioni piu' pesanti e pericolose; non si schiera."
-                }
-              ]
-            }
-          ],
-          "footer_title": "FRATELLI SERVENTI",
-          "footer": "Chi non regge l'armatura e non ha risvegliato i poteri serve l'Ordine come tecnico: portavano tradizionalmente il mantello grigio (Graumäntler)."
-        }
-      ],
       "nodes": [
         {
           "id": "va_candidate",
@@ -1252,7 +1053,21 @@
           "parent": "va_defender",
           "research_cost": 30000,
           "purchase_cost": 55000
-        },
+        }
+      ]
+    },
+    {
+      "id": "ordo",
+      "name": "ORDO DOMUS HUMILITATIS",
+      "comment": "Capitolo delle Vanguard Armor con la sua scheda: si apre quando si sblocca la Vanguard Armor (grado III, 'requires'). Le tre caste (Cavalieri, Preti Guerrieri, Sacerdoti) e i Fratelli Serventi partono tutti dalla Vanguard Armor; Konrad (unita' d'elite) si vede solo qui. Gli altri ordini delle Vanguard Armor avranno una scheda come questa.",
+      "parent_faction": "vanguard",
+      "requires": "va_defender",
+      "accent": [
+        0.82,
+        0.78,
+        0.68
+      ],
+      "nodes": [
         {
           "id": "va_ordo_schildknappe",
           "unit": "ordo_schildknappe",
@@ -1740,7 +1555,7 @@
           "tier": 2,
           "col": 1,
           "row": 7,
-          "parent": "va_candidate",
+          "parent": "va_defender",
           "research_cost": 20000,
           "purchase_cost": 0,
           "default_name": "Halbbruder",
@@ -1802,7 +1617,6 @@
           "row": 1.5,
           "premium": true,
           "premium_cost": 1500,
-          "row_label": "ORDO DOMUS HUMILITATIS",
           "default_name": "Konrad von Eber",
           "color": [
             0.78,
@@ -1812,6 +1626,205 @@
           ],
           "research_cost": 0,
           "purchase_cost": 0
+        }
+      ],
+      "sections": [
+        {
+          "id": "ordo_domus_humilitatis",
+          "name": "ORDO DOMUS HUMILITATIS",
+          "comment": "Sezione di sola consultazione dentro la scheda dell'Ordo Domus Humilitatis: la gerarchia dell'Ordine, nessuna unita' da ricercare. Divisioni in colonne, cariche dal grado piu' alto al piu' basso.",
+          "intro": "L'Ordine e' retto da tre caste: i Cavalieri (Ritterbrüder) per il comando militare, la tattica navale e la prima linea; i Preti Guerrieri (Schwertpriester) per il fanatismo, l'inquisizione, il supporto psichico in battaglia e la disciplina; i Sacerdoti (Priesterbrüder) per logistica, finanze, medicina, scienza, archivi e burocrazia. Sotto di loro i Fratelli Serventi, i tecnici dal mantello grigio. Nell'albero ogni casta comincia al grado III, dopo la Vanguard Armor; i Serventi al grado II, dopo il Candidato.",
+          "top_label": "TRIUMVIRATO",
+          "divisions": [
+            {
+              "name": "CAVALIERI",
+              "role": "Ritterbrüder - comando militare, tattica navale, prima linea",
+              "color": [
+                0.86,
+                0.84,
+                0.78
+              ],
+              "ranks": [
+                {
+                  "tier": 10,
+                  "title": "Hochmeister",
+                  "text": "Gran Maestro. Capo supremo dell'Ordine."
+                },
+                {
+                  "tier": 9,
+                  "title": "Großkomtur",
+                  "text": "Gran Commendatore. Vice del Gran Maestro."
+                },
+                {
+                  "tier": 8,
+                  "title": "Ordensmarschall",
+                  "text": "Maresciallo dell'Ordine. Comandante delle flotte e degli eserciti."
+                },
+                {
+                  "tier": 7,
+                  "title": "Landmeister",
+                  "text": "Maestro Territoriale. Governatore di un settore stellare (Konrad von Eber).",
+                  "member": "Konrad von Eber",
+                  "member_node": "va_konrad"
+                },
+                {
+                  "tier": 6,
+                  "title": "Landkomtur",
+                  "text": "Commendatore Provinciale. Capo di un sistema solare."
+                },
+                {
+                  "tier": 5,
+                  "title": "Hauskomtur",
+                  "text": "Commendatore di Casa. Comandante di una singola astronave o fortezza."
+                },
+                {
+                  "tier": 4,
+                  "title": "Ritterbruder",
+                  "text": "Fratello Cavaliere. Guerriero d'élite e ufficiale."
+                },
+                {
+                  "tier": 3,
+                  "title": "Schildknappe",
+                  "text": "Scudiero. Iniziato dell'aristocrazia in addestramento."
+                }
+              ]
+            },
+            {
+              "name": "PRETI GUERRIERI",
+              "role": "Schwertpriester - fanatismo, inquisizione, supporto psichico, disciplina",
+              "color": [
+                0.78,
+                0.66,
+                0.42
+              ],
+              "ranks": [
+                {
+                  "tier": 10,
+                  "title": "Großkaplan",
+                  "text": "Gran Cappellano. Capo spirituale e inquisitore supremo (ex Gran Chappelan)."
+                },
+                {
+                  "tier": 9,
+                  "title": "Kaplan",
+                  "text": "Alto Cappellano. Alto cappellano di flotta (ex Chappelan)."
+                },
+                {
+                  "tier": 8,
+                  "title": "Prior",
+                  "text": "Priore. Guida spirituale di una provincia o di un grande incrociatore."
+                },
+                {
+                  "tier": 7,
+                  "title": "Komtur",
+                  "text": "Commendatore. Guida di un convento-fortezza."
+                },
+                {
+                  "tier": 6,
+                  "title": "Vogt",
+                  "text": "Giudice. Amministratore della legge marziale e inquisitore locale (ex Balivo)."
+                },
+                {
+                  "tier": 5,
+                  "title": "Subprior",
+                  "text": "Sottopriore. Vice del Priore, supervisore del dogma a bordo."
+                },
+                {
+                  "tier": 4,
+                  "title": "Streitpriester",
+                  "text": "Prete Guerriero. Cappellano da combattimento in prima linea."
+                },
+                {
+                  "tier": 3,
+                  "title": "Novize",
+                  "text": "Novizio. Apprendista del culto bellico."
+                }
+              ]
+            },
+            {
+              "name": "SACERDOTI",
+              "role": "Priesterbrüder - logistica, finanze, medicina, scienza, archivi",
+              "color": [
+                0.62,
+                0.56,
+                0.8
+              ],
+              "ranks": [
+                {
+                  "tier": 10,
+                  "title": "Großspittler",
+                  "text": "Gran Ospitaliere. Capo della medicina, delle biotecnologie e del supporto vitale."
+                },
+                {
+                  "tier": 9,
+                  "title": "Ordenstrappier",
+                  "text": "Intendente dell'Ordine. Capo delle forniture, delle armi e delle armature."
+                },
+                {
+                  "tier": 8,
+                  "title": "Ordenstreßler",
+                  "text": "Tesoriere dell'Ordine. Capo delle finanze e delle risorse."
+                },
+                {
+                  "tier": 7,
+                  "title": "Bischof",
+                  "text": "Vescovo. Alto prelato e amministratore di grandi archivi e ospedali (ex Bishop)."
+                },
+                {
+                  "tier": 6,
+                  "title": "Pfarrer",
+                  "text": "Parroco. Responsabile liturgico e medico di una nave o stazione."
+                },
+                {
+                  "tier": 5,
+                  "title": "Kellermeister",
+                  "text": "Maestro Cantiniere. Responsabile delle razioni, del carburante e delle stive."
+                },
+                {
+                  "tier": 4,
+                  "title": "Schreiber",
+                  "text": "Scriba. Burocrate, archivista e analista dati."
+                },
+                {
+                  "tier": 3,
+                  "title": "Akoleth",
+                  "text": "Accolito. Assistente ai riti e alla manutenzione degli archivi."
+                }
+              ]
+            },
+            {
+              "name": "FRATELLI SERVENTI",
+              "role": "Dienende Brüder / Graumäntler - tecnici, ingegneri, reattori, elettronica",
+              "color": [
+                0.62,
+                0.62,
+                0.62
+              ],
+              "ranks": [
+                {
+                  "tier": 4,
+                  "title": "Werkmeister",
+                  "text": "Maestro d'Opera. Ingegnere capo di flotta o di cantiere."
+                },
+                {
+                  "tier": 3,
+                  "title": "Büchsenmeister",
+                  "text": "Maestro d'Artiglieria. Capo tecnico dei sistemi d'arma e dei motori."
+                },
+                {
+                  "tier": 2,
+                  "title": "Halbbruder",
+                  "text": "Fratello Servente. Tecnico specializzato ed elettricista di bordo."
+                },
+                {
+                  "tier": 1,
+                  "title": "Knecht",
+                  "text": "Servo. Manovale per le riparazioni piu' pesanti e pericolose; non si schiera."
+                }
+              ]
+            }
+          ],
+          "footer_title": "FRATELLI SERVENTI",
+          "footer": "Chi non regge l'armatura e non ha risvegliato i poteri serve l'Ordine come tecnico: portavano tradizionalmente il mantello grigio (Graumäntler)."
         }
       ]
     },

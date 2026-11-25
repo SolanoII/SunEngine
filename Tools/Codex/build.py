@@ -185,7 +185,7 @@ def main():
     # idee: unita' dell'albero che non esistono ancora (anche oltre il grado mostrato) e gerarchie delle fazioni
     hier = []
     maxt = tree.get('max_tier', 0)
-    FAC = {'kingship': 'Kingship', 'vanguard': 'Vanguard', 'vrepighs': 'Vrepighs'}
+    FAC = {'kingship': 'Kingship', 'vanguard': 'Vanguard', 'vrepighs': 'Vrepighs', 'ordo': 'Vanguard'}   # i capitoli stanno nella loro fazione
     for fa in tree['factions']:
         names = {n['id']: n.get('name', '') for n in fa['nodes']}
         for n in fa['nodes']:

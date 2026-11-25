@@ -88,6 +88,11 @@ namespace SunEngine {
         std::array<float, 3> accent{ 0.8f, 0.8f, 0.8f };
         std::vector<ResearchNode> nodes;
         std::vector<ResearchSection> sections;
+        // Scheda di un capitolo dentro una fazione (es. l'Ordo Domus Humilitatis delle Vanguard Armor): "parent_faction"
+        // = fazione a cui appartiene, "requires" = nodo da sbloccare perche' il capitolo si apra (i suoi primi nodi
+        // hanno quel nodo come padre: finche' non e' sbloccato restano bloccati)
+        std::string parentFaction;
+        std::string requiresNode;
     };
 
     enum class ResearchStatus {
@@ -124,6 +129,8 @@ namespace SunEngine {
                         for (int i = 0; i < 3; ++i) f.accent[i] = jf["accent"][i].get<float>();
                     }
                     if (f.id.empty()) return fail("fazione senza 'id'");
+                    f.parentFaction = jf.value("parent_faction", std::string());
+                    f.requiresNode = jf.value("requires", std::string());
                     for (const auto& js : jf.value("sections", nlohmann::json::array())) {
                         ResearchSection sec;
                         sec.id = js.value("id", std::string());
@@ -249,7 +256,14 @@ namespace SunEngine {
             catch (const std::exception& e) {
                 return fail(std::string("JSON non valido: ") + e.what());
             }
+            for (const auto& f : m_Factions)
+                if (!f.requiresNode.empty() && !m_ById.count(f.requiresNode)) return fail("'requires' inesistente '" + f.requiresNode + "' nella scheda " + f.id);
             return true;
+        }
+        // Scheda (fazione o capitolo) che contiene il nodo
+        const ResearchFaction* FactionOf(const std::string& nodeId) const {
+            for (const auto& f : m_Factions) for (const auto& n : f.nodes) if (n.id == nodeId) return &f;
+            return nullptr;
         }
 
         const ResearchNode* FindNode(const std::string& id) const {

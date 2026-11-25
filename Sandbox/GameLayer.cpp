@@ -7310,7 +7310,7 @@ namespace SunEngine {
 
         // Fazioni: schede col colore della fazione
         const auto& factions = m_ResearchTree.GetFactions();
-        static std::string s_Faction;
+        std::string& s_Faction = m_ResearchFactionTab;
         const ResearchFaction* current = nullptr;
         for (const auto& f : factions) if (f.id == s_Faction) current = &f;
         if (!current && !factions.empty()) { current = &factions.front(); s_Faction = current->id; }
@@ -7318,8 +7318,13 @@ namespace SunEngine {
         for (const auto& f : factions) {
             std::string label = f.name;
             for (auto& ch : label) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            const ResearchNode* gate = f.requiresNode.empty() ? nullptr : m_ResearchTree.FindNode(f.requiresNode);
+            const bool closed = gate && !m_ResearchTree.IsResearched(m_Profile, *gate);
+            if (closed) label += " (CHIUSO)";
             label += "##fac_" + f.id;
-            if (Ui::NavTab(label.c_str(), 0.0f, 38.0f, current == &f, ImVec4(f.accent[0], f.accent[1], f.accent[2], 1.0f))) { s_Faction = f.id; current = &f; }
+            const ImVec4 acc(f.accent[0], f.accent[1], f.accent[2], 1.0f);
+            if (Ui::NavTab(label.c_str(), 0.0f, 38.0f, current == &f, closed ? ImVec4(acc.x * 0.5f, acc.y * 0.5f, acc.z * 0.5f, 1.0f) : acc)) { s_Faction = f.id; current = &f; }
+            if (closed && ImGui::IsItemHovered()) ImGui::SetTooltip("Si apre quando sblocchi %s", gate->name.c_str());
             ImGui::SameLine();
         }
         ImGui::PopStyleVar();
@@ -7334,7 +7339,7 @@ namespace SunEngine {
         if (current && !current->sections.empty()) {
             std::string& open = s_Section[current->id];
             for (const auto& sec : current->sections) if (sec.id == open) section = &sec;
-            std::string treeLabel = "ALBERO DELLE " + current->name;
+            std::string treeLabel = "ALBERO: " + current->name;
             ImGui::SetNextItemWidth(340.0f);
             if (ImGui::BeginCombo("##sezione", section ? section->name.c_str() : treeLabel.c_str())) {
                 if (ImGui::Selectable(treeLabel.c_str(), section == nullptr)) { open.clear(); section = nullptr; }
@@ -7346,6 +7351,15 @@ namespace SunEngine {
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 4.0f);
             ImGui::TextColored(Ui::Col::Ash, "Sezione");
             ImGui::Spacing();
+        }
+        // Capitolo chiuso: si vede cosa contiene, ma si apre solo sbloccando il nodo richiesto (es. la Vanguard Armor)
+        if (current && !section && !current->requiresNode.empty()) {
+            if (const ResearchNode* gate = m_ResearchTree.FindNode(current->requiresNode); gate && !m_ResearchTree.IsResearched(m_Profile, *gate)) {
+                const ResearchFaction* home = m_ResearchTree.FactionOf(gate->id);
+                ImGui::TextColored(Ui::Col::Rust, "CAPITOLO CHIUSO: si apre quando sblocchi %s nell'albero %s (grado %s).", gate->name.c_str(),
+                                   home ? home->name.c_str() : "", Ui::Roman(gate->tier));
+                ImGui::Spacing();
+            }
         }
         if (section) { if (DrawResearchSection(*section)) s_Section[current->id].clear(); }
         else if (current) DrawResearchFactionTree(*current);
@@ -7500,7 +7514,25 @@ namespace SunEngine {
         int premiumIdx = 0;
         std::unordered_map<std::string, float> premiumCol;
         for (const auto& n : faction.nodes) if (!n.unitId.empty() && n.premium) premiumCol[n.id] = treeMaxCol + 1.15f + 1.1f * premiumIdx++;
-        auto colOf = [&](const ResearchNode& n) { auto it = premiumCol.find(n.id); return it != premiumCol.end() ? it->second : n.col; };
+        std::function<float(const ResearchNode&)> colOf = [&](const ResearchNode& n) -> float { auto it = premiumCol.find(n.id); return it != premiumCol.end() ? it->second : n.col; };
+        // Padri in un'altra scheda (es. la Vanguard Armor per i capitoli dell'Ordo): carta "di passaggio" a sinistra,
+        // una colonna prima dei nodi che ne partono, all'altezza media dei figli
+        struct Ghost { const ResearchNode* node; float rowSum = 0.0f; int count = 0; };
+        std::vector<Ghost> ghosts;
+        float minCol = 1e9f;
+        for (const auto& n : faction.nodes) if (!n.unitId.empty() && !n.premium) minCol = std::min(minCol, n.col);
+        auto inFaction = [&](const std::string& id) { for (const auto& q : faction.nodes) if (q.id == id) return true; return false; };
+        for (const auto& n : faction.nodes) {
+            if (n.unitId.empty() || n.parentId.empty() || inFaction(n.parentId)) continue;
+            const ResearchNode* par = m_ResearchTree.FindNode(n.parentId);
+            if (!par) continue;
+            auto it = std::find_if(ghosts.begin(), ghosts.end(), [&](const Ghost& g) { return g.node == par; });
+            if (it == ghosts.end()) { ghosts.push_back({ par }); it = ghosts.end() - 1; }
+            it->rowSum += rowOf(n); ++it->count;
+        }
+        const float ghostCol = ghosts.empty() ? 0.0f : minCol - 1.0f;
+        const float colShift = ghostCol < 0.0f ? -ghostCol : 0.0f;   // niente colonne negative
+        if (colShift > 0.0f) { auto base = colOf; colOf = [base, colShift](const ResearchNode& n) { return base(n) + colShift; }; }
         float maxCol = 0.0f, maxRow = 0.0f;
         for (const auto& n : faction.nodes) { if (n.unitId.empty()) continue; maxCol = std::max(maxCol, colOf(n)); maxRow = std::max(maxRow, rowOf(n)); }
         const float totalW = pad * 2.0f + (maxCol + 1.0f) * nodeW + maxCol * gapX;
@@ -7533,6 +7565,11 @@ namespace SunEngine {
         auto nodePos = [&](const ResearchNode& n) {
             return ImVec2(std::floor(origin.x + pad + colOf(n) * (nodeW + gapX)), std::floor(origin.y + pad + rowOf(n) * (nodeH + gapY)));
         };
+        auto ghostPos = [&](const ResearchNode& n) {
+            float row = 0.0f;
+            for (const auto& g : ghosts) if (g.node == &n) row = g.rowSum / std::max(1, g.count);
+            return ImVec2(std::floor(origin.x + pad + (ghostCol + colShift) * (nodeW + gapX)), std::floor(origin.y + pad + row * (nodeH + gapY)));
+        };
 
         // Rami padre -> figlio (a gomito), anche dai padri alternativi (ne basta uno)
         for (const auto& n : faction.nodes) {
@@ -7541,7 +7578,7 @@ namespace SunEngine {
             const ImVec2 cp = nodePos(n);
             const ImVec2 b(cp.x, cp.y + nodeH * 0.5f);
             if (const ResearchNode* parent = m_ResearchTree.FindParent(n)) {
-                const ImVec2 pp = nodePos(*parent);
+                const ImVec2 pp = inFaction(parent->id) ? nodePos(*parent) : ghostPos(*parent);
                 Ui::DrawBranch(dl, ImVec2(pp.x + nodeW, pp.y + nodeH * 0.5f), b, unlocked, accent);
             }
             if (!n.anyParents.empty()) {
@@ -7620,6 +7657,28 @@ namespace SunEngine {
                 dl->AddRectFilled(ImVec2(cx - 1.5f, cy - 7.0f), ImVec2(cx + 1.5f, cy + 7.0f), IM_COL32(240, 238, 232, 255));
                 dl->AddRectFilled(ImVec2(cx - 5.0f, cy - 3.5f), ImVec2(cx + 5.0f, cy - 0.5f), IM_COL32(240, 238, 232, 255));
             }
+        }
+        // Carte di passaggio: il nodo dell'altra scheda da cui parte questo capitolo (clic = vai a vederlo)
+        for (const auto& g : ghosts) {
+            const ResearchNode& n = *g.node;
+            const ImVec2 p = ghostPos(n);
+            const bool done = m_ResearchTree.IsResearched(m_Profile, n);
+            const ResearchFaction* home = m_ResearchTree.FactionOf(n.id);
+            ImGui::SetCursorScreenPos(p);
+            ImGui::InvisibleButton(("##ghost_" + n.id).c_str(), ImVec2(nodeW, nodeH));
+            const bool hov = ImGui::IsItemHovered();
+            if (ImGui::IsItemClicked() && home) { m_ResearchFactionTab = home->id; m_ResearchSelectedNode = n.id; }
+            if (hov) ImGui::SetTooltip("Apri %s nell'albero %s", n.name.c_str(), home ? home->name.c_str() : "");
+            dl->AddRectFilled(p, ImVec2(p.x + nodeW, p.y + nodeH), IM_COL32(12, 12, 13, hov ? 235 : 200));
+            for (float x = p.x; x < p.x + nodeW; x += 10.0f) {   // bordo tratteggiato: e' in un'altra scheda
+                dl->AddLine(ImVec2(x, p.y), ImVec2(std::min(x + 5.0f, p.x + nodeW), p.y), Ui::U32(Ui::Col::Ash, 0.8f));
+                dl->AddLine(ImVec2(x, p.y + nodeH), ImVec2(std::min(x + 5.0f, p.x + nodeW), p.y + nodeH), Ui::U32(Ui::Col::Ash, 0.8f));
+            }
+            ImFont* fh = Ui::FontHeading(); ImFont* fsm = Ui::FontSmall();
+            dl->AddText(fsm, fsm->FontSize, ImVec2(p.x + 12.0f, p.y + 10.0f), Ui::U32(Ui::Col::Ash), (std::string("DA ") + (home ? home->name : std::string())).c_str());
+            dl->AddText(fh, fh->FontSize, ImVec2(p.x + 12.0f, p.y + 28.0f), Ui::U32(Ui::Col::Bone), n.name.c_str());
+            dl->AddText(fsm, fsm->FontSize, ImVec2(p.x + 12.0f, p.y + nodeH - 24.0f), Ui::U32(done ? Ui::Col::Verdigris : Ui::Col::Rust),
+                        done ? "SBLOCCATA: capitolo aperto" : "DA SBLOCCARE per aprire il capitolo");
         }
         // Unita' d'elite a parte, come i carri premium: una colonna staccata dall'albero, oltre un filo verticale,
         // con il suo titolo; nessun ramo le collega (non si ricercano, si comprano col Vanguardio)

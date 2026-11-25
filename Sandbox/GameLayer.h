@@ -55,6 +55,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <functional>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -1023,6 +1024,7 @@ namespace SunEngine {
         PlayerProfile m_Profile;
         ResearchTree m_ResearchTree;
         std::string m_ResearchSelectedNode;      // id del nodo selezionato nell'albero
+        std::string m_ResearchFactionTab;        // scheda aperta nella ricerca (fazione o capitolo, es. "ordo")
         std::string m_ResearchMessage;           // esito dell'ultima azione (ricerca/acquisto)
         float m_ResearchMessageTimer = 0.0f;
         std::string m_LastSavedProfile;
