@@ -138,6 +138,46 @@ namespace SunEngine {
         }
     }
 
+    // ------------------------------------------------------------------------------------ consumo con l'uso
+    // Ogni fotogramma in partita (non nella storia): colpi sparati dall'arma in mano (il caricatore che scende senza
+    // ricaricare) e piastre delle armature consumate dai colpi presi. I colpi in mischia si contano in CollectMatchXp.
+    void GameLayer::TrackItemWear() {
+        auto& reg = m_Scene.GetRegistry();
+        if (m_Story.active || !reg.valid(m_PlayerEntity)) return;
+        if (const auto* wid = reg.try_get<WeaponBlueprintId>(m_PlayerEntity)) {
+            const auto* ws = reg.try_get<WeaponStateComponent>(m_PlayerEntity);
+            const uint64_t uid = InstanceUidOf(wid->id);
+            if (ws && wid->id == m_WearLastWeapon && m_WearLastAmmo >= 0 && ws->currentAmmo < m_WearLastAmmo && !ws->isReloading && uid)
+                m_WearPending[uid] += kWearPerShot * static_cast<float>(m_WearLastAmmo - ws->currentAmmo);
+            m_WearLastWeapon = wid->id;
+            m_WearLastAmmo = ws ? ws->currentAmmo : -1;
+        }
+        if (const auto* st = reg.try_get<UnitStatsComponent>(m_PlayerEntity)) {
+            const ArmorPiece* pieces[6] = { &st->armorSet.head, &st->armorSet.torso, &st->armorSet.leftArm, &st->armorSet.rightArm, &st->armorSet.leftLeg, &st->armorSet.rightLeg };
+            for (const ArmorPiece* p : pieces) {
+                const uint64_t uid = InstanceUidOf(p->id);
+                if (!uid || p->maxDurability <= 0.0f) continue;
+                const float lost = std::clamp(1.0f - p->currentDurability / p->maxDurability, 0.0f, 1.0f);
+                float& w = m_ArmorWorn[uid];
+                w = std::max(w, lost);
+            }
+        }
+    }
+
+    void GameLayer::FlushItemWear() {
+        for (const auto& [uid, frac] : m_ArmorWorn) m_WearPending[uid] += frac * kArmorWearPerLife;
+        for (const auto& [uid, loss] : m_WearPending) {
+            ItemInstance* it = FindItem(uid);
+            if (!it || loss <= 0.0f) continue;
+            it->condition = std::max(0.0f, it->condition - loss);
+            RefreshItemRefs(uid);
+        }
+        m_WearPending.clear();
+        m_ArmorWorn.clear();
+        m_WearLastWeapon.clear();
+        m_WearLastAmmo = -1;
+    }
+
     // Bottino di fine missione: un oggetto a caso fra quelli che le unita' della fazione possono usare
     uint64_t GameLayer::GrantMissionLoot(const std::string& faction, int minRarity) {
         auto& bpm = BlueprintManager::Get();
@@ -299,8 +339,9 @@ namespace SunEngine {
             ImGui::Spacing();
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextColored(Ui::Col::Ash, "Gli oggetti appena creati sono comuni. Si potenziano qui con l'energia, si trovano come bottino alla fine delle "
-                                             "missioni e, piu' avanti, si prendono agli avversari. Morire con un oggetto addosso lo consuma (-34%% di condizione "
-                                             "nella 5v5 e nella sopravvivenza): a zero si rompe e va riparato. La dotazione base non si consuma mai.");
+                                             "missioni e, piu' avanti, si prendono agli avversari. Nella 5v5 e nella sopravvivenza si consumano: ogni colpo sparato -0,03%%, "
+                                             "ogni colpo in mischia a segno -0,15%%, le armature fino a -25%% secondo i colpi presi, e morire con l'oggetto addosso -34%%. "
+                                             "A zero si rompe e va riparato. La dotazione base non si consuma mai.");
             ImGui::PopTextWrapPos();
             ImGui::EndChild(); ImGui::End();
             return;

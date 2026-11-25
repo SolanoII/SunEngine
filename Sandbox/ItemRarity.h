@@ -219,4 +219,8 @@ namespace SunEngine {
     // Cosa succede agli oggetti addosso quando l'unita' muore, secondo la modalita'
     enum class DeathRule { None, Wear, Break, Lose };
     constexpr float kWearPerDeath = 34.0f;   // Wear: -34% di condizione a ogni morte (tre morti e si rompe)
+    // Consumo con l'uso (5v5 e sopravvivenza, non la storia):
+    constexpr float kWearPerShot = 0.03f;       // armi da fuoco: -0,03% a colpo (300 colpi = -9%)
+    constexpr float kWearPerMeleeHit = 0.15f;   // armi bianche: -0,15% a colpo a segno (40 colpi = -6%)
+    constexpr float kArmorWearPerLife = 25.0f;  // armature: -25% se in una vita la piastra si consuma tutta, in proporzione
 }

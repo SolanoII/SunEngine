@@ -3027,6 +3027,12 @@ namespace SunEngine {
             if (ev.category == XpCategory::AmmoAlly || ev.category == XpCategory::Heal || ev.category == XpCategory::Build) m_OrdersAssistAccum += ev.xp * 0.1f;
             else if (ev.category == XpCategory::Absorb) m_OrdersAssistAccum += ev.xp * 0.05f;
         }
+        // armi bianche: ogni colpo a segno consuma l'esemplare in mano
+        if (!m_Story.active)
+            if (const auto* wid = reg.try_get<WeaponBlueprintId>(m_PlayerEntity))
+                if (const uint64_t uid = InstanceUidOf(wid->id))
+                    if (const auto* wbp = BlueprintManager::Get().GetWeapon(wid->id); wbp && wbp->is_melee)
+                        for (const auto& ev : log) if (ev.source == m_PlayerEntity && ev.category == XpCategory::Damage) m_WearPending[uid] += kWearPerMeleeHit;
         if (m_MatchXpApplied || unitId.empty()) { log.clear(); return; }
         auto& lines = m_MatchXp[unitId];
         for (const auto& ev : log) {
@@ -3061,6 +3067,7 @@ namespace SunEngine {
     void GameLayer::ApplyMatchXp(float outcomeMult, const std::string& outcomeLabel) {
         if (m_MatchXpApplied) return;
         CollectMatchXp(0.0f, false);
+        if (!m_Story.active) FlushItemWear();   // fine partita: il consumo con l'uso passa agli esemplari
         m_MatchXpApplied = true;
         m_MatchOutcomeMult = outcomeMult;
         m_MatchOutcomeLabel = outcomeLabel;
@@ -5571,7 +5578,7 @@ namespace SunEngine {
                 m_ActiveSquad[m_CurrentSquadMemberIdx].currentHealth = 0.0f;
                 if (!m_Story.active) MarkSpecialFallen(m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex);   // personaggio speciale: si ricostruisce
                 // oggetti del magazzino addosso: nella 5v5 e nella sopravvivenza si consumano (la storia usa i suoi personaggi)
-                if (!m_Story.active) ApplyDeathToItems(m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex, DeathRule::Wear);
+                if (!m_Story.active) { FlushItemWear(); ApplyDeathToItems(m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex, DeathRule::Wear); }
             }
 
             // Attiva ragdoll anche per il player (feedback visivo).
@@ -5858,6 +5865,7 @@ namespace SunEngine {
 
             CheckUnitDeaths();
             CollectMatchXp(deltaTime, !(m_VsBotActive && m_VsBotResult != 0));
+            TrackItemWear();   // consumo degli esemplari con l'uso
 
             if (m_Scene.GetRegistry().all_of<SkeletonComponent, WeaponBlueprintId>(m_PlayerEntity)) {
                 auto& skel = m_Scene.GetRegistry().get<SkeletonComponent>(m_PlayerEntity);

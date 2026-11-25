@@ -754,6 +754,14 @@ namespace SunEngine {
         void RefreshItemRefs(uint64_t uid);
         void RemoveItem(uint64_t uid);
         void ApplyDeathToItems(int rosterIndex, DeathRule rule);
+        // Consumo con l'uso: colpi sparati, colpi in mischia a segno, danni presi dalle armature (applicato a ogni
+        // morte e a fine partita)
+        std::unordered_map<uint64_t, float> m_WearPending;   // condizione da togliere, per esemplare
+        std::unordered_map<uint64_t, float> m_ArmorWorn;     // armature: quanta piastra se n'e' andata in questa vita (0-1)
+        std::string m_WearLastWeapon;
+        int m_WearLastAmmo = -1;
+        void TrackItemWear();
+        void FlushItemWear();
         uint64_t GrantMissionLoot(const std::string& faction, int minRarity);
         bool DrawSlotChoices(TrainedUnit& unit, std::string& slotRef, const std::string& itemId, const std::string& name, bool isArmor);
         std::string ItemLabel(const std::string& slotId, const std::string& baseName) const;

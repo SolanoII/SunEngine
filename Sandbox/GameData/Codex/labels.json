@@ -862,7 +862,7 @@
    "Gli oggetti appena creati in officina sono comuni (grigi).",
    "Si sale di rarita' potenziando l'oggetto nel magazzino con l'energia, trovandolo come bottino alla fine delle missioni della PVE-STORY e, in futuro, prendendolo agli avversari.",
    "Dal raro in su ogni livello aggiunge un tratto a caso.",
-   "Morire con un oggetto addosso nella 5v5 e nella sopravvivenza toglie il 34% di condizione; a zero si rompe e va riparato. La dotazione base non si consuma mai."
+   "Gli oggetti si consumano con l'uso: ogni colpo sparato toglie lo 0,03% di condizione, ogni colpo in mischia a segno lo 0,15%, e le armature perdono fino al 25% in proporzione ai colpi che hanno preso. Morire con l'oggetto addosso toglie un altro 34%. Vale nella 5v5 e nella sopravvivenza, non nella storia. A zero l'oggetto si rompe e va riparato; sotto il 100% l'arma fa meno danno ed e' meno precisa, l'armatura regge meno. La dotazione base non si consuma mai."
   ]
  }
 }

@@ -400,7 +400,7 @@ namespace SunEngine {
             }
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextColored(Ui::Col::Ash, "Nuovi = comuni. Si potenziano nel MAGAZZINO, si trovano come bottino nella PVE-STORY e, piu' avanti, si prendono agli avversari. "
-                                             "Morire con un oggetto addosso (5v5, sopravvivenza) toglie il 34%% di condizione; a zero si rompe. %d tratti possibili.", static_cast<int>(ItemTraits().size()));
+                                             "Si consumano con l'uso (colpi sparati e in mischia, danni presi dalle armature) e morendo con l'oggetto addosso (5v5, sopravvivenza); a zero si rompono. %d tratti possibili.", static_cast<int>(ItemTraits().size()));
             ImGui::PopTextWrapPos();
             ImGui::EndChild();
             ImGui::End();
