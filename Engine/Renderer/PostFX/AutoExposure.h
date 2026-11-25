@@ -53,7 +53,7 @@ namespace SunEngine {
         float m_Speed = 1.5f;
         float m_MinExposure = 0.05f;
         float m_MaxExposure = 8.0f;
-        float m_KeyValue = 0.18f;  // mid-gray
+        float m_KeyValue = 0.15f;  // grigio medio piu' basso del solito (0.18): immagine scura, da guerra (ART_DIRECTION.md)
 
         static constexpr int LUM_SIZE = 16;
     };

@@ -23,22 +23,28 @@ namespace SunEngine {
     // cielo di smog caldo all'orizzonte e freddo in alto, nebbia bassa, ombre fredde e luci calde.
     struct Atmosphere {
         bool enabled = true;
-        glm::vec3 zenith{ 0.085f, 0.095f, 0.12f };       // cielo in alto
-        glm::vec3 horizon{ 0.50f, 0.37f, 0.26f };      // orizzonte (smog, polvere)
-        glm::vec3 ground{ 0.13f, 0.10f, 0.08f };       // sotto l'orizzonte
-        float cloudCover = 0.62f;                      // 0 sereno, 1 coperto
-        float fogDensity = 0.009f;                     // nebbia (per metro)
-        float fogHeightFalloff = 0.09f;                // quanto si dirada salendo
+        // Stile 2 (Tools/ModelForge/ART_DIRECTION.md): cielo piu' basso e sporco, nebbia piu' densa e scura con i
+        // raggi del sole, neri profondi. I profili salvati con lo stile 1 ripartono da questi valori.
+        static constexpr int kStyleVersion = 2;
+        glm::vec3 zenith{ 0.055f, 0.06f, 0.075f };       // cielo in alto
+        glm::vec3 horizon{ 0.40f, 0.285f, 0.195f };    // orizzonte (smog, polvere)
+        glm::vec3 ground{ 0.10f, 0.08f, 0.06f };       // sotto l'orizzonte
+        float cloudCover = 0.7f;                       // 0 sereno, 1 coperto
+        float fogDensity = 0.010f;                     // nebbia (per metro)
+        float fogHeightFalloff = 0.08f;                // quanto si dirada salendo
         float fogBaseHeight = 0.0f;
-        glm::vec3 fogColor{ 0.36f, 0.30f, 0.24f };
-        float dust = 0.45f;                            // polvere che si muove nel vento (variazione della nebbia)
+        glm::vec3 fogColor{ 0.24f, 0.195f, 0.155f };
+        float dust = 0.5f;                             // polvere che si muove nel vento (variazione della nebbia)
+        float shafts = 1.0f;                           // raggi di luce volumetrici (ombre del sole nella nebbia)
         // correzione colore (dopo il tonemap)
-        float saturation = 0.86f;
-        float contrast = 1.14f;
-        float vignette = 0.30f;
-        float grain = 0.016f;
-        glm::vec3 shadowTint{ 0.90f, 0.97f, 1.08f };   // ombre fredde
-        glm::vec3 highlightTint{ 1.06f, 1.00f, 0.90f };// luci calde
+        float saturation = 0.8f;
+        float contrast = 1.2f;
+        float vignette = 0.38f;
+        float grain = 0.018f;
+        float blackPoint = 0.01f;                     // neri schiacciati
+        float aberration = 0.012f;                     // aberrazione cromatica ai bordi
+        glm::vec3 shadowTint{ 0.86f, 0.95f, 1.10f };   // ombre fredde
+        glm::vec3 highlightTint{ 1.08f, 1.00f, 0.86f };// luci calde
     };
 
     // Qualita' e resa regolabili dal menu Opzioni (GRAFICA). I valori di base sono quelli "Alto".
@@ -261,7 +267,7 @@ namespace SunEngine {
         void UploadLights();
         float m_CascadeFade = 0.15f;  // ultimo 15% di ogni cascade fa blend
         // Ambient IBL fittizia (finché non hai cubemap vere)
-        float m_AmbientIntensity = 0.55f;
+        float m_AmbientIntensity = 0.62f;
         glm::vec3 m_AmbientSkyColor = glm::vec3(0.35f, 0.42f, 0.55f);
         glm::vec3 m_AmbientGroundColor = glm::vec3(0.10f, 0.08f, 0.06f);
         bool m_Initialized = false;

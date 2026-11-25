@@ -876,6 +876,13 @@ namespace SunEngine {
 
         // --- Modelli a blocchi delle armi (GameData/BlockModels/<id arma>.json) ---
         void LoadBlockModels();
+        // Prop delle mappe (Models/Props/*.glb, Tools/ModelForge/props): vestono i blocchi (sacchi, terrapieni, alberi)
+        // e spargono filo spinato, cavalli di frisia e croci. GameLayerProps.cpp
+        void LoadProps();
+        void DressMap(const std::string& mapId);
+        bool m_PropsLoaded = false;
+        std::unordered_map<std::string, std::unique_ptr<SkinnedModel>> m_PropMeshes;
+        std::unordered_map<std::string, std::unique_ptr<BlockModel>> m_PropModels;
         void SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId);
         void ClearPlayerDeathState();   // FIX #4: toglie ragdoll + CorpseComponent dal player
 

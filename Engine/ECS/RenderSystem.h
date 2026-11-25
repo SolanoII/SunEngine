@@ -180,6 +180,7 @@ namespace SunEngine {
                 }
                 // 3. MESH/CUBO STANDARD
                 else if (scene.GetRegistry().all_of<MeshComponent>(entity)) {
+                    if (scene.GetRegistry().all_of<HideProceduralVisualTag>(entity)) continue;   // blocco vestito da un prop: resta solo la collisione
                     // Modello a blocchi (es. arma): disegna i singoli blocchi coi loro materiali
                     const auto* blockModel = scene.GetRegistry().try_get<BlockModelComponent>(entity);
                     if (blockModel && blockModel->model && blockModel->model->mesh) {
@@ -187,6 +188,12 @@ namespace SunEngine {
                         static const std::vector<glm::mat4> s_NoBones(1, glm::mat4(1.0f));
                         static const SunEngine::SkinnedMaterial s_Plain;
                         const SunEngine::SkinnedModel& wm = *blockModel->model->mesh;
+                        {   // fuori dalla vista: niente (raggio dall'ingombro del modello)
+                            const BlockModel& bm = *blockModel->model;
+                            const float r = std::max(0.6f, glm::length(bm.boundsMax - bm.boundsMin) * 0.5f * std::max({ transform.Scale.x, transform.Scale.y, transform.Scale.z }));
+                            const glm::vec3 c = glm::vec3(transform.GetTransform() * glm::vec4((bm.boundsMin + bm.boundsMax) * 0.5f, 1.0f));
+                            if (!deferred.IsSphereVisible(c, r)) continue;
+                        }
                         const glm::mat4 entityMat = transform.GetTransform();
                         for (const auto& submesh : wm.meshes) {
                             DeferredRenderer::SkinnedDrawExtra ex;

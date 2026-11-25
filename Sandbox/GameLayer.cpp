@@ -1110,6 +1110,7 @@ namespace SunEngine {
             SUN_CORE_WARN("Mappa '{0}' senza NavMesh: pathfinding disabilitato.", mapId);
         }
 
+        DressMap(mapId);
         SpawnTrainingDummies();
         return true;
     }
@@ -1570,7 +1571,8 @@ namespace SunEngine {
             {"zenith", Vec3Json(a.zenith)}, {"horizon", Vec3Json(a.horizon)}, {"ground", Vec3Json(a.ground)},
             {"cloudCover", a.cloudCover}, {"fogDensity", a.fogDensity}, {"fogHeightFalloff", a.fogHeightFalloff},
             {"fogColor", Vec3Json(a.fogColor)}, {"dust", a.dust}, {"saturation", a.saturation}, {"contrast", a.contrast},
-            {"vignette", a.vignette}, {"grain", a.grain}, {"shadowTint", Vec3Json(a.shadowTint)}, {"highlightTint", Vec3Json(a.highlightTint)} };
+            {"vignette", a.vignette}, {"grain", a.grain}, {"shadowTint", Vec3Json(a.shadowTint)}, {"highlightTint", Vec3Json(a.highlightTint)},
+            {"shafts", a.shafts}, {"blackPoint", a.blackPoint}, {"aberration", a.aberration}, {"style", Atmosphere::kStyleVersion} };
         return j;
     }
 
@@ -1603,7 +1605,8 @@ namespace SunEngine {
             JsonBool(g, "ssaoHalfRes", q.ssaoHalfRes);
             JsonBool(g, "vsync", q.vsync);
         }
-        if (j.contains("atmosphere") && j["atmosphere"].is_object()) {
+        // atmosfera salvata con uno stile precedente: si riparte dai valori nuovi (Atmosphere::kStyleVersion)
+        if (j.contains("atmosphere") && j["atmosphere"].is_object() && j["atmosphere"].value("style", 1) >= Atmosphere::kStyleVersion) {
             const auto& g = j["atmosphere"];
             Atmosphere& a = r.GetAtmosphere();
             JsonVec3(g, "zenith", a.zenith);
@@ -1620,6 +1623,9 @@ namespace SunEngine {
             JsonFloat(g, "grain", a.grain, 0.0f, 0.1f);
             JsonVec3(g, "shadowTint", a.shadowTint);
             JsonVec3(g, "highlightTint", a.highlightTint);
+            JsonFloat(g, "shafts", a.shafts, 0.0f, 2.0f);
+            JsonFloat(g, "blackPoint", a.blackPoint, 0.0f, 0.1f);
+            JsonFloat(g, "aberration", a.aberration, 0.0f, 0.05f);
         }
     }
 
@@ -6321,6 +6327,19 @@ namespace SunEngine {
 
             m_Camera.SetPitch(totalPitch);
             m_Camera.SetYawOffset(recoilYaw + feelKick.yaw);
+            // Sviluppo: SUN_DEV_CAM=<file> con "x y z yaw pitch distanza" fissa la camera (foto di confronto della grafica)
+            if (const char* devCam = std::getenv("SUN_DEV_CAM")) {
+                if (FILE* f = std::fopen(devCam, "r")) {
+                    float cx, cy, cz, cyaw, cpitch, cdist;
+                    if (std::fscanf(f, "%f %f %f %f %f %f", &cx, &cy, &cz, &cyaw, &cpitch, &cdist) == 6) {
+                        m_Camera.SetCameraOffsets(0.0f, 0.0f, cdist);
+                        m_Camera.SetTarget(glm::vec3(cx, cy, cz), cyaw);
+                        m_Camera.SetPitch(cpitch);
+                        m_Camera.SetYawOffset(0.0f);
+                    }
+                    std::fclose(f);
+                }
+            }
             m_Camera.SetViewportSize(m_WindowWidth, m_WindowHeight, extraFov);
             m_Camera.Update(shakeOffset, 1.0f);
             // Raggio del mirino (centro dello schermo) per far convergere i colpi del giocatore
@@ -6494,10 +6513,12 @@ namespace SunEngine {
             m_DeferredRenderer.ClearLights();
 
             // Sole obliquo, luce calda grimdark
+            // sole basso (circa 38 gradi): ombre lunghe e raggi nella nebbia
+            const glm::vec3 kSunDir = glm::normalize(glm::vec3(0.5f, -0.62f, -0.55f));
             m_DeferredRenderer.SetDirectionalLight(
-                glm::vec3(-0.4f, -1.0f, 0.3f),
-                glm::vec3(1.0f, 0.90f, 0.75f),
-                1.3f);
+                kSunDir,
+                glm::vec3(1.0f, 0.84f, 0.64f),
+                1.45f);
 
             // Point light "faro" sopra il player per dare profondità local
             if (m_Scene.GetRegistry().valid(m_PlayerEntity) &&
@@ -6511,9 +6532,9 @@ namespace SunEngine {
                         0.45f));
             }
             m_Feel.SubmitLights(m_DeferredRenderer);   // lampi di spari ed esplosioni
-            m_DeferredRenderer.SetSunDirection(glm::vec3(-0.4f, -1.0f, 0.3f));
+            m_DeferredRenderer.SetSunDirection(kSunDir);
             // ===== SHADOW PASS =====
-            const glm::vec3 sunDir = glm::normalize(glm::vec3(-0.4f, -1.0f, 0.3f));
+            const glm::vec3 sunDir = kSunDir;
             m_DeferredRenderer.SetSunDirection(sunDir);
 
             // Opzioni grafiche: ombre spente = niente passaggio (si risparmia anche il tempo della GPU)
@@ -6526,7 +6547,8 @@ namespace SunEngine {
                 shadowMap.BeginCascade(c);
 
                 // Disegna TUTTI i cubi della scena; le armi con la mesh vera vanno dopo, coi personaggi
-                std::vector<std::pair<glm::mat4, const SkinnedModel*>> weaponMeshShadows;
+                struct MeshShadow { glm::mat4 mat; const SkinnedModel* mesh; float radius; };
+                std::vector<MeshShadow> weaponMeshShadows;
                 auto view = m_Scene.GetRegistry().view<TransformComponent, MeshComponent, ColorComponent>();
                 for (auto entity : view) {
                     // Il giocatore col modello animato non proietta l'ombra del suo cubo hitbox
@@ -6535,7 +6557,11 @@ namespace SunEngine {
                     auto& t = view.get<TransformComponent>(entity);
                     const auto* blockModel = m_Scene.GetRegistry().try_get<BlockModelComponent>(entity);
                     if (blockModel && blockModel->model && blockModel->model->mesh) {
-                        weaponMeshShadows.emplace_back(t.GetTransform(), blockModel->model->mesh);   // dopo i cubi, col passaggio delle ossa
+                        {   // dopo i cubi, col passaggio delle ossa; raggio dall'ingombro (armi ~1 m, prop delle mappe fino a 8 m)
+                            const BlockModel& bm = *blockModel->model;
+                            const float r = std::max(1.0f, glm::length(bm.boundsMax - bm.boundsMin) * 0.5f * std::max({ t.Scale.x, t.Scale.y, t.Scale.z }));
+                            weaponMeshShadows.push_back({ t.GetTransform(), bm.mesh, r });
+                        }
                         continue;
                     }
                     if (blockModel && blockModel->model) {
@@ -6568,8 +6594,8 @@ namespace SunEngine {
                 // Armi e oggetti con la mesh vera (in mano e appesi al corpo)
                 if (gq.characterShadows && c != ShadowMap::CASCADE_COUNT - 1) {
                     static const std::vector<glm::mat4> s_NoBones(1, glm::mat4(1.0f));
-                    for (const auto& [mat, wm] : weaponMeshShadows) {
-                        if (!m_DeferredRenderer.IsSphereInShadowCascade(c, glm::vec3(mat[3]), 1.0f)) continue;
+                    for (const auto& [mat, wm, rad] : weaponMeshShadows) {
+                        if (!m_DeferredRenderer.IsSphereInShadowCascade(c, glm::vec3(mat[3]), rad)) continue;
                         if (!m_DeferredRenderer.BeginShadowSkinned(c, mat, s_NoBones)) break;
                         for (const auto& m : wm->meshes) m_DeferredRenderer.DrawShadowSkinned(m, true);
                         m_DeferredRenderer.EndShadowSkinned();
@@ -9350,11 +9376,15 @@ namespace SunEngine {
             ImGui::SliderFloat("Diradamento in altezza", &a.fogHeightFalloff, 0.01f, 0.4f, "%.3f");
             ImGui::ColorEdit3("Colore nebbia", &a.fogColor.x, ImGuiColorEditFlags_Float);
             ImGui::SliderFloat("Polvere nel vento", &a.dust, 0.0f, 1.5f, "%.2f");
+            ImGui::SliderFloat("Raggi di luce (volumetrici)", &a.shafts, 0.0f, 2.0f, "%.2f");
+            hint("La luce del sole nella nebbia: raggi fra rami, assi e muri. Servono le ombre del sole. 0 = spenti (qualche FPS in piu').");
             ImGui::TextDisabled("Correzione colore");
             ImGui::SliderFloat("Saturazione", &a.saturation, 0.0f, 1.5f, "%.2f");
             ImGui::SliderFloat("Contrasto", &a.contrast, 0.6f, 1.6f, "%.2f");
             ImGui::SliderFloat("Vignetta", &a.vignette, 0.0f, 1.0f, "%.2f");
             ImGui::SliderFloat("Grana della pellicola", &a.grain, 0.0f, 0.08f, "%.3f");
+            ImGui::SliderFloat("Neri profondi", &a.blackPoint, 0.0f, 0.08f, "%.3f");
+            ImGui::SliderFloat("Aberrazione ai bordi", &a.aberration, 0.0f, 0.05f, "%.3f");
             ImGui::ColorEdit3("Tinta delle ombre", &a.shadowTint.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
             ImGui::ColorEdit3("Tinta delle luci", &a.highlightTint.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
             ImGui::EndDisabled();

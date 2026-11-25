@@ -499,6 +499,7 @@ uniform float u_FogFalloff;
 uniform float u_FogBase;
 uniform vec3  u_FogColor;
 uniform float u_Dust;
+uniform float u_Shafts;         // raggi di luce volumetrici nella nebbia (0 = spenti)
 uniform sampler2D u_SSAO;
 uniform int   u_UseSSAO;
 
@@ -604,22 +605,39 @@ vec3 SkyColor(vec3 d, bool withSun) {
     return col;
 }
 
-vec3 ComputeAmbient(vec3 N, vec3 V, vec3 albedo, float roughness, float metallic) {
+// BRDF ambientale "split-sum" approssimata (Karis 2014): quanto del cielo riflesso arriva all'occhio, secondo
+// angolo e ruvidita'. Senza, i metalli all'ombra sembrano plastica grigia.
+vec2 EnvBRDFApprox(float NoV, float r) {
+    const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
+    const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
+    vec4 rr = r * c0 + c1;
+    float a004 = min(rr.x * rr.x, exp2(-9.28 * NoV)) * rr.x + rr.y;
+    return vec2(-1.04, 1.04) * a004 + rr.zw;
+}
+
+// occ = occlusione (texture * SSAO): spegne la luce diffusa e, con la formula di Lagarde, i riflessi nelle cavita'
+vec3 ComputeAmbient(vec3 N, vec3 V, vec3 albedo, float roughness, float metallic, float occ) {
     vec3 irradiance = mix(u_AmbientGroundColor, u_AmbientSkyColor, N.y * 0.5 + 0.5);
+    // luce del sole rimbalzata dal terreno: scalda il sotto delle cose (mento, pancia, sotto le assi)
+    if (u_AtmoOn == 1) irradiance += u_SunColor * u_Ground * 0.45 * clamp(-N.y * 0.5 + 0.5, 0.0, 1.0) * max(u_SunDirL.y, 0.0);
 
+    float NoV = max(dot(N, V), 1e-4);
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
-    vec3 kS = FresnelSchlick(max(dot(N, V), 0.0), F0);
-    vec3 kD = (1.0 - kS) * (1.0 - metallic);
-
-    vec3 diffuseAmb = kD * albedo * irradiance;
+    vec2 AB = EnvBRDFApprox(NoV, roughness);
+    vec3 specW = F0 * AB.x + AB.y;
+    vec3 kD = (1.0 - specW) * (1.0 - metallic);
+    vec3 diffuseAmb = kD * albedo * irradiance * occ;
 
     vec3 R = reflect(-V, N);
     vec3 envColor = mix(u_AmbientGroundColor, u_AmbientSkyColor, R.y * 0.5 + 0.5);
-    if (u_AtmoOn == 1) envColor = mix(SkyBase(R) * 1.5, envColor, roughness);   // riflessi del cielo vero, sfocati dalla ruvidita'
-    float fresnelBoost = pow(1.0 - max(dot(N, V), 0.0), 5.0);
-    vec3 specAmb = mix(envColor, envColor * 2.0, fresnelBoost) * F0;
+    if (u_AtmoOn == 1) envColor = mix(SkyBase(R) * 1.35, envColor, sqrt(roughness));   // cielo vero, sfocato dalla ruvidita'
+    float specOcc = clamp(pow(NoV + occ, exp2(-16.0 * roughness - 1.0)) - 1.0 + occ, 0.0, 1.0);
+    vec3 specAmb = envColor * specW * specOcc;
+    // bordo di luce del cielo sulle sagome (piu' forte controluce): i soldati si staccano dal fondo scuro
+    float rim = pow(1.0 - NoV, 3.0) * occ * (0.35 + 0.65 * clamp(dot(-V, u_SunDirL), 0.0, 1.0));
+    vec3 rimLight = (u_AtmoOn == 1 ? mix(u_Horizon, u_SunColor * 0.5, 0.5) : u_AmbientSkyColor) * rim * 0.55;
 
-    return (diffuseAmb + specAmb) * u_AmbientIntensity;
+    return (diffuseAmb + specAmb + rimLight * (1.0 - metallic * 0.5)) * u_AmbientIntensity;
 }
 
 // ============================================================
@@ -698,6 +716,38 @@ float GetShadow(vec3 worldPos, vec3 N, float NdotL, float viewDistance) {
 }
 
 // ============================================================
+// RAGGI DI LUCE NELLA NEBBIA (volumetrici)
+// ============================================================
+// Lungo il raggio della vista si chiede alla mappa d'ombra del sole se ogni punto e' illuminato: la nebbia nella
+// luce brilla, quella all'ombra di muri, alberi e soldati no. Ne escono i raggi fra le assi e i rami.
+float ShadowTap(vec3 p, float vd) {
+    int cascade = u_CascadeCount - 1;
+    for (int i = 0; i < u_CascadeCount; ++i) if (vd <= u_CascadeSplits[i]) { cascade = i; break; }
+    vec4 ls = u_LightSpaceMatrices[cascade] * vec4(p, 1.0);
+    vec3 pc = ls.xyz / ls.w * 0.5 + 0.5;
+    if (pc.z > 1.0 || pc.x < 0.0 || pc.x > 1.0 || pc.y < 0.0 || pc.y > 1.0) return 1.0;
+    return (pc.z - 0.0015 > SampleShadowTex(cascade, pc.xy)) ? 0.0 : 1.0;
+}
+// x = metri illuminati (pesati per la densita'), y = metri totali (stessa pesatura)
+vec2 SunShafts(vec3 ro, vec3 rd, float dist) {
+    const int N = 14;
+    float maxD = min(dist, 80.0);
+    float stepL = maxD / float(N);
+    // rumore a gradiente intercalato: i gradini fra un campione e l'altro diventano una grana fine
+    float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    vec2 acc = vec2(0.0);
+    for (int i = 0; i < N; ++i) {
+        float t = (float(i) + dither) * stepL;
+        vec3 p = ro + rd * t;
+        float dens = exp(-u_FogFalloff * max(p.y - u_FogBase, 0.0));
+        acc += vec2(ShadowTap(p, t), 1.0) * dens;
+    }
+    return acc * stepL;
+}
+// diffusione in avanti della polvere (Henyey-Greenstein)
+float PhaseHG(float cosT, float g) { float g2 = g * g; return (1.0 - g2) / (4.0 * PI * pow(max(1.0 + g2 - 2.0 * g * cosT, 1e-4), 1.5)); }
+
+// ============================================================
 // MAIN
 // ============================================================
 void main() {
@@ -709,7 +759,16 @@ void main() {
     if (depth >= 0.9999) {
         if (u_AtmoOn == 1) {
             vec3 dir = normalize(ReconstructWorldPos(v_TexCoord, 0.9999) - u_CameraPos);
-            out_Color = vec4(SkyColor(dir, true), 1.0);
+            vec3 sky = SkyColor(dir, true);
+            if (u_Shafts > 0.0 && u_UseShadows == 1) {
+                vec2 sh = SunShafts(u_CameraPos, dir, 80.0);
+                float cosT = dot(dir, u_SunDirL);
+                // dove il raggio passa nell'ombra di qualcosa il cielo velato e' piu' scuro, nella luce brilla
+                float litF = sh.x / max(sh.y, 1e-4);
+                sky *= mix(1.0, 0.72 + 0.28 * litF, u_Shafts * smoothstep(-0.2, 0.6, cosT));
+                sky += u_SunColor * PhaseHG(cosT, 0.6) * sh.x * u_FogDensity * 1.4 * u_Shafts;
+            }
+            out_Color = vec4(sky, 1.0);
         }
         else out_Color = vec4(0.01, 0.01, 0.015, 1.0);
         return;
@@ -807,7 +866,7 @@ void main() {
     }
 
     float ssao = u_UseSSAO == 1 ? pow(texture(u_SSAO, v_TexCoord).r, u_SSAOStrength) : 1.0;
-    vec3 ambient = ComputeAmbient(N, V, albedo, roughness, metallic) * ao * ssao;
+    vec3 ambient = ComputeAmbient(N, V, albedo, roughness, metallic, ao * ssao);
     Lo *= mix(1.0, ssao, 0.25);   // un filo anche sulla luce diretta: gli oggetti "toccano" il terreno
     if (sss > 0.0) {
         // peluria e sebo: un leggero alone sul bordo controluce, e un'ambiente un po' piu' caldo
@@ -833,8 +892,13 @@ R"(        // Nebbia in altezza (piu' fitta in basso) con la luce del sole che l
         float density = u_FogDensity * max(0.0, 1.0 + u_Dust * (dust - 0.5) * 2.4);
         float fog = 1.0 - exp(-density * viewDist * max(heightTerm, 0.0));
         float sd = max(dot(rd, u_SunDirL), 0.0);
-        vec3 fogCol = mix(u_FogColor, SkyBase(rd), 0.5) + u_SunColor * (pow(sd, 8.0) * 0.4 + 0.04);
+        float litF = 1.0;
+        vec2 sh = vec2(0.0);
+        if (u_Shafts > 0.0 && u_UseShadows == 1) { sh = SunShafts(u_CameraPos, rd, viewDist); litF = mix(1.0, sh.x / max(sh.y, 1e-4), u_Shafts); }
+        vec3 fogCol = mix(u_FogColor, SkyBase(rd), 0.35) + u_SunColor * (pow(sd, 8.0) * 0.3 + 0.03) * (0.3 + 0.7 * litF);
         color = mix(color, fogCol, clamp(fog, 0.0, 0.94));
+        // luce del sole diffusa dalla polvere nei tratti illuminati: i raggi
+        color += u_SunColor * PhaseHG(dot(rd, u_SunDirL), 0.6) * sh.x * density * 1.4 * u_Shafts;
     }
 
     out_Color = vec4(color, 1.0);
@@ -859,6 +923,8 @@ uniform float u_Grain;
 uniform vec3  u_ShadowTint;
 uniform vec3  u_HighlightTint;
 uniform float u_Time;
+uniform float u_BlackPoint;        // neri schiacciati (0 = come prima)
+uniform float u_Aberration;        // aberrazione cromatica ai bordi (0 = niente)
 
 vec3 ACESFilm(vec3 x) {
     const float a = 2.51;
@@ -873,7 +939,13 @@ void main() {
     float exposure = texture(u_ExposureTex, vec2(0.5)).r;
     if (exposure < 0.001) exposure = u_ExposureFallback;
 
-    vec3 hdr = texture(u_HDRTexture, v_TexCoord).rgb * exposure * u_Brightness;
+    vec3 hdr = texture(u_HDRTexture, v_TexCoord).rgb;
+    if (u_Grade == 1 && u_Aberration > 0.0) {   // obiettivo vecchio: rosso e blu si separano verso i bordi
+        vec2 d = (v_TexCoord - 0.5) * dot(v_TexCoord - 0.5, v_TexCoord - 0.5) * u_Aberration;
+        hdr.r = texture(u_HDRTexture, v_TexCoord - d).r;
+        hdr.b = texture(u_HDRTexture, v_TexCoord + d).b;
+    }
+    hdr *= exposure * u_Brightness;
     vec3 ldr = ACESFilm(hdr);
     if (u_Grade == 1) {
         float l = dot(ldr, vec3(0.2126, 0.7152, 0.0722));
@@ -883,6 +955,7 @@ void main() {
         l = dot(ldr, vec3(0.2126, 0.7152, 0.0722));
         ldr = mix(vec3(l), ldr, u_Saturation);
         ldr = clamp((ldr - 0.18) * u_Contrast + 0.18, 0.0, 1.0);
+        ldr = max(ldr - u_BlackPoint, 0.0) / (1.0 - u_BlackPoint);   // neri profondi
         // vignetta
         vec2 c = v_TexCoord - 0.5;
         ldr *= 1.0 - u_Vignette * smoothstep(0.25, 0.85, dot(c, c) * 2.2);
@@ -1998,6 +2071,7 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
             m_LightingShader->SetFloat("u_FogBase", a.fogBaseHeight);
             m_LightingShader->SetVec3("u_FogColor", a.fogColor);
             m_LightingShader->SetFloat("u_Dust", a.dust);
+            m_LightingShader->SetFloat("u_Shafts", glm::clamp(a.shafts, 0.0f, 2.0f));
             const bool ssao = m_SSAOEnabled && m_SSAOShader && m_SSAOBlurShader;
             m_LightingShader->SetInt("u_UseSSAO", ssao ? 1 : 0);
             if (ssao) {
@@ -2128,6 +2202,8 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
             m_TonemapShader->SetVec3("u_ShadowTint", a.shadowTint);
             m_TonemapShader->SetVec3("u_HighlightTint", a.highlightTint);
             m_TonemapShader->SetFloat("u_Time", m_Time);
+            m_TonemapShader->SetFloat("u_BlackPoint", glm::clamp(a.blackPoint, 0.0f, 0.1f));
+            m_TonemapShader->SetFloat("u_Aberration", glm::clamp(a.aberration, 0.0f, 0.05f));
         }
         m_TonemapShader->SetInt("u_HDRTexture", 0);
         m_TonemapShader->SetInt("u_ExposureTex", 1);
