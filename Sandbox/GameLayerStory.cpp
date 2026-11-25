@@ -800,6 +800,7 @@ namespace SunEngine {
             const glm::vec2 d(playerPos.x - kMartusGoal.x, playerPos.z - kMartusGoal.z);
             if (glm::length(d) <= kMartusGoalRadius) {
                 m_Story.result = 1;
+                GrantMissionLoot("Kingship", m_Profile.story.value("martus_done", false) ? 0 : 1);   // bottino: la prima volta almeno non comune
                 m_Profile.story["martus_done"] = true;
                 ApplyMatchXp(1.0f, "Martus ha raggiunto il magazzino nord");
             }
@@ -833,6 +834,7 @@ namespace SunEngine {
                 if (down) {
                     m_Story.bossDown = true;
                     m_Story.result = 1;
+                    GrantMissionLoot("Vanguard", m_Profile.story.value("konrad_done", false) ? 0 : 1);   // bottino: la prima volta almeno non comune
                     m_Profile.story["konrad_done"] = true;
                     ApplyMatchXp(1.0f, "Il capo dei Vrepighs e' caduto: la linea ha retto");
                 }
@@ -881,6 +883,7 @@ namespace SunEngine {
             }
             if (!alive(m_Story.boss) || f < kGorvakhGoal) {
                 m_Story.result = 1;
+                GrantMissionLoot("Vrepighs", m_Profile.story.value("kragh_duel_done", false) ? 0 : 1);   // bottino: la prima volta almeno non comune
                 m_Profile.story["kragh_duel_done"] = true;
                 ApplyMatchXp(1.0f, "Gorvakh e' stato ferito davanti a tutti");
             }
@@ -917,6 +920,7 @@ namespace SunEngine {
             }
             if (m_Story.pointsDone >= 3) {
                 m_Story.result = 1;
+                GrantMissionLoot("Vrepighs", m_Profile.story.value("kragh_landing_done", false) ? 0 : 1);   // bottino: la prima volta almeno non comune
                 m_Profile.story["kragh_landing_done"] = true;
                 ApplyMatchXp(1.0f, "I tre punti di raccolta dei glatt sono caduti");
             }
@@ -929,6 +933,7 @@ namespace SunEngine {
             if (reg.all_of<WarCryShoutComponent>(m_PlayerEntity)) StoryVoice("gruuk");
             if (m_Story.time >= kVecchioHoldTime) {
                 m_Story.result = 1;
+                GrantMissionLoot("Vrepighs", m_Profile.story.value("vecchio_done", false) ? 0 : 1);   // bottino: la prima volta almeno non comune
                 m_Profile.story["vecchio_done"] = true;
                 ApplyMatchXp(1.0f, "Il vecchio ha retto il fronte: la ritirata e' passata");
             }
@@ -943,7 +948,10 @@ namespace SunEngine {
             // Ordan: e' la fine che conosciamo. Se ha tenuto la porta almeno un minuto i civili sono passati (3),
             // altrimenti e' caduto troppo presto (2). Conta comunque quanto ha tenuto.
             m_Story.result = m_Story.time >= kOrdanHoldTime ? 3 : 2;
-            if (m_Story.result == 3) m_Profile.story["ordan_done"] = true;
+            if (m_Story.result == 3) {
+                GrantMissionLoot("Kingship", m_Profile.story.value("ordan_done", false) ? 0 : 1);   // bottino: la prima volta almeno non comune
+                m_Profile.story["ordan_done"] = true;
+            }
             const int kills = m_KillCount - m_Story.kills0;
             auto& st = m_Profile.story;
             const float bestT = st.value("ordan_best_time", 0.0f);

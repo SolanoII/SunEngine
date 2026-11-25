@@ -1820,9 +1820,11 @@ namespace SunEngine {
             }
         }
         catch (const std::exception& e) { SUN_CORE_WARN("id_migration.json non leggibile: {0}", e.what()); }
+        InitItemRarity();   // esemplari con rarita': il BlueprintManager sa costruirne le statistiche
         PlayerProfile loaded;
         if (PlayerProfile::Load(loaded)) {
             m_Profile = loaded;
+            InventoryFromProfile();
             SUN_CORE_INFO("Profilo caricato: {0}", PlayerProfile::GetProfilePath().string());
         }
         else {
@@ -1925,6 +1927,7 @@ namespace SunEngine {
         if (loaded.empty()) return;
 
         m_PlayerRoster = std::move(loaded);
+        MigrateOwnedItems();   // oggetti comprati per unita' -> esemplari del magazzino; slot allineati al magazzino
         m_SelectedVaultIndex = 0;
         m_SelectedSquadIndices.clear();
         for (int idx : m_Profile.squadIndices) {
@@ -1957,6 +1960,7 @@ namespace SunEngine {
         m_Profile.selectedMapId = inStory ? m_StoryBackupMap : m_SelectedMapId;
         m_Profile.selectedEventIndex = inStory ? m_StoryBackupEvent : m_SelectedEventIndex;
 
+        InventoryToProfile();
         m_Profile.roster = nlohmann::json::array();
         for (const auto& t : (inStory ? m_StoryBackupRoster : m_PlayerRoster)) {
             nlohmann::json u;
@@ -2011,7 +2015,7 @@ namespace SunEngine {
             }
         }
         if (auto* wbp = m_Scene.GetRegistry().try_get<WeaponBlueprintId>(m_PlayerEntity)) {
-            if (!wbp->id.empty()) m_Profile.weaponExp[wbp->id] += 1;
+            if (!wbp->id.empty()) m_Profile.weaponExp[BlueprintManager::BaseId(wbp->id)] += 1;   // esemplari: conta per l'arma
         }
     }
 
@@ -2987,26 +2991,8 @@ namespace SunEngine {
     // (voce disattivata) e poi comprati per questa unita' con energia: il primo click compra, poi si equipaggia.
     // Ritorna true se lo slot e' cambiato.
     bool GameLayer::DrawItemOption(TrainedUnit& unit, std::string& slotRef, const std::string& wId, const WeaponBlueprint& wBP) {
-        const ResearchNode* node = m_ResearchTree.FindNodeByItem(wId);
-        const bool researched = !node || m_ResearchTree.IsResearched(m_Profile, *node);
-        bool owned = !node || unit.OwnsItem(wId);
-        std::string label = WeaponLabel(wBP.displayName, wId);
-        if (!researched) label += "   [DA RICERCARE]";
-        else if (!owned) label += "   [COMPRA: " + std::to_string(static_cast<long long>(node->purchaseCost)) + " ENERGIA]";
-        bool changed = false;
-        if (ImGui::Selectable(label.c_str(), slotRef == wId, researched ? 0 : ImGuiSelectableFlags_Disabled)) {
-            if (!owned) {
-                if (m_ResearchTree.Pay(m_Profile, *node)) {
-                    unit.ownedItems.push_back(wId);
-                    owned = true;
-                    m_ResearchMessage = "Comprato per " + unit.customName + ": " + wBP.displayName;
-                }
-                else m_ResearchMessage = "Energia insufficiente per " + wBP.displayName;
-                m_ResearchMessageTimer = 4.0f;
-            }
-            if (owned && slotRef != wId) { slotRef = wId; changed = true; }
-        }
-        return changed;
+        // dotazione base, esemplari del magazzino (con la loro rarita') e "+ Crea" dopo la ricerca (GameLayerItems.cpp)
+        return DrawSlotChoices(unit, slotRef, wId, WeaponLabel(wBP.displayName, wId), false);
     }
 
     // ===================== ESPERIENZA DI PARTITA =====================
@@ -3025,6 +3011,7 @@ namespace SunEngine {
         m_MatchOutcomeLabel.clear();
         m_MatchVip = false;
         m_MatchUnitGain.clear();
+        m_LastLootUid = 0;
         XpEventLog().clear();
     }
 
@@ -3137,6 +3124,11 @@ namespace SunEngine {
             }
             if (m_MatchVip) ImGui::TextColored(ImVec4(0.64f, 0.47f, 0.84f, 1.0f), "VIP: +25%%");
             else ImGui::TextDisabled("VIP: non attivo (+25%% nel negozio)");
+        }
+        if (const ItemInstance* loot = FindItem(m_LastLootUid)) {   // bottino della missione (va nel magazzino)
+            const auto* lw = BlueprintManager::Get().GetWeapon(loot->itemId);
+            const auto* la = BlueprintManager::Get().GetArmorPiece(loot->itemId);
+            ImGui::TextColored(Rarity(loot->rarity).color, "Bottino: %s  [%s]  - nel magazzino", lw ? lw->displayName.c_str() : (la ? la->displayName.c_str() : loot->itemId.c_str()), Rarity(loot->rarity).name);
         }
         ImGui::TextColored(ImVec4(0.36f, 0.80f, 0.74f, 1.0f), "Punti studio: +%lld", static_cast<long long>(m_MatchXpTotal));
         ImGui::SameLine(0.0f, 30.0f);
@@ -5578,6 +5570,8 @@ namespace SunEngine {
                 m_ActiveSquad[m_CurrentSquadMemberIdx].isAlive = false;
                 m_ActiveSquad[m_CurrentSquadMemberIdx].currentHealth = 0.0f;
                 if (!m_Story.active) MarkSpecialFallen(m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex);   // personaggio speciale: si ricostruisce
+                // oggetti del magazzino addosso: nella 5v5 e nella sopravvivenza si consumano (la storia usa i suoi personaggi)
+                if (!m_Story.active) ApplyDeathToItems(m_ActiveSquad[m_CurrentSquadMemberIdx].rosterIndex, DeathRule::Wear);
             }
 
             // Attiva ragdoll anche per il player (feedback visivo).
@@ -6770,6 +6764,9 @@ namespace SunEngine {
             else if (m_CurrentTab == MenuTab::Codex) {
                 RenderCodexUI();
             }
+            else if (m_CurrentTab == MenuTab::Storehouse) {
+                RenderStorehouseUI();
+            }
 
             if (m_CurrentTab == MenuTab::StasisVault || m_CurrentTab == MenuTab::Deployment) RenderPartyPanel();
             RenderPartyOverlay();
@@ -6983,6 +6980,7 @@ namespace SunEngine {
         struct Nav { const char* label; bool active; ImVec4 accent; };
         const Nav navs[] = {
             { "GARAGE", inMenu && m_CurrentTab == MenuTab::StasisVault, Ui::Col::Gold },
+            { "MAGAZZINO", inMenu && m_CurrentTab == MenuTab::Storehouse, Ui::Col::Gold },
             { "SCHIERAMENTO", inMenu && m_CurrentTab == MenuTab::Deployment, Ui::Col::Gold },
             { "PVE-STORY", inMenu && m_CurrentTab == MenuTab::Story, Ui::Col::Amethyst },
             { "SERVER", inMenu && m_CurrentTab == MenuTab::Servers, Ui::Col::Phosphor },
@@ -7008,7 +7006,12 @@ namespace SunEngine {
             currencyW = 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "ENERGIA").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, eb).x
                       + 26.0f + fs->CalcTextSizeA(fs->FontSize, FLT_MAX, 0.0f, "VANGUARDIO").x + fv->CalcTextSizeA(fv->FontSize, FLT_MAX, 0.0f, sb).x + 80.0f;
             const float avail = io.DisplaySize.x - 300.0f - currencyW;
-            const float padTab = std::clamp((avail - textW) / static_cast<float>(kNavCount), 4.0f, 34.0f);   // con il CODEX le schede sono 10
+            // troppe schede per la larghezza: carattere piu' piccolo (fino al 70%) invece di finire sotto le valute
+            const float navScale = std::clamp((avail - 8.0f * static_cast<float>(kNavCount)) / std::max(1.0f, textW), 0.7f, 1.0f);
+            Ui::SetNavTextScale(navScale);
+            textW *= navScale;
+            for (int i = 0; i < kNavCount; ++i) navW[i] *= navScale;
+            const float padTab = std::clamp((avail - textW) / static_cast<float>(kNavCount), 4.0f, 34.0f);
             for (int i = 0; i < kNavCount; ++i) { navW[i] += padTab; totalNav += navW[i]; }
         }
         ImGui::SetCursorPos(ImVec2(std::max(300.0f, std::min(io.DisplaySize.x * 0.5f - totalNav * 0.5f, io.DisplaySize.x - currencyW - totalNav)), 0.0f));
@@ -7025,6 +7028,10 @@ namespace SunEngine {
             m_GameState = GameState::MainMenu;
             m_CurrentTab = MenuTab::Servers;
             m_Party.RefreshServerList();
+        }
+        if (nav == "MAGAZZINO") {   // esemplari con rarita', condizione e tratti
+            m_GameState = GameState::MainMenu;
+            m_CurrentTab = MenuTab::Storehouse;
         }
         if (nav == "CODEX") {   // tutto quello che c'e' nel gioco, scheda per scheda
             m_GameState = GameState::MainMenu;
@@ -8050,7 +8057,7 @@ namespace SunEngine {
             ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "DOTAZIONE ATTUALE");
 
             const auto* primBP = BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
-            ImGui::Text("Primaria: %s", primBP ? primBP->displayName.c_str() : "[Vuoto]");
+            ImGui::Text("Primaria: %s", primBP ? ItemLabel(activeUnit.primaryWeaponId, primBP->displayName).c_str() : "[Vuoto]");
             if (primBP && ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)",
                     primBP->displayName.c_str(), primBP->base_damage, primBP->armor_penetration, primBP->magazine_size);
@@ -8257,7 +8264,7 @@ namespace SunEngine {
                     }
                     else {
                         const auto* primBP = BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
-                        std::string primName = primBP ? primBP->displayName : "Nessuna";
+                        std::string primName = primBP ? ItemLabel(activeUnit.primaryWeaponId, BlueprintManager::Get().GetWeapon(BlueprintManager::BaseId(activeUnit.primaryWeaponId))->displayName) : "Nessuna";
 
                         if (ImGui::BeginCombo("Seleziona Primaria", primName.c_str())) {
                             if (ImGui::Selectable("[Nessuna]", activeUnit.primaryWeaponId.empty())) {
@@ -8280,7 +8287,7 @@ namespace SunEngine {
                         }
 
                         const auto* secBP = BlueprintManager::Get().GetWeapon(activeUnit.secondaryWeaponId);
-                        std::string secName = secBP ? secBP->displayName : "Nessuna";
+                        std::string secName = secBP ? ItemLabel(activeUnit.secondaryWeaponId, secBP->displayName) : "Nessuna";
 
                         if (ImGui::BeginCombo("Seleziona Secondaria", secName.c_str())) {
                             if (ImGui::Selectable("[Nessuna]", activeUnit.secondaryWeaponId.empty())) {
@@ -8303,7 +8310,7 @@ namespace SunEngine {
                         }
 
                         const auto* meleeBP = BlueprintManager::Get().GetWeapon(activeUnit.meleeWeaponId);
-                        std::string meleeName = meleeBP ? meleeBP->displayName : "[Nessuna / Disarmato]";
+                        std::string meleeName = meleeBP ? ItemLabel(activeUnit.meleeWeaponId, meleeBP->displayName) : "[Nessuna / Disarmato]";
                         const auto* unitForMelee = BlueprintManager::Get().GetUnit(activeUnit.blueprintId);
                         const bool noMelee = unitForMelee && unitForMelee->no_melee;
                         if (noMelee) {
@@ -8339,7 +8346,7 @@ namespace SunEngine {
                     ImGui::Spacing();
                     for (int slot = 0; slot < 3; ++slot) {
                         const auto* eqBP = BlueprintManager::Get().GetWeapon(activeUnit.equipmentSlots[slot]);
-                        const std::string eqName = eqBP ? eqBP->displayName : "[Vuoto]";
+                        const std::string eqName = eqBP ? ItemLabel(activeUnit.equipmentSlots[slot], eqBP->displayName) : "[Vuoto]";
                         const std::string label = "Slot " + std::to_string(slot + 1) + " (tasto " + std::to_string(slot + 4) + ")";
                         if (ImGui::BeginCombo(label.c_str(), eqName.c_str())) {
                             if (ImGui::Selectable("[Vuoto]", activeUnit.equipmentSlots[slot].empty())) {
@@ -8401,7 +8408,7 @@ namespace SunEngine {
                     ImGui::PushID(slotLabel);
                     ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "[%s]", slotLabel);
 
-                    std::string comboName = currentBp ? currentBp->displayName + " (" + std::to_string(currentBp->pointCost) + " Pti)" : "[Scoperto / Nessuna Protezione]";
+                    std::string comboName = currentBp ? ItemLabel(currentId, currentBp->displayName) + " (" + std::to_string(currentBp->pointCost) + " Pti)" : "[Scoperto / Nessuna Protezione]";
 
                     if (ImGui::BeginCombo("##combo", comboName.c_str())) {
 
@@ -8421,29 +8428,9 @@ namespace SunEngine {
                                     " | HP: " + std::to_string((int)aBp.maxDurability) +
                                     " | " + std::to_string((int)aBp.pointCost) + " Pti";
 
-                                // Pezzi ricercabili (es. elmetto di ferraglia): prima la ricerca, poi l'acquisto per unita'
-                                const ResearchNode* node = m_ResearchTree.FindNodeByItem(aId);
-                                const bool researched = !node || m_ResearchTree.IsResearched(m_Profile, *node);
-                                bool owned = !node || activeUnit.OwnsItem(aId);
-                                if (!researched) itemLabel += "   [DA RICERCARE]";
-                                else if (!owned) itemLabel += "   [COMPRA: " + std::to_string(static_cast<long long>(node->purchaseCost)) + " ENERGIA]";
-
-                                if (ImGui::Selectable(itemLabel.c_str(), isSelected, researched ? 0 : ImGuiSelectableFlags_Disabled)) {
-                                    if (!owned) {
-                                        if (m_ResearchTree.Pay(m_Profile, *node)) {
-                                            activeUnit.ownedItems.push_back(aId);
-                                            owned = true;
-                                            m_ResearchMessage = "Comprato per " + activeUnit.customName + ": " + aBp.displayName;
-                                        }
-                                        else m_ResearchMessage = "Energia insufficiente per " + aBp.displayName;
-                                        m_ResearchMessageTimer = 4.0f;
-                                    }
-                                    if (owned) {
-                                        currentId = aId;
-                                        ApplyUnitVisuals(activeUnit);
-                                    }
-                                }
-
+                                (void)isSelected; (void)itemLabel;
+                                // dotazione base, esemplari del magazzino e "+ Crea" dopo la ricerca (GameLayerItems.cpp)
+                                if (DrawSlotChoices(activeUnit, currentId, aId, aBp.displayName + " | AR " + std::to_string(aBp.armorRating), true)) ApplyUnitVisuals(activeUnit);
                                 if (ImGui::IsItemHovered()) {
                                     ImGui::SetTooltip("%s\nPotere d'Arresto (AR): %d | Durabilita': %.0f HP | Peso: %.1f kg | Costo: %d Pti",
                                         aBp.displayName.c_str(), aBp.armorRating, aBp.maxDurability, aBp.weight, aBp.pointCost);

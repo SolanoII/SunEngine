@@ -61,6 +61,7 @@ namespace SunEngine::Ui {
     bool PlainButton(const char* label, const ImVec2& size = ImVec2(0.0f, 0.0f));
     // Scheda di navigazione (barra in alto, fazioni): sottolineata e accesa se attiva
     bool NavTab(const char* label, float width, float height, bool active, const ImVec4& accent = Col::Gold);
+    void SetNavTextScale(float s);   // schede della barra in alto: carattere piu' piccolo quando non ci stanno (1 = normale)
     // Riquadro con etichetta piccola e valore grande
     void StatTile(const char* label, const char* value, float width, const ImVec4& valueCol = Col::Bone);
     // Targhetta di stato

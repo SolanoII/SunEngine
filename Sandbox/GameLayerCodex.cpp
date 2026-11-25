@@ -391,6 +391,17 @@ namespace SunEngine {
             list("Armature che nessuna unita' puo' indossare", nobodyA);
             list("Unita' senza foto nel Codex", noPhoto);
             ImGui::TextColored(Ui::Col::Phosphor, "Unita' in progetto (nell'albero, non ancora giocabili): %d", static_cast<int>(ideas.size()));
+            // rarita' degli oggetti (le regole sono in ItemRarity.h; qui le stesse cose che mostra il magazzino)
+            ImGui::Spacing(); Ui::Heading("RARITA' DEGLI OGGETTI");
+            for (int r = 0; r < 5; ++r) {
+                const RarityInfo& ri = Rarity(r);
+                ImGui::TextColored(ri.color, "%s", ri.name); ImGui::SameLine(150.0f);
+                ImGui::Text("statistiche x%.2f%s", ri.statMult, ri.traits ? ("   + " + std::to_string(ri.traits) + (ri.traits == 1 ? " tratto" : " tratti")).c_str() : "");
+            }
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextColored(Ui::Col::Ash, "Nuovi = comuni. Si potenziano nel MAGAZZINO, si trovano come bottino nella PVE-STORY e, piu' avanti, si prendono agli avversari. "
+                                             "Morire con un oggetto addosso (5v5, sopravvivenza) toglie il 34%% di condizione; a zero si rompe. %d tratti possibili.", static_cast<int>(ItemTraits().size()));
+            ImGui::PopTextWrapPos();
             ImGui::EndChild();
             ImGui::End();
             return;

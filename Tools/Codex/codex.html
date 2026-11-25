@@ -295,6 +295,15 @@ function hierHTML() {
         ${r.text ? `<div class="comment" style="font-size:12.5px">${esc(r.text)}</div>` : ''}${r.member ? `<div style="color:var(--brass);font-size:12.5px">${esc(r.member)}</div>` : ''}</div>`).join('')}</div>`).join('')}</div>
     ${h.footer ? `<h3>${esc(h.footer_title || '')}</h3><p class="comment">${esc(h.footer)}</p>` : ''}</div>`).join('');
 }
+function rarityHTML() {
+  const R = LBL.rarity; if (!R || !R.levels) return '';
+  const KIND = { Ranged: 'Armi da fuoco', Melee: 'Armi bianche', Equipment: 'Equipaggiamento', Armor: 'Armature' };
+  const col = c => `rgb(${c.map(x => Math.round(x * 255)).join(',')})`;
+  return `<div class="box" style="margin-top:22px"><h2 class="sec">Rarità degli oggetti</h2>
+    <div class="tiles">${R.levels.map((l, i) => `<div class="tile" style="cursor:default;border-color:${col(l.color)}"><b style="color:${col(l.color)};font-size:26px">${esc(l.name)}</b><span>statistiche ×${l.stat.toFixed(2)}${l.traits ? ' · ' + l.traits + (l.traits === 1 ? ' tratto' : ' tratti') : ''}</span></div>`).join('')}</div>
+    ${(R.rules || []).map(r => `<p class="comment" style="margin:0">${esc(r)}</p>`).join('')}
+    <div class="ov">${Object.keys(KIND).map(k => `<div><h3>Tratti · ${KIND[k]}</h3><table>${R.traits.filter(t => t.kind === k).map(t => `<tr><td>${esc(t.name)}</td><td>${esc(t.effect)}</td></tr>`).join('')}</table></div>`).join('')}</div></div>`;
+}
 function overview() {
   const cats = TABS.slice(1);
   const count = c => E.filter(e => e._cat === c).length;
@@ -316,6 +325,7 @@ function overview() {
       <div class="box"><h2 class="sec">Per fazione</h2><div class="tbl"><table><thead><tr><th>Fazione</th>${cats.map(([, t]) => `<th class="num">${t}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div></div>
       <div class="box"><h2 class="sec">Da fare</h2>${todo.map(([t, l]) => `<div class="todo"><div class="h ${l.length ? 'warn' : 'ok'}">${l.length ? '▲' : '✓'} ${t}: ${l.length}</div>${l.length ? `<div class="l">${l.map(e => esc(e.displayName)).join(', ')}</div>` : ''}</div>`).join('')}</div>
     </div>
+    ${rarityHTML()}
     <div class="box" style="margin-top:22px"><h2 class="sec">Unità in gioco</h2><div class="tbl"><table>
       <thead><tr><th>Unità</th><th>Fazione</th><th>Grado</th><th class="num">Salute</th><th class="num">Robustezza</th><th class="num">Velocità</th><th class="num">Mira</th><th class="num">Mischia</th><th class="num">Punti</th><th>Arma base</th></tr></thead>
       <tbody>${units.map(u => `<tr data-id="${esc(u.id)}" style="cursor:pointer"><td>${esc(u.displayName)}</td><td>${esc(facName(u.faction))}</td><td>${u._research ? (u._research.premium ? 'élite' : ROMAN[u._research.tier]) : 'storia'}</td><td class="num">${num(u.health)}</td><td class="num">${num(u.toughness)}</td><td class="num">${num(u.base_speed)}</td><td class="num">${num(u.accuracy_skill)}</td><td class="num">${num(u.melee_skill)}</td><td class="num">${u.point_cost}</td><td>${esc((u._base || [])[0]?.[1] || '—')}</td></tr>`).join('')}</tbody></table></div></div>`;

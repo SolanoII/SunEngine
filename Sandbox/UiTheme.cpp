@@ -298,10 +298,13 @@ namespace SunEngine::Ui {
         return clicked;
     }
 
+    static float s_NavTextScale = 1.0f;
+    void SetNavTextScale(float s) { s_NavTextScale = s; }
+
     bool NavTab(const char* label, float width, float height, bool active, const ImVec4& accent) {
         const char* end = ImGui::FindRenderedTextEnd(label);
         ImFont* f = FontHeading();
-        const float fs = f->FontSize * 0.92f;
+        const float fs = f->FontSize * 0.92f * s_NavTextScale;
         const ImVec2 ts = f->CalcTextSizeA(fs, FLT_MAX, 0.0f, label, end);
         if (width <= 0.0f) width = ts.x + 30.0f;
         const ImVec2 a = ImGui::GetCursorScreenPos(), b(a.x + width, a.y + height);

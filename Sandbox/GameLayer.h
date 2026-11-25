@@ -39,6 +39,7 @@
 #include "Engine/Scene/MapLoader.h"
 #include "Engine/Navigation/NavMeshQuery.h"
 #include "Engine/AssetManager/BlueprintManager.h"
+#include "ItemRarity.h"
 
 #include "Engine/Renderer/Pipeline/DeferredRenderer.h"
 #include "Engine/Renderer/Model.h"
@@ -78,6 +79,7 @@ namespace SunEngine {
         Showcase,   // vetrina: razze affiancate (o un'unita' dall'albero di ricerca) con le loro animazioni
         Servers,    // lobby aperte in rete locale e sul server d'incontro, apertura della propria
         Story,      // PVE-STORY: le storie del mondo da rigiocare, fuori dal sistema delle squadre
+        Storehouse, // magazzino: gli esemplari degli oggetti con rarita', condizione e tratti
         Codex       // tutto quello che c'e' nel gioco: unita', nemici, armi, equipaggiamento, armature, con le statistiche
     };
 
@@ -129,6 +131,21 @@ namespace SunEngine {
 
         // Toglie l'equipaggiamento che l'unita' non puo' piu' usare (es. vrepighs: armi generiche o cleaver vecchia),
         // rimettendo al suo posto quello della dotazione base. Ritorna true se ha cambiato qualcosa.
+        // I 12 slot (primaria, secondaria, mischia, 3 equipaggiamenti, 6 armature): un esemplare del magazzino ci sta come
+        // "id#u<numero>..." (vedi ItemRarity.h); default_ = cosa ci va se l'esemplare si rompe o si perde
+        std::array<std::string*, 12> Slots() {
+            return { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId, &equipmentSlots[0], &equipmentSlots[1], &equipmentSlots[2],
+                     &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId };
+        }
+        std::string DefaultForSlot(int i) const {
+            const auto* bp = BlueprintManager::Get().GetUnit(blueprintId);
+            if (!bp) return "";
+            if (i == 0) return bp->default_primary;
+            if (i == 1) return bp->default_secondary;
+            if (i == 2) return bp->no_melee ? std::string() : bp->default_melee;
+            if (i < 6) return bp->default_equipment[i - 3];
+            return bp->default_armor[i - 6].empty() ? std::string("none") : bp->default_armor[i - 6];
+        }
         bool SanitizeLoadout() {
             const auto& bpm = BlueprintManager::Get();
             const auto* bp = bpm.GetUnit(blueprintId);
@@ -717,6 +734,30 @@ namespace SunEngine {
         void RenderShowcaseUI();
         void OpenShowcasePreview(const std::string& unitId);
         void UpdateShowcaseActor(ShowcaseActor& a, float deltaTime);
+
+        // --- Rarita' e magazzino (GameLayerItems.cpp, regole in ItemRarity.h) ---
+        std::vector<ItemInstance> m_Inventory;     // tutti gli oggetti creati, trovati o presi (salvati nel profilo)
+        uint64_t m_NextItemUid = 1;
+        uint64_t m_SelectedItemUid = 0;            // magazzino: esemplare selezionato
+        int m_StoreFilter = 0;                     // magazzino: tutto / armi / armi bianche / equipaggiamento / armature
+        std::string m_StoreMessage;
+        float m_StoreMessageTimer = 0.0f;
+        uint64_t m_LastLootUid = 0;                // bottino dell'ultima missione (riepilogo)
+        void InitItemRarity();
+        void InventoryFromProfile();
+        void InventoryToProfile();
+        void MigrateOwnedItems();
+        ItemInstance* FindItem(uint64_t uid);
+        int ItemHolder(uint64_t uid) const;        // indice nel roster di chi lo ha addosso, -1 = nel magazzino
+        int64_t ItemValue(const std::string& itemId) const;
+        ItemInstance& CreateItem(const std::string& itemId, int rarity);
+        void RefreshItemRefs(uint64_t uid);
+        void RemoveItem(uint64_t uid);
+        void ApplyDeathToItems(int rosterIndex, DeathRule rule);
+        uint64_t GrantMissionLoot(const std::string& faction, int minRarity);
+        bool DrawSlotChoices(TrainedUnit& unit, std::string& slotRef, const std::string& itemId, const std::string& name, bool isArmor);
+        std::string ItemLabel(const std::string& slotId, const std::string& baseName) const;
+        void RenderStorehouseUI();
 
         // --- Codex (GameLayerCodex.cpp): schede di unita', nemici, armi, equipaggiamento e armature lette da GameData ---
         struct CodexEntry;

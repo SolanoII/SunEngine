@@ -681,5 +681,188 @@
   "Imperium": "Imperium (vecchio)",
   "Orks": "Orks (vecchio)",
   "Spacemarines": "Space Marines (vecchio)"
+ },
+ "rarity": {
+  "comment": "Copiato da Sandbox/ItemRarity.h da Tools/Codex/build.py: non modificare a mano",
+  "levels": [
+   {
+    "name": "Comune",
+    "color": [
+     0.66,
+     0.66,
+     0.64
+    ],
+    "stat": 1.0,
+    "traits": 0
+   },
+   {
+    "name": "Non comune",
+    "color": [
+     0.38,
+     0.8,
+     0.36
+    ],
+    "stat": 1.05,
+    "traits": 0
+   },
+   {
+    "name": "Raro",
+    "color": [
+     0.32,
+     0.58,
+     1.0
+    ],
+    "stat": 1.1,
+    "traits": 1
+   },
+   {
+    "name": "Epico",
+    "color": [
+     0.7,
+     0.4,
+     0.98
+    ],
+    "stat": 1.16,
+    "traits": 2
+   },
+   {
+    "name": "Leggendario",
+    "color": [
+     1.0,
+     0.8,
+     0.2
+    ],
+    "stat": 1.24,
+    "traits": 3
+   }
+  ],
+  "traits": [
+   {
+    "code": "dmg",
+    "name": "Canna rinforzata",
+    "effect": "+8% danno",
+    "kind": "Ranged"
+   },
+   {
+    "code": "mag",
+    "name": "Caricatore maggiorato",
+    "effect": "+25% caricatore",
+    "kind": "Ranged"
+   },
+   {
+    "code": "rld",
+    "name": "Mani svelte",
+    "effect": "-15% tempo di ricarica",
+    "kind": "Ranged"
+   },
+   {
+    "code": "acc",
+    "name": "Mira salda",
+    "effect": "-15% dispersione",
+    "kind": "Ranged"
+   },
+   {
+    "code": "ap",
+    "name": "Perforante",
+    "effect": "+1 perforazione",
+    "kind": "Ranged"
+   },
+   {
+    "code": "rng",
+    "name": "Lunga gittata",
+    "effect": "+20% portata",
+    "kind": "Ranged"
+   },
+   {
+    "code": "sup",
+    "name": "Terrore",
+    "effect": "+30% soppressione",
+    "kind": "Ranged"
+   },
+   {
+    "code": "rec",
+    "name": "Rinculo domato",
+    "effect": "-25% rinculo",
+    "kind": "Ranged"
+   },
+   {
+    "code": "edge",
+    "name": "Filo affilato",
+    "effect": "+10% danno",
+    "kind": "Melee"
+   },
+   {
+    "code": "map",
+    "name": "Punta temprata",
+    "effect": "+1 perforazione",
+    "kind": "Melee"
+   },
+   {
+    "code": "reach",
+    "name": "Lunga",
+    "effect": "+0,25 m di portata",
+    "kind": "Melee"
+   },
+   {
+    "code": "lunge",
+    "name": "Slancio",
+    "effect": "+0,5 m di affondo pesante",
+    "kind": "Melee"
+   },
+   {
+    "code": "boom",
+    "name": "Carica potenziata",
+    "effect": "+15% danno",
+    "kind": "Equipment"
+   },
+   {
+    "code": "wide",
+    "name": "Raggio ampio",
+    "effect": "+20% raggio",
+    "kind": "Equipment"
+   },
+   {
+    "code": "spare",
+    "name": "Scorta",
+    "effect": "+1 uso",
+    "kind": "Equipment"
+   },
+   {
+    "code": "fast",
+    "name": "Rapido",
+    "effect": "-20% tempo d'uso",
+    "kind": "Equipment"
+   },
+   {
+    "code": "thick",
+    "name": "Piastre spesse",
+    "effect": "+2 armatura",
+    "kind": "Armor"
+   },
+   {
+    "code": "pad",
+    "name": "Imbottitura",
+    "effect": "+15% resistenza",
+    "kind": "Armor"
+   },
+   {
+    "code": "light",
+    "name": "Leggera",
+    "effect": "-25% peso",
+    "kind": "Armor"
+   },
+   {
+    "code": "cover",
+    "name": "Copertura ampia",
+    "effect": "+5% copertura",
+    "kind": "Armor"
+   }
+  ],
+  "rules": [
+   "Gli oggetti appena creati in officina sono comuni (grigi).",
+   "Si sale di rarita' potenziando l'oggetto nel magazzino con l'energia, trovandolo come bottino alla fine delle missioni della PVE-STORY e, in futuro, prendendolo agli avversari.",
+   "Dal raro in su ogni livello aggiunge un tratto a caso.",
+   "Morire con un oggetto addosso nella 5v5 e nella sopravvivenza toglie il 34% di condizione; a zero si rompe e va riparato. La dotazione base non si consuma mai."
+  ]
  }
 }

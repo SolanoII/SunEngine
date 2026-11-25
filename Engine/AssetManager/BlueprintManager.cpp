@@ -449,12 +449,33 @@ namespace SunEngine {
 
     const WeaponBlueprint* BlueprintManager::GetWeapon(const std::string& id) const {
         auto it = m_Weapons.find(id);
-        return (it != m_Weapons.end()) ? &it->second : nullptr;
+        if (it != m_Weapons.end()) return &it->second;
+        const size_t hash = id.find('#');
+        if (hash == std::string::npos) return nullptr;
+        // esemplare: copia del blueprint base con le sue modifiche (rarita', tratti, condizione)
+        auto v = m_WeaponVariants.find(id);
+        if (v != m_WeaponVariants.end()) return v->second.get();
+        auto base = m_Weapons.find(id.substr(0, hash));
+        if (base == m_Weapons.end()) return nullptr;
+        auto bp = std::make_unique<WeaponBlueprint>(base->second);
+        bp->id = id;
+        if (m_WeaponVariantFn) m_WeaponVariantFn(*bp, id.substr(hash));
+        return (m_WeaponVariants[id] = std::move(bp)).get();
     }
 
     const ArmorBlueprint* BlueprintManager::GetArmorPiece(const std::string& id) const {
         auto it = m_Armors.find(id);
-        return (it != m_Armors.end()) ? &it->second : nullptr;
+        if (it != m_Armors.end()) return &it->second;
+        const size_t hash = id.find('#');
+        if (hash == std::string::npos) return nullptr;
+        auto v = m_ArmorVariants.find(id);
+        if (v != m_ArmorVariants.end()) return v->second.get();
+        auto base = m_Armors.find(id.substr(0, hash));
+        if (base == m_Armors.end()) return nullptr;
+        auto bp = std::make_unique<ArmorBlueprint>(base->second);
+        bp->id = id;
+        if (m_ArmorVariantFn) m_ArmorVariantFn(*bp, id.substr(hash));
+        return (m_ArmorVariants[id] = std::move(bp)).get();
     }
 
 }

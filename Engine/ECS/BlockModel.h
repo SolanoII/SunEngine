@@ -86,7 +86,7 @@ namespace SunEngine {
         }
 
         BlockModel* FindMutable(const std::string& id) {
-            auto it = m_Models.find(id);
+            auto it = m_Models.find(id.substr(0, id.find('#')));   // "fucile#u12#r3": un esemplare dell'arma, stesso modello
             return it == m_Models.end() ? nullptr : &it->second;
         }
         std::vector<std::string> Ids() const {
@@ -96,7 +96,7 @@ namespace SunEngine {
         }
 
         const BlockModel* Find(const std::string& id) const {
-            auto it = m_Models.find(id);
+            auto it = m_Models.find(id.substr(0, id.find('#')));   // esemplari con rarita' ("id#u..."): il modello e' quello dell'arma
             return it == m_Models.end() ? nullptr : &it->second;   // i puntatori restano validi (mappa a nodi)
         }
 

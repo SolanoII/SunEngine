@@ -62,6 +62,16 @@ def main():
     if a.shots: unit_shots(a.shots)
 
     labels = load(os.path.join(GD, 'Codex', 'labels.json'))
+    # rarita' e tratti: copiati da Sandbox/ItemRarity.h, cosi' gioco e pagina dicono la stessa cosa
+    import re
+    h = open(os.path.join(ROOT, 'Sandbox', 'ItemRarity.h'), encoding='utf-8').read()
+    lv = [{'name': n, 'color': [float(r), float(g), float(b)], 'stat': float(m), 'traits': int(t)}
+          for n, r, g, b, m, t in re.findall(r'\{ "([^"]+)",\s*ImVec4\(([\d.]+)f, ([\d.]+)f, ([\d.]+)f, 1\.0f\), ([\d.]+)f, (\d) \}', h)]
+    tr = [{'code': c, 'name': n, 'effect': e, 'kind': k} for c, n, e, k in re.findall(r'\{ "(\w+)",\s*"([^"]+)",\s*"([^"]+)",\s*ItemKind::(\w+) \}', h)]
+    if len(lv) == 5 and tr:
+        labels.setdefault('rarity', {})
+        labels['rarity'].update({'levels': lv, 'traits': tr})
+        with open(os.path.join(GD, 'Codex', 'labels.json'), 'w', encoding='utf-8') as f: json.dump(labels, f, ensure_ascii=False, indent=1)
     units = {}
     for f in glob.glob(os.path.join(GD, 'Units', '*.json')):
         j = load(f); units[j['id']] = j

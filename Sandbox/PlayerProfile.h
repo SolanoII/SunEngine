@@ -65,6 +65,9 @@ namespace SunEngine {
 
         // Roster serializzato da GameLayer (array di oggetti): il profilo non conosce TrainedUnit.
         nlohmann::json roster = nlohmann::json::array();
+        // Magazzino: esemplari degli oggetti (rarita', condizione, tratti), scritti e letti dal GameLayer
+        nlohmann::json inventory = nlohmann::json::array();
+        uint64_t nextItemUid = 1;
 
         // ---------------------------------------------------------------
         static std::filesystem::path GetProfilePath() {
@@ -117,6 +120,8 @@ namespace SunEngine {
             j["garage"] = { {"squadIndices", squadIndices}, {"selectedMapId", selectedMapId},
                             {"selectedEventIndex", selectedEventIndex} };
             j["roster"] = roster;
+            j["inventory"] = inventory;
+            j["nextItemUid"] = nextItemUid;
             j["story"] = story;
             return j;
         }
@@ -187,6 +192,8 @@ namespace SunEngine {
                 p.selectedEventIndex = std::max(0, g.value("selectedEventIndex", 0));
             }
             if (j.contains("roster") && j["roster"].is_array()) p.roster = j["roster"];
+            if (j.contains("inventory") && j["inventory"].is_array()) p.inventory = j["inventory"];
+            p.nextItemUid = std::max<uint64_t>(1, j.value("nextItemUid", static_cast<uint64_t>(1)));
             return p;
         }
 

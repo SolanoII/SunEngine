@@ -4,6 +4,8 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <functional>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include "../Renderer/GarmentShell.h"
 #include <glm/glm.hpp>
@@ -392,6 +394,15 @@ namespace SunEngine {
             return a.AllowedFor(unitId);
         }
 
+        // Esemplari degli oggetti ("id#u<n>#r<rarita'>#c<condizione>#t<tratti>", vedi Sandbox/ItemRarity.h): l'id dopo '#'
+        // descrive una copia dell'arma o dell'armatura con le sue modifiche. GetWeapon/GetArmorPiece la costruiscono la
+        // prima volta (dal blueprint base, con la funzione registrata qui) e la tengono: il contenuto dipende solo
+        // dall'id, quindi resta valida per sempre e ogni computer in rete la ricostruisce uguale.
+        using WeaponVariantFn = std::function<void(WeaponBlueprint&, const std::string& suffix)>;
+        using ArmorVariantFn = std::function<void(ArmorBlueprint&, const std::string& suffix)>;
+        void SetVariantBuilders(WeaponVariantFn w, ArmorVariantFn a) { m_WeaponVariantFn = std::move(w); m_ArmorVariantFn = std::move(a); }
+        static std::string BaseId(const std::string& id) { return id.substr(0, id.find('#')); }
+
         const std::unordered_map<std::string, UnitBlueprint>& GetUnits() const { return m_Units; }
         const std::unordered_map<std::string, WeaponBlueprint>& GetWeapons() const { return m_Weapons; }
         const std::unordered_map<std::string, ArmorBlueprint>& GetArmorPieces() const { return m_Armors; }
@@ -401,6 +412,10 @@ namespace SunEngine {
         std::unordered_map<std::string, UnitBlueprint> m_Units;
         std::unordered_map<std::string, WeaponBlueprint> m_Weapons;
         std::unordered_map<std::string, ArmorBlueprint> m_Armors;
+        mutable std::unordered_map<std::string, std::unique_ptr<WeaponBlueprint>> m_WeaponVariants;   // mai cancellati: i puntatori restano validi
+        mutable std::unordered_map<std::string, std::unique_ptr<ArmorBlueprint>> m_ArmorVariants;
+        WeaponVariantFn m_WeaponVariantFn;
+        ArmorVariantFn m_ArmorVariantFn;
     };
 
 }
