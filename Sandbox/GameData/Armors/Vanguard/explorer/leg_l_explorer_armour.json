@@ -1,5 +1,6 @@
 {
   "id": "leg_l_explorer_armour",
+  "resistances": {"pierce": 6, "slash": 6, "blunt": 6, "energy": 5},
   "displayName": "Gambale dell'Iniziato (sx)",
   "comment": "Dotazione base dello scout: pantaloni, stivali e gambale in rigida.",
   "location": "LeftLeg",

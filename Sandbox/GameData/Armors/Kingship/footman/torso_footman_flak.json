@@ -1,5 +1,6 @@
 {
   "id": "torso_footman_flak",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10, "blast": 5},
   "displayName": "Corazza Antischegge del Presidio",
   "comment": "Dotazione base del Fante del Regno: giubba e corazza antischegge completa (petto, schiena, spalle e ventre).",
   "location": "Torso",

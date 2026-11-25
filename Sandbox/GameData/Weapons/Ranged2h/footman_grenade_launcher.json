@@ -1,5 +1,7 @@
 {
   "id": "footman_grenade_launcher",
+  "damage_types": {"blast": 80, "pierce": 20},
+  "damage_pure": true,
   "displayName": "Lanciagranate del Presidio",
   "comment": "Sbloccabile del Fante del Regno: lanciagranate. Ogni colpo e' una granata a impatto che vola in parabola (alza la mira per tirare lontano): 95 danni su 3,5 m. 3 granate nel tamburo e 12 di riserva.",
   "faction": "Kingship",

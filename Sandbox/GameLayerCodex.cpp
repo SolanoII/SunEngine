@@ -13,6 +13,7 @@
 // Tools/Codex/build.py le ritaglia e le mette in GameData/Codex/img.
 #include "GameLayer.h"
 #include "UiTheme.h"
+#include "DamageUi.h"
 #include "Engine/Renderer/Core/Texture.h"
 #include "Engine/Core/Logger/Log.h"
 #include <nlohmann/json.hpp>
@@ -303,7 +304,8 @@ namespace SunEngine {
         const std::set<std::string> kSkip = { "id", "displayName", "comment", "faction", "allowed_units", "unit_restriction", "is_melee",
             "moveset", "primary_color", "core_color", "weapon_scale", "hold_offset", "barrel_offset", "skin_parts", "skin_blocks", "garments",
             "default_loadout", "base_skin", "skeleton", "loadout_version", "point_cost", "weight_kg", "slot_type", "hand_type", "_folder",
-            "projectile_length", "projectile_width", "repair_tags", "weightCapacity" };
+            "projectile_length", "projectile_width", "repair_tags", "weightCapacity",
+            "damage_types", "damage_pure", "damage_fx", "resistances", "resist_pure" };
     }
 
     void GameLayer::RenderCodexUI() {
@@ -400,8 +402,30 @@ namespace SunEngine {
             }
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextColored(Ui::Col::Ash, "Nuovi = comuni. Si potenziano nel MAGAZZINO, si trovano come bottino nella PVE-STORY e, piu' avanti, si prendono agli avversari. "
-                                             "Si consumano con l'uso (colpi sparati e in mischia, danni presi dalle armature) e morendo con l'oggetto addosso (5v5, sopravvivenza); a zero si rompono. %d tratti possibili.", static_cast<int>(ItemTraits().size()));
+                                             "Si consumano con l'uso (colpi sparati e in mischia, danni presi dalle armature) e morendo con l'oggetto addosso (5v5, sopravvivenza); a zero si rompono. %d tratti possibili.", [] {
+                                                 std::set<std::string> u; for (const auto& t : ItemTraits()) u.insert(t.code); return static_cast<int>(u.size()); }());
             ImGui::PopTextWrapPos();
+            // tipi di danno (DamageTypes.h)
+            ImGui::Spacing(); Ui::Heading("TIPI DI DANNO");
+            ImGui::PushTextWrapPos(0.0f);
+            ImGui::TextColored(Ui::Col::Ash, "Ogni arma divide il danno fra uno o piu' tipi; ogni armatura ha una difesa per tipo, che riduce quella parte "
+                                             "del colpo (se il pezzo copre e regge). I tratti delle armi possono aggiungere un tipo (+20%% del danno) o "
+                                             "rinforzarne uno (+15%%); quelli delle armature aggiungere una difesa (+15%%) o rinforzarla (+10%%). "
+                                             "Le armi e le armature \"pure\" possono solo rinforzare quello che hanno. I tipi non fisici si vedono sul modello dell'arma.");
+            ImGui::PopTextWrapPos();
+            if (ImGui::BeginTable("##dmgtypes", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
+                ImGui::TableSetupColumn("Tipo"); ImGui::TableSetupColumn("Gruppo"); ImGui::TableSetupColumn("Chi lo fa"); ImGui::TableSetupColumn("Sull'arma");
+                ImGui::TableHeadersRow();
+                for (int t = 0; t < kDamageTypeCount; ++t) {
+                    const DamageTypeInfo& d = DamageInfo(t);
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0); ImGui::TextColored(DamageUi::Col(t), "%s", d.name);
+                    ImGui::TableSetColumnIndex(1); ImGui::TextColored(Ui::Col::Ash, "%s", d.group);
+                    ImGui::TableSetColumnIndex(2); ImGui::TextWrapped("%s", d.desc);
+                    ImGui::TableSetColumnIndex(3); ImGui::TextColored(Ui::Col::Ash, "%s", d.fx[0] ? d.fx : "-");
+                }
+                ImGui::EndTable();
+            }
             ImGui::EndChild();
             ImGui::End();
             return;
@@ -553,6 +577,21 @@ namespace SunEngine {
             }
             else if (e.kind == "unit") Row("Ricerca", "non si ricerca (nemico o personaggio delle storie)", Ui::Col::Rust);
             ImGui::EndTable();
+        }
+        // tipi di danno / difese (dal blueprint: anche quelli dedotti)
+        if (e.kind == "weapon") {
+            if (const auto* w = bpm.GetWeapon(e.id); w && (w->base_damage > 0.0f || w->explosion_damage > 0.0f)) {
+                ImGui::Spacing(); Ui::Heading("TIPO DI DANNO");
+                DamageUi::SplitBar(w->damage, std::min(360.0f, ImGui::GetContentRegionAvail().x), w->damage_pure ? "(puro)" : nullptr);
+                ImGui::TextColored(Ui::Col::Ash, w->damage_pure ? "Arma pura: i tratti possono solo rinforzare il suo tipo." : "I tratti possono aggiungere altri tipi o rinforzare questi.");
+            }
+        }
+        else if (e.kind == "armor") {
+            if (const auto* a = bpm.GetArmorPiece(e.id)) {
+                ImGui::Spacing(); Ui::Heading("DIFESE");
+                DamageUi::ResistRows(a->resist, 140.0f);
+                if (a->resist_pure) ImGui::TextColored(Ui::Col::Ash, "Difese pure: i tratti possono solo rinforzare quelle che ci sono.");
+            }
         }
         // gruppi di statistiche
         const std::string gk = e.kind;

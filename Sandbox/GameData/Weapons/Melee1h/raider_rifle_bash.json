@@ -1,5 +1,6 @@
 {
   "id": "raider_rifle_bash",
+  "damage_types": {"blunt": 100},
   "displayName": "Colpo di Fucile a Fascio",
   "comment": "Mischia di riserva del Razziatore (che non puo' equipaggiare armi da mischia): colpi dati col fucile pesante. Non si equipaggia (allowed_units non contiene nessuna unita').",
   "faction": "Vrepighs",

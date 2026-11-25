@@ -1,5 +1,6 @@
 {
   "id": "tusker_crude_pistol",
+  "damage_types": {"pierce": 80, "slash": 20},
   "displayName": "Pistola Rozza",
   "comment": "Dotazione base del Vrepigh Vrepigh: pistola a proiettili da 7 colpi, 21 di riserva.",
   "allowed_units": [

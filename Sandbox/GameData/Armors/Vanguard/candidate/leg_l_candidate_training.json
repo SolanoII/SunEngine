@@ -1,5 +1,6 @@
 {
   "id": "leg_l_candidate_training",
+  "resistances": {"pierce": 4, "slash": 4, "blunt": 4},
   "displayName": "Pantaloni d'Addestramento (sx)",
   "comment": "Dotazione base dell'Candidato: pantaloni d'addestramento rinforzati, stivali e ginocchiera leggera.",
   "location": "LeftLeg",

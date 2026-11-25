@@ -68,6 +68,17 @@ def main():
     lv = [{'name': n, 'color': [float(r), float(g), float(b)], 'stat': float(m), 'traits': int(t)}
           for n, r, g, b, m, t in re.findall(r'\{ "([^"]+)",\s*ImVec4\(([\d.]+)f, ([\d.]+)f, ([\d.]+)f, 1\.0f\), ([\d.]+)f, (\d) \}', h)]
     tr = [{'code': c, 'name': n, 'effect': e, 'kind': k} for c, n, e, k in re.findall(r'\{ "(\w+)",\s*"([^"]+)",\s*"([^"]+)",\s*ItemKind::(\w+) \}', h)]
+    # tipi di danno: copiati da Engine/AssetManager/DamageTypes.h
+    dh = open(os.path.join(ROOT, 'Engine', 'AssetManager', 'DamageTypes.h'), encoding='utf-8').read()
+    dt = [{'code': c, 'name': n, 'group': g, 'color': [float(r), float(gg), float(b)], 'split': s1, 'boost': s2, 'armor_new': s3, 'armor_boost': s4, 'desc': de, 'fx': fx}
+          for c, n, g, r, gg, b, s1, s2, s3, s4, de, fx in re.findall(
+              r'\{ "(\w+)",\s*"([^"]+)",\s*"([^"]+)",\s*glm::vec3\(([\d.]+)f, ([\d.]+)f, ([\d.]+)f\),\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]*)" \}', dh)]
+    if len(dt) == 15:
+        labels['damage'] = {'types': dt, 'rules': [
+            "Ogni arma divide il suo danno fra uno o piu' tipi. Ogni armatura ha una difesa per tipo: riduce quella parte del colpo, se il pezzo colpito copre e regge. La difesa generica (armatura contro perforazione) vale per tutti i tipi.",
+            "Tratti delle armi: aggiungere un tipo (+20% del danno come quel tipo, al massimo due) o rinforzarne uno che c'e' (+15% della sua parte). Tratti delle armature: aggiungere una difesa (+15%, al massimo due) o rinforzarne una (+10%).",
+            "Armi e armature \"pure\" (lanciafiamme, lanciarazzi, granate, armi elementali e arcane; l'armatura consacrata dell'Ordo) possono solo rinforzare quello che hanno.",
+            "I tipi non fisici si vedono sul modello dell'arma: alla bocca della canna, lungo la lama o nel nucleo (es. una pistola benedetta manda luce dorata dalla canna)."]}
     if len(lv) == 5 and tr:
         labels.setdefault('rarity', {})
         labels['rarity'].update({'levels': lv, 'traits': tr})
@@ -130,6 +141,9 @@ def main():
         if n:
             e['_combo'] = len(n); e['_maxmul'] = max(x.get('damage_multiplier', 1) for x in n.values())
         e.pop('moveset', None)
+        if isinstance(j.get('damage_types'), dict):
+            tot = sum(v for v in j['damage_types'].values() if isinstance(v, (int, float)) and v > 0) or 1
+            e['_dmg'] = {k: v / tot for k, v in j['damage_types'].items() if isinstance(v, (int, float)) and v > 0}
         e.update(_kind='weapon', _cat=CAT.get(folder, 'ranged'), _folder=folder, _who=who, _model=os.path.exists(glb), _research=research(by_item.get(wid)))
         entries.append(e)
     for f in sorted(glob.glob(os.path.join(GD, 'Armors', '**', '*.json'), recursive=True)):

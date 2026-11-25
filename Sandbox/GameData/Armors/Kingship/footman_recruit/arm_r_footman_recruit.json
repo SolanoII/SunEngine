@@ -1,5 +1,6 @@
 {
   "id": "arm_r_footman_recruit",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10},
   "displayName": "Spallaccio Antischegge da Fante (dx)",
   "location": "RightArm",
   "armor_rating": 7,

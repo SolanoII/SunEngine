@@ -122,6 +122,7 @@ namespace SunEngine {
         float weight = 0.0f;
         int pointCost = 0;
         bool blocksHeadshotBonus = false;   // elmetto: finche' regge, niente moltiplicatore del colpo in testa
+        DamageResist resist{};              // difese per tipo di danno (DamageTypes.h)
     };
 
     struct ArmorSet {

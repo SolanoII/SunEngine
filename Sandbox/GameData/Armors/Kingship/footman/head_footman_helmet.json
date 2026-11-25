@@ -1,5 +1,6 @@
 {
   "id": "head_footman_helmet",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10, "blast": 5},
   "displayName": "Elmetto del Presidio",
   "comment": "Dotazione base del Fante del Regno: elmetto antischegge del Presidio con paranuca. Finche' regge annulla il bonus del colpo in testa.",
   "location": "Head",

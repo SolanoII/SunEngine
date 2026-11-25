@@ -1,5 +1,6 @@
 {
   "id": "plasma_rifle_standard",
+  "damage_types": {"energy": 60, "fire": 40},
   "displayName": "Fucile al Plasma Modello Terza Serra",
   "faction": "Kingship",
   "slot_type": "primary",

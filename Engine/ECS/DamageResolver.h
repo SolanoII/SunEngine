@@ -15,7 +15,10 @@ namespace SunEngine {
 
     class DamageResolver {
     public:
-        inline static void ResolveHit(float rawDamage, int weaponAP, HitboxLocation location, UnitStatsComponent& stats, HealthComponent& health) {
+        // split = tipi di danno del colpo (DamageTypes.h): la parte di ogni tipo e' ridotta dalla difesa del pezzo di
+        // armatura colpito per quel tipo (se il pezzo copre e regge). nullptr = colpo senza tipo (nessuna difesa).
+        inline static void ResolveHit(float rawDamage, int weaponAP, HitboxLocation location, UnitStatsComponent& stats, HealthComponent& health,
+                                      const DamageSplit* split = nullptr) {
             ArmorPiece* armor = stats.armorSet.GetPiece(location);
             float finalHpDamage = rawDamage;
 
@@ -26,6 +29,7 @@ namespace SunEngine {
                     int effectiveArmor = std::max(0, armor->armorRating - weaponAP);
                     float mitigation = 100.0f / (100.0f + static_cast<float>(effectiveArmor));
                     finalHpDamage = rawDamage * mitigation;
+                    if (split) finalHpDamage *= split->Through(armor->resist);
 
                     armor->currentDurability -= rawDamage * 0.2f;
                     if (armor->currentDurability < 0.0f) {
@@ -267,7 +271,7 @@ namespace SunEngine {
                 EmitVfxText(fxPos + glm::vec3(0.0f, 0.7f, 0.0f), "PUNITO!", glm::vec4(1.0f, 0.6f, 0.2f, 1.0f));
             }
 
-            ResolveHit(rawDamage, ap, location, defenderStats, defenderHealth);
+            ResolveHit(rawDamage, ap, location, defenderStats, defenderHealth, weaponBP ? &weaponBP->damage : nullptr);
             attackerMelee.hasHitInThisAttack = true;
             // Fermo sul colpo: un istante di pausa per entrambi (piu' lungo per i pesanti), si sente l'impatto
             const float stop = attackerMelee.currentAttack == MeleeAttackType::Heavy ? 0.12f : 0.06f;

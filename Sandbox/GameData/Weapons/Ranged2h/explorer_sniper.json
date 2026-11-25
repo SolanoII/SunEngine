@@ -1,5 +1,6 @@
 {
   "id": "explorer_sniper",
+  "damage_types": {"pierce": 100},
   "displayName": "Fucile di Precisione dell'Iniziato",
   "faction": "Vanguard",
   "slot_type": "primary",

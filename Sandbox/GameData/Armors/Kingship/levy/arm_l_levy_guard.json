@@ -1,5 +1,6 @@
 {
   "id": "arm_l_levy_guard",
+  "resistances": {"pierce": 8, "slash": 12, "blunt": 8},
   "displayName": "Spallaccio da Recluta (sx)",
   "comment": "Sbloccabile del Recluta di Leva: spallaccio e parabraccio antischegge.",
   "location": "LeftArm",

@@ -269,7 +269,7 @@ namespace SunEngine {
                     auto& th = reg.get<HealthComponent>(sq.target);
                     const HitboxLocation loc = Random::Chance(0.5f) ? HitboxLocation::LeftLeg : HitboxLocation::RightLeg;
                     const float before = th.currentHealth;
-                    DamageResolver::ResolveHit(bp->base_damage, bp->armor_penetration, loc, ts, th);
+                    DamageResolver::ResolveHit(bp->base_damage, bp->armor_penetration, loc, ts, th, &bp->damage);
                     // Feedback ed esperienza al padrone (i danni dello grugn contano come suoi)
                     EmitHitFeedback(scene, sq.owner, sq.target, reg.get<TransformComponent>(sq.target).Position + glm::vec3(0.0f, 0.4f, 0.0f), loc, before);
                     if (reg.all_of<PlayerTag>(sq.owner)) SUN_CORE_INFO("Morso di grugn! Salute bersaglio: {0}", th.currentHealth);
@@ -328,7 +328,7 @@ namespace SunEngine {
             const auto sq = reg.get<GrugnComponent>(grugn);
             const glm::vec3 center = reg.get<TransformComponent>(grugn).Position;
             const int hit = Explosives::Explode(scene, center, bp.explosion_radius, bp.explosion_damage, bp.armor_penetration,
-                                                sq.owner, Explosives::TeamOf(reg, sq.owner), bp.structure_damage_multiplier);
+                                                sq.owner, Explosives::TeamOf(reg, sq.owner), bp.structure_damage_multiplier, true, &bp.damage);
             if (auto* ammo = reg.try_get<AmmoComponent>(sq.owner)) {
                 ammo->equipmentUses[sq.ownerSlot - 4] = 0;   // uno solo per partita
                 ammo->feedback = "Grugn esplosivo: BOOM! (" + std::to_string(hit) + " colpiti)";

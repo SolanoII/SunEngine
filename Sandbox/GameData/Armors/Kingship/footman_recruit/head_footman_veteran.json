@@ -1,5 +1,6 @@
 {
   "id": "head_footman_veteran",
+  "resistances": {"pierce": 14, "slash": 18, "blunt": 14, "blast": 5},
   "displayName": "Elmo Antischegge da Veterano",
   "location": "Head",
   "armor_rating": 16,

@@ -8,6 +8,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "../Renderer/GarmentShell.h"
+#include "DamageTypes.h"
 #include <glm/glm.hpp>
 
 namespace SunEngine {
@@ -253,6 +254,15 @@ namespace SunEngine {
             return false;
         }
 
+        // Tipi di danno (DamageTypes.h): "damage_types" {"pierce": 60, "blast": 40}; se manca si deduce dal tipo di arma.
+        // "damage_pure": un tipo solo, i tratti possono solo rinforzarlo. "damage_fx": dove si vede il tipo sul modello
+        // ([{"type": "holy", "at": "muzzle"}]); se manca, ogni tipo non fisico si vede alla bocca (o lungo la lama).
+        DamageSplit damage = DamageSplit::Pure(DamageType::Pierce);
+        bool damage_pure = false;
+        bool damage_types_set = false;      // scritti nel JSON (non dedotti)
+        std::vector<DamageFxDef> damage_fx;
+        bool damage_fx_set = false;
+
         glm::vec3 weapon_scale = glm::vec3(0.2f, 0.2f, 0.8f);
         glm::vec3 hold_offset = glm::vec3(0.6f, 0.0f, -0.2f);
         glm::vec3 barrel_offset = glm::vec3(0.0f, 0.0f, -0.4f);
@@ -361,6 +371,10 @@ namespace SunEngine {
         // Morale (MoraleSystem.h), punti flat finche' e' indossata: tetto in piu' e valore di partenza in piu'
         float morale_cap_bonus = 0.0f;
         float morale_start_bonus = 0.0f;
+        // Difese per tipo di danno ("resistances" {"pierce": 10, ...} in percentuale, DamageTypes.h). "resist_pure": i
+        // tratti possono solo rinforzare le difese che ci sono, non aggiungerne di nuove.
+        DamageResist resist{};
+        bool resist_pure = false;
     };
 
     class BlueprintManager {

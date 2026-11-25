@@ -1,5 +1,6 @@
 {
   "id": "cadet_high_power_pistol",
+  "damage_types": {"energy": 100},
   "displayName": "Pistola a Impulsi ad Alta Potenza",
   "faction": "Kingship",
   "slot_type": "secondary",

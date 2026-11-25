@@ -1,5 +1,6 @@
 {
   "id": "vrepigh_cleaver_1h",
+  "damage_types": {"slash": 80, "blunt": 20},
   "comment": "Mannaia originale: non si equipaggia piu' dal garage (i Vrepighs usano le loro choppe: tusker_mannaia, Vrepigh Sparammazza_mannaia, Giovane Vrepigh_mannaia). Resta per l'orda della sopravvivenza e come arma di riserva.",
   "allowed_units": [
     "__nessuno__"

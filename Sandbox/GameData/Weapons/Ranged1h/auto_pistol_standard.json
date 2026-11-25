@@ -1,5 +1,6 @@
 {
   "id": "auto_pistol_standard",
+  "damage_types": {"pierce": 100},
   "displayName": "Pistola Automatica Modello Vespera",
   "faction": "Kingship",
   "slot_type": "secondary",

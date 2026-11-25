@@ -18,6 +18,34 @@ namespace SunEngine {
     }
 
     // Skin sul campo: "skin_blocks" {"Blocco": [r,g,b]} e "skin_parts" [{block, offset, bone, bone_offset, size, color, ...}]
+    // Tipo di danno di un'arma senza "damage_types" nel JSON: dedotto da cos'e'
+    static DamageSplit DefaultDamageSplit(const WeaponBlueprint& bp) {
+        auto has = [&](const char* w) { return bp.id.find(w) != std::string::npos; };
+        using T = DamageType;
+        if (bp.is_melee) {
+            if (has("pike") || has("spear") || has("lance") || has("lancia")) return DamageSplit::Pure(T::Pierce);
+            if (has("knife") || has("dagger")) return DamageSplit::Two(T::Pierce, 0.7f, T::Slash);
+            if (has("wrench") || has("hammer") || has("mace") || has("maul") || has("club") || has("bash") || has("fist")) return DamageSplit::Pure(T::Blunt);
+            if (has("shovel")) return DamageSplit::Two(T::Blunt, 0.6f, T::Slash);
+            if (has("cleaver") || has("axe")) return DamageSplit::Two(T::Slash, 0.8f, T::Blunt);
+            return DamageSplit::Pure(T::Slash);
+        }
+        if (bp.is_equipment) {
+            if (bp.explosion_damage > 0.0f || bp.equipment_type == "grenade" || bp.equipment_type == "landmine") return DamageSplit::Two(T::Explosive, 0.7f, T::Pierce);
+            return DamageSplit::Pure(T::Pierce);
+        }
+        switch (bp.projectile_type) {
+        case ProjectileType::Flamer: return DamageSplit::Pure(T::Fire);
+        case ProjectileType::Plasma: return DamageSplit::Two(T::Energy, 0.6f, T::Fire);
+        case ProjectileType::Explosive: return DamageSplit::Pure(T::Explosive);
+        case ProjectileType::Gravity: return DamageSplit::Pure(T::Blunt);
+        case ProjectileType::Psychic: return DamageSplit::Pure(T::Arcane);
+        case ProjectileType::HeavyRound: return DamageSplit::Two(T::Pierce, 0.6f, T::Explosive);
+        case ProjectileType::Laser: case ProjectileType::ContinuousBeam: return DamageSplit::Pure(T::Energy);
+        default: return DamageSplit::Pure(T::Pierce);
+        }
+    }
+
     static void ParseSkin(const nlohmann::json& j, std::vector<std::pair<std::string, glm::vec4>>& blockColors, std::vector<ArmorSkinPart>& parts,
                           std::vector<GarmentDef>* garments) {
         if (garments) ParseGarments(j, *garments);   // strati sul modello animato
@@ -94,6 +122,8 @@ namespace SunEngine {
                 bp.aim_bonus = j.value("aim_bonus", 0.0f);
                 bp.morale_cap_bonus = j.value("morale_cap_bonus", 0.0f);
                 bp.morale_start_bonus = j.value("morale_start_bonus", 0.0f);
+                if (j.contains("resistances")) ParseResist(j["resistances"], bp.resist);
+                bp.resist_pure = j.value("resist_pure", false);
 
                 ParseSkin(j, bp.skinBlockColors, bp.skinParts, &bp.garments);
 
@@ -340,6 +370,24 @@ namespace SunEngine {
 
                             bp.moveset.nodes[nodeKey] = node;
                         }
+                    }
+                }
+
+                // Tipi di danno: dal JSON, o dedotti dal tipo di arma
+                if (j.contains("damage_types") && ParseDamageSplit(j["damage_types"], bp.damage)) bp.damage_types_set = true;
+                else bp.damage = DefaultDamageSplit(bp);
+                bp.damage_pure = j.value("damage_pure", false);
+                if (j.contains("damage_fx") && j["damage_fx"].is_array()) {
+                    bp.damage_fx_set = true;
+                    for (const auto& f : j["damage_fx"]) {
+                        if (!f.is_object()) continue;
+                        DamageFxDef d;
+                        d.type = DamageTypeFromCode(f.value("type", std::string()));
+                        if (d.type < 0) continue;
+                        const std::string at = f.value("at", std::string(bp.is_melee ? "blade" : "muzzle"));
+                        d.at = at == "blade" ? DamageFxAt::Blade : (at == "core" ? DamageFxAt::Core : DamageFxAt::Muzzle);
+                        d.intensity = f.value("intensity", 1.0f);
+                        bp.damage_fx.push_back(d);
                     }
                 }
 

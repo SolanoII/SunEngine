@@ -1,5 +1,6 @@
 {
   "id": "candidate_shotgun",
+  "damage_types": {"pierce": 70, "blunt": 30},
   "displayName": "Fucile a Pompa",
   "faction": "Vanguard",
   "slot_type": "primary",

@@ -1,5 +1,6 @@
 {
   "id": "head_feral_pig_scrap",
+  "resistances": {"pierce": 4, "slash": 6, "blunt": 4},
   "displayName": "Museruola di Rottami",
   "comment": "Lamiera ribattuta sul cranio del Feral Pig, senza corna. Finche' regge annulla il bonus del colpo in testa. Si ricerca sotto il Feral Pig e si compra per unita'.",
   "location": "Head",

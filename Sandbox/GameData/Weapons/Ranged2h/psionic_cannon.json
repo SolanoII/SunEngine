@@ -1,5 +1,7 @@
 {
   "id": "psionic_cannon",
+  "damage_types": {"arcane": 100},
+  "damage_pure": true,
   "displayName": "Cannone Psionico",
   "faction": "Grey_Knights",
   "slot_type": "primary",

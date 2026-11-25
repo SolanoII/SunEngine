@@ -1,5 +1,6 @@
 {
   "id": "torso_footman_recruit",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10},
   "displayName": "Pettorina Antischegge del Presidio",
   "location": "Torso",
   "armor_rating": 15,

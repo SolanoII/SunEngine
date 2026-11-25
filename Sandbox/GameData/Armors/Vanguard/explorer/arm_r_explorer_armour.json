@@ -1,5 +1,6 @@
 {
   "id": "arm_r_explorer_armour",
+  "resistances": {"pierce": 6, "slash": 6, "blunt": 6, "energy": 5},
   "displayName": "Spallaccio dell'Iniziato (dx)",
   "comment": "Dotazione base dello scout: spallaccio e parabraccio in rigida.",
   "location": "RightArm",

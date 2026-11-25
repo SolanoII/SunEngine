@@ -1,5 +1,6 @@
 {
   "id": "head_levy_helmet",
+  "resistances": {"pierce": 8, "slash": 12, "blunt": 8},
   "displayName": "Elmetto da Recluta",
   "comment": "Dotazione base del Recluta di Leva: elmetto antischegge con la fascia bianca dei cadetti. Finche' regge annulla il bonus del colpo in testa.",
   "location": "Head",

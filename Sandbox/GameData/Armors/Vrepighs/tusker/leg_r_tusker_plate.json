@@ -1,5 +1,6 @@
 {
   "id": "leg_r_tusker_plate",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Gambale da Vrepigh (dx)",
   "comment": "Sbloccabile del Vrepigh Vrepigh: cosciale e ginocchiera di piastra.",
   "location": "RightLeg",

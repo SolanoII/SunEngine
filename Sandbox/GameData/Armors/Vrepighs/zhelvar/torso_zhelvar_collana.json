@@ -1,5 +1,7 @@
 {
   "id": "torso_zhelvar_collana",
+  "resistances": {"pierce": 5, "slash": 5, "blunt": 10},
+  "resist_pure": true,
   "displayName": "Collana di Tash",
   "comment": "Solo il vecchio zhelvar: i tash che non puo' piu' mangiare, infilati in un cordone di tendine e portati al collo (\"Da quando non posso piu' portarle dentro\"), e le skar, le placche ossee cresciute in decenni di pietra, sulle spalle e sulla gobba. Pezzi costruiti sul corpo (Engine/Renderer/TeutonicArmor.h, zhelvar_*).",
   "allowed_units": [

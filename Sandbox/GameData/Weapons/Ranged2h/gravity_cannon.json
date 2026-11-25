@@ -1,5 +1,7 @@
 {
   "id": "gravity_cannon",
+  "damage_types": {"blunt": 100},
+  "damage_pure": true,
   "displayName": "Cannone Gravitazionale",
   "faction": "Vanguard",
   "slot_type": "primary",

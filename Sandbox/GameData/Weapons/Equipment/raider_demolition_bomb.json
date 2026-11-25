@@ -1,5 +1,7 @@
 {
   "id": "raider_demolition_bomb",
+  "damage_types": {"blast": 100},
+  "damage_pure": true,
   "displayName": "Bomba Anti-Struttura",
   "comment": "Dotazione base del Razziatore: granata pesante fatta per strutture e mezzi. Contro la fanteria fa poco (60 danni, 3 metri), ma a barricate, muri, veicoli e torrette fa x8 (un pezzo di muro salta anche a un metro). Scoppia dopo 2.5 secondi. 1 per partita.",
   "faction": "Vrepighs",

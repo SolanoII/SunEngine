@@ -1,5 +1,6 @@
 {
   "id": "arm_l_tusker_plate",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Spallaccio da Vrepigh (sx)",
   "comment": "Sbloccabile del Vrepigh Vrepigh: spallaccio e bracciale di piastra.",
   "location": "LeftArm",

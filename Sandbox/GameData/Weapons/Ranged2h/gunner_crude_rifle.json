@@ -1,5 +1,6 @@
 {
   "id": "gunner_crude_rifle",
+  "damage_types": {"pierce": 80, "slash": 20},
   "displayName": "Fucile Rozzo",
   "comment": "Dotazione base del Vrepigh Sparammazza: fucile automatico a due mani da 24 colpi, 144 di riserva (6 caricatori).",
   "faction": "Vrepighs",

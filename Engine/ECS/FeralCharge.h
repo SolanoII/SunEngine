@@ -93,7 +93,7 @@ namespace SunEngine {
                 auto& defT = reg.get<TransformComponent>(best);
                 const float before = defHealth.currentHealth;
                 const float raw = stats.chargeDamage * (0.6f + 0.4f * m.value) * (0.7f + stats.strength * stats.moraleCombatMult / 100.0f);
-                DamageResolver::ResolveHit(raw, 2, HitboxLocation::Torso, defStats, defHealth);
+                { static const DamageSplit tusks = DamageSplit::Two(DamageType::Pierce, 0.5f, DamageType::Blunt); DamageResolver::ResolveHit(raw, 2, HitboxLocation::Torso, defStats, defHealth, &tusks); }   // zanne e peso
                 const glm::vec3 push(fwd.x, 0.0f, fwd.y);
                 // Il colpito barcolla e arretra (gli attacchi pesanti in corso si interrompono)
                 if (auto* dm = reg.try_get<MeleeStateComponent>(best)) {

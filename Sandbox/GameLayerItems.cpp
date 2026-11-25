@@ -6,6 +6,7 @@
 // La dotazione base resta sempre disponibile, comune e senza usura.
 #include "GameLayer.h"
 #include "UiTheme.h"
+#include "DamageUi.h"
 #include "Engine/Core/Logger/Log.h"
 #include <imgui.h>
 #include <algorithm>
@@ -397,9 +398,24 @@ namespace SunEngine {
             }
             ImGui::EndTable();
         }
+        // tipi di danno / difese (DamageTypes.h)
+        if (const auto* b = bpm.GetWeapon(sel->itemId); b && (b->base_damage > 0.0f || b->explosion_damage > 0.0f)) {
+            const auto* v = bpm.GetWeapon(ref);
+            ImGui::Spacing(); Ui::Heading("TIPO DI DANNO");
+            DamageUi::SplitBar(v->damage, 360.0f, v->damage_pure ? "(puro: i tratti lo possono solo rinforzare)" : nullptr);
+            if (v->damage.Text() != b->damage.Text()) ImGui::TextColored(Ui::Col::Ash, "Base: %s", b->damage.Text().c_str());
+        }
+        else if (const auto* b2 = bpm.GetArmorPiece(sel->itemId)) {
+            const auto* v = bpm.GetArmorPiece(ref);
+            ImGui::Spacing(); Ui::Heading("DIFESE");
+            DamageUi::ResistRows(v->resist, 160.0f, &b2->resist);
+            if (b2->resist_pure) ImGui::TextColored(Ui::Col::Ash, "Difese pure: i tratti possono solo rinforzare quelle che ci sono.");
+        }
         if (!sel->traits.empty()) {
             ImGui::Spacing(); Ui::Heading("TRATTI");
-            for (const auto& t : sel->traits) if (const ItemTrait* tr = FindTrait(t)) { ImGui::TextColored(ri.color, "%s", tr->name); ImGui::SameLine(200.0f); ImGui::Text("%s", tr->effect); }
+            for (const auto& t : sel->traits) if (const ItemTrait* tr = FindTrait(t)) {
+                ImGui::TextColored(tr->dmgType >= 0 ? DamageUi::Col(tr->dmgType) : ri.color, "%s", tr->name); ImGui::SameLine(200.0f); ImGui::Text("%s", tr->effect);
+            }
         }
 
         // chi puo' usarlo

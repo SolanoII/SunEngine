@@ -1,5 +1,6 @@
 {
   "id": "head_explorer_visor",
+  "resistances": {"pierce": 6, "slash": 6, "blunt": 6, "energy": 5},
   "displayName": "Elmetto con Visiera",
   "comment": "Sbloccabile dello scout: elmetto con visiera di puntamento. Finche' regge annulla il bonus del colpo in testa e riduce la dispersione dei colpi del 10%.",
   "location": "Head",

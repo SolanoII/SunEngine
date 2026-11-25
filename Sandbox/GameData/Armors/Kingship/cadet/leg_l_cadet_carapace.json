@@ -1,5 +1,6 @@
 {
   "id": "leg_l_cadet_carapace",
+  "resistances": {"pierce": 15, "slash": 20, "blunt": 15, "blast": 10, "energy": 5},
   "displayName": "Gambale Rigido (sx)",
   "comment": "Sbloccabile del Collegio: armatura in rigida, molto piu' resistente della antischegge del Fante del Regno.",
   "location": "LeftLeg",

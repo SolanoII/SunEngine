@@ -1,5 +1,6 @@
 {
   "id": "leg_r_footman_veteran",
+  "resistances": {"pierce": 14, "slash": 18, "blunt": 14, "blast": 5},
   "displayName": "Schiniera Rinforzata da Veterano (dx)",
   "location": "RightLeg",
   "armor_rating": 11,

@@ -1,5 +1,6 @@
 {
   "id": "head_footman_recruit",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10},
   "displayName": "Elmo Antischegge del Presidio",
   "location": "Head",
   "armor_rating": 12,

@@ -1,5 +1,6 @@
 {
   "id": "torso_defender",
+  "resistances": {"pierce": 12, "slash": 12, "blunt": 12, "energy": 10, "fire": 5},
   "displayName": "Corazza della Vanguard Armor",
   "comment": "Dotazione base del Vanguard Armor: Vestment generica, grigio non dipinto. Piastra del petto col nucleo di Vanguardio viola, schiena, cintura. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
   "location": "Torso",

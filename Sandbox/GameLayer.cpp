@@ -930,6 +930,7 @@ namespace SunEngine {
                     piece.weight = bp->weight;
                     piece.pointCost = bp->pointCost;
                     piece.blocksHeadshotBonus = bp->blocks_headshot_bonus;
+                    piece.resist = bp->resist;
                 }
                 else {
                     piece = {};
@@ -5451,7 +5452,8 @@ namespace SunEngine {
             m_GrugnSystem.Clear(m_Scene);
             m_ExplosiveSystem.Clear(m_Scene);
             const bool showcase = m_GameState == GameState::MainMenu && m_CurrentTab == MenuTab::Showcase;
-            if (!showcase) m_ParticleSystem.Clear();   // la vetrina usa gli effetti (lampi, scie dei fendenti)
+            // la vetrina usa gli effetti (lampi, scie dei fendenti); nel garage restano quelli dei tipi di danno sulle armi
+            if (!showcase) { if (m_GameState == GameState::MainMenu) m_ParticleSystem.UpdateIdle(m_Scene, deltaTime); else m_ParticleSystem.Clear(); }
             m_TurretSystem.Clear(m_Scene);
             ClearSummons();
             if (!m_UnitAnims.empty()) ClearUnitAnimations();
@@ -7141,9 +7143,13 @@ namespace SunEngine {
             if (auto* c = reg.try_get<BlockModelComponent>(weaponEntity)) c->model = model;
             else reg.emplace<BlockModelComponent>(weaponEntity, BlockModelComponent{ model });
             reg.get<TransformComponent>(weaponEntity).Scale = glm::vec3(1.0f);   // il modello e' gia' in metri
+            // effetti del tipo di danno sul modello (ParticleSystem): l'id completo, cosi' valgono anche i tratti
+            auto& fx = reg.get_or_emplace<WeaponFxComponent>(weaponEntity);
+            if (fx.weaponId != weaponId) { fx.weaponId = weaponId; fx.emitAcc = {}; }
         }
-        else if (reg.all_of<BlockModelComponent>(weaponEntity)) {
-            reg.remove<BlockModelComponent>(weaponEntity);
+        else {
+            if (reg.all_of<BlockModelComponent>(weaponEntity)) reg.remove<BlockModelComponent>(weaponEntity);
+            if (reg.all_of<WeaponFxComponent>(weaponEntity)) reg.remove<WeaponFxComponent>(weaponEntity);
         }
     }
 
@@ -8067,22 +8073,22 @@ namespace SunEngine {
             const auto* primBP = BlueprintManager::Get().GetWeapon(activeUnit.primaryWeaponId);
             ImGui::Text("Primaria: %s", primBP ? ItemLabel(activeUnit.primaryWeaponId, primBP->displayName).c_str() : "[Vuoto]");
             if (primBP && ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)",
-                    primBP->displayName.c_str(), primBP->base_damage, primBP->armor_penetration, primBP->magazine_size);
+                ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)\nTipo di danno: %s",
+                    primBP->displayName.c_str(), primBP->base_damage, primBP->armor_penetration, primBP->magazine_size, primBP->damage.Text().c_str());
             }
 
             const auto* secBP = BlueprintManager::Get().GetWeapon(activeUnit.secondaryWeaponId);
             ImGui::Text("Secondaria: %s", secBP ? secBP->displayName.c_str() : "[Vuoto]");
             if (secBP && ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)",
-                    secBP->displayName.c_str(), secBP->base_damage, secBP->armor_penetration, secBP->magazine_size);
+                ImGui::SetTooltip("%s (Danno: %.0f | AP: %d | Caricatore: %d)\nTipo di danno: %s",
+                    secBP->displayName.c_str(), secBP->base_damage, secBP->armor_penetration, secBP->magazine_size, secBP->damage.Text().c_str());
             }
 
             const auto* meleeBP = BlueprintManager::Get().GetWeapon(activeUnit.meleeWeaponId);
             ImGui::Text("Corpo a Corpo: %s", meleeBP ? meleeBP->displayName.c_str() : "[Nessuna / Disarmato]");
             if (meleeBP && ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)",
-                    meleeBP->displayName.c_str(), meleeBP->base_damage, meleeBP->default_melee_type.c_str());
+                ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)\nTipo di danno: %s",
+                    meleeBP->displayName.c_str(), meleeBP->base_damage, meleeBP->default_melee_type.c_str(), meleeBP->damage.Text().c_str());
             }
 
             ImGui::Text("Granate: [Slot Vuoto]");
@@ -8283,8 +8289,8 @@ namespace SunEngine {
                                 if (wBP.slot_type == WeaponSlotType::Primary && BlueprintManager::Get().CanEquip(wBP, activeUnit.blueprintId)) {
                                     if (DrawItemOption(activeUnit, activeUnit.primaryWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
                                     if (ImGui::IsItemHovered()) {
-                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f | Colpi: %d / %d)", wBP.displayName.c_str(), wBP.faction.c_str(),
-                                            wBP.base_damage, wBP.magazine_size, Ammo::StartingReserve(wBP, activeUnit.blueprintId));
+                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f | Colpi: %d / %d)\nTipo di danno: %s", wBP.displayName.c_str(), wBP.faction.c_str(),
+                                            wBP.base_damage, wBP.magazine_size, Ammo::StartingReserve(wBP, activeUnit.blueprintId), wBP.damage.Text().c_str());
                                     }
                                 }
                             }
@@ -8306,8 +8312,8 @@ namespace SunEngine {
                                 if (wBP.slot_type == WeaponSlotType::Secondary && BlueprintManager::Get().CanEquip(wBP, activeUnit.blueprintId)) {
                                     if (DrawItemOption(activeUnit, activeUnit.secondaryWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
                                     if (ImGui::IsItemHovered()) {
-                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f | Colpi: %d / %d)", wBP.displayName.c_str(), wBP.faction.c_str(),
-                                            wBP.base_damage, wBP.magazine_size, Ammo::StartingReserve(wBP, activeUnit.blueprintId));
+                                        ImGui::SetTooltip("%s (Fazione: %s | Danno: %.0f | Colpi: %d / %d)\nTipo di danno: %s", wBP.displayName.c_str(), wBP.faction.c_str(),
+                                            wBP.base_damage, wBP.magazine_size, Ammo::StartingReserve(wBP, activeUnit.blueprintId), wBP.damage.Text().c_str());
                                     }
                                 }
                             }
@@ -8337,7 +8343,7 @@ namespace SunEngine {
                                 if ((wBP.slot_type == WeaponSlotType::Melee || wBP.is_melee) && BlueprintManager::Get().CanEquip(wBP, activeUnit.blueprintId)) {
                                     if (DrawItemOption(activeUnit, activeUnit.meleeWeaponId, wId, wBP)) ApplyUnitVisuals(activeUnit);   // con acquisto degli oggetti ricercati
                                     if (ImGui::IsItemHovered()) {
-                                        ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)", wBP.displayName.c_str(), wBP.base_damage, wBP.default_melee_type.c_str());
+                                        ImGui::SetTooltip("%s (Danno Base: %.0f | Tipo: %s)\nTipo di danno: %s", wBP.displayName.c_str(), wBP.base_damage, wBP.default_melee_type.c_str(), wBP.damage.Text().c_str());
                                     }
                                 }
                             }
@@ -8440,8 +8446,8 @@ namespace SunEngine {
                                 // dotazione base, esemplari del magazzino e "+ Crea" dopo la ricerca (GameLayerItems.cpp)
                                 if (DrawSlotChoices(activeUnit, currentId, aId, aBp.displayName + " | AR " + std::to_string(aBp.armorRating), true)) ApplyUnitVisuals(activeUnit);
                                 if (ImGui::IsItemHovered()) {
-                                    ImGui::SetTooltip("%s\nPotere d'Arresto (AR): %d | Durabilita': %.0f HP | Peso: %.1f kg | Costo: %d Pti",
-                                        aBp.displayName.c_str(), aBp.armorRating, aBp.maxDurability, aBp.weight, aBp.pointCost);
+                                    ImGui::SetTooltip("%s\nPotere d'Arresto (AR): %d | Durabilita': %.0f HP | Peso: %.1f kg | Costo: %d Pti\nDifese: %s",
+                                        aBp.displayName.c_str(), aBp.armorRating, aBp.maxDurability, aBp.weight, aBp.pointCost, ResistText(aBp.resist).c_str());
                                 }
 
                                 if (isSelected) ImGui::SetItemDefaultFocus();
@@ -8459,6 +8465,9 @@ namespace SunEngine {
                             currentBp->armorRating, currentBp->coverage * 100.0f);
                         ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "  Integrita' (HP): %.0f  |  Peso: %.1f kg",
                             currentBp->maxDurability, currentBp->weight);
+                        ImGui::PushTextWrapPos(0.0f);
+                        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "  Difese: %s", ResistText(currentBp->resist).c_str());
+                        ImGui::PopTextWrapPos();
                     }
                     else {
                         ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "  ! ATTENZIONE: Questo arto subira' danni letali completi !");
@@ -9648,6 +9657,7 @@ namespace SunEngine {
                 piece.coverage = abp->coverage; piece.maxDurability = abp->maxDurability;
                 piece.currentDurability = abp->maxDurability; piece.weight = abp->weight; piece.pointCost = abp->pointCost;
                 piece.blocksHeadshotBonus = abp->blocks_headshot_bonus;
+                piece.resist = abp->resist;
             }
             else piece = {};
         };

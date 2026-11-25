@@ -1,5 +1,6 @@
 {
   "id": "zhelvar_cleaver",
+  "damage_types": {"slash": 80, "blunt": 20},
   "displayName": "Mannaia dello Zhelvar",
   "comment": "Solo il vecchio zhelvar: una mannaia pesante, la lama consumata da decenni di cariche. Lenta da sollevare, ma passa le armature.",
   "allowed_units": [

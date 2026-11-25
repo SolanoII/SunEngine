@@ -1,5 +1,7 @@
 {
   "id": "footman_flamer",
+  "damage_types": {"fire": 100},
+  "damage_pure": true,
   "displayName": "Lanciafiamme del Presidio",
   "faction": "Kingship",
   "slot_type": "primary",

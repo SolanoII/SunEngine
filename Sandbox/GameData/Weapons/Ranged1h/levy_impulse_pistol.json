@@ -1,5 +1,6 @@
 {
   "id": "levy_impulse_pistol",
+  "damage_types": {"energy": 100},
   "displayName": "Pistola a Impulsi da Scudo",
   "faction": "Kingship",
   "slot_type": "secondary",

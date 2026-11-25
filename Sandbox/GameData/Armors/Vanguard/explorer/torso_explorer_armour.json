@@ -1,5 +1,6 @@
 {
   "id": "torso_explorer_armour",
+  "resistances": {"pierce": 6, "slash": 6, "blunt": 6, "energy": 5},
   "displayName": "Corazza dell'Iniziato",
   "comment": "Dotazione base dello scout: corazza in rigida leggera su petto, schiena e spalle, sopra la tuta.",
   "location": "Torso",

@@ -1,5 +1,6 @@
 {
   "id": "pighcib_pistol",
+  "damage_types": {"pierce": 100},
   "displayName": "Pistola Pighcib",
   "comment": "Dotazione base del Pighcib: pistola rudimentale da 6 colpi, molto imprecisa. 2 caricatori di scorta = 18 colpi in tutto.",
   "faction": "Vrepighs",

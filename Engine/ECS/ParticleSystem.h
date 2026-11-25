@@ -12,6 +12,7 @@
 #include "Components.h"
 #include "VfxEvents.h"
 #include "DamageResolver.h"
+#include "BlockModel.h"
 
 namespace SunEngine {
 
@@ -52,6 +53,7 @@ namespace SunEngine {
         std::vector<Slash> m_Slashes;
         std::vector<FloatText> m_Texts;
         static constexpr size_t kMaxParticles = 5000;
+        float m_FxTime = 0.0f;   // orologio degli effetti delle armi (pulsazioni)
 
         static float R(float a, float b) { return Random::Range(a, b); }
         static glm::vec3 RandUnit() {
@@ -506,9 +508,215 @@ namespace SunEngine {
             }
         }
 
+
+        // ---------- tipo di danno sul modello dell'arma (DamageTypes.h) ----------
+        // Ogni arma in mano con un tipo di danno non fisico lo mostra: un bagliore fisso nei punti del modello (bocca
+        // della canna, lungo la lama o nel nucleo) e particelle che ne escono. Es. pistola benedetta = luce dorata che
+        // esce dalla canna; lama incendiaria = braci lungo il filo. Vale anche per i tipi aggiunti dai tratti.
+        struct WeaponFxPoint { glm::vec3 a{ 0.0f }, b{ 0.0f }; bool segment = false; };
+        struct WeaponFxItem { int type = 0; float intensity = 1.0f; WeaponFxPoint where; glm::vec3 fwd{ 0, 0, -1 }; glm::vec4 color{ 1.0f }; };
+
+        static std::vector<DamageFxDef> FxDefsOf(const WeaponBlueprint& bp) {
+            if (bp.damage_fx_set) {
+                std::vector<DamageFxDef> v = bp.damage_fx;
+                // i tipi aggiunti dai tratti si vedono comunque
+                for (int t = 0; t < kDamageTypeCount; ++t) {
+                    if (!DamageTypeHasFx(t) || bp.damage.share[t] < 0.12f) continue;
+                    bool found = false; for (const auto& d : v) found |= d.type == t;
+                    if (!found) v.push_back({ t, bp.is_melee ? DamageFxAt::Blade : DamageFxAt::Muzzle, std::clamp(0.45f + bp.damage.share[t], 0.5f, 1.4f) });
+                }
+                return v;
+            }
+            std::vector<DamageFxDef> v;
+            for (int t = 0; t < kDamageTypeCount; ++t)
+                if (DamageTypeHasFx(t) && bp.damage.share[t] >= 0.12f)
+                    v.push_back({ t, bp.is_melee ? DamageFxAt::Blade : DamageFxAt::Muzzle, std::clamp(0.45f + bp.damage.share[t], 0.5f, 1.4f) });
+            return v;
+        }
+        static WeaponFxPoint FxPointOf(const BlockModel& m, DamageFxAt at, const glm::mat4& M) {
+            const glm::vec3 c = (m.boundsMin + m.boundsMax) * 0.5f;
+            const glm::vec3 tip = m.hasMuzzle ? m.muzzle : glm::vec3(c.x, c.y, m.boundsMin.z);
+            WeaponFxPoint w;
+            auto W = [&](const glm::vec3& v) { return glm::vec3(M * glm::vec4(v, 1.0f)); };
+            if (at == DamageFxAt::Core) { w.a = W(m.hasCore ? m.core : c); return w; }
+            if (at == DamageFxAt::Blade) {
+                glm::vec3 b0, b1;
+                if (m.hasBlade) { b0 = m.bladeBase; b1 = m.bladeTip; }
+                else {
+                    const glm::vec3 grip = m.hasGripRight ? m.gripRight : glm::vec3(c.x, c.y, m.boundsMax.z);
+                    b1 = tip; b0 = glm::mix(grip, tip, 0.3f);
+                }
+                w.a = W(b0); w.b = W(b1); w.segment = true; return w;
+            }
+            w.a = W(tip); return w;
+        }
+        static glm::vec3 FxSample(const WeaponFxPoint& p) { return p.segment ? glm::mix(p.a, p.b, R(0.0f, 1.0f)) : p.a; }
+
+        template <class Fn> void ForEachWeaponFx(Scene& scene, Fn&& fn) {
+            auto& reg = scene.GetRegistry();
+            auto& bpm = BlueprintManager::Get();
+            for (auto e : reg.view<WeaponFxComponent, TransformComponent, BlockModelComponent>()) {
+                const auto& t = reg.get<TransformComponent>(e);
+                const BlockModel* m = reg.get<BlockModelComponent>(e).model;
+                if (!m || glm::length(t.Scale) < 0.05f) continue;
+                auto& fc = reg.get<WeaponFxComponent>(e);
+                const WeaponBlueprint* bp = fc.weaponId.empty() ? nullptr : bpm.GetWeapon(fc.weaponId);
+                if (!bp) continue;
+                const auto defs = FxDefsOf(*bp);
+                if (defs.empty()) continue;
+                const glm::mat4 M = t.GetTransform();
+                const glm::vec3 fwd = glm::normalize(glm::vec3(M * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)) + glm::vec3(1e-6f));
+                for (const auto& d : defs) {
+                    WeaponFxItem it;
+                    it.type = d.type; it.intensity = d.intensity; it.where = FxPointOf(*m, d.at, M); it.fwd = fwd;
+                    it.color = glm::vec4(DamageInfo(d.type).color, 1.0f);
+                    if (d.type == static_cast<int>(DamageType::Energy) && bp->primary_color.a > 0.05f) it.color = glm::vec4(glm::vec3(bp->primary_color), 1.0f);
+                    fn(fc, it);
+                }
+            }
+        }
+
+        // particelle che escono (chiamata da Update)
+        void UpdateWeaponFx(Scene& scene, float dt) {
+            ForEachWeaponFx(scene, [&](WeaponFxComponent& fc, const WeaponFxItem& it) {
+                using T = DamageType;
+                const T type = static_cast<T>(it.type);
+                const float I = it.intensity;
+                const glm::vec4 c = it.color;
+                float rate = 10.0f;
+                switch (type) {
+                case T::Energy: rate = 3.0f; break;
+                case T::Explosive: rate = 4.0f; break;
+                case T::Poison: case T::Dark: rate = 6.0f; break;
+                case T::Nature: rate = 4.0f; break;
+                default: break;
+                }
+                float& acc = fc.emitAcc[it.type];
+                acc += rate * I * dt;
+                int n = static_cast<int>(acc);
+                if (n <= 0) return;
+                acc -= static_cast<float>(n);
+                n = std::min(n, 4);
+                for (int i = 0; i < n; ++i) {
+                    const glm::vec3 p = FxSample(it.where);
+                    switch (type) {
+                    case T::Energy:
+                        Sparks(p, it.fwd, 1, 1.2f, 0.4f, 1.2f, Hdr(c, 1.0f), 0.18f, 0.0f, 0.02f, 0.012f); break;
+                    case T::Radiation: {
+                        Particle& q = Add(); q.pos = p + RandUnit() * 0.03f; q.vel = glm::vec3(R(-0.05f, 0.05f), R(0.15f, 0.35f), R(-0.05f, 0.05f));
+                        q.life = R(0.7f, 1.2f); q.size0 = 0.035f; q.size1 = 0.01f; q.col0 = Hdr(c, 0.8f); q.col1 = Hdr(c, 0.0f); break; }
+                    case T::Electric:
+                        Sparks(p, RandUnit(), 2, 3.14f, 1.0f, 3.0f, glm::vec4(0.75f, 0.85f, 1.0f, 1.0f), 0.12f, 0.0f, 0.02f, 0.015f); break;
+                    case T::Explosive:
+                        Smoke(p, 1, 0.03f, 0.10f, glm::vec4(0.32f, 0.30f, 0.28f, 0.35f), 0.9f, glm::vec3(0, 0.25f, 0), 0.05f);
+                        if (Random::Chance(0.3f)) Sparks(p, glm::vec3(0, 1, 0), 1, 0.6f, 0.3f, 0.8f, glm::vec4(1.0f, 0.55f, 0.2f, 1.0f), 0.4f, -0.5f, 0.02f, 0.012f);
+                        break;
+                    case T::Fire: {
+                        Sparks(p, glm::vec3(0, 1, 0), 1, 0.5f, 0.4f, 1.0f, glm::vec4(1.0f, 0.6f, 0.15f, 1.0f), 0.5f, -0.8f, 0.03f, 0.014f);
+                        Particle& q = Add(); q.pos = p; q.vel = glm::vec3(R(-0.05f, 0.05f), R(0.3f, 0.6f), R(-0.05f, 0.05f));
+                        q.life = R(0.2f, 0.35f); q.size0 = 0.06f; q.size1 = 0.015f; q.col0 = glm::vec4(1.0f, 0.55f, 0.12f, 0.8f); q.col1 = glm::vec4(0.8f, 0.15f, 0.02f, 0.0f); break; }
+                    case T::Acid: {
+                        Particle& q = Add(); q.pos = p; q.vel = glm::vec3(0.0f, -0.05f, 0.0f); q.gravity = 5.0f;
+                        q.life = R(0.4f, 0.7f); q.size0 = 0.022f; q.size1 = 0.012f; q.col0 = Hdr(c, 0.95f); q.col1 = Hdr(c, 0.0f); q.shape = VR::Disc; break; }
+                    case T::Poison:
+                        Smoke(p, 1, 0.03f, 0.12f, glm::vec4(glm::vec3(c) * 0.8f, 0.35f), 1.1f, glm::vec3(0, -0.05f, 0), 0.06f); break;
+                    case T::Water:
+                        Smoke(p, 1, 0.02f, 0.09f, glm::vec4(0.85f, 0.95f, 1.0f, 0.30f), 0.9f, glm::vec3(0, -0.2f, 0), 0.04f);
+                        if (Random::Chance(0.4f)) { Particle& q = Add(); q.pos = p + RandUnit() * 0.03f; q.life = 0.3f; q.size0 = 0.025f; q.size1 = 0.0f; q.col0 = glm::vec4(0.9f, 1.0f, 1.0f, 1.0f); q.col1 = glm::vec4(0.6f, 0.9f, 1.0f, 0.0f); }
+                        break;
+                    case T::Nature: {
+                        Particle& q = Add(); q.pos = p + RandUnit() * 0.03f; q.vel = RandUnit() * 0.12f + glm::vec3(0, 0.05f, 0); q.gravity = 0.15f; q.drag = 0.8f;
+                        q.life = R(1.0f, 1.6f); q.size0 = 0.022f; q.size1 = 0.015f; q.col0 = glm::vec4(glm::vec3(c), 0.9f); q.col1 = glm::vec4(0.55f, 0.75f, 0.2f, 0.0f);
+                        q.shape = VR::Disc; q.additive = false; q.rot = R(0.0f, 6.28f); q.rotVel = R(-3.0f, 3.0f); break; }
+                    case T::Light: {
+                        Particle& q = Add(); q.pos = p + RandUnit() * 0.02f; q.vel = it.fwd * R(0.2f, 0.5f) + glm::vec3(0, R(0.05f, 0.2f), 0); q.drag = 1.0f;
+                        q.life = R(0.6f, 1.0f); q.size0 = 0.04f; q.size1 = 0.0f; q.col0 = glm::vec4(1.0f, 0.92f, 0.6f, 1.0f); q.col1 = glm::vec4(1.0f, 0.8f, 0.4f, 0.0f); break; }
+                    case T::Dark:
+                        Smoke(p, 1, 0.05f, 0.16f, glm::vec4(0.08f, 0.03f, 0.11f, 0.65f), 1.0f, glm::vec3(0, 0.12f, 0), 0.05f); break;
+                    case T::Arcane: {
+                        const float a = R(0.0f, 6.2831853f);
+                        const glm::vec3 side = glm::normalize(glm::cross(it.fwd, glm::vec3(0, 1, 0)) + glm::vec3(1e-6f));
+                        const glm::vec3 up = glm::cross(side, it.fwd);
+                        Particle& q = Add(); q.pos = p + (side * std::cos(a) + up * std::sin(a)) * 0.08f;
+                        q.vel = (side * -std::sin(a) + up * std::cos(a)) * 0.5f; q.drag = 2.0f;
+                        q.life = R(0.4f, 0.7f); q.size0 = 0.03f; q.size1 = 0.0f; q.col0 = Hdr(c, 1.0f); q.col1 = glm::vec4(0.5f, 0.3f, 1.0f, 0.0f); break; }
+                    default: break;
+                    }
+                }
+            });
+        }
+
+        // bagliore fisso (chiamata da Render)
+        void DrawWeaponFx(Scene& scene) {
+            const float tm = m_FxTime;
+            ForEachWeaponFx(scene, [&](WeaponFxComponent&, const WeaponFxItem& it) {
+                using T = DamageType;
+                const T type = static_cast<T>(it.type);
+                const float I = it.intensity;
+                const glm::vec4 c = it.color;
+                const int samples = it.where.segment ? 4 : 1;
+                for (int s = 0; s < samples; ++s) {
+                    const glm::vec3 p = it.where.segment ? glm::mix(it.where.a, it.where.b, (s + 0.5f) / samples) : it.where.a;
+                    const float k = (it.where.segment ? 0.7f : 1.0f) * 1.3f;   // un po' piu' grandi: si vedono anche da lontano
+                    const float pulse = 0.85f + 0.15f * std::sin(tm * 4.0f + s * 1.7f);
+                    switch (type) {
+                    case T::Energy: VR::Billboard(p, 0.10f * k * I * pulse, Hdr(c, 0.55f), VR::Glow); break;
+                    case T::Radiation: VR::Billboard(p, 0.14f * k * I * (0.8f + 0.2f * std::sin(tm * 2.0f + s)), Hdr(c, 0.45f), VR::Glow); break;
+                    case T::Electric: {
+                        const float flick = Random::Chance(0.5f) ? 1.0f : 0.4f;
+                        VR::Billboard(p, 0.08f * k * I, glm::vec4(0.7f, 0.82f, 1.0f, 0.6f * flick), VR::Glow);
+                        if (Random::Chance(0.35f)) {   // arco
+                            const glm::vec3 q = p + RandUnit() * 0.12f, mid = (p + q) * 0.5f + RandUnit() * 0.03f;
+                            VR::Streak(p, mid, 0.012f, glm::vec4(0.8f, 0.9f, 1.0f, 1.0f), glm::vec4(0.6f, 0.75f, 1.0f, 1.0f), VR::Spark);
+                            VR::Streak(mid, q, 0.010f, glm::vec4(0.6f, 0.75f, 1.0f, 1.0f), glm::vec4(0.4f, 0.6f, 1.0f, 0.0f), VR::Spark);
+                        }
+                        break; }
+                    case T::Explosive: VR::Billboard(p, 0.05f * k * I, glm::vec4(1.0f, 0.55f, 0.2f, 0.30f * pulse), VR::Glow); break;
+                    case T::Fire: VR::Billboard(p, 0.09f * k * I * (0.8f + 0.2f * R(0.0f, 1.0f)), glm::vec4(1.0f, 0.5f, 0.12f, 0.6f), VR::Glow); break;
+                    case T::Acid: VR::Billboard(p, 0.07f * k * I * pulse, Hdr(c, 0.45f), VR::Glow); break;
+                    case T::Poison: VR::Billboard(p, 0.08f * k * I * pulse, Hdr(c, 0.35f), VR::Glow); break;
+                    case T::Water: VR::Billboard(p, 0.09f * k * I * pulse, glm::vec4(0.7f, 0.92f, 1.0f, 0.40f), VR::Glow); break;
+                    case T::Nature: VR::Billboard(p, 0.07f * k * I * pulse, Hdr(c, 0.35f), VR::Glow); break;
+                    case T::Light: {
+                        VR::Billboard(p, 0.20f * k * I * pulse, glm::vec4(1.0f, 0.86f, 0.5f, 0.70f), VR::Glow);
+                        VR::Billboard(p, 0.07f * k * I, glm::vec4(1.0f, 1.0f, 0.95f, 0.95f), VR::Glow);
+                        if (!it.where.segment) {   // raggi che escono dalla canna
+                            const glm::vec3 side = glm::normalize(glm::cross(it.fwd, glm::vec3(0, 1, 0)) + glm::vec3(1e-6f));
+                            const glm::vec3 up = glm::cross(side, it.fwd);
+                            for (int r = 0; r < 4; ++r) {
+                                const float a = tm * 0.8f + r * 1.5707963f;
+                                const glm::vec3 d = glm::normalize(it.fwd * 2.2f + (side * std::cos(a) + up * std::sin(a)));
+                                const float len = (0.22f + 0.08f * std::sin(tm * 3.0f + r)) * I;
+                                VR::Streak(p, p + d * len, 0.025f, glm::vec4(1.0f, 0.9f, 0.6f, 0.55f), glm::vec4(1.0f, 0.85f, 0.5f, 0.0f), VR::Spark);
+                            }
+                        }
+                        break; }
+                    case T::Dark:
+                        VR::Billboard(p, 0.16f * k * I, glm::vec4(0.05f, 0.02f, 0.07f, 0.6f), VR::Smoke, false, tm * 0.7f + s, 3.0f + s);
+                        VR::Billboard(p, 0.08f * k * I * pulse, glm::vec4(0.45f, 0.15f, 0.6f, 0.30f), VR::Glow);
+                        if (!it.where.segment) VR::Billboard(p, 0.09f * k * I * pulse, glm::vec4(0.45f, 0.15f, 0.6f, 0.30f), VR::Ring);
+                        break;
+                    case T::Arcane: {
+                        VR::Billboard(p, 0.10f * k * I * pulse, Hdr(c, 0.5f), VR::Glow);
+                        VR::Billboard(p, (0.10f + 0.04f * std::sin(tm * 3.0f)) * k * I, Hdr(c, 0.4f), VR::Ring, true, tm);
+                        const glm::vec3 side = glm::normalize(glm::cross(it.fwd, glm::vec3(0, 1, 0)) + glm::vec3(1e-6f));
+                        const glm::vec3 up = glm::cross(side, it.fwd);
+                        for (int r = 0; r < 3; ++r) {
+                            const float a = tm * 3.0f + r * 2.094f + s;
+                            VR::Billboard(p + (side * std::cos(a) + up * std::sin(a)) * 0.09f * k, 0.03f, glm::vec4(1.0f, 0.75f, 1.0f, 0.9f), VR::Glow);
+                        }
+                        break; }
+                    default: break;
+                    }
+                }
+            });
+        }
+
     public:
         void Update(Scene& scene, float deltaTime) {
             Consume();
+            m_FxTime += deltaTime;
+            UpdateWeaponFx(scene, deltaTime);
             // Colpi in volo: impatto all'arrivo, poi via alla fine della vita
             auto view = scene.GetRegistry().view<TrailRequestComponent>();
             std::vector<entt::entity> done;
@@ -550,6 +758,20 @@ namespace SunEngine {
         }
 
         void Clear() { m_Particles.clear(); m_Slashes.clear(); m_Texts.clear(); VfxEventQueue().clear(); }
+        // Fuori dalla partita (garage): niente colpi ne' scritte, solo gli effetti dei tipi di danno sulle armi
+        void UpdateIdle(Scene& scene, float deltaTime) {
+            m_Slashes.clear(); m_Texts.clear(); VfxEventQueue().clear();
+            m_FxTime += deltaTime;
+            UpdateWeaponFx(scene, deltaTime);
+            for (auto& p : m_Particles) {
+                p.age += deltaTime;
+                p.vel.y -= p.gravity * deltaTime;
+                p.vel *= std::max(0.0f, 1.0f - p.drag * deltaTime);
+                p.pos += p.vel * deltaTime;
+                p.rot += p.rotVel * deltaTime;
+            }
+            m_Particles.erase(std::remove_if(m_Particles.begin(), m_Particles.end(), [](const Particle& p) { return p.age >= p.life; }), m_Particles.end());
+        }
         const std::vector<FloatText>& Texts() const { return m_Texts; }
 
         void Render(Scene& scene, const glm::mat4& view, const glm::mat4& viewProj) {
@@ -590,6 +812,7 @@ namespace SunEngine {
             }
 
             DrawMeleeTells(scene);
+            DrawWeaponFx(scene);
 
             for (const auto& p : m_Particles) {
                 const float k = std::clamp(p.age / std::max(0.001f, p.life), 0.0f, 1.0f);

@@ -91,6 +91,7 @@ namespace SunEngine {
             int pellets = 1, armorPenetration = 0;
             float baseDamage = 0.0f, falloffStart = 0.0f, falloffEnd = 0.0f, fusionRange = 0.0f, fusionMultiplier = 1.0f;
             float explosionRadius = 0.0f, explosionDamage = 0.0f, structureMultiplier = 1.0f;
+            DamageSplit split;   // tipi di danno del colpo
         };
         std::vector<PendingShot> m_PendingShots;
         void ResolveShot(Scene& scene, const PendingShot& shot);

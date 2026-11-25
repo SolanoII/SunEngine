@@ -1,5 +1,6 @@
 {
   "id": "defender_heavy_round_mg",
+  "damage_types": {"pierce": 60, "blast": 40},
   "displayName": "Mitragliatrice a Proiettili Pesanti Rinforzata",
   "faction": "Vanguard",
   "slot_type": "primary",

@@ -45,9 +45,17 @@ namespace SunEngine {
     // Che tipo di oggetto e' (decide i tratti possibili e cosa migliora la rarita')
     enum class ItemKind { Ranged, Melee, Equipment, Armor };
 
-    struct ItemTrait { const char* code; const char* name; const char* effect; ItemKind kind; };
+    // mode: 0 = tratto normale; tratti dei tipi di danno (DamageTypes.h), uno per tipo:
+    //   's' arma: aggiunge il tipo (+20% del danno come quel tipo; non sulle armi "pure", al massimo due)
+    //   'b' arma: rinforza un tipo che l'arma ha gia' (+15% della sua parte)
+    //   'n' armatura: aggiunge la difesa da quel tipo (+15%; non sulle armature "pure", al massimo due)
+    //   'r' armatura: rinforza una difesa che c'e' gia' (+10%)
+    struct ItemTrait { const char* code; const char* name; const char* effect; ItemKind kind; char mode = 0; int dmgType = -1; };
+    constexpr float kSplitTraitShare = 0.20f, kBoostTraitShare = 0.15f, kArmorNewResist = 0.15f, kArmorBoostResist = 0.10f;
     inline const std::vector<ItemTrait>& ItemTraits() {
-        static const std::vector<ItemTrait> k = {
+        static std::vector<std::string> store;   // testi dei tratti generati (restano vivi: i puntatori puntano qui)
+        static const std::vector<ItemTrait> k = [] {
+        std::vector<ItemTrait> k = {
             { "dmg",   "Canna rinforzata",    "+8% danno",                 ItemKind::Ranged },
             { "mag",   "Caricatore maggiorato","+25% caricatore",          ItemKind::Ranged },
             { "rld",   "Mani svelte",         "-15% tempo di ricarica",    ItemKind::Ranged },
@@ -69,11 +77,49 @@ namespace SunEngine {
             { "light", "Leggera",             "-25% peso",                 ItemKind::Armor },
             { "cover", "Copertura ampia",     "+5% copertura",             ItemKind::Armor },
         };
+        store.reserve(kDamageTypeCount * 12);
+        auto keep = [](std::string x) { store.push_back(std::move(x)); return store.back().c_str(); };
+        for (int t = 0; t < kDamageTypeCount; ++t) {
+            const DamageTypeInfo& d = DamageInfo(t);
+            const std::string c = d.code, n = d.name;
+            const char* sc = keep("s" + c); const char* se = keep("+20% del danno come " + n);
+            const char* bc = keep("b" + c); const char* be = keep("+15% al danno da " + n);
+            for (ItemKind kind : { ItemKind::Ranged, ItemKind::Melee }) {
+                k.push_back({ sc, d.splitTrait, se, kind, 's', t });
+                k.push_back({ bc, d.boostTrait, be, kind, 'b', t });
+            }
+            k.push_back({ keep("n" + c), d.armorNew, keep("+15% di difesa da " + n), ItemKind::Armor, 'n', t });
+            k.push_back({ keep("r" + c), d.armorBoost, keep("+10% di difesa da " + n), ItemKind::Armor, 'r', t });
+        }
+        return k;
+        }();
         return k;
     }
     inline const ItemTrait* FindTrait(const std::string& code) {
         for (const auto& t : ItemTraits()) if (code == t.code) return &t;
         return nullptr;
+    }
+
+    // Il tratto si puo' dare a questo oggetto? (i tratti dei tipi di danno dipendono dall'arma o dall'armatura)
+    inline bool TraitAllowed(const ItemTrait& t, const std::string& itemId, const std::vector<std::string>& have) {
+        if (t.mode == 0) return true;
+        auto& bpm = BlueprintManager::Get();
+        auto hasCode = [&](char mode) { return std::find(have.begin(), have.end(), std::string(1, mode) + DamageInfo(t.dmgType).code) != have.end(); };
+        auto countMode = [&](char mode) {
+            int n = 0;
+            for (const auto& h : have) if (const ItemTrait* x = FindTrait(h); x && x->mode == mode) ++n;
+            return n;
+        };
+        if (t.mode == 's' || t.mode == 'b') {
+            const WeaponBlueprint* w = bpm.GetWeapon(itemId);
+            if (!w) return false;
+            if (t.mode == 'b') return w->damage.share[t.dmgType] >= 0.1f || hasCode('s');
+            return !w->damage_pure && !w->damage.Has(t.dmgType) && countMode('s') < 2;
+        }
+        const ArmorBlueprint* a = bpm.GetArmorPiece(itemId);
+        if (!a) return false;
+        if (t.mode == 'r') return a->resist[t.dmgType] > 0.001f || hasCode('n');
+        return !a->resist_pure && a->resist[t.dmgType] <= 0.001f && countMode('n') < 2;
     }
 
     inline ItemKind KindOfItem(const std::string& itemId) {
@@ -150,6 +196,15 @@ namespace SunEngine {
             return;
         }
         w.base_damage *= m * wear;
+        {   // tipi di danno: prima i tratti che aggiungono un tipo, poi quelli che rinforzano
+            float total = 1.0f;
+            for (const auto& c : r.traits) if (const ItemTrait* t = FindTrait(c); t && t->mode == 's' && !w.damage_pure) { w.damage.share[t->dmgType] += kSplitTraitShare; total += kSplitTraitShare; }
+            for (const auto& c : r.traits) if (const ItemTrait* t = FindTrait(c); t && t->mode == 'b' && w.damage.share[t->dmgType] > 0.0f) {
+                total += w.damage.share[t->dmgType] * kBoostTraitShare;
+                w.damage.share[t->dmgType] *= 1.0f + kBoostTraitShare;
+            }
+            if (total != 1.0f) { w.damage.Normalize(); w.base_damage *= total; w.explosion_damage *= total; }
+        }
         if (w.is_melee) {
             if (has("edge")) w.base_damage *= 1.10f;
             if (has("map")) w.armor_penetration += 1;
@@ -182,6 +237,10 @@ namespace SunEngine {
         a.maxDurability *= (1.0f + 0.10f * lv) * (has("pad") ? 1.15f : 1.0f) * (0.6f + 0.4f * cond);
         if (has("light")) a.weight *= 0.75f;
         if (has("cover")) a.coverage = std::min(1.0f, a.coverage + 0.05f);
+        // difese per tipo: tratti, poi rarita' (+5% per livello) e condizione (fino a -20%)
+        for (const auto& c : r.traits) if (const ItemTrait* t = FindTrait(c); t && t->mode == 'n' && !a.resist_pure) a.resist[t->dmgType] += kArmorNewResist;
+        for (const auto& c : r.traits) if (const ItemTrait* t = FindTrait(c); t && t->mode == 'r' && a.resist[t->dmgType] > 0.0f) a.resist[t->dmgType] += kArmorBoostResist;
+        for (float& v : a.resist) if (v > 0.0f) v = std::min(0.9f, v * (1.0f + 0.05f * lv) * (0.8f + 0.2f * cond));
     }
 
     // ------------------------------------------------------------------------------------ costi
@@ -195,14 +254,22 @@ namespace SunEngine {
     }
     inline int64_t DismantleValue(int64_t value, int rarity) { return static_cast<int64_t>(std::llround(static_cast<double>(value) * 0.2 * (1.0 + rarity))); }
 
-    // Un tratto nuovo a caso, fra quelli del tipo di oggetto non ancora presi
+    // Un tratto nuovo a caso, fra quelli del tipo di oggetto non ancora presi. Pesi: ogni tratto normale 1, ogni
+    // rinforzo di un tipo 0,6, i tratti che aggiungono un tipo nuovo 2,5 in tutto (cosi' non sommergono gli altri).
     inline void RollTrait(ItemInstance& it, std::mt19937& rng) {
         const ItemKind kind = KindOfItem(it.itemId);
         std::vector<const ItemTrait*> pool;
-        for (const auto& t : ItemTraits())
-            if (t.kind == kind && std::find(it.traits.begin(), it.traits.end(), std::string(t.code)) == it.traits.end()) pool.push_back(&t);
+        int adders = 0;
+        for (const auto& t : ItemTraits()) {
+            if (t.kind != kind || std::find(it.traits.begin(), it.traits.end(), std::string(t.code)) != it.traits.end()) continue;
+            if (!TraitAllowed(t, it.itemId, it.traits)) continue;
+            pool.push_back(&t);
+            if (t.mode == 's' || t.mode == 'n') ++adders;
+        }
         if (pool.empty()) return;
-        it.traits.push_back(pool[std::uniform_int_distribution<size_t>(0, pool.size() - 1)(rng)]->code);
+        std::vector<double> wgt;
+        for (const ItemTrait* t : pool) wgt.push_back(t->mode == 0 ? 1.0 : (t->mode == 's' || t->mode == 'n') ? 2.5 / std::max(1, adders) : 0.6);
+        it.traits.push_back(pool[std::discrete_distribution<size_t>(wgt.begin(), wgt.end())(rng)]->code);
     }
     // Porta l'esemplare alla rarita' r, aggiungendo i tratti che spettano
     inline void SetRarity(ItemInstance& it, int r, std::mt19937& rng) {

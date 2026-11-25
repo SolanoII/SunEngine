@@ -1,5 +1,6 @@
 {
   "id": "torso_feral_pig_scrap",
+  "resistances": {"pierce": 4, "slash": 6, "blunt": 4},
   "displayName": "Corazza di Rottami",
   "comment": "Piastre di lamiera rivettate sul petto del Feral Pig. Si ricerca sotto il Feral Pig e si compra per unita'.",
   "location": "Torso",

@@ -1,5 +1,6 @@
 {
   "id": "torso_footman_veteran",
+  "resistances": {"pierce": 14, "slash": 18, "blunt": 14, "blast": 5},
   "displayName": "Corazza Antischegge da Veterano",
   "location": "Torso",
   "armor_rating": 20,

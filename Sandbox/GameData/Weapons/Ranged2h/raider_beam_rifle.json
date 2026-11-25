@@ -1,5 +1,6 @@
 {
   "id": "raider_beam_rifle",
+  "damage_types": {"energy": 100},
   "displayName": "Fucile a Fascio",
   "comment": "Sbloccabile del Razziatore: fucile pesante a raggio laser. Colpi singoli precisi e potenti che passano le armature. 10 colpi, 30 di riserva.",
   "faction": "Vrepighs",

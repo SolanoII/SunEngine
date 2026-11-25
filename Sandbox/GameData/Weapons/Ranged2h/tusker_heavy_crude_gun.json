@@ -1,5 +1,6 @@
 {
   "id": "tusker_heavy_crude_gun",
+  "damage_types": {"pierce": 80, "slash": 20},
   "displayName": "Mitragliatore Pesante",
   "comment": "Sbloccabile del Vrepigh Vrepigh: mitragliatrice a due mani, 36 colpi a caricatore e 36 di riserva (2 caricatori in tutto) (truppa standard: le munizioni vanno gestite). Spara tanto e male, come piace ai Vrepigh.",
   "faction": "Vrepighs",

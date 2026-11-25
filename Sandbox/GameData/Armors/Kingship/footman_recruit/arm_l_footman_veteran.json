@@ -1,5 +1,6 @@
 {
   "id": "arm_l_footman_veteran",
+  "resistances": {"pierce": 14, "slash": 18, "blunt": 14, "blast": 5},
   "displayName": "Bracciale Rinforzato da Veterano (sx)",
   "location": "LeftArm",
   "armor_rating": 10,

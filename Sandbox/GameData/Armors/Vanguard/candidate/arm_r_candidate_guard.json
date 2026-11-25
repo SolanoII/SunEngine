@@ -1,5 +1,6 @@
 {
   "id": "arm_r_candidate_guard",
+  "resistances": {"pierce": 4, "slash": 4, "blunt": 4},
   "displayName": "Protezione Leggera del Braccio (dx)",
   "comment": "Dotazione base dell'Candidato: spallaccio e parabraccio leggeri.",
   "location": "RightArm",

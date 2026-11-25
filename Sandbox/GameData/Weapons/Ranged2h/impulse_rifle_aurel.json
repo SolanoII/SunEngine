@@ -1,5 +1,6 @@
 {
   "id": "impulse_rifle_aurel",
+  "damage_types": {"energy": 100},
   "displayName": "Fucile a Impulsi Modello Aurel",
   "faction": "Kingship",
   "slot_type": "primary",

@@ -1,5 +1,6 @@
 {
   "id": "footman_discharge_rifle",
+  "damage_types": {"energy": 60, "fire": 40},
   "displayName": "Fucile a Scarica del Presidio",
   "faction": "Kingship",
   "slot_type": "primary",

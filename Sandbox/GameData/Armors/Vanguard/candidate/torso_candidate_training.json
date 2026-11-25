@@ -1,5 +1,6 @@
 {
   "id": "torso_candidate_training",
+  "resistances": {"pierce": 4, "slash": 4, "blunt": 4},
   "displayName": "Tuta d'Addestramento Rinforzata",
   "comment": "Dotazione base dell'Candidato: tuta d'addestramento rinforzata con una protezione leggera sul torace.",
   "location": "Torso",

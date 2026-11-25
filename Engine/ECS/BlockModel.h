@@ -40,6 +40,10 @@ namespace SunEngine {
         bool hasGripRight = false;
         bool hasGripLeft = false;
         bool hasMuzzle = false;
+        // Punti degli effetti del tipo di danno (DamageTypes.h, "damage_fx"): nucleo (cella, bobina, gemma) e lama
+        // (dalla base alla punta). Se mancano si stimano dall'ingombro, dall'impugnatura e dalla bocca.
+        glm::vec3 core{ 0.0f }, bladeBase{ 0.0f }, bladeTip{ 0.0f };
+        bool hasCore = false, hasBlade = false;
         // Mesh vera dell'oggetto (Models/Weapons/<id>.glb, Tools/WeaponForge): se c'e' si disegna lei al posto dei
         // blocchi, che restano per l'ingombro, gli appoggi delle mani e la bocca della canna.
         const SkinnedModel* mesh = nullptr;
@@ -134,6 +138,10 @@ namespace SunEngine {
                     if (a.contains("grip_right")) { out.gripRight = vec3(a["grip_right"], glm::vec3(0.0f)); out.hasGripRight = true; }
                     if (a.contains("grip_left")) { out.gripLeft = vec3(a["grip_left"], glm::vec3(0.0f)); out.hasGripLeft = true; }
                     if (a.contains("muzzle")) { out.muzzle = vec3(a["muzzle"], glm::vec3(0.0f)); out.hasMuzzle = true; }
+                    if (a.contains("core")) { out.core = vec3(a["core"], glm::vec3(0.0f)); out.hasCore = true; }
+                    if (a.contains("blade_base") && a.contains("blade_tip")) {
+                        out.bladeBase = vec3(a["blade_base"], glm::vec3(0.0f)); out.bladeTip = vec3(a["blade_tip"], glm::vec3(0.0f)); out.hasBlade = true;
+                    }
                 }
                 out.boundsMin = glm::vec3(1e9f); out.boundsMax = glm::vec3(-1e9f);
                 for (const auto& p : out.parts) {

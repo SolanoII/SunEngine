@@ -1,5 +1,6 @@
 {
   "id": "combat_shotgun_standard",
+  "damage_types": {"pierce": 70, "blunt": 30},
   "displayName": "Combat Shotgun",
   "faction": "Kingship",
   "slot_type": "primary",

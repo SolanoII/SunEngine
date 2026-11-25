@@ -1,5 +1,6 @@
 {
   "id": "torso_tusker_heavy",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Corazza Pesante da Vrepigh",
   "comment": "Sbloccabile del Vrepigh Vrepigh: corazza completa di piastre rivettate su petto, schiena e gobba.",
   "location": "Torso",

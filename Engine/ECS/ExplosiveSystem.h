@@ -42,6 +42,7 @@ namespace SunEngine {
         bool resting = false;
         bool explodeOnImpact = false;  // nail_grenade: scoppia appena tocca terreno, muro o un nemico
         float structureMult = 1.0f;
+        DamageSplit split = DamageSplit::Pure(DamageType::Explosive);
     };
 
     struct LandMineComponent {
@@ -53,6 +54,7 @@ namespace SunEngine {
         float damage = 150.0f;
         int ap = 0;
         float structureMult = 1.0f;
+        DamageSplit split = DamageSplit::Pure(DamageType::Explosive);
     };
 
     namespace Explosives {
@@ -77,7 +79,9 @@ namespace SunEngine {
         // Esplosione: ritorna quanti bersagli ha colpito. structureMult = danno a strutture e mezzi (barricate, muri,
         // entita' riparabili "Structure"/"Construct"/"Mechanical")
         inline int Explode(Scene& scene, const glm::vec3& center, float radius, float damage, int ap, entt::entity owner, int team,
-                           float structureMult = 1.0f, bool vfx = true) {
+                           float structureMult = 1.0f, bool vfx = true, const DamageSplit* split = nullptr) {
+            static const DamageSplit kBlast = DamageSplit::Pure(DamageType::Explosive);
+            if (!split) split = &kBlast;
             auto& reg = scene.GetRegistry();
             radius = std::max(0.5f, radius);
             int hit = 0;
@@ -90,7 +94,7 @@ namespace SunEngine {
                 if (d > radius || std::abs(p.y - center.y) > radius) continue;
                 auto& h = reg.get<HealthComponent>(e);
                 const float before = h.currentHealth;
-                DamageResolver::ResolveHit(damage * (1.0f - 0.6f * (d / radius)), ap, HitboxLocation::Torso, reg.get<UnitStatsComponent>(e), h);
+                DamageResolver::ResolveHit(damage * (1.0f - 0.6f * (d / radius)), ap, HitboxLocation::Torso, reg.get<UnitStatsComponent>(e), h, split);
                 if (owner != entt::null && reg.valid(owner)) EmitHitFeedback(scene, owner, e, p + glm::vec3(0.0f, 1.0f, 0.0f), HitboxLocation::Torso, before);
                 ++hit;
             }
@@ -158,6 +162,7 @@ namespace SunEngine {
             gc.ap = bp.armor_penetration;
             gc.explodeOnImpact = bp.explode_on_impact;
             gc.structureMult = bp.structure_damage_multiplier;
+            gc.split = bp.damage;
             reg.emplace<ThrownGrenadeComponent>(g, gc);
         }
 
@@ -174,6 +179,7 @@ namespace SunEngine {
             mc.damage = bp.explosion_damage;
             mc.ap = bp.armor_penetration;
             mc.structureMult = bp.structure_damage_multiplier;
+            mc.split = bp.damage;
             reg.emplace<LandMineComponent>(m, mc);
         }
 
@@ -280,7 +286,7 @@ namespace SunEngine {
             for (auto e : boom) {
                 if (!reg.valid(e)) continue;
                 const auto g = reg.get<ThrownGrenadeComponent>(e);
-                const int hit = Explosives::Explode(scene, reg.get<TransformComponent>(e).Position, g.radius, g.damage, g.ap, g.owner, g.team, g.structureMult);
+                const int hit = Explosives::Explode(scene, reg.get<TransformComponent>(e).Position, g.radius, g.damage, g.ap, g.owner, g.team, g.structureMult, true, &g.split);
                 SUN_CORE_INFO("Granata esplosa: {0} colpiti", hit);
                 scene.DestroyEntity(e);
             }
@@ -303,7 +309,7 @@ namespace SunEngine {
             for (auto e : boom) {
                 if (!reg.valid(e)) continue;
                 const auto m = reg.get<LandMineComponent>(e);
-                const int hit = Explosives::Explode(scene, reg.get<TransformComponent>(e).Position, m.radius, m.damage, m.ap, m.owner, m.team, m.structureMult);
+                const int hit = Explosives::Explode(scene, reg.get<TransformComponent>(e).Position, m.radius, m.damage, m.ap, m.owner, m.team, m.structureMult, true, &m.split);
                 SUN_CORE_INFO("Mina esplosa: {0} colpiti", hit);
                 scene.DestroyEntity(e);
             }

@@ -26,6 +26,13 @@
   --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
 }
 [hidden] { display: none !important; }
+.dmgbar { display: flex; height: 7px; border: 1px solid #000; margin: 8px 0 4px; }
+.dmgbar i { display: block; height: 100%; }
+.dmgleg { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 500 11.5px var(--mono); }
+.dmgleg .pure { color: var(--muted); }
+.res { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.res span { font: 500 11px var(--mono); border: 1px solid currentColor; padding: 1px 6px; border-radius: 2px; }
+.dtype td:first-child { font-weight: 600; white-space: nowrap; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.5; }
 .wrap { max-width: 1320px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
 header { display: grid; gap: 10px; }
@@ -242,6 +249,7 @@ function card(e) {
       <div class="name">${esc(e.displayName)}</div>
       <div class="meta">${e._kind === 'armor' ? `<span>${esc(facName(e.faction))}</span>` : ''}${metaHTML(e)}</div>
       <div class="bars">${b}</div>
+      ${e._kind === 'weapon' ? dmgHTML(e) : e._kind === 'armor' ? resHTML(e) : ''}
       ${foot}
     </div></div>`;
 }
@@ -295,6 +303,26 @@ function hierHTML() {
         ${r.text ? `<div class="comment" style="font-size:12.5px">${esc(r.text)}</div>` : ''}${r.member ? `<div style="color:var(--brass);font-size:12.5px">${esc(r.member)}</div>` : ''}</div>`).join('')}</div>`).join('')}</div>
     ${h.footer ? `<h3>${esc(h.footer_title || '')}</h3><p class="comment">${esc(h.footer)}</p>` : ''}</div>`).join('');
 }
+const DT = () => ((LBL.damage || {}).types || []);
+const dtOf = code => DT().find(t => t.code === code) || { name: code, color: [.6, .6, .6] };
+const rgb = c => `rgb(${c.map(x => Math.round(x * 255)).join(',')})`;
+function dmgHTML(e) {
+  const d = e._dmg; if (!d) return '';
+  const ks = Object.keys(d).sort((a, b) => d[b] - d[a]);
+  return `<div class="dmgbar">${ks.map(k => `<i style="width:${d[k] * 100}%;background:${rgb(dtOf(k).color)}"></i>`).join('')}</div>
+    <div class="dmgleg">${ks.map(k => `<span style="color:${rgb(dtOf(k).color)}">${esc(dtOf(k).name)}${ks.length > 1 ? ' ' + Math.round(d[k] * 100) + '%' : ''}</span>`).join('')}${e.damage_pure ? '<span class="pure">· puro</span>' : ''}</div>`;
+}
+function resHTML(e) {
+  const r = e.resistances; if (!r || !Object.keys(r).length) return '';
+  return `<div class="res">${Object.keys(r).sort((a, b) => r[b] - r[a]).map(k => `<span style="color:${rgb(dtOf(k).color)}">${esc(dtOf(k).name)} ${r[k]}%</span>`).join('')}</div>`;
+}
+function damageOverviewHTML() {
+  const D = LBL.damage; if (!D || !D.types) return '';
+  return `<div class="box" style="margin-top:22px"><h2 class="sec">Tipi di danno</h2>
+    ${(D.rules || []).map(r => `<p class="comment" style="margin:0 0 6px">${esc(r)}</p>`).join('')}
+    <div class="tbl"><table class="dtype"><thead><tr><th>Tipo</th><th>Gruppo</th><th>Chi lo fa</th><th>Sull'arma</th><th>Arma: aggiunge</th><th>Arma: rinforza</th><th>Armatura: aggiunge</th><th>Armatura: rinforza</th></tr></thead>
+    <tbody>${D.types.map(t => `<tr><td style="color:${rgb(t.color)}">${esc(t.name)}</td><td>${esc(t.group)}</td><td>${esc(t.desc)}</td><td>${esc(t.fx || '—')}</td><td>${esc(t.split)}</td><td>${esc(t.boost)}</td><td>${esc(t.armor_new)}</td><td>${esc(t.armor_boost)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
 function rarityHTML() {
   const R = LBL.rarity; if (!R || !R.levels) return '';
   const KIND = { Ranged: 'Armi da fuoco', Melee: 'Armi bianche', Equipment: 'Equipaggiamento', Armor: 'Armature' };
@@ -326,6 +354,7 @@ function overview() {
       <div class="box"><h2 class="sec">Da fare</h2>${todo.map(([t, l]) => `<div class="todo"><div class="h ${l.length ? 'warn' : 'ok'}">${l.length ? '▲' : '✓'} ${t}: ${l.length}</div>${l.length ? `<div class="l">${l.map(e => esc(e.displayName)).join(', ')}</div>` : ''}</div>`).join('')}</div>
     </div>
     ${rarityHTML()}
+    ${damageOverviewHTML()}
     <div class="box" style="margin-top:22px"><h2 class="sec">Unità in gioco</h2><div class="tbl"><table>
       <thead><tr><th>Unità</th><th>Fazione</th><th>Grado</th><th class="num">Salute</th><th class="num">Robustezza</th><th class="num">Velocità</th><th class="num">Mira</th><th class="num">Mischia</th><th class="num">Punti</th><th>Arma base</th></tr></thead>
       <tbody>${units.map(u => `<tr data-id="${esc(u.id)}" style="cursor:pointer"><td>${esc(u.displayName)}</td><td>${esc(facName(u.faction))}</td><td>${u._research ? (u._research.premium ? 'élite' : ROMAN[u._research.tier]) : 'storia'}</td><td class="num">${num(u.health)}</td><td class="num">${num(u.toughness)}</td><td class="num">${num(u.base_speed)}</td><td class="num">${num(u.accuracy_skill)}</td><td class="num">${num(u.melee_skill)}</td><td class="num">${u.point_cost}</td><td>${esc((u._base || [])[0]?.[1] || '—')}</td></tr>`).join('')}</tbody></table></div></div>`;
@@ -364,12 +393,14 @@ function open(id) {
     }
   } else if (e._kind === 'unit') top.push(['Ricerca', 'non si ricerca: nemico o personaggio delle storie']);
   let html = `<h3>Scheda</h3>${table(top)}`;
+  if (e._kind === 'weapon' && e._dmg) html += `<h3>Tipo di danno</h3>${dmgHTML(e)}<p class="comment" style="margin:4px 0 0">${e.damage_pure ? 'Arma pura: i tratti possono solo rinforzare il suo tipo.' : 'I tratti possono aggiungere altri tipi o rinforzare questi.'}</p>`;
+  if (e._kind === 'armor') html += `<h3>Difese</h3>${resHTML(e) || '<p class="comment">Nessuna difesa dai tipi di danno.</p>'}${e.resist_pure ? '<p class="comment" style="margin:4px 0 0">Difese pure: i tratti possono solo rinforzare quelle che ci sono.</p>' : ''}`;
   const gk = e._kind;
   for (const [title, keys] of ((LBL.groups || {})[gk] || [])) {
     const rows = keys.filter(k => e[k] !== undefined && e[k] !== null && !(Array.isArray(e[k]) && !e[k].length)).map(k => { used.add(k); return [label(k), fmt(k, e[k])]; }).filter(x => x[1] !== '');
     if (rows.length) html += `<h3>${esc(title)}</h3>${table(rows)}`;
   }
-  const SKIP = new Set(['id', 'displayName', 'faction', 'slot_type', 'hand_type', 'weight_kg', 'point_cost', 'comment', 'allowed_units', 'unit_restriction', 'is_melee', 'repair_tags', 'projectile_length', 'projectile_width', 'loadout_version', 'weightCapacity']);
+  const SKIP = new Set(['id', 'displayName', 'faction', 'slot_type', 'hand_type', 'weight_kg', 'point_cost', 'comment', 'allowed_units', 'unit_restriction', 'is_melee', 'repair_tags', 'projectile_length', 'projectile_width', 'loadout_version', 'weightCapacity', 'damage_pure', 'resist_pure']);
   const rest = Object.keys(e).filter(k => !k.startsWith('_') && !SKIP.has(k) && !used.has(k) && (typeof e[k] !== 'object' || Array.isArray(e[k])));
   const restRows = rest.map(k => [label(k), fmt(k, e[k])]).filter(x => x[1] !== '');
   if (restRows.length) html += `<h3>Altro</h3>${table(restRows)}`;

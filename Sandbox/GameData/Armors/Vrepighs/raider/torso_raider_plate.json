@@ -1,5 +1,6 @@
 {
   "id": "torso_raider_plate",
+  "resistances": {"pierce": 8, "slash": 8, "blunt": 8, "energy": 5},
   "displayName": "Pettorale da Razziatore",
   "comment": "Dotazione base del Razziatore: pettorale di lamiera.",
   "allowed_units": [

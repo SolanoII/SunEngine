@@ -1,5 +1,6 @@
 {
   "id": "explorer_heavy_round_pistol",
+  "damage_types": {"pierce": 60, "blast": 40},
   "displayName": "Pistola Pesante a Proiettili",
   "faction": "Vanguard",
   "slot_type": "secondary",

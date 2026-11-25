@@ -1,5 +1,7 @@
 {
   "id": "tusker_mines",
+  "damage_types": {"blast": 70, "pierce": 30},
+  "damage_pure": true,
   "displayName": "Mine da Terra",
   "comment": "Sbloccabile del Vrepigh Vrepigh: 2 mine a pressione. In mano, click sinistro ne piazza una davanti ai piedi; dopo 1.5 secondi si arma e scoppia quando un nemico ci passa sopra (150 danni al centro, 3.5 metri di raggio).",
   "faction": "Vrepighs",

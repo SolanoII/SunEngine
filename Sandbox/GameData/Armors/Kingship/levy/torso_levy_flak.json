@@ -1,5 +1,6 @@
 {
   "id": "torso_levy_flak",
+  "resistances": {"pierce": 8, "slash": 12, "blunt": 8},
   "displayName": "Corpetto da Recluta",
   "comment": "Dotazione base del Recluta di Leva: giubba e corpetto antischegge (davanti, dietro e spalle).",
   "location": "Torso",

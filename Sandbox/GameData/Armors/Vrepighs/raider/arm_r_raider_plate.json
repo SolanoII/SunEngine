@@ -1,5 +1,6 @@
 {
   "id": "arm_r_raider_plate",
+  "resistances": {"pierce": 8, "slash": 8, "blunt": 8, "energy": 5},
   "displayName": "Piastra del Fucile Pesante (dx)",
   "comment": "Dotazione base del Razziatore: piastra sul braccio destro, quello coperto dal fucile pesante. E' l'unico braccio che il Razziatore puo' corazzare.",
   "location": "RightArm",

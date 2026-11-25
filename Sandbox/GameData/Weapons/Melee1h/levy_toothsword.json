@@ -1,5 +1,6 @@
 {
   "id": "levy_toothsword",
+  "damage_types": {"slash": 100},
   "displayName": "Spada a Denti Meccanici da Recluta",
   "faction": "Kingship",
   "is_melee": true,

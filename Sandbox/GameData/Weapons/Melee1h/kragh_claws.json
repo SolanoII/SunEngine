@@ -1,5 +1,6 @@
 {
   "id": "kragh_claws",
+  "damage_types": {"slash": 80, "pierce": 20},
   "displayName": "Artigli di Kragh",
   "comment": "Solo Kragh: mani artigliate indurite da anni di pietra. Rapidi, x2 alle spalle; il colpo pesante spezza le guardie.",
   "faction": "Vrepighs",

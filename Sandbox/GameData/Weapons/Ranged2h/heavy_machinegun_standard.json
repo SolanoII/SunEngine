@@ -1,5 +1,6 @@
 {
   "id": "heavy_machinegun_standard",
+  "damage_types": {"pierce": 100},
   "displayName": "Mitragliatore Pesante Portatile",
   "faction": "Kingship",
   "slot_type": "primary",

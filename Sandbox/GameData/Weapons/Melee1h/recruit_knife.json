@@ -1,5 +1,6 @@
 {
   "id": "recruit_knife",
+  "damage_types": {"pierce": 70, "slash": 30},
   "displayName": "Coltello del Condannato",
   "faction": "Kingship",
   "is_melee": true,

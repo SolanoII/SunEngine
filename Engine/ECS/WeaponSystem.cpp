@@ -492,7 +492,7 @@ namespace SunEngine {
             const float healthBefore = targetHealth.currentHealth;
             // Parata (Q) con scudo o "perfect deflect": il raggio viene deviato, niente danno
             if (!DamageResolver::TryParryRanged(scene, hit.entity, baseDir)) {
-                DamageResolver::ResolveHit(frameDamage, effectiveAP, hit.location, targetStats, targetHealth);
+                DamageResolver::ResolveHit(frameDamage, effectiveAP, hit.location, targetStats, targetHealth, &wpBP.damage);
                 EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, healthBefore);
             }
         }
@@ -714,6 +714,7 @@ namespace SunEngine {
             ps.falloffStart = wpBP.damage_falloff_start; ps.falloffEnd = wpBP.damage_falloff_end;
             ps.fusionShot = wpBP.fusion_shot; ps.fusionRange = wpBP.fusion_range; ps.fusionMultiplier = wpBP.fusion_multiplier;
             ps.type = wpBP.projectile_type;
+            ps.split = isUnderbarrelShotgun ? DamageSplit::Pure(DamageType::Pierce) : wpBP.damage;
             ps.explosionRadius = wpBP.explosion_radius; ps.explosionDamage = wpBP.explosion_damage; ps.structureMultiplier = wpBP.structure_damage_multiplier;
 
             // Colpo psichico su un'unita': nessun proiettile, effetto immediato
@@ -802,13 +803,16 @@ namespace SunEngine {
                 ArmorPiece* armor = targetStats.armorSet.GetPiece(ps.location);
                 int targetArmorRating = armor ? armor->armorRating : targetStats.armorSet.GetAverageRating();
                 finalDamage = ps.baseDamage + (targetArmorRating * 1.5f);
-                DamageResolver::ResolveHit(finalDamage, effectiveAP, ps.location, targetStats, targetHealth);
+                DamageResolver::ResolveHit(finalDamage, effectiveAP, ps.location, targetStats, targetHealth, &ps.split);
             }
             else if (ps.type == ProjectileType::Psychic) {
+                // passa l'armatura, ma non le sue difese per tipo (es. glifi contro il magico)
+                const ArmorPiece* piece = targetStats.armorSet.GetPiece(ps.location);
+                if (piece && piece->currentDurability > 0.0f) finalDamage *= ps.split.Through(piece->resist);
                 targetHealth.currentHealth -= finalDamage;
             }
             else {
-                DamageResolver::ResolveHit(finalDamage, effectiveAP, ps.location, targetStats, targetHealth);
+                DamageResolver::ResolveHit(finalDamage, effectiveAP, ps.location, targetStats, targetHealth, &ps.split);
             }
             EmitHitFeedback(scene, shooter, ps.target, ps.point, ps.location, healthBefore, ps.graze);
             killed = healthBefore > 0.0f && targetHealth.currentHealth <= 0.0f;
@@ -822,7 +826,7 @@ namespace SunEngine {
         // Proiettile esplosivo (es. Lanciarazzi): esplode dove arriva, colpendo i nemici attorno
         if (ps.type == ProjectileType::Explosive && ps.explosionRadius > 0.0f && !ps.parried) {
             Explosives::Explode(scene, ps.hitPoint, ps.explosionRadius, ps.explosionDamage, ps.armorPenetration,
-                                shooter, ps.team, ps.structureMultiplier, false);
+                                shooter, ps.team, ps.structureMultiplier, false, &ps.split);
         }
         if (ps.type == ProjectileType::Psychic) return;
         if ((ps.hit || ps.fx == WeaponFx::Explosive) && !ps.parried) {
@@ -886,7 +890,7 @@ namespace SunEngine {
             float flamerDamage = wpBP.base_damage * 0.2f;
             const float healthBefore = targetHealth.currentHealth;
             DamageResolver::ResolveHit(flamerDamage, wpBP.armor_penetration,
-                HitboxLocation::Torso, targetStats, targetHealth);
+                HitboxLocation::Torso, targetStats, targetHealth, &wpBP.damage);
             EmitHitFeedback(scene, shooter, entity, targetCenter, HitboxLocation::Torso, healthBefore);
         }
     }
@@ -932,7 +936,7 @@ namespace SunEngine {
             auto& st = reg.get<UnitStatsComponent>(hit.entity);
             auto& hp = reg.get<HealthComponent>(hit.entity);
             const float before = hp.currentHealth;
-            DamageResolver::ResolveHit(bp.base_damage, bp.armor_penetration, hit.location, st, hp);
+            DamageResolver::ResolveHit(bp.base_damage, bp.armor_penetration, hit.location, st, hp, &bp.damage);
             EmitHitFeedback(scene, shooter, hit.entity, hit.point, hit.location, before);
         }
         else if (hit.hit && !hit.hitUnit && hit.entity != entt::null && reg.valid(hit.entity) && reg.all_of<StructureHealthComponent>(hit.entity)) {

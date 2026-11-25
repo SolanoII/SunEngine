@@ -1,5 +1,7 @@
 {
 	"id": "flamer_standard",
+	"damage_types": {"fire": 100},
+	"damage_pure": true,
 	"displayName": "Lanciafiamme Modello Purificatore",
 	"faction": "Kingship",
 	"slot_type": "primary",

@@ -1,5 +1,6 @@
 {
   "id": "raider_discharge_rifle",
+  "damage_types": {"energy": 60, "fire": 40},
   "displayName": "Fucile a Scarica",
   "comment": "Sbloccabile del Razziatore: fucile pesante al plasma. Pochi colpi pesantissimi che sciolgono le corazze. 8 colpi, 16 di riserva.",
   "faction": "Vrepighs",

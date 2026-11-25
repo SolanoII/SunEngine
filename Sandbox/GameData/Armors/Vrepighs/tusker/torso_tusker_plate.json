@@ -1,5 +1,6 @@
 {
   "id": "torso_tusker_plate",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Pettorale da Vrepigh",
   "comment": "Dotazione base del Vrepigh Vrepigh: pettorale di lamiera con cinghie.",
   "location": "Torso",

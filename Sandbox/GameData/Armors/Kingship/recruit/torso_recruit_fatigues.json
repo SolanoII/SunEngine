@@ -1,5 +1,6 @@
 {
   "id": "torso_recruit_fatigues",
+  "resistances": {"slash": 5, "blunt": 5},
   "displayName": "Casacca del Condannato",
   "comment": "Dotazione base del Meatshield (condannato a vita): giubba di tela, nessuna armatura, solo aspetto.",
   "location": "Torso",

@@ -1,5 +1,6 @@
 {
   "id": "tusker_heavy_cleaver",
+  "damage_types": {"slash": 80, "blunt": 20},
   "displayName": "Mannaia Pesante",
   "comment": "Sbloccabile del Vrepigh Vrepigh: enorme ascia a due mani. Lenta, ma ogni colpo e' devastante e passa le armature.",
   "faction": "Vrepighs",

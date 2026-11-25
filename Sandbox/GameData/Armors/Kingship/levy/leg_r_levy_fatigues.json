@@ -1,5 +1,6 @@
 {
   "id": "leg_r_levy_fatigues",
+  "resistances": {"pierce": 8, "slash": 12, "blunt": 8},
   "displayName": "Pantaloni da Recluta (dx)",
   "comment": "Dotazione base: pantaloni di tela e stivali, nessuna armatura.",
   "location": "RightLeg",

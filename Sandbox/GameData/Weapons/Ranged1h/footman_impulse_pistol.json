@@ -1,5 +1,6 @@
 {
   "id": "footman_impulse_pistol",
+  "damage_types": {"energy": 100},
   "displayName": "Pistola a Impulsi del Presidio",
   "faction": "Kingship",
   "slot_type": "secondary",

@@ -1,5 +1,6 @@
 {
   "id": "leg_l_footman_recruit",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10},
   "displayName": "Schiniera Antischegge da Fante (sx)",
   "location": "LeftLeg",
   "armor_rating": 8,

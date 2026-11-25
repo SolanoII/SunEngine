@@ -1,5 +1,6 @@
 {
   "id": "arm_l_feral_pig_scrap",
+  "resistances": {"pierce": 4, "slash": 6, "blunt": 4},
   "displayName": "Spallaccio di Rottami (sx)",
   "comment": "Spallaccio di lamiera con punta. Si ricerca sotto il Feral Pig e si compra per unita', un pezzo alla volta.",
   "location": "LeftArm",

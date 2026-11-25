@@ -1,5 +1,6 @@
 {
   "id": "gorvakh_claws",
+  "damage_types": {"slash": 80, "pierce": 20},
   "displayName": "Artigli di Gorvakh",
   "comment": "Solo Gorvakh: artigli enormi su braccia gonfie di Vanguardio. Piu' lenti di quelli di Kragh, ma ogni colpo pesa come una trave.",
   "faction": "Vrepighs",

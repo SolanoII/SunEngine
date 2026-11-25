@@ -1,5 +1,6 @@
 {
   "id": "tusker_cleaver",
+  "damage_types": {"slash": 80, "blunt": 20},
   "displayName": "Mannaia",
   "comment": "Dotazione base del Vrepigh Vrepigh: la mannaia dei Vrepigh.",
   "allowed_units": [

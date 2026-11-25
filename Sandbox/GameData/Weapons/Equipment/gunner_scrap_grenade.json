@@ -1,5 +1,7 @@
 {
   "id": "gunner_scrap_grenade",
+  "damage_types": {"blast": 50, "slash": 50},
+  "damage_pure": true,
   "displayName": "Granata di Rottami",
   "comment": "Dotazione base del Vrepigh Sparammazza: granata a frammentazione classica. Click sinistro la lancia verso il mirino: rimbalza e scoppia dopo 3 secondi (110 danni al centro, 4.5 metri di raggio). 1 per partita.",
   "faction": "Vrepighs",

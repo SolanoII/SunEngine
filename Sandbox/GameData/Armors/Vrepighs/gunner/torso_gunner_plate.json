@@ -1,5 +1,6 @@
 {
   "id": "torso_gunner_plate",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Pettorale da Tiratore",
   "comment": "Dotazione base del Vrepigh Sparammazza: pettorale di lamiera con cinghie.",
   "allowed_units": [

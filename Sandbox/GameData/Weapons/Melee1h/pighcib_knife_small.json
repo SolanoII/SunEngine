@@ -1,5 +1,6 @@
 {
   "id": "pighcib_knife_small",
+  "damage_types": {"pierce": 70, "slash": 30},
   "displayName": "Lama da Pighcib",
   "comment": "Dotazione base del Pighcib: lama piccola, meno danno di un coltello normale. Passive: +5% velocita' a chi la tiene in mano, x2 danno alle spalle (gioco stealth).",
   "faction": "Vrepighs",

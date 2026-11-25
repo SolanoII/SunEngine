@@ -1,5 +1,6 @@
 {
   "id": "leg_l_pighcib_rags",
+  "resistances": {"slash": 3, "blunt": 3},
   "displayName": "Calzoni da Pighcib (sx)",
   "comment": "Calzoni stracciati del Pighcib: nessuna armatura, solo aspetto.",
   "location": "LeftLeg",

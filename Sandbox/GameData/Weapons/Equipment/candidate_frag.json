@@ -1,5 +1,7 @@
 {
   "id": "candidate_frag",
+  "damage_types": {"blast": 70, "pierce": 30},
+  "damage_pure": true,
   "displayName": "Granata a Frammentazione",
   "comment": "Dotazione base dell'Candidato: granata a frammentazione (110 danni al centro, 4,5 m). 1 per partita.",
   "faction": "Vanguard",

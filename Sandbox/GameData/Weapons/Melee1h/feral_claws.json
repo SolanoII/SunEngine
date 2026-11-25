@@ -1,5 +1,6 @@
 {
   "id": "feral_claws",
+  "damage_types": {"slash": 80, "pierce": 20},
   "displayName": "Artigli",
   "comment": "Arma naturale del Feral Pig: zampe artigliate. Non si vede in mano (weapon_scale 0), non si puo' togliere ne' cambiare. Colpi rapidi, x2 danno alle spalle.",
   "faction": "Vrepighs",

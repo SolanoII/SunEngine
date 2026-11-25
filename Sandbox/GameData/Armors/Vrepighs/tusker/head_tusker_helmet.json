@@ -1,5 +1,6 @@
 {
   "id": "head_tusker_helmet",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Elmo da Vrepigh",
   "comment": "Sbloccabile del Vrepigh Vrepigh: elmo di ferro con corna. Finche' regge annulla il bonus del colpo in testa.",
   "location": "Head",

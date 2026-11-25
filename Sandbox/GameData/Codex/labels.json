@@ -864,5 +864,255 @@
    "Dal raro in su ogni livello aggiunge un tratto a caso.",
    "Gli oggetti si consumano con l'uso: ogni colpo sparato toglie lo 0,03% di condizione, ogni colpo in mischia a segno lo 0,15%, e le armature perdono fino al 25% in proporzione ai colpi che hanno preso. Morire con l'oggetto addosso toglie un altro 34%. Vale nella 5v5 e nella sopravvivenza, non nella storia. A zero l'oggetto si rompe e va riparato; sotto il 100% l'arma fa meno danno ed e' meno precisa, l'armatura regge meno. La dotazione base non si consuma mai."
   ]
+ },
+ "damage": {
+  "types": [
+   {
+    "code": "pierce",
+    "name": "Perforazione",
+    "group": "Fisico",
+    "color": [
+     0.86,
+     0.84,
+     0.78
+    ],
+    "split": "Chiodata",
+    "boost": "Penetrante",
+    "armor_new": "Piastre balistiche",
+    "armor_boost": "Piastre temprate",
+    "desc": "Proiettili, chiodi, punte e lance",
+    "fx": ""
+   },
+   {
+    "code": "slash",
+    "name": "Taglio",
+    "group": "Fisico",
+    "color": [
+     0.94,
+     0.66,
+     0.6
+    ],
+    "split": "Seghettata",
+    "boost": "Filo rasoio",
+    "armor_new": "Cotta di maglia",
+    "armor_boost": "Maglia fitta",
+    "desc": "Lame, spade a catena, artigli e lanciaseghe",
+    "fx": ""
+   },
+   {
+    "code": "blunt",
+    "name": "Contundente",
+    "group": "Fisico",
+    "color": [
+     0.78,
+     0.66,
+     0.5
+    ],
+    "split": "Appesantita",
+    "boost": "Massa d'urto",
+    "armor_new": "Imbottitura d'urto",
+    "armor_boost": "Imbottitura spessa",
+    "desc": "Mazze, martelli, calci del fucile e armi gauss",
+    "fx": ""
+   },
+   {
+    "code": "energy",
+    "name": "Energetico",
+    "group": "Energia",
+    "color": [
+     0.36,
+     0.86,
+     1.0
+    ],
+    "split": "Fotonica",
+    "boost": "Celle sovralimentate",
+    "armor_new": "Rivestimento riflettente",
+    "armor_boost": "Specchi rinforzati",
+    "desc": "Laser, plasma e fusione",
+    "fx": "bagliore del colore del colpo alla bocca"
+   },
+   {
+    "code": "rad",
+    "name": "Radioattivo",
+    "group": "Energia",
+    "color": [
+     0.58,
+     1.0,
+     0.22
+    ],
+    "split": "Irradiata",
+    "boost": "Nucleo arricchito",
+    "armor_new": "Schermatura al piombo",
+    "armor_boost": "Piombo spesso",
+    "desc": "Armi radioattive",
+    "fx": "alone verde malato e granelli che salgono"
+   },
+   {
+    "code": "shock",
+    "name": "Elettrico",
+    "group": "Energia",
+    "color": [
+     0.55,
+     0.72,
+     1.0
+    ],
+    "split": "Voltaica",
+    "boost": "Bobine potenziate",
+    "armor_new": "Isolamento",
+    "armor_boost": "Isolamento doppio",
+    "desc": "Armi voltaiche e magia elettrica",
+    "fx": "archi e scintille azzurre"
+   },
+   {
+    "code": "blast",
+    "name": "Esplosivo",
+    "group": "Fisico",
+    "color": [
+     1.0,
+     0.62,
+     0.26
+    ],
+    "split": "Detonante",
+    "boost": "Carica maggiorata",
+    "armor_new": "Strati antischegge",
+    "armor_boost": "Antischegge spessi",
+    "desc": "Lanciamissili, lanciagranate, granate e mine",
+    "fx": "fumo e braci"
+   },
+   {
+    "code": "fire",
+    "name": "Fuoco",
+    "group": "Elementale",
+    "color": [
+     1.0,
+     0.46,
+     0.1
+    ],
+    "split": "Incendiaria",
+    "boost": "Combustione viva",
+    "armor_new": "Ignifuga",
+    "armor_boost": "Ignifuga rinforzata",
+    "desc": "Lanciafiamme e magia del fuoco",
+    "fx": "fiammelle e braci che salgono"
+   },
+   {
+    "code": "acid",
+    "name": "Acido",
+    "group": "Elementale",
+    "color": [
+     0.78,
+     0.96,
+     0.16
+    ],
+    "split": "Corrosiva",
+    "boost": "Acido concentrato",
+    "armor_new": "Smalto antiacido",
+    "armor_boost": "Smalto spesso",
+    "desc": "Magia dell'acido",
+    "fx": "gocce gialloverdi che colano"
+   },
+   {
+    "code": "poison",
+    "name": "Veleno",
+    "group": "Elementale",
+    "color": [
+     0.64,
+     0.36,
+     0.86
+    ],
+    "split": "Avvelenata",
+    "boost": "Tossina distillata",
+    "armor_new": "Filtri sigillati",
+    "armor_boost": "Filtri doppi",
+    "desc": "Magia del veleno",
+    "fx": "vapori violacei"
+   },
+   {
+    "code": "frost",
+    "name": "Acqua/Ghiaccio",
+    "group": "Elementale",
+    "color": [
+     0.62,
+     0.9,
+     1.0
+    ],
+    "split": "Gelida",
+    "boost": "Gelo profondo",
+    "armor_new": "Fodera termica",
+    "armor_boost": "Fodera spessa",
+    "desc": "Magia dell'acqua e del ghiaccio",
+    "fx": "brina e nebbia fredda che scende"
+   },
+   {
+    "code": "nature",
+    "name": "Natura",
+    "group": "Elementale",
+    "color": [
+     0.34,
+     0.78,
+     0.3
+    ],
+    "split": "Spinosa",
+    "boost": "Linfa vorace",
+    "armor_new": "Unguenti protettivi",
+    "armor_boost": "Unguenti densi",
+    "desc": "Magia della natura",
+    "fx": "spore e foglie verdi"
+   },
+   {
+    "code": "holy",
+    "name": "Luce",
+    "group": "Elementale",
+    "color": [
+     1.0,
+     0.88,
+     0.52
+    ],
+    "split": "Benedetta",
+    "boost": "Consacrata",
+    "armor_new": "Velo d'ombra",
+    "armor_boost": "Velo profondo",
+    "desc": "Armi sacre e magia della luce",
+    "fx": "luce dorata che esce dalla canna o dalla lama"
+   },
+   {
+    "code": "dark",
+    "name": "Oscurita'",
+    "group": "Elementale",
+    "color": [
+     0.6,
+     0.32,
+     0.78
+    ],
+    "split": "Maledetta",
+    "boost": "Profanata",
+    "armor_new": "Sigilli sacri",
+    "armor_boost": "Sigilli rinnovati",
+    "desc": "Armi maledette e magia oscura",
+    "fx": "fumo nero e viola"
+   },
+   {
+    "code": "arcane",
+    "name": "Magico",
+    "group": "Arcano",
+    "color": [
+     0.86,
+     0.42,
+     1.0
+    ],
+    "split": "Arcana",
+    "boost": "Rune incise",
+    "armor_new": "Glifi di guardia",
+    "armor_boost": "Glifi profondi",
+    "desc": "Armi arcane e psioniche",
+    "fx": "rune e luci che girano attorno"
+   }
+  ],
+  "rules": [
+   "Ogni arma divide il suo danno fra uno o piu' tipi. Ogni armatura ha una difesa per tipo: riduce quella parte del colpo, se il pezzo colpito copre e regge. La difesa generica (armatura contro perforazione) vale per tutti i tipi.",
+   "Tratti delle armi: aggiungere un tipo (+20% del danno come quel tipo, al massimo due) o rinforzarne uno che c'e' (+15% della sua parte). Tratti delle armature: aggiungere una difesa (+15%, al massimo due) o rinforzarne una (+10%).",
+   "Armi e armature \"pure\" (lanciafiamme, lanciarazzi, granate, armi elementali e arcane; l'armatura consacrata dell'Ordo) possono solo rinforzare quello che hanno.",
+   "I tipi non fisici si vedono sul modello dell'arma: alla bocca della canna, lungo la lama o nel nucleo (es. una pistola benedetta manda luce dorata dalla canna)."
+  ]
  }
 }

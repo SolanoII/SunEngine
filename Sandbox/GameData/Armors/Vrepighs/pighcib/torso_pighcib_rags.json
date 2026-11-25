@@ -1,5 +1,6 @@
 {
   "id": "torso_pighcib_rags",
+  "resistances": {"slash": 3, "blunt": 3},
   "displayName": "Vesti da Pighcib",
   "comment": "Stracci del Pighcib: nessuna armatura, solo aspetto. Cuboni: torso e pancia color straccio. Modello animato: casacca sulla schiena (Spine1) e perizoma sui fianchi (Hips).",
   "location": "Torso",

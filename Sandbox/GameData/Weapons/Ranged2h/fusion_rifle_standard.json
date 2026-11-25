@@ -1,5 +1,6 @@
 {
   "id": "fusion_rifle_standard",
+  "damage_types": {"energy": 70, "fire": 30},
   "displayName": "Fucile a Fusione Modello Kaiser",
   "faction": "Kingship",
   "slot_type": "primary",

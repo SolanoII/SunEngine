@@ -1,5 +1,6 @@
 {
   "id": "candidate_impulse_pistol",
+  "damage_types": {"energy": 100},
   "displayName": "Pistola a Impulsi",
   "faction": "Vanguard",
   "slot_type": "secondary",

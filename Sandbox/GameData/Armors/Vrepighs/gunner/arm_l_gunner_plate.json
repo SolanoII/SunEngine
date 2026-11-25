@@ -1,5 +1,6 @@
 {
   "id": "arm_l_gunner_plate",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Spallaccio da Tiratore (sx)",
   "comment": "Sbloccabile del Vrepigh Sparammazza: spallaccio e bracciale di piastra.",
   "allowed_units": [

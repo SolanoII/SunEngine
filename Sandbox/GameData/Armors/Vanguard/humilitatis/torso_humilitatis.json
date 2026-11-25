@@ -1,5 +1,7 @@
 {
   "id": "torso_humilitatis",
+  "resistances": {"pierce": 12, "slash": 15, "blunt": 10, "holy": 20, "dark": 20, "arcane": 10},
+  "resist_pure": true,
   "displayName": "Corazza e Sopravveste Teutonica (media)",
   "comment": "Armatura teutonica dell'Ordo Domus Humilitatis, versione media (solo Konrad von Eber). Piastre brunite quasi nere, sopravveste bianca con la croce nera, mantello scuro, grande elmo con la luce viola degli occhi. I pezzi 'procedural' sono costruiti sul corpo (Engine/Renderer/TeutonicArmor.h): vestono ogni Vanguard Armor di taglia media; i gusci 'sculpted_fit' vengono dal corpo.",
   "location": "Torso",

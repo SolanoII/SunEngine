@@ -1,5 +1,6 @@
 {
   "id": "explorer_heavy_round_rifle",
+  "damage_types": {"pierce": 60, "blast": 40},
   "displayName": "Fucile a Proiettili dell'Iniziato",
   "faction": "Vanguard",
   "slot_type": "primary",

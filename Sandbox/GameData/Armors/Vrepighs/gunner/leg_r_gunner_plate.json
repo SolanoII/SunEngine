@@ -1,5 +1,6 @@
 {
   "id": "leg_r_gunner_plate",
+  "resistances": {"pierce": 6, "slash": 8, "blunt": 6},
   "displayName": "Gambale da Tiratore (dx)",
   "comment": "Sbloccabile del Vrepigh Sparammazza: cosciale e ginocchiera di piastra.",
   "allowed_units": [

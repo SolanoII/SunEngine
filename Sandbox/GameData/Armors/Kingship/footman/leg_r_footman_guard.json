@@ -1,5 +1,6 @@
 {
   "id": "leg_r_footman_guard",
+  "resistances": {"pierce": 10, "slash": 15, "blunt": 10, "blast": 5},
   "displayName": "Gambale del Presidio (dx)",
   "comment": "Dotazione base del Fante del Regno: pantaloni, anfibi, ginocchiera e parastinchi antischegge.",
   "location": "RightLeg",

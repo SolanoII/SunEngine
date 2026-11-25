@@ -1,5 +1,6 @@
 {
   "id": "leg_l_levy_guard",
+  "resistances": {"pierce": 8, "slash": 12, "blunt": 8},
   "displayName": "Gambale da Recluta (sx)",
   "comment": "Sbloccabile del Recluta di Leva: ginocchiera e parastinchi antischegge sopra i pantaloni.",
   "location": "LeftLeg",

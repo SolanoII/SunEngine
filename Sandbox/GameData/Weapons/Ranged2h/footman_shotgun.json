@@ -1,5 +1,6 @@
 {
   "id": "footman_shotgun",
+  "damage_types": {"pierce": 70, "blunt": 30},
   "displayName": "Fucile a Pompa del Presidio",
   "faction": "Kingship",
   "slot_type": "primary",

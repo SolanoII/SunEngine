@@ -1,5 +1,6 @@
 {
   "id": "konrad_auto_heavy_round_rifle",
+  "damage_types": {"pierce": 60, "blast": 40},
   "displayName": "Fucile Automatico dell'Ordine",
   "faction": "Vanguard",
   "slot_type": "primary",
