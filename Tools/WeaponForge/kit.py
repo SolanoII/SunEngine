@@ -32,6 +32,8 @@ MATS = {
     'hazard':   ((0.16, 0.1, 0.012), 0.7, 0.2, 1, 2, 0.15),    # strisce di pericolo gialle, sporche
     'ceramic':  ((0.2, 0.17, 0.13), 0.35, 0.0, 0, 0, 0.0),     # isolatori di ceramica
     'gunmetal': ((0.035, 0.035, 0.038), 0.42, 0.95, 1, 2, 0.08),
+    'glass':    ((0.006, 0.008, 0.01), 0.04, 0.0, 0, 0, 0.0),     # lenti delle ottiche, vetri dei quadranti
+    'parkerized':((0.03, 0.031, 0.028), 0.68, 0.85, 1, 2, 0.12),  # acciaio fosfatato opaco (Regno)
 }
 
 

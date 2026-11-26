@@ -10,6 +10,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 os.chdir(HERE)
 sys.path.insert(0, HERE)
 import sdf, variants
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import photo_lib
 ARGV = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else sys.argv[1:]
 
 
@@ -526,7 +528,14 @@ nt.links.new(tc.outputs['Object'], mp.inputs['Vector']); nt.links.new(mp.outputs
 mul2 = nt.nodes.new('ShaderNodeMath'); mul2.operation = 'MULTIPLY'
 nt.links.new(ramp.outputs['Result'], mul2.inputs[0]); nt.links.new(hr.outputs['Result'], mul2.inputs[1])
 nt.links.new(attr.outputs['Color'], mix.inputs[0]); nt.links.new(mul2.outputs['Value'], mix.inputs[1])
-emit = nt.nodes.new('ShaderNodeEmission'); nt.links.new(mix.outputs['Vector'], emit.inputs['Color'])
+# cuoio fotografato (Poly Haven, CC0): rughe, pieghe e pori veri sopra il colore dipinto
+photo_lib.ensure(['fabric_leather_02'])
+P = photo_lib.nodes(nt, tc.outputs['Object'], 'fabric_leather_02', 1.4)
+col_out = mix.outputs['Vector']
+if P is not None:
+    pm = nt.nodes.new('ShaderNodeMix'); pm.data_type = 'RGBA'; pm.blend_type = 'MULTIPLY'; pm.inputs['Factor'].default_value = 0.55
+    nt.links.new(col_out, pm.inputs['A']); nt.links.new(P['rel'], pm.inputs['B']); col_out = pm.outputs['Result']
+emit = nt.nodes.new('ShaderNodeEmission'); nt.links.new(col_out, emit.inputs['Color'])
 out = nt.nodes['Material Output']
 nt.links.new(emit.outputs['Emission'], out.inputs['Surface'])
 tn = nt.nodes.new('ShaderNodeTexImage'); tn.image = img; nt.nodes.active = tn
@@ -535,13 +544,33 @@ sc.render.engine = 'CYCLES'; sc.cycles.samples = 1; sc.cycles.device = 'CPU'
 sc.render.bake.margin = 8
 bpy.ops.object.bake(type='EMIT')
 img.filepath_raw = os.path.abspath('Skin_BaseColor.png'); img.file_format = 'PNG'; img.save()
+# ORM (R=1, G=ruvidita' dal cuoio, B=0) e normali (pieghe del cuoio + pori)
+img_o = bpy.data.images.new('Skin_ORM', TEX // 2, TEX // 2); img_o.colorspace_settings.name = 'Non-Color'
+img_n = bpy.data.images.new('Skin_Normal', TEX, TEX); img_n.colorspace_settings.name = 'Non-Color'
+comb = nt.nodes.new('ShaderNodeCombineColor'); comb.inputs['Red'].default_value = 1.0; comb.inputs['Blue'].default_value = 0.0
+rr = nt.nodes.new('ShaderNodeMath'); rr.operation = 'ADD'; rr.use_clamp = True; rr.inputs[0].default_value = 0.7; rr.inputs[1].default_value = 0.0
+if P is not None and 'rough' in P: nt.links.new(P['rough'], rr.inputs[1])
+nt.links.new(rr.outputs[0], comb.inputs['Green']); nt.links.new(comb.outputs[0], emit.inputs['Color'])
+tn_o = nt.nodes.new('ShaderNodeTexImage'); tn_o.image = img_o; nt.nodes.active = tn_o
+bpy.ops.object.bake(type='EMIT')
+hgt = nt.nodes.new('ShaderNodeMath'); hgt.operation = 'MULTIPLY_ADD'
+nt.links.new(noise.outputs['Fac'], hgt.inputs[0]); hgt.inputs[1].default_value = 0.35; hgt.inputs[2].default_value = 0.0
+if P is not None and 'disp' in P: nt.links.new(P['disp'], hgt.inputs[2])
+bump = nt.nodes.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.5; bump.inputs['Distance'].default_value = 0.002
+nt.links.new(hgt.outputs[0], bump.inputs['Height']); nt.links.new(bump.outputs['Normal'], bs.inputs['Normal'])
+nt.links.new(bs.outputs['BSDF'], nt.nodes['Material Output'].inputs['Surface'])
+tn_n = nt.nodes.new('ShaderNodeTexImage'); tn_n.image = img_n; nt.nodes.active = tn_n
+sc.render.bake.normal_space = 'TANGENT'
+bpy.ops.object.bake(type='NORMAL')
 # materiale finale: texture -> colore base
 for n in list(nt.nodes):
     if n.type not in ('BSDF_PRINCIPLED', 'OUTPUT_MATERIAL', 'TEX_IMAGE'): nt.nodes.remove(n)
 nt.links.new(tn.outputs['Color'], bs.inputs['Base Color'])
 nt.links.new(bs.outputs['BSDF'], out.inputs['Surface'])
-bs.inputs['Roughness'].default_value = 0.72
-img.pack()
+sp_ = nt.nodes.new('ShaderNodeSeparateColor'); nt.links.new(tn_o.outputs['Color'], sp_.inputs[0])
+nt.links.new(sp_.outputs['Green'], bs.inputs['Roughness']); nt.links.new(sp_.outputs['Blue'], bs.inputs['Metallic'])
+nm_ = nt.nodes.new('ShaderNodeNormalMap'); nt.links.new(tn_n.outputs['Color'], nm_.inputs['Color']); nt.links.new(nm_.outputs['Normal'], bs.inputs['Normal'])
+img.pack(); img_o.pack(); img_n.pack()
 
 # orecchie di nuovo a parte (stessa texture, materiale "Skin_Ears"): per la forgia non sono cranio
 activate(body)

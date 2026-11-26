@@ -22,7 +22,8 @@ corretti a mano: testa e mandibola sono definite dalla forma; gobba e collo non 
 
 Il colore è dipinto per vertice (cuoio bruno scuro, schiena e arti più scuri, ventre e grugno più chiari, zoccoli
 quasi neri, interno delle orecchie rosato), con i pori e le striature del pelo aggiunti al momento della cottura.
-Tutto finisce in `Skin_BaseColor` (2048 px), dentro il GLB.
+Sopra c'e' il cuoio fotografato `fabric_leather_02` (Poly Haven, CC0, `../photo_lib.py`): rughe e pieghe nel colore,
+ruvidita' in `Skin_ORM` e rilievo (pieghe + pori) in `Skin_Normal`. Tutto finisce nel GLB (`Skin_BaseColor` 2048 px).
 
 Materiali, che il gioco riconosce dal nome:
 

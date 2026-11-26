@@ -13,8 +13,11 @@ import bpy, bmesh
 from mathutils import Vector, Matrix
 import kit
 from kit import MATS
+sys.path.insert(0, os.path.join(HERE, '..', 'ModelForge'))
+import photo_lib
 import arch
 import arch2
+import arch3
 from arch import Lay
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
@@ -60,22 +63,36 @@ def archetype(wid, style):
     if has('grenade_launcher'): return A.launcher, {'kind': 'grenade'}
     if has('rocket'): return A.launcher, {'kind': 'rocket'}
     if has('blunderbuss'): return A.blunderbuss, {}
-    W = arch2
-    if has('impulse_cannon'): return W.war_energy, {'kind': 'impulse'}
-    if has('beam'): return W.war_energy, {'kind': 'beam'}
-    if has('discharge'): return W.war_energy, {'kind': 'discharge'}
-    if has('fusion'): return W.war_energy, {'kind': 'fusion'}
+    E, H = arch3.energy3, arch3.pistol3
+    if has('impulse_cannon'): return E, {'kind': 'cannon'}
+    if has('beam'): return E, {'kind': 'beam'}
+    if has('discharge'): return E, {'kind': 'discharge'}
+    if has('fusion'): return E, {'kind': 'fusion'}
     if has('pistol'):
-        if has('impulse'): return W.hand_cannon, {'kind': 'energy'}
-        if has('heavy_round', 'high_power'): return W.hand_cannon, {'kind': 'heavy'}
-        if style == 'x': return W.hand_cannon, {'kind': 'crude'}
-        return W.hand_cannon, {'kind': 'auto'}
-    if has('impulse'): return W.war_energy, {'kind': 'impulse'}
-    if has('_mg', 'heavy_crude_gun'): return W.war_rifle, {'kind': 'mg'}
-    if has('shotgun'): return W.war_rifle, {'kind': 'shotgun'}
-    if has('sniper', 'precision', 'high_power'): return W.war_rifle, {'kind': 'bolt'}
-    if has('heavy_round'): return W.war_rifle, {'kind': 'heavy'}
-    return W.war_rifle, {'kind': 'auto'}
+        if has('impulse'): return H, {'kind': 'energy'}
+        if has('heavy_round', 'high_power'): return H, {'kind': 'heavy'}
+        if style == 'x': return H, {'kind': 'crude'}
+        return H, {'kind': 'auto'}
+    if has('impulse'): return E, {'kind': 'impulse'}
+    T = arch3.rifle3     # armi da fuoco "vere" (arch3): misure delle armi storiche, meccanica pezzo per pezzo
+    if has('_mg', 'heavy_crude_gun'): return T, {'kind': 'mg'}
+    if has('shotgun'): return T, {'kind': 'shotgun'}
+    if has('sniper'): return T, {'kind': 'sniper'}
+    if has('precision', 'high_power'): return T, {'kind': 'bolt'}
+    if has('heavy_round'): return T, {'kind': 'heavy'}
+    if style == 'x': return T, {'kind': 'crude'}
+    return T, {'kind': 'auto', 'drum': has('levy')}
+
+
+# Foto CC0 sotto i materiali (photo_lib): indice nel canale fx.z -> (foto, scala, forza colore, ruvidita', rilievo)
+PHOTO = {1: ('fine_grained_wood', 1.0, 0.85, 0.25, 0.8),      # calci e impugnature di legno
+         2: ('rusty_metal_sheet', 2.0, 0.8, 0.35, 0.4),        # acciaio, brunito, ottone, rame
+         3: ('green_metal_rust', 1.5, 0.8, 0.3, 0.45),    # vernici di fazione, strisce di pericolo
+         4: ('rusty_metal_02', 1.2, 0.8, 0.35, 0.6),          # lamiere dei Vrepigh
+         5: ('brown_leather', 1.0, 0.7, 0.3, 0.7),            # cuoio, gomma
+         6: ('hessian_230', 1.5, 0.7, 0.2, 0.6)}              # tela
+PHOTO_OF = {'parkerized': 2, 'steel': 2, 'blued': 2, 'bare': 2, 'gunmetal': 2, 'brass': 2, 'copper': 2, 'wood': 1, 'wood_dark': 1,
+            'leather': 5, 'rubber': 5, 'paint_k': 3, 'paint_v': 3, 'hazard': 3, 'scrap': 4, 'scrap_red': 4, 'cloth': 6}
 
 
 def g2b(v):
@@ -155,6 +172,26 @@ def bake_material(size):
     grain = noise(260 * S ** 0.5, 4, stretched((1.0, 0.05, 1.0)))
     isw = _cmp(1)
     col = base.outputs['Color']
+    # --- foto: colore relativo, scarto di ruvidita' e altezza, ognuna solo sul suo gruppo di materiali
+    def cmpz(i):
+        n = N.new('ShaderNodeMath'); n.operation = 'COMPARE'
+        Lk.new(fsep.outputs[2], n.inputs[0]); n.inputs[1].default_value = float(i); n.inputs[2].default_value = 0.4
+        return n.outputs[0]
+    ph_rough = None; ph_h = None
+    for i, (pid, mult, kc, kr, kh) in PHOTO.items():
+        P = photo_lib.nodes(nt, tc.outputs['Object'], pid, mult)
+        if P is None: continue
+        w = cmpz(i)
+        fac = M('MULTIPLY', w, kc)
+        mx = N.new('ShaderNodeMix'); mx.data_type = 'RGBA'; mx.blend_type = 'MULTIPLY'; mx.clamp_result = False
+        Lk.new(fac, mx.inputs['Factor']); Lk.new(col, mx.inputs['A']); Lk.new(P['rel'], mx.inputs['B'])
+        col = mx.outputs['Result']
+        if 'rough' in P:
+            r_ = M('MULTIPLY', M('MULTIPLY', P['rough'], kr, False), w, False)
+            ph_rough = r_ if ph_rough is None else M('ADD', ph_rough, r_, False)
+        if 'disp' in P:
+            h_ = M('MULTIPLY', M('MULTIPLY', P['disp'], kh), w)
+            ph_h = h_ if ph_h is None else M('ADD', ph_h, h_)
     col = mix(M('MULTIPLY', M('MULTIPLY', M('SUBTRACT', grain, 0.42), 2.2), isw), col, (0.008, 0.004, 0.002))
     # --- lamiera martellata: chiazze di tono
     ham = _cmp(3)
@@ -169,6 +206,7 @@ def bake_material(size):
     rough = M('SUBTRACT', rough, M('MULTIPLY', edge, 0.3))
     rough = M('ADD', rough, M('MULTIPLY', rust, 0.35))
     rough = M('ADD', rough, M('MULTIPLY', M('SUBTRACT', noise(90 * S, 3), 0.5), 0.15))
+    if ph_rough is not None: rough = M('ADD', rough, ph_rough)
     metal = M('SUBTRACT', rsep.outputs[1], M('MULTIPLY', rust, 0.85))
     metal = M('MAXIMUM', metal, M('MULTIPLY', edge, 0.95))
     metal = M('SUBTRACT', metal, M('MULTIPLY', dust, 0.6))
@@ -185,6 +223,7 @@ def bake_material(size):
     h_lea = M('MULTIPLY', noise(500 * S ** 0.5, 8, None, 0.7), _cmp(4))
     h = M('ADD', M('ADD', M('MULTIPLY', h_wood, 0.6), M('MULTIPLY', pits, 0.25)), M('ADD', M('MULTIPLY', h_ham, 1.0), M('MULTIPLY', h_lea, 0.5)))
     h = M('ADD', h, M('MULTIPLY', rust, 0.4))
+    if ph_h is not None: h = M('ADD', h, ph_h)
     h = M('SUBTRACT', h, M('MULTIPLY', scratch, 0.3))
     bump = N.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.6; bump.inputs['Distance'].default_value = 0.0015
     Lk.new(h, bump.inputs['Height'])
@@ -205,7 +244,7 @@ def build_mesh(B, wid):
         n = len(tmp.vertices)
         tmp.attributes.new('base', 'FLOAT_COLOR', 'POINT').data.foreach_set('color', np.tile([*col, 1.0], n))
         tmp.attributes.new('rm', 'FLOAT_VECTOR', 'POINT').data.foreach_set('vector', np.tile([rough, metal, bare], n))
-        tmp.attributes.new('fx', 'FLOAT_VECTOR', 'POINT').data.foreach_set('vector', np.tile([bump, rust, 0.0], n))
+        tmp.attributes.new('fx', 'FLOAT_VECTOR', 'POINT').data.foreach_set('vector', np.tile([bump, rust, float(PHOTO_OF.get(mat, 0))], n))
         out.from_mesh(tmp); bpy.data.meshes.remove(tmp)
     # spazio del gioco -> Blender
     kit.transform(out, Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1))))
@@ -247,6 +286,9 @@ def forge_one(path, size_px, preview_dir):
     B = kit.Builder(wid)
     rng = np.random.default_rng(zlib.crc32(wid.encode()))
     fn(B, lay, style, rng, **kw)
+    if getattr(B, 'muzzle', None) is not None:   # la canna vera e' lunga quanto deve: il gioco spara dalla bocca nuova
+        j.setdefault('anchors', {})['muzzle'] = [round(float(v), 4) for v in B.muzzle]
+        with open(path, 'w', encoding='utf-8') as f: json.dump(j, f, indent=2, ensure_ascii=False)
     ob = build_mesh(B, wid)
     me = ob.data
     dims = np.array(ob.dimensions[:])
@@ -259,7 +301,7 @@ def forge_one(path, size_px, preview_dir):
     # cottura
     bm_mat = bake_material(size)
     me.materials.append(bm_mat)
-    res = size_px if size > 0.3 else size_px // 2
+    res = size_px * 2 if size > 0.7 else (size_px if size > 0.3 else size_px // 2)   # 2048 per i fucili
     nt = bm_mat.node_tree
     tn = nt.nodes.new('ShaderNodeTexImage')
     img_c = bpy.data.images.new(wid + '_BaseColor', res, res)
@@ -326,6 +368,7 @@ def preview(objs, d, wid, big):
 
 
 if __name__ == '__main__':
+    photo_lib.ensure(sorted({v[0] for v in PHOTO.values()}))
     ap = argparse.ArgumentParser()
     ap.add_argument('--only', default='')
     ap.add_argument('--preview', default='')

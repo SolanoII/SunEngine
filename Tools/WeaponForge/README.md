@@ -70,6 +70,49 @@ python Tools/WeaponForge/forge2.py                                        # tutt
 python Tools/WeaponForge/forge2.py --only footman_auto_rifle --preview anteprime/
 ```
 
+## Terza forgia: armi vere (arch3.py)
+
+Fucili, mitragliatrici, fucili a pompa, pistole e armi a energia sono ricostruiti come armi da fuoco reali, pezzo per
+pezzo, con le misure delle armi storiche dello stesso ruolo:
+
+| ruolo | riferimento reale | qui |
+|---|---|---|
+| fucile automatico | M1918 BAR 1.19 m, Thompson M1928 0.85 m | 1.00 m |
+| fucile pesante | FG42 0.98 m, M1 Garand 1.10 m | 1.12 m |
+| fucile a otturatore / cecchino | SMLE 1.13 m, Mauser 98k 1.11 m | 1.15 / 1.25 m |
+| fucile a pompa da trincea | Winchester 1897 trench gun 1.00 m | 1.00 m |
+| mitragliatrice | MG 42 1.22 m, Lewis 1.28 m | 1.22 m |
+| pistola automatica | M1911 0.216 m, Luger P08 0.22 m | 0.23 m |
+| revolver pesante | Webley Mk VI 0.286 m | 0.29 m |
+
+Le armi della Vanguardia sono 1.15 volte piu' lunghe e 1.3 volte piu' grosse (le portano giganti corazzati).
+Restano fissi gli appoggi delle mani; la bocca della canna va dove la vuole la lunghezza vera e la forgia la riscrive
+in `anchors.muzzle` del modello a blocchi, cosi' i colpi partono dalla bocca nuova.
+
+Pezzi: castello con finestra d'espulsione, otturatore visibile, deflettore, leva d'armamento o otturatore girevole,
+viti a taglio e perni; canna rastremata con l'anima; compensatori a feritoie (Regno), freni a camere (Vanguardia),
+tubi con fascette stringitubo (Vrepigh); guardamano di legno con fascette, camicie forate, scudo termico del fucile
+a pompa, serbatoio tubolare e pompa zigrinata; alzo a ritto graduato, mirino con tunnel, slitte, mirini olografici e
+cannocchiali con torrette e lenti; caricatori curvi con costole, tamburi, nastri di cartucce nella cassetta;
+baionette, bipiedi, cinghie di cuoio, calci con calciolo d'acciaio o appoggio di gomma. Pistole: carrello zigrinato,
+cane, sicura, guancette con viti, anello per la correggia; revolver con tamburo scanalato e camere cariche.
+Armi a energia: corpo con la cella accesa, quadrante a lancetta, capacitore in gabbia d'ottone, emettitori ad alette
+(impulso), bobine di rame e isolatori di ceramica (scarica), camere gemelle (fusione), barattoli accesi (Vrepigh),
+cavi dal corpo all'emettitore.
+
+Dalle opere di riferimento (40k, Fallout, Judge Dredd, Doom, Trench Crusade) si prendono solo proprieta' generali:
+massa, funzione leggibile, usura e materiali veri. Nessun disegno riconoscibile.
+Armi bianche, lanciatori, lanciafiamme ed equipaggiamento restano quelli di `arch.py`.
+
+## Foto sotto i materiali
+
+`forge2.py` mette sotto ogni materiale una scansione fotografica CC0 di Poly Haven (`../ModelForge/photo_lib.py`, cache
+in `Tools/ModelForge/_photo/`, fuori dal repo): `fine_grained_wood` per calci e impugnature, `rusty_metal_sheet` per
+acciaio, brunito e ottone, `green_metal_rust` per le vernici di fazione e le strisce di pericolo, `rusty_metal_02`
+per le lamiere dei Vrepigh, `brown_leather` per cuoio e gomma, `hessian_230` per la tela. Della foto si usa il colore
+relativo (la tinta resta quella del materiale), lo scarto di ruvidita' e l'altezza per la normal map; sopra restano
+usura, sporco, polvere e ruggine procedurali. Senza rete la forgia continua senza foto.
+
 ## Rifarla (v1)
 
 ```

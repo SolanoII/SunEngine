@@ -13,6 +13,8 @@ import sys, os, json, math
 import numpy as np
 import bpy, bmesh
 from mathutils import Vector
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import photo_lib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '../../..'))
@@ -606,9 +608,14 @@ def procedural(nt, kind):
     obj = tc.outputs['Object']
     nbig = node(nt, 'ShaderNodeTexNoise', Scale=3.0, Detail=4.0); L(obj, nbig.inputs['Vector'])
     nfine = node(nt, 'ShaderNodeTexNoise', Scale=60.0, Detail=8.0, Roughness=0.7); L(obj, nfine.inputs['Vector'])
-    pt = geo.outputs['Pointiness']
-    edge = mrange(nt, pt, 0.6, 0.7)                    # spigoli vivi
-    cav = mrange(nt, pt, 0.49, 0.44)                      # incavi
+    # spigoli e incavi dalla geometria vera (Bevel e occlusione), non dalla Pointiness: sui gusci fitti la Pointiness
+    # cambia da un vertice all'altro e sporcava le piastre di puntini chiari
+    bev = node(nt, 'ShaderNodeBevel', Radius=0.006); bev.samples = 8
+    dp = node(nt, 'ShaderNodeVectorMath', operation='DOT_PRODUCT')
+    L(bev.outputs['Normal'], dp.inputs[0]); L(geo.outputs['Normal'], dp.inputs[1])
+    edge = mrange(nt, dp.outputs['Value'], 0.985, 0.94)    # spigoli vivi
+    ao = node(nt, 'ShaderNodeAmbientOcclusion', Distance=0.05); ao.samples = 8
+    cav = mrange(nt, ao.outputs['AO'], 0.85, 0.45)        # incavi
     nmid = node(nt, 'ShaderNodeTexNoise', Scale=14.0, Detail=3.0); L(obj, nmid.inputs['Vector'])
     wear = mul(nt, edge, mrange(nt, nmid.outputs['Fac'], 0.42, 0.62))
     scr = node(nt, 'ShaderNodeTexWave', wave_type='BANDS', bands_direction='DIAGONAL'); scr.inputs['Scale'].default_value = 90.0
@@ -667,6 +674,29 @@ def procedural(nt, kind):
     raise ValueError(kind)
 
 
+# Foto CC0 sotto i materiali (photo_lib): tipo -> (foto, scala, forza colore, ruvidita', rilievo)
+PHOTO = {'Plate': ('marble_rock_01', 1.5, 0.75, 0.2, 0.5) if ORDO else ('green_metal_rust', 1.3, 0.85, 0.2, 0.45),
+         'Trim': ('rusty_metal_sheet', 2.0, 0.8, 0.25, 0.4),
+         'Leather': ('brown_leather', 1.0, 0.75, 0.3, 0.7),
+         'Cloth': ('hessian_230', 1.5, 0.7, 0.2, 0.6),
+         'Suit': ('rubberized_track', 3.0, 0.6, 0.3, 0.5)}
+
+
+def photo_layer(nt, kind, col, rough, height):
+    """foto proiettata sulle coordinate oggetto: colore relativo, scarto di ruvidita', rilievo"""
+    if kind not in PHOTO: return col, rough, height
+    pid, mult, kc, kr, kh = PHOTO[kind]
+    tc = node(nt, 'ShaderNodeTexCoord')
+    P = photo_lib.nodes(nt, tc.outputs['Object'], pid, mult)
+    if P is None: return col, rough, height
+    col = mixc(nt, kc, col, P['rel'], 'MULTIPLY')
+    if 'rough' in P:
+        r = nt.nodes.new('ShaderNodeMath'); r.operation = 'ADD'; r.use_clamp = True
+        _set(nt, r.inputs[0], rough); _set(nt, r.inputs[1], mul(nt, P['rough'], kr)); rough = r.outputs[0]
+    if 'disp' in P: height = add(nt, height, mul(nt, P['disp'], kh))
+    return col, rough, height
+
+
 def flat_material(name, color, rough, metal, emit=None, strength=0.0):
     m = bpy.data.materials.new(name); m.use_nodes = True
     bs = m.node_tree.nodes['Principled BSDF']
@@ -688,6 +718,7 @@ def bake_material(ob, kind):
     nt = m.node_tree; L = nt.links.new
     out = nt.nodes['Material Output']; bs = nt.nodes['Principled BSDF']
     col, rough, metal, height, strength = procedural(nt, kind)
+    col, rough, height = photo_layer(nt, kind, col, rough, height)
     emis = node(nt, 'ShaderNodeEmission')
     ob.data.materials.clear(); ob.data.materials.append(m)
     imgs = {}
@@ -701,7 +732,7 @@ def bake_material(ob, kind):
         imgs[tag] = (im, tn)
         return im
 
-    SC.render.engine = 'CYCLES'; SC.cycles.samples = 1; SC.cycles.device = 'CPU'
+    SC.render.engine = 'CYCLES'; SC.cycles.samples = 8; SC.cycles.device = 'CPU'
     SC.render.bake.margin = 4
     # colore
     target('BaseColor', False)
@@ -750,6 +781,7 @@ def quick_material(kind):
 
 
 # ------------------------------------------------------------------ costruzione
+if not FAST: photo_lib.ensure(sorted({v[0] for v in PHOTO.values()}))
 suit = build_suit()
 build_armor_left()
 if ORDO: ordo_extras()
