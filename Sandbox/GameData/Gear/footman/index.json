@@ -76,8 +76,8 @@
  },
  "body": {
   "name": "footman",
-  "height": 1.7651,
-  "vertices": 65764
+  "height": 1.7535,
+  "vertices": 63480
  },
  "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
 }

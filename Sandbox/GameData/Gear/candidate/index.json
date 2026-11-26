@@ -28,8 +28,8 @@
  },
  "body": {
   "name": "candidate",
-  "height": 1.9225,
-  "vertices": 73330
+  "height": 1.7535,
+  "vertices": 63480
  },
  "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
 }

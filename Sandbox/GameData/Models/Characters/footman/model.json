@@ -1,0 +1,8 @@
+{
+ "comment": "Corpo umano d'autore (Tools/ModelForge/human): anatomia MakeHuman CC0. La pelle e' una mappa di dettaglio moltiplicata per la carnagione scelta nel garage.",
+ "materials": {
+  "Skin": {
+   "tint": true
+  }
+ }
+}

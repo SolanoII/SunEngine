@@ -5529,7 +5529,10 @@ namespace SunEngine {
             if (m_CustomizeAutoRotate) m_CustomizeYaw += deltaTime * 18.0f;
             float h = 1.8f;
             if (const auto* col = m_Scene.GetRegistry().try_get<ColliderComponent>(m_PlayerEntity)) h = std::max(0.6f, col->halfExtents.y * 2.0f * transform.Scale.y);
-            const bool faceFocus = false;   // (inquadratura del viso: verra' con i volti)
+            // scheda ASPETTO (carnagione): inquadratura del viso, se il corpo ne ha uno vero (umano d'autore, Tools/ModelForge/human)
+            const AnimatedBodyKind faceKind = CurrentAnimatedBodyKind();
+            const bool faceFocus = m_CustomizeMainTab == 0 && (faceKind == AnimatedBodyKind::Human || faceKind == AnimatedBodyKind::Candidate) &&
+                                   AnimatedBodyModel(faceKind).authored;
             const glm::vec3 wantTarget = transform.Position + glm::vec3(0.0f, faceFocus ? h * 0.9f : h * 0.52f, 0.0f);
             const float wantDist = (faceFocus ? std::max(0.55f, h * 0.42f) : h * 1.55f) * m_CustomizeZoom;
             const float k = 1.0f - std::exp(-8.0f * deltaTime);
