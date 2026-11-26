@@ -174,6 +174,59 @@ def add(nt, a, b):
     n = nt.nodes.new('ShaderNodeMath'); n.operation = 'ADD'; _set(nt, n.inputs[0], a); _set(nt, n.inputs[1], b); return n.outputs[0]
 
 
+# Materiali fotografici (Poly Haven, CC0) scaricati in _photo/ (vedi README): colore, ruvidita' e altezza vere,
+# proiettate a cubo sulle coordinate oggetto con la loro misura reale; sopra restano sporco, fango e usura procedurali.
+PHOTO_DIR = os.path.join(HERE, '_photo')
+PHOTO = {'Burlap': ('hessian_230', 0.55), 'Wood': ('rough_wood', 0.55), 'Bark': ('bark_brown_02', 0.45),
+         'Iron': ('rusty_metal_04', 0.6), 'Earth': ('brown_mud_02', 0.5)}
+PHOTO_IDS = ['hessian_230', 'rough_wood', 'bark_brown_02', 'rusty_metal_04', 'brown_mud_02']
+
+
+def ensure_photos():
+    """scarica le texture fotografiche che mancano (2k jpg) e le loro misure reali"""
+    import json, urllib.request
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    dims_p = os.path.join(PHOTO_DIR, 'dimensions.json')
+    dims = json.load(open(dims_p)) if os.path.exists(dims_p) else {}
+    UA = {'User-Agent': 'SunEngine-ModelForge/1.0'}
+    get = lambda u: urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=120).read()
+    for i in PHOTO_IDS:
+        if all(os.path.exists(os.path.join(PHOTO_DIR, f'{i}_{k}.jpg')) for k in ('diff', 'rough', 'disp')) and i in dims: continue
+        try:
+            f = json.loads(get(f'https://api.polyhaven.com/files/{i}'))
+            dims[i] = json.loads(get(f'https://api.polyhaven.com/info/{i}')).get('dimensions')
+            for k, key in (('diff', 'Diffuse'), ('rough', 'Rough'), ('disp', 'Displacement')):
+                if key in f: open(os.path.join(PHOTO_DIR, f'{i}_{k}.jpg'), 'wb').write(get(f[key]['2k']['jpg']['url']))
+        except Exception as e:
+            print('foto non scaricata', i, e)
+    json.dump(dims, open(dims_p, 'w'))
+    return dims
+
+
+PHOTO_DIMS = {}
+
+
+def photo(nt, obj, kind):
+    """(colore, ruvidita', altezza) dalla foto, o None se manca"""
+    if kind not in PHOTO: return None
+    pid, bright = PHOTO[kind]
+    paths = {k: os.path.join(PHOTO_DIR, f'{pid}_{k}.jpg') for k in ('diff', 'rough', 'disp')}
+    if not os.path.exists(paths['diff']): return None
+    L = nt.links.new
+    size_m = max(0.1, (PHOTO_DIMS.get(pid) or [1000])[0] / 1000.0)
+    mp = node(nt, 'ShaderNodeMapping'); mp.inputs['Scale'].default_value = (1.0 / size_m,) * 3; L(obj, mp.inputs['Vector'])
+    def tex(k, noncolor):
+        if not os.path.exists(paths[k]): return None
+        im = bpy.data.images.load(paths[k], check_existing=True)
+        if noncolor: im.colorspace_settings.name = 'Non-Color'
+        t = node(nt, 'ShaderNodeTexImage'); t.image = im; t.projection = 'BOX'; t.projection_blend = 0.3
+        L(mp.outputs['Vector'], t.inputs['Vector'])
+        return t.outputs['Color']
+    c = mixc(nt, 1.0, tex('diff', False), (bright, bright, bright), 'MULTIPLY')
+    r = tex('rough', True); h = tex('disp', True)
+    return c, r, h
+
+
 def procedural(nt, kind):
     """(colore, ruvidita', metallo, altezza, forza del rilievo). Coordinate oggetto in metri; Z = alto."""
     L = nt.links.new
@@ -191,11 +244,14 @@ def procedural(nt, kind):
         weave = node(nt, 'ShaderNodeTexWave', wave_type='BANDS', bands_direction='X'); weave.inputs['Scale'].default_value = 260.0; L(obj, weave.inputs['Vector'])
         weave2 = node(nt, 'ShaderNodeTexWave', wave_type='BANDS', bands_direction='Y'); weave2.inputs['Scale'].default_value = 260.0; L(obj, weave2.inputs['Vector'])
         w = mul(nt, add(nt, weave.outputs['Fac'], weave2.outputs['Fac']), 0.5)
+        ph = photo(nt, obj, kind)
         c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7), (0.085, 0.068, 0.045), (0.14, 0.11, 0.072))
         c = mixc(nt, mul(nt, mrange(nt, nfine.outputs['Fac'], 0.4, 0.7), 0.3), c, (0.06, 0.045, 0.03))
+        if ph: c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7, 0.85, 1.0), ph[0], c, 'MULTIPLY'); w = ph[2]
         c = mixc(nt, mul(nt, mrange(nt, nmid.outputs['Fac'], 0.45, 0.7), 0.7), c, (0.07, 0.055, 0.04))      # macchie bagnate
         c = mixc(nt, mul(nt, add(nt, low, mul(nt, cav, 0.6)), 0.85), c, mud)
         r = mixf(nt, mul(nt, low, 0.8), 0.92, 0.55)                                                       # fango bagnato lucido
+        if ph: return c, mixf(nt, mul(nt, low, 0.8), ph[1], 0.55), 0.0, add(nt, mul(nt, ph[2], 0.7), mul(nt, nmid.outputs['Fac'], 0.3)), 0.35
         return c, r, 0.0, add(nt, mul(nt, w, 0.15), mul(nt, nmid.outputs['Fac'], 0.6)), 0.25
     if kind == 'Wood':
         mp = node(nt, 'ShaderNodeMapping'); mp.inputs['Scale'].default_value = (1.0, 1.0, 1.0); L(obj, mp.inputs['Vector'])
@@ -203,6 +259,8 @@ def procedural(nt, kind):
         gn = node(nt, 'ShaderNodeTexNoise', Scale=2.0, Detail=8.0, Roughness=0.65); L(mp.outputs['Vector'], gn.inputs['Vector'])
         g = gn.outputs['Fac']
         c = mixc(nt, mrange(nt, g, 0.3, 0.7), (0.045, 0.032, 0.022), (0.11, 0.08, 0.052))
+        ph = photo(nt, obj, kind)
+        if ph: c = ph[0]; g = ph[2]
         c = mixc(nt, mul(nt, mrange(nt, nbig.outputs['Fac'], 0.55, 0.75), 0.8), c, (0.03, 0.028, 0.026))   # marcio e grigio
         c = mixc(nt, mul(nt, edge, 0.5), c, (0.24, 0.2, 0.15))
         c = mixc(nt, mul(nt, add(nt, low, mul(nt, cav, 0.7)), 0.8), c, mud)
@@ -211,11 +269,19 @@ def procedural(nt, kind):
         mp = node(nt, 'ShaderNodeMapping'); mp.inputs['Scale'].default_value = (9.0, 9.0, 1.2); L(obj, mp.inputs['Vector'])
         bark = node(nt, 'ShaderNodeTexVoronoi', feature='DISTANCE_TO_EDGE'); bark.inputs['Scale'].default_value = 3.0; L(mp.outputs['Vector'], bark.inputs['Vector'])
         c = mixc(nt, mrange(nt, bark.outputs['Distance'], 0.0, 0.12), (0.012, 0.011, 0.01), (0.075, 0.062, 0.05))
+        ph = photo(nt, obj, kind)
+        bh = bark.outputs['Distance']
+        if ph: c = ph[0]; bh = ph[2]
         c = mixc(nt, mul(nt, mrange(nt, nbig.outputs['Fac'], 0.5, 0.7), 0.9), c, (0.006, 0.006, 0.006))   # carbonizzato
         c = mixc(nt, mul(nt, low, 0.7), c, mud)
-        return c, 0.9, 0.0, add(nt, bark.outputs['Distance'], mul(nt, nfine.outputs['Fac'], 0.2)), 0.6
+        return c, 0.9, 0.0, add(nt, bh, mul(nt, nfine.outputs['Fac'], 0.2)), 0.6
     if kind == 'Iron':
         c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7), (0.035, 0.032, 0.03), (0.06, 0.05, 0.042))
+        ph = photo(nt, obj, kind)
+        if ph:   # ferro fotografico: la ruggine e' gia' nella foto
+            c = mixc(nt, mul(nt, edge, 0.5), ph[0], (0.25, 0.24, 0.23))
+            c = mixc(nt, mul(nt, low, 0.7), c, mud)
+            return c, ph[1], 0.35, ph[2], 0.3
         rust = mul(nt, add(nt, mrange(nt, nmid.outputs['Fac'], 0.42, 0.62), mul(nt, cav, 0.8)), mrange(nt, nfine.outputs['Fac'], 0.3, 0.6))
         c = mixc(nt, mul(nt, rust, 0.9), c, (0.17, 0.065, 0.025))
         c = mixc(nt, mul(nt, edge, 0.6), c, (0.25, 0.24, 0.23))
@@ -224,6 +290,10 @@ def procedural(nt, kind):
         return c, r, m, add(nt, mul(nt, rust, 0.6), mul(nt, nfine.outputs['Fac'], 0.3)), 0.25
     if kind == 'Earth':
         c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7), (0.05, 0.04, 0.03), (0.1, 0.08, 0.058))
+        ph = photo(nt, obj, kind)
+        if ph:
+            c = mixc(nt, mul(nt, mrange(nt, nmid.outputs['Fac'], 0.5, 0.65), 0.6), ph[0], (0.025, 0.02, 0.016))
+            return c, ph[1], 0.0, ph[2], 0.6
         stones = node(nt, 'ShaderNodeTexVoronoi'); stones.inputs['Scale'].default_value = 18.0; L(obj, stones.inputs['Vector'])
         st = mrange(nt, stones.outputs['Distance'], 0.12, 0.05)
         c = mixc(nt, mul(nt, st, 0.6), c, (0.15, 0.14, 0.12))
@@ -551,6 +621,7 @@ def build_grave_cross():
 PROPS = {'sandbag_wall': build_sandbag_wall, 'trench_berm': build_trench_berm, 'dead_tree': build_dead_tree,
          'barbed_wire': build_barbed_wire, 'czech_hedgehog': build_czech_hedgehog, 'grave_cross': build_grave_cross}
 
+PHOTO_DIMS.update(ensure_photos())
 for pid, fn in PROPS.items():
     if ONLY and pid not in ONLY.split(','): continue
     reset(); fn()

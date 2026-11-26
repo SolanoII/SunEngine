@@ -21,3 +21,10 @@ DISPLAY=:99 python3 render.py anteprima.png --cycles
 Regole: metri, origine al centro della base, lato lungo su X; trasformazioni applicate prima di esportare (il gioco
 legge i vertici, non la posizione dei nodi). Un oggetto per materiale, texture colore/ORM/normali cotte.
 Il gioco li carica e li dispone in `Sandbox/GameLayerProps.cpp`: i blocchi restano per collisioni e navmesh.
+
+## Materiali fotografici
+
+Sacchi (juta `hessian_230`), assi (`rough_wood`), corteccia (`bark_brown_02`), ferro (`rusty_metal_04`) e terra
+(`brown_mud_02`) usano foto scansionate di Poly Haven (CC0): `build.py` le scarica in `_photo/` (non nel repo) con le
+loro misure reali e le proietta a cubo sui pezzi. Sopra restano fango in basso, sporco nelle pieghe e usura sugli
+spigoli. Senza rete restano i materiali procedurali di prima.

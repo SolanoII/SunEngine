@@ -31,7 +31,7 @@ namespace SunEngine {
         glm::vec3 horizon{ 0.40f, 0.285f, 0.195f };    // orizzonte (smog, polvere)
         glm::vec3 ground{ 0.10f, 0.08f, 0.06f };       // sotto l'orizzonte
         float cloudCover = 0.7f;                       // 0 sereno, 1 coperto
-        float fogDensity = 0.010f;                     // nebbia (per metro)
+        float fogDensity = 0.007f;                     // nebbia (per metro)
         float fogHeightFalloff = 0.08f;                // quanto si dirada salendo
         float fogBaseHeight = 0.0f;
         glm::vec3 fogColor{ 0.24f, 0.195f, 0.155f };
@@ -39,7 +39,7 @@ namespace SunEngine {
         float shafts = 1.0f;                           // raggi di luce volumetrici (ombre del sole nella nebbia)
         // cielo fotografico (GameData/Textures/Sky/sky.hdr): cielo visibile, riflessi e luce d'ambiente
         bool hdri = true;
-        float hdriIntensity = 0.2f;
+        float hdriIntensity = 0.15f;
         glm::vec3 hdriTint{ 1.08f, 0.92f, 0.76f };     // smog caldo sopra un cielo grigio
         float hdriYaw = 0.0f;                          // gradi: gira il cielo (la parte chiara verso il sole)
         // correzione colore (dopo il tonemap)

@@ -193,7 +193,9 @@ R"(                // sporco negli incavi fra un pezzo e l'altro (facce piane, l
                     col *= 0.85 + 0.25 * mid;
                     float gravel = smoothstep(0.7, 0.85, N3(p * 23.0)) * smoothstep(0.4, 0.7, N3(p * 2.3)) * (1.0 - wetness);
                     col = mix(col, vec3(0.25, 0.23, 0.21), gravel * 0.45);
-                    float cracks = Ridge(p * 1.6, 0.03) * (1.0 - wetness) * smoothstep(0.45, 0.7, big);
+                    // con il fango fotografico (Textures/Surfaces/soil) le crepe disegnate restano solo accennate
+                    float photoK = u_SurfOn == 1 ? clamp(u_SurfDetail, 0.0, 1.0) : 0.0;
+                    float cracks = Ridge(p * 1.6, 0.03) * (1.0 - wetness) * smoothstep(0.45, 0.7, big) * (1.0 - 0.8 * photoK);
                     col *= 1.0 - cracks * 0.35;
                     h = big * 0.06 + mid * 0.015 + fine * 0.004 + gravel * 0.01 - cracks * 0.01;
                     // crateri: uno ogni tanto in celle di 16 m
