@@ -4281,6 +4281,65 @@ namespace SunEngine {
         // filo d'ottone a destra del blocco delle munizioni
         dl->AddRectFilled(ImVec2(right + 8.0f, io.DisplaySize.y - 110.0f), ImVec2(right + 10.0f, io.DisplaySize.y - 30.0f), Ui::U32(Ui::Col::Brass, 0.85f));
 
+        // Barra dell'equipaggiamento in basso al centro: un riquadro per slot con l'icona dell'oggetto (Tools/Icons),
+        // bordo del colore della rarita', tasto da premere; quello in mano piu' grande e acceso.
+        {
+            std::vector<int> shown = { 0, 1, 2 };
+            for (int s = 4; s <= 6; ++s) if (inv->HasSlotItem(s)) shown.push_back(s);
+            const float tile = 58.0f, big = 74.0f, gap = 8.0f;
+            float total = 0.0f;
+            for (int s : shown) total += (s == inv->currentSlot ? big : tile) + gap;
+            total -= gap;
+            float x = (io.DisplaySize.x - total) * 0.5f;
+            const float baseY = io.DisplaySize.y - 22.0f;
+            const char* keys[7] = { "1", "2", "3", "", "4", "5", "6" };   // tasti per scegliere lo slot
+            for (int s : shown) {
+                const bool active = s == inv->currentSlot;
+                const float sz = active ? big : tile;
+                const ImVec2 p(x, baseY - sz), q(x + sz, baseY);
+                const std::string ref = inv->GetSlotItemId(s);
+                const std::string baseId = ref.substr(0, ref.find('#'));
+                const ItemRefInfo info = ParseItemRef(ref);
+                dl->AddRectFilled(p, q, active ? IM_COL32(58, 48, 30, 235) : IM_COL32(18, 17, 15, 200), 4.0f);
+                if (!baseId.empty()) {
+                    if (const unsigned int tex = IconTexture("Items/" + baseId)) {
+                        const float pad = sz * 0.1f;
+                        dl->AddImage(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(tex)), ImVec2(p.x + pad, p.y + pad), ImVec2(q.x - pad, q.y - pad),
+                                     ImVec2(0, 0), ImVec2(1, 1), active ? IM_COL32_WHITE : IM_COL32(255, 255, 255, 170));
+                    }
+                    else if (const auto* bp = BlueprintManager::Get().GetWeapon(baseId)) {
+                        dl->PushClipRect(p, q, true);
+                        dl->AddText(ImVec2(p.x + 4, p.y + sz * 0.4f), IM_COL32(220, 210, 190, 255), bp->displayName.c_str());
+                        dl->PopClipRect();
+                    }
+                    // condizione dell'esemplare: barretta in basso
+                    if (info.isInstance) {
+                        const float c = std::clamp(info.condition / 100.0f, 0.0f, 1.0f);
+                        dl->AddRectFilled(ImVec2(p.x + 4, q.y - 6), ImVec2(p.x + 4 + (sz - 8) * c, q.y - 3),
+                                          c > 0.6f ? IM_COL32(96, 160, 90, 230) : (c > 0.25f ? IM_COL32(200, 130, 50, 230) : IM_COL32(200, 60, 40, 230)));
+                    }
+                }
+                const ImU32 border = info.isInstance ? ImGui::GetColorU32(Rarity(info.rarity).color) : IM_COL32(90, 82, 66, 220);
+                dl->AddRect(p, q, active ? Ui::U32(Ui::Col::Gold) : border, 4.0f, 0, active ? 3.0f : 2.0f);
+                if (active && info.isInstance) dl->AddRect(ImVec2(p.x + 3, p.y + 3), ImVec2(q.x - 3, q.y - 3), border, 3.0f, 0, 1.5f);
+                dl->AddText(ImVec2(p.x + 5.0f, p.y + 3.0f), active ? Ui::U32(Ui::Col::Gold) : IM_COL32(200, 190, 170, 200), keys[s]);
+                x += sz + gap;
+            }
+        }
+
+        // Anteprima dell'arma in mano: la sua icona grande sopra le munizioni
+        if (!heldId.empty()) {
+            const std::string baseId = heldId.substr(0, heldId.find('#'));
+            if (const unsigned int tex = IconTexture("Items/" + baseId)) {
+                const float w = 150.0f, h = 150.0f;
+                const ImVec2 p(right - w, io.DisplaySize.y - 30.0f - 96.0f - h);
+                const ItemRefInfo info = ParseItemRef(heldId);
+                dl->AddRectFilledMultiColor(p, ImVec2(p.x + w, p.y + h), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 90), IM_COL32(0, 0, 0, 90), IM_COL32(0, 0, 0, 0));
+                dl->AddImage(reinterpret_cast<ImTextureID>(static_cast<intptr_t>(tex)), p, ImVec2(p.x + w, p.y + h));
+                if (info.isInstance) dl->AddLine(ImVec2(p.x + 10, p.y + h), ImVec2(p.x + w, p.y + h), ImGui::GetColorU32(Rarity(info.rarity).color), 3.0f);
+            }
+        }
+
         if (held && held->is_equipment && ammo) {
             const std::string& type = held->equipment_type;
             const int slotIdx = inv->currentSlot - 4;
@@ -6645,35 +6704,7 @@ namespace SunEngine {
             glm::vec2 screen = glm::vec2(m_WindowWidth, m_WindowHeight);
             glm::vec2 center = screen * 0.5f;
 
-            if (m_Scene.GetRegistry().all_of<InventoryComponent>(m_PlayerEntity)) {
-                auto& inv = m_Scene.GetRegistry().get<InventoryComponent>(m_PlayerEntity);
-
-                // Slot in alto: 1 primaria, 2 secondaria, 3 mischia, 4-5-6 dotazione (solo quelli pieni)
-                std::vector<int> shownSlots = { 0, 1, 2 };
-                for (int s = 4; s <= 6; ++s) if (inv.HasSlotItem(s)) shownSlots.push_back(s);
-                float slotSize = 50.0f;
-                float slotSpacing = 10.0f;
-                const float n = static_cast<float>(shownSlots.size());
-                float startX = (screen.x - (n * slotSize + (n - 1.0f) * slotSpacing)) * 0.5f;
-                float startY = 15.0f;
-
-                for (int k = 0; k < static_cast<int>(shownSlots.size()); ++k) {
-                    const int i = shownSlots[k];
-                    glm::vec2 pos = glm::vec2(startX + k * (slotSize + slotSpacing), startY);
-                    bool isActive = (i == inv.currentSlot);
-                    bool hasWeapon = inv.HasSlotItem(i);
-
-                    glm::vec4 boxColor = isActive ? glm::vec4(0.55f, 0.42f, 0.20f, 0.92f) :
-                        hasWeapon ? glm::vec4(0.13f, 0.12f, 0.115f, 0.85f) :
-                        glm::vec4(0.06f, 0.06f, 0.065f, 0.5f);
-
-                    Renderer::DrawQuadUI(pos, glm::vec2(slotSize, slotSize), boxColor, screen);
-
-                    if (isActive) {
-                        Renderer::DrawQuadUI(pos + glm::vec2(3.0f, 3.0f), glm::vec2(slotSize - 6.0f, 3.0f), glm::vec4(0.95f, 0.77f, 0.36f, 1.0f), screen);
-                    }
-                }
-            }
+            // (la barra dell'equipaggiamento e' in basso, con le icone: RenderEquipmentBar in RenderAmmoHUD)
 
             float dotSize = 4.0f;
             glm::vec2 dotPos = center - glm::vec2(dotSize * 0.5f);
