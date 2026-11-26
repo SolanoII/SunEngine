@@ -383,12 +383,12 @@ def tring(z, y, a, b, keel, cc=0.38, idx=None, x=0.0):
     return pts if idx is None else pts[idx]
 
 
-def arc(x, cy, zc, ry, rz, th0=200.0, th1=-25.0, n=8):
+def arc(x, cy, zc, ry, rz, th0=200.0, th1=-25.0, n=8, ridge=0.0):
     """arco sfaccettato nel piano y-z (spallacci): da davanti in basso, sopra, a dietro in basso"""
     out = []
     for k in range(n):
         th = math.radians(th0 + (th1 - th0) * k / (n - 1))
-        out.append((x, cy + ry * math.cos(th), zc + rz * math.sin(th)))
+        out.append((x, cy + ry * math.cos(th), zc + rz * math.sin(th) + ridge * max(0.0, math.cos(th - math.pi / 2)) ** 14))
     return np.array(out)
 
 
@@ -409,10 +409,12 @@ def build_armor_left():
     PE = [(1.62, -0.005, 0.30, 0.23, 0.05), (1.73, -0.01, 0.335, 0.245, 0.065), (1.86, 0.0, 0.325, 0.235, 0.05)]
     for s_ in (1, -1):
         rings = []
-        for z, y, a, b, k in PE:
+        for i_, (z, y, a, b, k) in enumerate(PE):
             p = tring(z, y, a, b, k)
             q = p[[0, 1, 2, 3]] if s_ > 0 else p[[0, 9, 8, 7]]
-            rings.append(np.array([q[0] + (q[1] - q[0]) * 0.13, q[1], q[2], q[2] + (q[3] - q[2]) * 0.3]))
+            r_ = np.array([q[0] + (q[1] - q[0]) * 0.13, q[1], q[2], q[2] + (q[3] - q[2]) * 0.3])
+            if i_ == 0: r_[:, 2] += np.array([-0.045, -0.02, 0.025, 0.04])     # bordo inferiore a V: punta in basso verso il centro
+            rings.append(r_)
         loft('Pec' + ('L' if s_ > 0 else 'R'), 'Spine2', rings, closed=False, thick=0.026, bevel=0.004, center=(0, 0.05, 1.74))
         edge_rivets('RivPec' + str(s_), 'Spine2', [r_[3] + (r_[2] - r_[3]) * 0.12 for r_ in rings] , (0, 0.05, 1.74))
     # nucleo: alloggiamento d'acciaio sulla chiglia, anello, pietra, due sbarre di protezione
@@ -440,8 +442,8 @@ def build_armor_left():
     for x_, y_ in ((0.205, -0.15), (0.258, 0.02), (0.13, 0.2), (-0.205, -0.15), (-0.258, 0.02), (-0.13, 0.2)):
         r_ = norm((x_, y_, 0)); t_ = np.cross(UP, r_)
         c_ = np.array([x_, y_, 1.0]) + r_ * 0.045; c_[2] = 1.27
-        block(f'Pouch{x_}{y_}', 'Hips', c_, (t_, r_, UP), (0.045, 0.03, 0.05), p=10, mat='Leather', bevel=0.003)
-        block(f'PouchLid{x_}{y_}', 'Hips', c_ + r_ * 0.008 + UP * 0.045, (t_, r_, UP), (0.048, 0.032, 0.012), p=10, mat='Leather')
+        block(f'Pouch{x_}{y_}', 'Hips', c_ - r_ * 0.008, (t_, r_, UP), (0.038, 0.024, 0.042), p=10, mat='Leather', bevel=0.003)
+        block(f'PouchLid{x_}{y_}', 'Hips', c_ + UP * 0.038, (t_, r_, UP), (0.041, 0.027, 0.01), p=10, mat='Leather')
     loft('Cod', 'Hips', [tring(1.235, -0.01, 0.1, 0.2, 0.04, idx=[9, 0, 1]), tring(1.08, 0.0, 0.065, 0.17, 0.03, idx=[9, 0, 1])],
          closed=False, thick=0.026, bevel=0.004, center=(0, 0, 1.16))
     if not ORDO:
@@ -468,8 +470,8 @@ def build_armor_left():
     shell('NeckGuard', 'Neck', (0, 0.03, 1.915), AXES, (0.12, 0.12, 0.045), pu=3, pv=4, v=(-1.0, 1.0), thick=0.02, bevel=0.004, mat='Steel')
     # zaino: alloggiamento, cappa alta dietro l'elmo, alette, scarichi; reattore in gabbia (generica)
     block('Pack', 'Spine2', (0, 0.33, 1.67), AXES, (0.24, 0.12, 0.23), p=10, mat='Plate', bevel=0.004, taper=(0.08, 0.0))
-    block('PackCowl', 'Spine2', (0, 0.31, 1.925), AXES, (0.2, 0.1, 0.06), p=10, mat='Plate', bevel=0.004)
-    for s_ in (1, -1):
+    if not ORDO: block('PackCowl', 'Spine2', (0, 0.31, 1.925), AXES, (0.2, 0.1, 0.06), p=10, mat='Plate', bevel=0.004)
+    for s_ in ((1, -1) if not ORDO else ()):
         for k in range(6): block(f'Fin{k}{s_}', 'Spine2', (0.255 * s_, 0.33, 1.52 + 0.05 * k), AXES, (0.03, 0.095, 0.008), p=10, mat='Steel')
         a0 = np.array([0.15 * s_, 0.39, 1.9]); a1 = np.array([0.185 * s_, 0.47, 2.03])
         tube('Exhaust' + str(s_), [a0, a1], 0.036, weights={'Spine2': 1.0}, mat='Steel', sides=10, ribs=3)
@@ -487,7 +489,8 @@ def build_armor_left():
     PW = {'LeftArm': 0.75, 'LeftShoulder': 0.25}
     PR = [(0.17, 0.04, 1.80, 0.2, 0.11), (0.25, 0.04, 1.79, 0.28, 0.21), (0.35, 0.045, 1.785, 0.305, 0.235),
           (0.44, 0.045, 1.78, 0.295, 0.22), (0.49, 0.05, 1.78, 0.285, 0.2)]
-    pr = [arc(*r_) for r_ in PR]
+    PRG = (0.015, 0.04, 0.05, 0.045, 0.035)
+    pr = [arc(*r_, n=9, ridge=g_) for r_, g_ in zip(PR, PRG)]
     pcen = (0.36, 0.045, 1.76)
     loft('Pauldron', None, pr, closed=False, thick=0.042, bevel=0.006, weights=PW, center=pcen)
     tube('PauldronRimO', list(pr[-1]), 0.013, weights=PW, mat='Trim', sides=8)
@@ -507,7 +510,7 @@ def build_armor_left():
     shell('Couter', 'LeftForeArm', E + [0.0, 0.06, 0.0], frame((0, 1.0, 0.0), (0, 0, 1)), (0.085, 0.08, 0.07), pu=8, pv=2.4, v=(0.0, PI / 2), thick=0.024,
           bevel=0.004, mat='Plate')
     limb('Vambrace', 'LeftForeArm', E, W, UP, [(0.08, 0.085, 0.09, 0.01), (0.5, 0.105, 0.105, 0.03), (0.96, 0.105, 0.1, 0.02)], thick=0.033, bevel=0.005)
-    limb('VambraceTop', 'LeftForeArm', E, W, UP, [(0.2, 0.116, 0.116, 0.042), (0.85, 0.117, 0.112, 0.036)], idx=[8, 9, 0, 1, 2], thick=0.016, bevel=0.003)
+    limb('VambraceTop', 'LeftForeArm', E, W, UP, [(0.2, 0.116, 0.116, 0.06), (0.85, 0.117, 0.112, 0.05)], idx=[8, 9, 0, 1, 2], thick=0.016, bevel=0.003)
     wm = mid(E, W, 0.62) + [0, -0.118, 0]
     block('WristBox', 'LeftForeArm', wm, AXES, (0.055, 0.022, 0.032), p=10, mat='Steel', bevel=0.002)
     hax = limb_axes(W, Hn, (0, 0, 1))
@@ -531,7 +534,8 @@ def build_armor_left():
              thick=0.024, bevel=0.004, weights=TW, center=(0.05, 0, 1.17))
     limb('Cuisse', 'LeftUpLeg', Hp, K, FWD, [(0.08, 0.155, 0.155, 0.02), (0.5, 0.15, 0.15, 0.035), (0.9, 0.12, 0.12, 0.02)], thick=0.035, bevel=0.005)
     limb('CuisseOuter', 'LeftUpLeg', Hp, K, FWD, [(0.2, 0.172, 0.168, 0.0), (0.72, 0.158, 0.152, 0.0)], idx=[9, 8, 7, 6], thick=0.016, bevel=0.003, mat='Steel')
-    shell('Poleyn', 'LeftLeg', K + [0, -0.098, 0.012], frame((0, -1.0, 0), (0, 0, 1)), (0.105, 0.11, 0.085), pu=8, pv=2.6, v=(0.0, PI / 2), thick=0.03, bevel=0.005)
+    shell('Poleyn', 'LeftLeg', K + [0, -0.098, 0.012], frame((0, -1.0, 0), (0, 0, 1)), (0.105, 0.11, 0.085), pu=8, pv=2.6, v=(0.0, PI / 2), thick=0.03, bevel=0.005,
+          keel=0.035)
     block('KneeRidge', 'LeftLeg', K + [0, -0.19, 0.012], AXES, (0.014, 0.016, 0.07), p=10, mat='Steel')
     gax2 = limb_axes(K, F, (0, 1, 0))
     ring('KneeRing', 'LeftLeg', K + (F - K) * 0.12, gax2, 0.09, 0.013, mat='Steel')
@@ -541,56 +545,124 @@ def build_armor_left():
     tube('CalfRod', [mid(K, F, 0.72) + [0, 0.128, 0], mid(K, F, 0.9) + [0, 0.12, 0]], 0.009, weights={'LeftLeg': 1.0}, mat='Trim', sides=8)
     block('Boot', 'LeftFoot', (F[0], F[1] - 0.04, 0.105), AXES, (0.1, 0.17, 0.1), p=10, mat='Plate', bevel=0.004, taper=(-0.06, 0.0))
     block('Sole', 'LeftFoot', (F[0], F[1] - 0.05, 0.024), AXES, (0.108, 0.2, 0.024), p=12, mat='Steel', bevel=0.002)
-    block('ToeCap', 'LeftToeBase', (T[0], T[1] - 0.07, 0.068), AXES, (0.094, 0.085, 0.062), p=10, mat='Plate', bevel=0.004, taper=(0.0, -0.1))
+    block('ToeCap', 'LeftToeBase', (T[0], T[1] - 0.07, 0.068), AXES, (0.094, 0.085, 0.062), p=10, mat='Plate', bevel=0.004, taper=(0.0, -0.1), keel=0.035)
     block('ToeLame', 'LeftToeBase', (T[0], T[1] + 0.01, 0.125), AXES, (0.096, 0.04, 0.016), p=10, mat='Steel', bevel=0.002)
     shell('AnkleGuard', 'LeftFoot', F + [0, 0, 0.05], gax2, (0.105, 0.115, 0.055), pu=8, pv=5, v=(-1.1, 1.1), thick=0.02, bevel=0.003, mat='Steel')
     build_helmet()
+
+
+def horn(name, bone, pts, r0, r1, mat='Cross', sides=12):
+    """corno: anelli che si stringono lungo una curva"""
+    pts = [np.asarray(p, float) for p in pts]; rings = []
+    for i, c in enumerate(pts):
+        t = i / (len(pts) - 1); r = r0 + (r1 - r0) * t ** 0.85
+        tng = norm(pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]); ex, ey, _ = frame(tng)
+        rings.append([c + (ex * math.cos(a) + ey * math.sin(a)) * r for a in np.linspace(0, 2 * math.pi, sides, endpoint=False)])
+    ob = loft(name, bone, rings, thick=0.0, bevel=0.0, mat=mat, center=pts[len(pts) // 2], rnd=0.0, smooth=1.2)
+    return ob
+
+
+def bezier(p0, p1, p2, n=14):
+    p0, p1, p2 = (np.asarray(p, float) for p in (p0, p1, p2))
+    return [(1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t * t * p2 for t in np.linspace(0, 1, n)]
 
 
 def build_helmet():
     PI = math.pi
     hc = np.array([0, 0.0, 2.025])
     if ORDO:
-        ch = AXES
-        # grande elmo a secchio: fianchi dritti, cima bombata, feritoia a croce col rinforzo verticale
-        shell('Helm', 'Head', hc, ch, (0.145, 0.16, 0.17), pu=3.2, pv=7, v=(-1.35, 1.25), thick=0.032, bevel=0.006, keel=0.03)
-        shell('HelmTop', 'Head', hc + [0, 0, 0.125], ch, (0.14, 0.155, 0.07), pu=3.2, pv=2.4, v=(0.0, PI / 2), thick=0.03, bevel=0.006)
-        block('Slit', 'Head', hc + [0, -0.17, 0.025], ch, (0.115, 0.012, 0.011), p=6, mat='Glow')
-        block('SlitBand', 'Head', hc + [0, -0.18, 0.05], ch, (0.135, 0.013, 0.014), p=6, mat='Steel', bevel=0.002)
-        block('SlitBandLow', 'Head', hc + [0, -0.18, 0.0], ch, (0.135, 0.013, 0.012), p=6, mat='Steel', bevel=0.002)
-        block('Rib', 'Head', hc + [0, -0.19, -0.075], ch, (0.018, 0.014, 0.075), p=6, mat='Steel', bevel=0.002)
-        cross_pattee('CrossHelm', 'Head', hc + [0, -0.03, 0.198], (np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])), 0.1)
-        for k in range(3):
-            for s_ in (1, -1): block(f'Breath{k}{s_}', 'Head', hc + [0.05 * s_, -0.178, -0.06 - 0.03 * k], ch, (0.008, 0.008, 0.008), p=2, mat='Cross')
+        # elmo a secchio teutonico: fianchi quasi dritti, cima piatta, croce nera sul viso (banda della fronte + nasale),
+        # due feritoie, fori di respirazione, chiodi sul bordo, cimiero a corna nere
+        def hr(dz, y, a, b, k, idx=None): return tring(hc[2] + dz, y, a, b, k, cc=0.28, idx=idx)
+        HR = [(-0.175, 0.0, 0.148, 0.163, 0.02), (-0.06, 0.0, 0.153, 0.168, 0.026), (0.06, 0.0, 0.151, 0.166, 0.026),
+              (0.15, 0.0, 0.143, 0.158, 0.02), (0.176, 0.0, 0.12, 0.134, 0.012), (0.186, 0.0, 0.055, 0.065, 0.0)]
+        loft('Helm', 'Head', [hr(*h) for h in HR], thick=0.032, bevel=0.005, cap_top=True, center=hc, rnd=0.012)
+        loft('BrowBand', 'Head', [hr(0.052, 0.0, 0.158, 0.173, 0.03, FRONT_IDX), hr(0.088, 0.0, 0.157, 0.172, 0.03, FRONT_IDX)], closed=False,
+             thick=0.01, bevel=0.002, mat='Cross', center=hc, rnd=0.004)
+        block('Nasal', 'Head', hc + [0, -0.198, -0.045], AXES, (0.019, 0.008, 0.135), p=8, mat='Cross', bevel=0.002)
+        for s_ in (1, -1):
+            block('Slit' + str(s_), 'Head', hc + [0.062 * s_, -0.182, 0.03], AXES, (0.042, 0.012, 0.0065), p=8, mat='Glow')
+            for k in range(3):
+                for q in range(2 if k != 1 else 3):
+                    dx = (0.0 if k != 1 else -0.014) + 0.014 * q
+                    block(f'Breath{k}{q}{s_}', 'Head', hc + [(0.075 + dx) * s_, -0.178, -0.06 - 0.022 * k], AXES, (0.0045, 0.012, 0.0045), p=2, mat='Cross')
+            hp = bezier(hc + [0.115 * s_, 0.0, 0.15], hc + [0.29 * s_, -0.02, 0.15], hc + [0.37 * s_, -0.07, 0.31])
+            horn('Horn' + str(s_), 'Head', hp, 0.045, 0.004)
+            ring('HornBand' + str(s_), 'Head', hp[1], frame(hp[2] - hp[0]), 0.04, 0.007, mat='Trim', nu=18)
+        rim = hr(-0.165, 0.0, 0.153, 0.168, 0.022)
+        edge_rivets('RivHelm', 'Head', [rim[i] for i in range(len(rim))], hc + [0, 0, -0.165], out=0.004)
+        cross_pattee('CrossHelm', 'Head', hc + [0, 0.0, 0.189], (np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])), 0.11)
         return
-    # elmo da assalto: calotta sfaccettata con cresta, fronte pesante a sbalzo, una sola feritoia orizzontale incassata,
-    # muso a cuneo con le griglie di sfiato sui fianchi, due filtri, orecchie corazzate, antenna, lame sulla nuca
+    # elmo da assalto, cattivo: calotta bassa e sfaccettata, fronte a becco che scende sul viso, due feritoie inclinate
+    # (piu' basse all'interno) incassate in ombra, mascella a prua, griglie di sfiato sui fianchi, guance, lame sulla nuca
     def hr(dz, y, a, b, k, idx=None): return tring(hc[2] + dz, y, a, b, k, cc=0.4, idx=idx)
-    loft('Dome', 'Head', [hr(-0.05, 0.01, 0.148, 0.165, 0.02), hr(0.05, 0.01, 0.158, 0.175, 0.035), hr(0.12, 0.015, 0.135, 0.155, 0.03),
-                          hr(0.163, 0.02, 0.085, 0.105, 0.015), hr(0.18, 0.02, 0.035, 0.045, 0.0)], thick=0.03, bevel=0.005, cap_top=True,
-         center=hc + [0, 0.01, 0.0], rnd=0.008)
-    loft('Brow', 'Head', [hr(0.022, 0.0, 0.168, 0.188, 0.056, FRONT_IDX), hr(0.085, 0.0, 0.163, 0.181, 0.042, FRONT_IDX)], closed=False, thick=0.03, bevel=0.005,
-         center=hc, rnd=0.005)
-    block('VisorPit', 'Head', hc + [0, -0.158, 0.004], AXES, (0.105, 0.022, 0.026), p=10, mat='Steel', bevel=0.002)
-    block('Visor', 'Head', hc + [0, -0.181, 0.006], AXES, (0.085, 0.004, 0.0042), p=12, mat='Glow')
-    loft('Muzzle', 'Head', [hr(-0.02, 0.0, 0.148, 0.172, 0.04, FRONT_IDX), hr(-0.085, -0.01, 0.13, 0.178, 0.078, FRONT_IDX),
-                            hr(-0.16, 0.0, 0.088, 0.142, 0.046, FRONT_IDX)], closed=False, thick=0.028, bevel=0.005, center=hc + [0, 0.02, -0.06], rnd=0.005)
+    loft('Dome', 'Head', [hr(-0.05, 0.01, 0.15, 0.168, 0.03), hr(0.04, 0.01, 0.158, 0.178, 0.05), hr(0.10, 0.015, 0.14, 0.165, 0.045),
+                          hr(0.14, 0.02, 0.095, 0.125, 0.03), hr(0.157, 0.02, 0.04, 0.055, 0.0)], thick=0.03, bevel=0.005, cap_top=True,
+         center=hc + [0, 0.01, 0.0], rnd=0.006)
+    b0 = hr(0.03, 0.0, 0.17, 0.19, 0.065, FRONT_IDX); b1 = hr(0.075, 0.0, 0.165, 0.184, 0.05, FRONT_IDX)
+    b0[3, 2] -= 0.042; b0[2, 2] -= 0.017; b0[4, 2] -= 0.017
+    loft('Brow', 'Head', [b0, b1], closed=False, thick=0.032, bevel=0.005, center=hc, rnd=0.004)
+    block('VisorPit', 'Head', hc + [0, -0.15, -0.01], AXES, (0.112, 0.02, 0.032), p=10, mat='Steel', bevel=0.002)
     for s_ in (1, -1):
-        ex_ = norm((0.58 * s_, 0.81, 0)); ey_ = norm((0.81 * s_, -0.58, 0))
+        a_ = math.radians(17); ex_ = np.array([math.cos(a_), 0, s_ * math.sin(a_)]); ey_ = np.array([0, 1.0, 0]); ez_ = np.cross(ex_, ey_)
+        block('Eye' + str(s_), 'Head', hc + [0.05 * s_, -0.171, -0.012], (ex_, ey_, ez_), (0.034, 0.004, 0.0042), p=12, mat='Glow')
+    loft('Jaw', 'Head', [hr(-0.025, 0.0, 0.15, 0.172, 0.045, FRONT_IDX), hr(-0.10, -0.01, 0.122, 0.18, 0.1, FRONT_IDX),
+                         hr(-0.178, 0.0, 0.06, 0.125, 0.065, FRONT_IDX)], closed=False, thick=0.028, bevel=0.005, center=hc + [0, 0.02, -0.06], rnd=0.004)
+    for s_ in (1, -1):
+        ex_ = norm((0.5 * s_, 0.86, 0)); ey_ = norm((0.86 * s_, -0.5, 0))
         for k in range(4):
-            block(f'Slat{k}{s_}', 'Head', hc + [0.108 * s_, -0.15, -0.045 - 0.024 * k], (ex_, ey_, UP), (0.036, 0.006, 0.0065), p=10, mat='Steel')
-        f0 = hc + [0.112 * s_, -0.15, -0.105]; f1 = hc + [0.15 * s_, -0.178, -0.15]
-        tube('Filter' + str(s_), [f0, f1], 0.03, weights={'Head': 1.0}, mat='Steel', sides=14, ribs=0)
-        block('FilterCap' + str(s_), 'Head', f1, frame(f1 - f0), (0.031, 0.031, 0.008), p=3, mat='Steel')
-        ring('FilterLip' + str(s_), 'Head', f1 - norm(f1 - f0) * 0.006, frame(f1 - f0), 0.031, 0.006, mat='Trim', nu=16)
-        block('Ear' + str(s_), 'Head', hc + [0.167 * s_, 0.0, -0.005], AXES, (0.03, 0.08, 0.075), p=10, mat='Plate', bevel=0.003)
-        ring('EarRing' + str(s_), 'Head', hc + [0.199 * s_, 0.0, -0.005], (np.array([0, 1.0, 0]), UP, np.array([s_, 0, 0.0])), 0.042, 0.008, mat='Trim', nu=20)
+            block(f'Slat{k}{s_}', 'Head', hc + [0.112 * s_, -0.158, -0.05 - 0.024 * k], (ex_, ey_, UP), (0.04, 0.006, 0.0065), p=10, mat='Steel')
+        block('Cheek' + str(s_), 'Head', hc + [0.166 * s_, 0.005, -0.015], AXES, (0.03, 0.09, 0.085), p=10, mat='Plate', bevel=0.003, keel=0.02)
+        block('CheekFin' + str(s_), 'Head', hc + [0.19 * s_, 0.06, 0.03], frame((0, 0.5, 1.0)), (0.01, 0.03, 0.06), p=10, mat='Steel', bevel=0.002)
         tube('Hose' + str(s_), [hc + [0.10 * s_, 0.15, -0.08], (0.15 * s_, 0.27, 1.99), (0.14 * s_, 0.35, 1.95)], 0.016, ribs=3, mat='Steel')
-    tube('Antenna', [hc + [0.19, 0.04, 0.05], hc + [0.215, 0.13, 0.30]], 0.005, weights={'Head': 1.0}, mat='Steel', sides=6)
-    block('Crest', 'Head', hc + [0, -0.01, 0.168], AXES, (0.012, 0.13, 0.016), p=10, mat='Plate')
+    block('Crest', 'Head', hc + [0, -0.01, 0.152], AXES, (0.01, 0.12, 0.012), p=10, mat='Plate')
     for k, (z0, z1) in enumerate(((-0.06, -0.14), (-0.12, -0.19))):
         loft(f'Nape{k}', 'Head', [hr(z0, 0.0, 0.152 - 0.008 * k, 0.172 - 0.008 * k, 0.0, BACK_IDX), hr(z1, 0.0, 0.145 - 0.008 * k, 0.165 - 0.008 * k, 0.0, BACK_IDX)],
              closed=False, thick=0.024, bevel=0.004, center=hc)
+
+
+def cape_y(x, z):
+    yb = np.interp(z, [0.58, 1.0, 1.6, 1.86, 1.92, 1.96], [0.53, 0.48, 0.50, 0.49, 0.40, 0.22])
+    return yb - 0.09 * (x / 0.45) ** 2
+
+
+def cape_w(z): return np.interp(z, [0.58, 1.5, 1.85, 1.96], [0.47, 0.39, 0.34, 0.2])
+
+
+def cape_weights(p):
+    z = p[2]
+    if z > 1.55: return {'Spine2': 1.0}
+    if z > 1.25:
+        t = (1.55 - z) / 0.3; return {'Spine2': 1 - t, 'Spine1': t}
+    t = min(1.0, (1.25 - z) / 0.4); return {'Spine1': 1 - t * 0.6, 'Hips': t * 0.6}
+
+
+def surface_grid(name, xr, zr, yfun, off, nx, nz, mat, weights, jag=0.0):
+    V, F = [], []
+    zs = np.linspace(zr[0], zr[1], nz + 1)
+    for i, z in enumerate(zs):
+        x0, x1 = xr(z) if callable(xr) else xr
+        for k in range(nx + 1):
+            x = x0 + (x1 - x0) * k / nx
+            zz = z + (jag * abs(math.sin(k * 1.9 + 0.4)) if (jag and i == 0) else 0.0)
+            V.append((x, yfun(x, zz) + off, zz))
+    for i in range(nz):
+        for k in range(nx): F.append((i * (nx + 1) + k, i * (nx + 1) + k + 1, (i + 1) * (nx + 1) + k + 1, (i + 1) * (nx + 1) + k))
+    ob = link(name, np.array(V), F)
+    orient_out(ob, (0, 0.0, 1.3))
+    return ob
+
+
+def build_cape():
+    """cappa bianca dell'Ordo, dalle spalle ai polpacci, con la croce nera sulla schiena (segue la piega della stoffa)"""
+    ob = surface_grid('Cape', lambda z: (-cape_w(z), cape_w(z)), (0.58, 1.96), cape_y, 0.0, 24, 40, 'Cloth', cape_weights, jag=0.035)
+    finish(ob, 0.008, 0.0)
+    PARTS.append((ob, cape_weights, 'Cloth'))
+    for nm, xr, zr, off in (('CapeCrossV', (-0.06, 0.06), (0.92, 1.58), 0.004), ('CapeCrossH', (-0.27, 0.27), (1.29, 1.41), 0.0047)):
+        o2 = surface_grid(nm, xr, zr, cape_y, off, 12, 18, 'Cross', cape_weights)
+        finish(o2, 0.0, 0.0)
+        PARTS.append((o2, cape_weights, 'Cross'))
+
 
 BACK_ = (0.25, math.pi - 0.25)
 
@@ -598,17 +670,31 @@ BACK_ = (0.25, math.pi - 0.25)
 def ordo_extras():
     """Ordo: croci patenti, ossa, teschio, sopravveste"""
     ch = AXES
-    # croci: sul petto sopra il nucleo, sulla schiena, sugli spallacci
+    # croci nere: sul petto sopra il nucleo, sul fianco alto degli spallacci; sulla schiena c'e' quella della cappa
     cross_pattee('CrossChest', 'Spine2', np.array([0, -0.318, 1.84]), (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0])), 0.11)
-    cross_pattee('CrossBack', 'Spine2', np.array([0, 0.452, 1.66]), (np.array([-1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, 1.0, 0])), 0.22)
-    n = norm((0.12, 0, 1.0)); ax_ = norm(np.cross((0, 1.0, 0), n)); ay_ = np.cross(n, ax_)
-    cross_pattee('CrossPauldronL', 'LeftArm', np.array([0.37, 0.045, 1.997]), (ax_, ay_, n), 0.13)
+    th = math.radians(138); n = np.array([0, math.cos(th), math.sin(th)]); ax_ = np.array([1.0, 0, 0]); ay_ = np.cross(n, ax_)
+    cross_pattee('CrossPauldronL', 'LeftArm', np.array([0.37, 0.045 + 0.305 * math.cos(th), 1.783 + 0.235 * math.sin(th)]) + n * 0.006, (ax_, ay_, n), 0.12)
     PARTS[-1] = (PARTS[-1][0], {'LeftArm': 0.75, 'LeftShoulder': 0.25}, 'Cross')
-    # ossa: costole d'avorio sulla goletta, teschio sulla fibbia con due femori incrociati
-    for k in range(7):
-        a = -0.9 + k * 0.3
-        c = np.array([math.sin(a) * 0.228, -math.cos(a) * 0.212 + 0.02, 1.905])
-        block(f'Rib{k}', 'Spine2', c, frame((math.sin(a), -math.cos(a), 0.0), (0, 0, 1)), (0.016, 0.018, 0.06), p=2.4, mat='Bone')
+    # scanalature gotiche: costole in rilievo che seguono la curva degli spallacci e scendono sui pettorali
+    PR = [(0.17, 0.04, 1.80, 0.2, 0.11), (0.25, 0.04, 1.79, 0.28, 0.21), (0.35, 0.045, 1.785, 0.305, 0.235),
+          (0.44, 0.045, 1.78, 0.295, 0.22), (0.49, 0.05, 1.78, 0.285, 0.2)]
+    PRG = (0.015, 0.04, 0.05, 0.045, 0.035)
+    for xr in (0.29, 0.39, 0.46):
+        prm = [np.interp(xr, [p[0] for p in PR], [p[i] for p in PR]) for i in range(1, 5)]
+        g_ = np.interp(xr, [p[0] for p in PR], PRG)
+        ap = arc(xr, prm[0], prm[1], prm[2] + 0.004, prm[3] + 0.004, n=9, ridge=g_)[1:-1]
+        tube(f'Flute{xr}', list(ap), 0.0055, weights={'LeftArm': 0.75, 'LeftShoulder': 0.25}, mat='Plate', sides=6)
+    PE = [(1.62, -0.005, 0.30, 0.23, 0.05), (1.73, -0.01, 0.335, 0.245, 0.065), (1.86, 0.0, 0.325, 0.235, 0.05)]
+    for s_ in (1, -1):
+        for t_ in (0.35, 0.7):
+            pts = []
+            for i_, (z, y, a, b, k) in enumerate(PE):
+                p = tring(z, y, a, b, k); q = p[[0, 1, 2]] if s_ > 0 else p[[0, 9, 8]]
+                c_ = q[1] + (q[2] - q[1]) * t_ if t_ > 0.5 else q[0] + (q[1] - q[0]) * (0.25 + t_)
+                if i_ == 0: c_[2] += -0.022 if t_ < 0.5 else 0.012
+                pts.append(c_ + norm(c_ - np.array([0, 0.05, c_[2]])) * 0.004)
+            tube(f'PecFlute{s_}{t_}', pts, 0.005, weights={'Spine2': 1.0}, mat='Plate', sides=6)
+    build_cape()
     sk = np.array([0, -0.265, 1.268])
     shell('Skull_', 'Hips', sk + [0, 0, 0.012], ch, (0.046, 0.05, 0.056), pu=2, pv=2.3, closed=True, mat='Bone', nu=24, nv=12)
     block('SkullCheek', 'Hips', sk + [0, -0.012, -0.03], ch, (0.04, 0.036, 0.02), p=2.6, mat='Bone')
@@ -805,6 +891,13 @@ def procedural(nt, kind):
         c = mixc(nt, mul(nt, mul(nt, cav, mrange(nt, nfine.outputs['Fac'], 0.3, 0.6)), 0.8), c, p['rust'])
         c = mixc(nt, mul(nt, scratch, 0.4), c, (0.3, 0.3, 0.31))
         return c, mrange(nt, nfine.outputs['Fac'], 0, 1, 0.38, 0.55), 0.9, add(nt, mul(nt, nmid.outputs['Fac'], 0.5), mul(nt, scratch, 0.25)), 0.06
+    if kind == 'Suit' and ORDO:
+        # cotta di maglia: anelli d'acciaio (Voronoi: il bordo di ogni cella e' l'anello, il centro e' il buco)
+        vor = node(nt, 'ShaderNodeTexVoronoi'); vor.inputs['Scale'].default_value = 330.0; L(obj, vor.inputs['Vector'])
+        rng = mul(nt, mrange(nt, vor.outputs['Distance'], 0.16, 0.26), mrange(nt, vor.outputs['Distance'], 0.48, 0.38))
+        c = mixc(nt, rng, (0.012, 0.012, 0.013), (0.2, 0.2, 0.21))
+        c = mixc(nt, mul(nt, cav, 0.6), c, (0.05, 0.035, 0.02))
+        return c, mixf(nt, rng, 0.8, 0.42), mixf(nt, rng, 0.3, 0.95), rng, 0.5
     if kind == 'Suit':
         rib = node(nt, 'ShaderNodeTexWave', wave_type='BANDS', bands_direction='Z'); rib.inputs['Scale'].default_value = 55.0; L(obj, rib.inputs['Vector'])
         c = mixc(nt, rib.outputs['Fac'], (0.028, 0.028, 0.032), (0.06, 0.06, 0.065))
@@ -812,7 +905,7 @@ def procedural(nt, kind):
     if kind == 'Cloth':
         weave = node(nt, 'ShaderNodeTexNoise', Scale=420.0, Detail=2.0); L(obj, weave.inputs['Vector'])
         sep = node(nt, 'ShaderNodeSeparateXYZ'); L(obj, sep.inputs['Vector'])
-        cloth = (0.42, 0.39, 0.33) if ORDO else (0.075, 0.065, 0.05)
+        cloth = (0.62, 0.6, 0.55) if ORDO else (0.075, 0.065, 0.05)
         c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7, 0.0, 0.5 if not ORDO else 0.7), cloth, (0.1, 0.08, 0.06))
         c = mixc(nt, mul(nt, mrange(nt, sep.outputs['Z'], 1.0 if not ORDO else 0.85, 0.8 if not ORDO else 0.66), 0.7), c, (0.08, 0.06, 0.04))
         return c, 0.92, 0.0, weave.outputs['Fac'], 0.08
@@ -832,9 +925,27 @@ PHOTO = {'Plate': ('marble_rock_01', 1.5, 0.45, 0.2, 0.5) if ORDO else ('green_m
          'Suit': ('rubberized_track', 3.0, 0.6, 0.3, 0.5)}
 
 
+def grime(nt, kind, col, rough):
+    """campo di battaglia (solo generica): fango secco sulle gambe, colature scure dall'alto, fuliggine negli incavi"""
+    if ORDO or kind not in ('Plate', 'Steel', 'Trim', 'Leather', 'Cloth'): return col, rough
+    L = nt.links.new
+    obj = node(nt, 'ShaderNodeTexCoord').outputs['Object']
+    zs = node(nt, 'ShaderNodeSeparateXYZ'); L(obj, zs.inputs['Vector'])
+    nb = node(nt, 'ShaderNodeTexNoise', Scale=6.0, Detail=6.0, Roughness=0.65); L(obj, nb.inputs['Vector'])
+    mud = mul(nt, mrange(nt, zs.outputs['Z'], 0.6, 0.1), mrange(nt, nb.outputs['Fac'], 0.35, 0.6, 0.35, 1.0))
+    col = mixc(nt, mul(nt, mud, 0.85), col, (0.05, 0.037, 0.025))
+    rough = mixf(nt, mul(nt, mud, 0.8), rough, 0.92)
+    mp = node(nt, 'ShaderNodeMapping'); mp.inputs['Scale'].default_value = (26.0, 26.0, 1.4); L(obj, mp.inputs['Vector'])
+    st = node(nt, 'ShaderNodeTexNoise', Scale=1.0, Detail=5.0); L(mp.outputs['Vector'], st.inputs['Vector'])
+    col = mixc(nt, mul(nt, mrange(nt, st.outputs['Fac'], 0.52, 0.64), 0.45), col, (0.012, 0.011, 0.009))
+    ao = node(nt, 'ShaderNodeAmbientOcclusion', Distance=0.08); ao.samples = 8
+    col = mixc(nt, mul(nt, mrange(nt, ao.outputs['AO'], 0.8, 0.35), 0.55), col, (0.008, 0.007, 0.006))
+    return col, rough
+
+
 def photo_layer(nt, kind, col, rough, height):
     """foto proiettata sulle coordinate oggetto: colore relativo, scarto di ruvidita', rilievo"""
-    if kind not in PHOTO: return col, rough, height
+    if kind not in PHOTO or (kind == 'Suit' and ORDO): return col, rough, height
     pid, mult, kc, kr, kh = PHOTO[kind]
     tc = node(nt, 'ShaderNodeTexCoord')
     P = photo_lib.nodes(nt, tc.outputs['Object'], pid, mult)
@@ -869,6 +980,7 @@ def bake_material(ob, kind):
     out = nt.nodes['Material Output']; bs = nt.nodes['Principled BSDF']
     col, rough, metal, height, strength = procedural(nt, kind)
     col, rough, height = photo_layer(nt, kind, col, rough, height)
+    col, rough = grime(nt, kind, col, rough)
     emis = node(nt, 'ShaderNodeEmission')
     ob.data.materials.clear(); ob.data.materials.append(m)
     imgs = {}
@@ -947,7 +1059,12 @@ SV = np.array([v.co[:] for v in suit.data.vertices]); KD = cKDTree(SV)
 for ob, w, mat in PARTS:
     ob.parent = arm
     mod = ob.modifiers.new('Armature', 'ARMATURE'); mod.object = arm
-    if w == 'near':
+    if callable(w):
+        for v in ob.data.vertices:
+            for b_, x_ in w(np.array(v.co[:])).items():
+                gg = ob.vertex_groups.get(PREFIX + b_) or ob.vertex_groups.new(name=PREFIX + b_)
+                gg.add([v.index], float(x_), 'REPLACE')
+    elif w == 'near':
         pv = np.array([v.co[:] for v in ob.data.vertices]); _, nn = KD.query(pv)
         for vi, bi in enumerate(nn):
             for g in suit.data.vertices[int(bi)].groups:
