@@ -10,6 +10,7 @@
 #include "Light.h"
 #include "../PostFX/Bloom.h"
 #include "../PostFX/AutoExposure.h"
+#include "EnvironmentMap.h"
 #include "../SkinnedMesh.h"   // in cima al file
 #include "../SkinnedMaterial.h"
 namespace SunEngine {
@@ -25,7 +26,7 @@ namespace SunEngine {
         bool enabled = true;
         // Stile 2 (Tools/ModelForge/ART_DIRECTION.md): cielo piu' basso e sporco, nebbia piu' densa e scura con i
         // raggi del sole, neri profondi. I profili salvati con lo stile 1 ripartono da questi valori.
-        static constexpr int kStyleVersion = 2;
+        static constexpr int kStyleVersion = 3;   // 3: cielo fotografico (hdri)
         glm::vec3 zenith{ 0.055f, 0.06f, 0.075f };       // cielo in alto
         glm::vec3 horizon{ 0.40f, 0.285f, 0.195f };    // orizzonte (smog, polvere)
         glm::vec3 ground{ 0.10f, 0.08f, 0.06f };       // sotto l'orizzonte
@@ -36,6 +37,11 @@ namespace SunEngine {
         glm::vec3 fogColor{ 0.24f, 0.195f, 0.155f };
         float dust = 0.5f;                             // polvere che si muove nel vento (variazione della nebbia)
         float shafts = 1.0f;                           // raggi di luce volumetrici (ombre del sole nella nebbia)
+        // cielo fotografico (GameData/Textures/Sky/sky.hdr): cielo visibile, riflessi e luce d'ambiente
+        bool hdri = true;
+        float hdriIntensity = 0.2f;
+        glm::vec3 hdriTint{ 1.08f, 0.92f, 0.76f };     // smog caldo sopra un cielo grigio
+        float hdriYaw = 0.0f;                          // gradi: gira il cielo (la parte chiara verso il sole)
         // correzione colore (dopo il tonemap)
         float saturation = 0.8f;
         float contrast = 1.2f;
@@ -67,6 +73,9 @@ namespace SunEngine {
         float materialRelief = 1.0f;      // rilievo dei materiali delle mappe
         float surfaceDetail = 1.0f;       // dettaglio fotografico delle superfici (Textures/Surfaces): mappe, vesti, armature, armi (0 = spento)
         bool  mapDecor = true;            // detriti sparsi sulle mappe (li salta il RenderSystem)
+        bool  taa = true;                 // antialiasing temporale (al posto dell'FXAA): bordi fermi, dettaglio fine pulito
+        float sharpen = 0.4f;             // nitidezza dopo l'antialiasing temporale
+        float contactShadows = 1.0f;      // ombre di contatto a schermo (pieghe, visi sotto l'elmetto)
         // Prestazioni
         float renderScale = 1.0f;         // risoluzione interna rispetto alla finestra (0.5 - 1): l'immagine viene poi ingrandita
         int   shadowResolution = 2048;    // lato delle mappe d'ombra (1024 / 2048 / 4096)
@@ -176,6 +185,9 @@ namespace SunEngine {
         // armatura): per ognuna <nome>_albedo.jpg, _normal.jpg, _data.jpg (R altezza, G rugosita', B occlusione) nella
         // cartella. Diventano due texture array; senza file le superfici restano solo procedurali.
         bool LoadSurfaceDetail(const std::string& dir);
+        // Cielo fotografico (HDRI .hdr): cielo, riflessi e luce d'ambiente (Atmosphere::hdri)
+        bool LoadSky(const std::string& path);
+        bool HasSky() const { return m_Env.IsReady(); }
         void SetFrameDelta(float dt) { m_LastFrameDelta = dt; }
         Atmosphere& GetAtmosphere() { return m_Atmosphere; }
         RenderQuality& GetQuality() { return m_Quality; }
@@ -232,6 +244,13 @@ namespace SunEngine {
         void RunLightingPass();
         void RunSSAOPass();
         void RunFXAAPass();
+        void RunTAAPass();
+        EnvironmentMap m_Env;
+        Framebuffer m_TAAHistory[2];
+        std::unique_ptr<Shader> m_TAAShader;
+        glm::mat4 m_VPNoJitter{ 1.0f }, m_PrevVP{ 1.0f };
+        int m_FrameIndex = 0;
+        bool m_TAAActive = false, m_TAAValid = false;
         Atmosphere m_Atmosphere;
         RenderQuality m_Quality;
         // risoluzione della finestra (m_Width/m_Height = risoluzione interna, ridotta da renderScale)

@@ -1394,6 +1394,8 @@ namespace SunEngine {
             m_Garments.SetRoot(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/");
             // Dettaglio fotografico di mappe, vesti, armature e armi (texture generate in Textures/Surfaces)
             m_DeferredRenderer.LoadSurfaceDetail(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/Textures/Surfaces/");
+            // Cielo fotografico (HDRI CC0): cielo, riflessi e luce d'ambiente. Senza file resta il cielo procedurale.
+            m_DeferredRenderer.LoadSky(std::filesystem::path(modelsDir).parent_path().parent_path().string() + "/Textures/Sky/sky.hdr");
             std::string fbxPath = modelsDir + "Characters/footman_master.fbx";
             // Il modello skinnato serve al personaggio animato (UpdateAnimatedPlayer). Rimossi i modelli di
             // prova: la copia statica in T-pose, il dummy animato accanto al giocatore e l'entity all'origine.
@@ -1566,13 +1568,15 @@ namespace SunEngine {
             {"bloom", q.bloom}, {"bloomIntensity", q.bloomIntensity}, {"brightness", q.brightness}, {"gamma", q.gamma},
             {"skinSSS", q.skinSSS}, {"skinDetail", q.skinDetail}, {"gearGrime", q.gearGrime}, {"desaturation", q.desaturation},
             {"mapMaterials", q.mapMaterials}, {"materialRelief", q.materialRelief}, {"mapDecor", q.mapDecor}, {"surfaceDetail", q.surfaceDetail},
+            {"taa", q.taa}, {"sharpen", q.sharpen}, {"contactShadows", q.contactShadows},
             {"renderScale", q.renderScale}, {"shadowResolution", q.shadowResolution}, {"ssaoHalfRes", q.ssaoHalfRes}, {"vsync", q.vsync} };
         j["atmosphere"] = {
             {"zenith", Vec3Json(a.zenith)}, {"horizon", Vec3Json(a.horizon)}, {"ground", Vec3Json(a.ground)},
             {"cloudCover", a.cloudCover}, {"fogDensity", a.fogDensity}, {"fogHeightFalloff", a.fogHeightFalloff},
             {"fogColor", Vec3Json(a.fogColor)}, {"dust", a.dust}, {"saturation", a.saturation}, {"contrast", a.contrast},
             {"vignette", a.vignette}, {"grain", a.grain}, {"shadowTint", Vec3Json(a.shadowTint)}, {"highlightTint", Vec3Json(a.highlightTint)},
-            {"shafts", a.shafts}, {"blackPoint", a.blackPoint}, {"aberration", a.aberration}, {"style", Atmosphere::kStyleVersion} };
+            {"shafts", a.shafts}, {"blackPoint", a.blackPoint}, {"aberration", a.aberration}, {"style", Atmosphere::kStyleVersion},
+            {"hdri", a.hdri}, {"hdriIntensity", a.hdriIntensity}, {"hdriTint", Vec3Json(a.hdriTint)}, {"hdriYaw", a.hdriYaw} };
         return j;
     }
 
@@ -1601,6 +1605,9 @@ namespace SunEngine {
             JsonBool(g, "mapDecor", q.mapDecor);
             JsonFloat(g, "surfaceDetail", q.surfaceDetail, 0.0f, 2.0f);
             JsonFloat(g, "renderScale", q.renderScale, 0.5f, 1.0f);
+            JsonBool(g, "taa", q.taa);
+            JsonFloat(g, "sharpen", q.sharpen, 0.0f, 1.5f);
+            JsonFloat(g, "contactShadows", q.contactShadows, 0.0f, 1.0f);
             if (g.contains("shadowResolution") && g["shadowResolution"].is_number_integer()) q.shadowResolution = std::clamp(g["shadowResolution"].get<int>(), 1024, 4096);
             JsonBool(g, "ssaoHalfRes", q.ssaoHalfRes);
             JsonBool(g, "vsync", q.vsync);
@@ -1626,6 +1633,10 @@ namespace SunEngine {
             JsonFloat(g, "shafts", a.shafts, 0.0f, 2.0f);
             JsonFloat(g, "blackPoint", a.blackPoint, 0.0f, 0.1f);
             JsonFloat(g, "aberration", a.aberration, 0.0f, 0.05f);
+            JsonBool(g, "hdri", a.hdri);
+            JsonFloat(g, "hdriIntensity", a.hdriIntensity, 0.0f, 3.0f);
+            JsonVec3(g, "hdriTint", a.hdriTint);
+            JsonFloat(g, "hdriYaw", a.hdriYaw, -360.0f, 360.0f);
         }
     }
 
@@ -9307,6 +9318,13 @@ namespace SunEngine {
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("IMMAGINE", ImGuiTreeNodeFlags_DefaultOpen)) {
             bool ssao = r.IsSSAOEnabled(), fxaa = r.IsFXAAEnabled();
+            ImGui::Checkbox("Antialiasing temporale (TAA)", &q.taa);
+            hint("Ogni fotogramma la scena si sposta di una frazione di pixel e i fotogrammi si sommano: bordi fermi, fili e capelli puliti, raggi e ombre senza grana. Sostituisce l'FXAA.");
+            ImGui::BeginDisabled(!q.taa);
+            ImGui::SliderFloat("Nitidezza", &q.sharpen, 0.0f, 1.5f, "%.2f");
+            ImGui::EndDisabled();
+            ImGui::SliderFloat("Ombre di contatto", &q.contactShadows, 0.0f, 1.0f, "%.2f");
+            hint("Piccole ombre del sole calcolate sullo schermo: pieghe dei vestiti, viso sotto l'elmetto, fessure fra le assi.");
             if (ImGui::Checkbox("Occlusione ambientale (SSAO)", &ssao)) r.SetSSAOEnabled(ssao);
             hint("Angoli, pieghe e punti di contatto piu' scuri: gli oggetti 'poggiano' davvero sul terreno.");
             ImGui::BeginDisabled(!ssao);
@@ -9370,6 +9388,13 @@ namespace SunEngine {
             hint("Cielo con nuvole, nebbia in altezza con polvere, correzione colore. Spenta = resa neutra.");
             ImGui::BeginDisabled(!a.enabled);
             ImGui::TextDisabled("Cielo");
+            ImGui::BeginDisabled(!r.HasSky());
+            ImGui::Checkbox("Cielo fotografico (HDRI)", &a.hdri);
+            hint("Cielo vero fotografato (Textures/Sky/sky.hdr): nuvole, riflessi sui metalli e luce d'ambiente vengono da li'. Spento = cielo disegnato dal gioco.");
+            ImGui::SliderFloat("Intensita' del cielo", &a.hdriIntensity, 0.05f, 1.5f, "%.2f");
+            ImGui::ColorEdit3("Tinta del cielo", &a.hdriTint.x, ImGuiColorEditFlags_Float | ImGuiColorEditFlags_HDR);
+            ImGui::SliderFloat("Rotazione del cielo", &a.hdriYaw, -180.0f, 180.0f, "%.0f gradi");
+            ImGui::EndDisabled();
             ImGui::SliderFloat("Nuvolosita'", &a.cloudCover, 0.0f, 1.0f, "%.2f");
             ImGui::ColorEdit3("Cielo in alto", &a.zenith.x, ImGuiColorEditFlags_Float);
             ImGui::ColorEdit3("Orizzonte (smog)", &a.horizon.x, ImGuiColorEditFlags_Float);

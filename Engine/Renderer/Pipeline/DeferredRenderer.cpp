@@ -500,6 +500,19 @@ uniform float u_FogBase;
 uniform vec3  u_FogColor;
 uniform float u_Dust;
 uniform float u_Shafts;         // raggi di luce volumetrici nella nebbia (0 = spenti)
+uniform int   u_Frame;          // fotogramma (rumore che cambia: l'antialiasing temporale lo media)
+// Cielo fotografico (EnvironmentMap): cubemap del cielo, riflessi prefiltrati, armoniche per la luce diffusa
+uniform int   u_HasEnv;
+uniform samplerCube u_EnvSky;
+uniform samplerCube u_EnvSpec;
+uniform float u_EnvLevels;
+uniform vec3  u_SH[9];
+uniform float u_EnvIntensity;
+uniform vec3  u_EnvTint;
+uniform float u_EnvYaw;
+// ombre di contatto (piccole ombre del sole a schermo: pieghe, mento sotto l'elmetto, fra le assi)
+uniform float u_ContactShadows;
+uniform mat4  u_ViewProjection;
 uniform sampler2D u_SSAO;
 uniform int   u_UseSSAO;
 
@@ -577,8 +590,22 @@ float ANoise(vec3 x) {
 }
 float AFbm(vec3 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 4; ++i) { v += a * ANoise(p); p *= 2.03; a *= 0.5; } return v; }
 
+vec3 EnvDir(vec3 d) { float c = cos(u_EnvYaw), s = sin(u_EnvYaw); return vec3(c * d.x - s * d.z, d.y, s * d.x + c * d.z); }
+vec3 EnvSky(vec3 d, float lod) { return textureLod(u_EnvSky, EnvDir(d), lod).rgb * u_EnvIntensity * u_EnvTint; }
+vec3 EnvIrradiance(vec3 n) {
+    vec3 d = EnvDir(n);
+    vec3 e = 3.14159265 * 0.282095 * u_SH[0]
+           + 2.094395 * 0.488603 * (u_SH[1] * d.y + u_SH[2] * d.z + u_SH[3] * d.x)
+           + 0.785398 * (1.092548 * (u_SH[4] * d.x * d.y + u_SH[5] * d.y * d.z + u_SH[7] * d.x * d.z)
+                         + 0.315392 * u_SH[6] * (3.0 * d.z * d.z - 1.0) + 0.546274 * u_SH[8] * (d.x * d.x - d.y * d.y));
+    return max(e, vec3(0.0)) / 3.14159265 * u_EnvIntensity * u_EnvTint;
+}
 // Cielo senza nuvole: gradiente orizzonte (smog) -> zenit, terra sotto, alone del sole
 vec3 SkyBase(vec3 d) {
+    if (u_HasEnv == 1) {   // cielo fotografico, sfocato (nebbia, riflessi lontani)
+        float sd = max(dot(d, u_SunDirL), 0.0);
+        return EnvSky(d, 5.0) + u_SunColor * (pow(sd, 5.0) * 0.06 + pow(sd, 48.0) * 0.15);
+    }
     float h = d.y;
     vec3 col = mix(u_Horizon, u_Zenith, pow(clamp(h, 0.0, 1.0), 0.45));
     col = mix(col, u_Ground, smoothstep(0.0, -0.15, h));
@@ -587,6 +614,12 @@ vec3 SkyBase(vec3 d) {
     return col;
 }
 vec3 SkyColor(vec3 d, bool withSun) {
+    if (u_HasEnv == 1) {
+        float sd = max(dot(d, u_SunDirL), 0.0);
+        vec3 c = EnvSky(d, 0.0) + u_SunColor * (pow(sd, 6.0) * 0.08 + pow(sd, 64.0) * 0.25);
+        if (withSun) c += u_SunColor * smoothstep(0.99955, 0.99985, sd) * 2.0;   // sole velato dietro le nuvole
+        return c;
+    }
     vec3 col = SkyBase(d);
     float h = d.y;
     if (h > 0.0 && u_CloudCover > 0.0) {
@@ -617,7 +650,7 @@ vec2 EnvBRDFApprox(float NoV, float r) {
 
 // occ = occlusione (texture * SSAO): spegne la luce diffusa e, con la formula di Lagarde, i riflessi nelle cavita'
 vec3 ComputeAmbient(vec3 N, vec3 V, vec3 albedo, float roughness, float metallic, float occ) {
-    vec3 irradiance = mix(u_AmbientGroundColor, u_AmbientSkyColor, N.y * 0.5 + 0.5);
+    vec3 irradiance = u_HasEnv == 1 ? EnvIrradiance(N) : mix(u_AmbientGroundColor, u_AmbientSkyColor, N.y * 0.5 + 0.5);
     // luce del sole rimbalzata dal terreno: scalda il sotto delle cose (mento, pancia, sotto le assi)
     if (u_AtmoOn == 1) irradiance += u_SunColor * u_Ground * 0.45 * clamp(-N.y * 0.5 + 0.5, 0.0, 1.0) * max(u_SunDirL.y, 0.0);
 
@@ -630,7 +663,10 @@ vec3 ComputeAmbient(vec3 N, vec3 V, vec3 albedo, float roughness, float metallic
 
     vec3 R = reflect(-V, N);
     vec3 envColor = mix(u_AmbientGroundColor, u_AmbientSkyColor, R.y * 0.5 + 0.5);
-    if (u_AtmoOn == 1) envColor = mix(SkyBase(R) * 1.35, envColor, sqrt(roughness));   // cielo vero, sfocato dalla ruvidita'
+    if (u_HasEnv == 1) envColor = textureLod(u_EnvSpec, EnvDir(R), roughness * (u_EnvLevels - 1.0)).rgb * u_EnvIntensity * u_EnvTint;
+    else if (u_AtmoOn == 1) envColor = mix(SkyBase(R) * 1.35, envColor, sqrt(roughness));   // cielo vero, sfocato dalla ruvidita'
+    // riflessi verso il basso: vedono il terreno (piu' scuro del cielo), non il cielo
+    envColor *= mix(0.35, 1.0, smoothstep(-0.25, 0.1, R.y));
     float specOcc = clamp(pow(NoV + occ, exp2(-16.0 * roughness - 1.0)) - 1.0 + occ, 0.0, 1.0);
     vec3 specAmb = envColor * specW * specOcc;
     // bordo di luce del cielo sulle sagome (piu' forte controluce): i soldati si staccano dal fondo scuro
@@ -734,7 +770,7 @@ vec2 SunShafts(vec3 ro, vec3 rd, float dist) {
     float maxD = min(dist, 80.0);
     float stepL = maxD / float(N);
     // rumore a gradiente intercalato: i gradini fra un campione e l'altro diventano una grana fine
-    float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + float(u_Frame % 16) * 0.618034);
     vec2 acc = vec2(0.0);
     for (int i = 0; i < N; ++i) {
         float t = (float(i) + dither) * stepL;
@@ -743,6 +779,31 @@ vec2 SunShafts(vec3 ro, vec3 rd, float dist) {
         acc += vec2(ShadowTap(p, t), 1.0) * dens;
     }
     return acc * stepL;
+}
+// Ombre di contatto: un raggio corto verso il sole nel buffer di profondita'. La mappa d'ombra e' troppo grossa per
+// le pieghe dei vestiti, il viso sotto l'elmetto o le fessure fra le assi: queste le prende lo schermo.
+float ContactShadow(vec3 wp, vec3 L, float viewDist) {
+    if (u_ContactShadows <= 0.0) return 1.0;
+    const int N = 12;
+    float len = clamp(viewDist * 0.015, 0.12, 0.7);
+    float dither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))) + float(u_Frame % 16) * 0.618034);
+    float thick = len * 0.5;
+    for (int i = 0; i < N; ++i) {
+        float t = (float(i) + dither) / float(N);
+        vec3 p = wp + L * (0.015 + len * t);
+        vec4 c = u_ViewProjection * vec4(p, 1.0);
+        if (c.w <= 0.0) break;
+        vec3 ndc = c.xyz / c.w;
+        vec2 uv = ndc.xy * 0.5 + 0.5;
+        if (uv.x <= 0.0 || uv.x >= 1.0 || uv.y <= 0.0 || uv.y >= 1.0) break;
+        float sd = texture(u_GBufferDepth, uv).r;
+        if (sd >= 0.9999) continue;
+        float dScene = length(ReconstructWorldPos(uv, sd) - u_CameraPos);
+        float dRay = length(p - u_CameraPos);
+        float diff = dRay - dScene;
+        if (diff > 0.01 && diff < thick) return 1.0 - u_ContactShadows * (1.0 - t * 0.6);
+    }
+    return 1.0;
 }
 // diffusione in avanti della polvere (Henyey-Greenstein)
 float PhaseHG(float cosT, float g) { float g2 = g * g; return (1.0 - g2) / (4.0 * PI * pow(max(1.0 + g2 - 2.0 * g * cosT, 1e-4), 1.5)); }
@@ -848,6 +909,7 @@ void main() {
         if (type == 0 && u_UseShadows == 1) {
             shadowFactor = GetShadow(worldPos, N, max(NdotL, 0.05), viewDist);
         }
+        if (type == 0 && shadowFactor > 0.01 && NdotL > 0.0) shadowFactor *= ContactShadow(worldPos + N * 0.01, L, viewDist);
 
         vec3 radiance = u_Lights[i].colorIntensity.rgb * u_Lights[i].colorIntensity.w;
         vec3 lightAmt = radiance * attenuation * spotFactor;
@@ -905,6 +967,74 @@ R"(        // Nebbia in altezza (piu' fitta in basso) con la luce del sole che l
 }
 )";
 
+    // Antialiasing temporale: ogni fotogramma la proiezione si sposta di una frazione di pixel (Halton 2,3); qui
+    // l'immagine nuova si mescola con quella accumulata, riproiettata col movimento della camera. Il passato viene
+    // costretto nei colori dei vicini attuali (scatola in YCoCg) per non lasciare scie quando le cose si muovono.
+    static const char* k_TAAFragSrc = R"(
+#version 410 core
+in vec2 v_TexCoord;
+out vec4 out_Color;
+uniform sampler2D u_Current;
+uniform sampler2D u_History;
+uniform sampler2D u_Depth;
+uniform mat4 u_InvViewProjection;   // fotogramma attuale (con lo spostamento)
+uniform mat4 u_PrevViewProjection;  // fotogramma prima (senza)
+uniform vec2 u_Texel;
+uniform int  u_Valid;
+uniform float u_Feedback;
+vec3 ToYCoCg(vec3 c) { return vec3(dot(c, vec3(0.25, 0.5, 0.25)), dot(c, vec3(0.5, 0.0, -0.5)), dot(c, vec3(-0.25, 0.5, -0.25))); }
+vec3 FromYCoCg(vec3 c) { return vec3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z); }
+vec3 Tm(vec3 c) { return c / (1.0 + max(c.r, max(c.g, c.b))); }
+vec3 ITm(vec3 c) { return c / max(1.0 - max(c.r, max(c.g, c.b)), 1e-4); }
+// storia letta con un filtro di Catmull-Rom (5 letture): resta nitida
+vec3 SampleHistory(vec2 uv) {
+    vec2 sz = 1.0 / u_Texel;
+    vec2 pos = uv * sz, c = floor(pos - 0.5) + 0.5, f = pos - c;
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f), w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f);
+    vec2 w12 = w1 + w2, tc0 = (c - 1.0) * u_Texel, tc3 = (c + 2.0) * u_Texel, tc12 = (c + w2 / w12) * u_Texel;
+    vec3 r = texture(u_History, vec2(tc12.x, tc0.y)).rgb * (w12.x * w0.y)
+           + texture(u_History, vec2(tc0.x, tc12.y)).rgb * (w0.x * w12.y)
+           + texture(u_History, tc12).rgb * (w12.x * w12.y)
+           + texture(u_History, vec2(tc3.x, tc12.y)).rgb * (w3.x * w12.y)
+           + texture(u_History, vec2(tc12.x, tc3.y)).rgb * (w12.x * w3.y);
+    float ws = (w12.x * w0.y) + (w0.x * w12.y) + (w12.x * w12.y) + (w3.x * w12.y) + (w12.x * w3.y);
+    return max(r / ws, vec3(0.0));
+}
+void main() {
+    vec2 uv = v_TexCoord;
+    vec3 cur = texture(u_Current, uv).rgb;
+    // vicini: scatola dei colori e profondita' piu' vicina (bordi delle cose in primo piano)
+    vec3 m1 = vec3(0.0), m2 = vec3(0.0);
+    float dMin = 1.0; vec2 dUV = uv;
+    for (int y = -1; y <= 1; ++y) for (int x = -1; x <= 1; ++x) {
+        vec2 o = vec2(x, y) * u_Texel;
+        vec3 c = ToYCoCg(Tm(texture(u_Current, uv + o).rgb));
+        m1 += c; m2 += c * c;
+        float d = texture(u_Depth, uv + o).r;
+        if (d < dMin) { dMin = d; dUV = uv + o; }
+    }
+    m1 /= 9.0; m2 /= 9.0;
+    vec3 sigma = sqrt(max(m2 - m1 * m1, 0.0));
+    vec3 bmin = m1 - 1.25 * sigma, bmax = m1 + 1.25 * sigma;
+    vec4 wp = u_InvViewProjection * vec4(uv * 2.0 - 1.0, dMin * 2.0 - 1.0, 1.0); wp /= wp.w;
+    vec4 pc = u_PrevViewProjection * wp;
+    vec2 puv = pc.xy / pc.w * 0.5 + 0.5;
+    bool inside = u_Valid == 1 && puv.x > 0.0 && puv.x < 1.0 && puv.y > 0.0 && puv.y < 1.0;
+    vec3 his = inside ? ToYCoCg(Tm(SampleHistory(puv))) : ToYCoCg(Tm(cur));
+    // taglio verso il centro della scatola (non al bordo per asse: meno colori sbagliati)
+    vec3 center = 0.5 * (bmax + bmin), ext = 0.5 * (bmax - bmin) + 1e-4;
+    vec3 v = his - center; vec3 a = abs(v / ext);
+    float ma = max(a.x, max(a.y, a.z));
+    if (ma > 1.0) his = center + v / ma;
+    // piu' si muove la camera su questo pixel, meno storia
+    float motion = length((puv - uv) / u_Texel);
+    float fb = inside ? mix(u_Feedback, 0.75, clamp(motion / 40.0, 0.0, 1.0)) : 0.0;
+    vec3 c = ToYCoCg(Tm(cur));
+    vec3 res = FromYCoCg(mix(c, his, fb));
+    out_Color = vec4(ITm(clamp(res, 0.0, 0.999)), 1.0);
+}
+)";
+
     static const char* k_TonemapFragSrc = R"(
         #version 410 core
 in vec2 v_TexCoord;
@@ -925,6 +1055,7 @@ uniform vec3  u_HighlightTint;
 uniform float u_Time;
 uniform float u_BlackPoint;        // neri schiacciati (0 = come prima)
 uniform float u_Aberration;        // aberrazione cromatica ai bordi (0 = niente)
+uniform float u_Sharpen;           // nitidezza dopo l'antialiasing temporale (0 = niente)
 
 vec3 ACESFilm(vec3 x) {
     const float a = 2.51;
@@ -944,6 +1075,13 @@ void main() {
         vec2 d = (v_TexCoord - 0.5) * dot(v_TexCoord - 0.5, v_TexCoord - 0.5) * u_Aberration;
         hdr.r = texture(u_HDRTexture, v_TexCoord - d).r;
         hdr.b = texture(u_HDRTexture, v_TexCoord + d).b;
+    }
+    if (u_Sharpen > 0.0) {   // contrasto locale: ridà il dettaglio che la media dei fotogrammi ammorbidisce
+        vec2 t = 1.0 / vec2(textureSize(u_HDRTexture, 0));
+        vec3 n = texture(u_HDRTexture, v_TexCoord + vec2(t.x, 0)).rgb + texture(u_HDRTexture, v_TexCoord - vec2(t.x, 0)).rgb
+               + texture(u_HDRTexture, v_TexCoord + vec2(0, t.y)).rgb + texture(u_HDRTexture, v_TexCoord - vec2(0, t.y)).rgb;
+        vec3 sharp = hdr + (hdr - n * 0.25) * u_Sharpen;
+        hdr = max(mix(hdr, sharp, clamp(1.0 / (1.0 + dot(hdr, vec3(0.3))), 0.0, 1.0)), vec3(0.0));
     }
     hdr *= exposure * u_Brightness;
     vec3 ldr = ACESFilm(hdr);
@@ -1444,6 +1582,10 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
             if (!m_DepthCopyShader->LoadFromSource(k_LightingVertSrc, k_DepthCopyFragSrc, "DepthCopy")) { SUN_CORE_WARN("DeferredRenderer: copia della profondita' non disponibile"); m_DepthCopyShader.reset(); }
         }
 
+        m_TAAShader = std::make_unique<Shader>();
+        if (!m_TAAShader->LoadFromSource(k_LightingVertSrc, k_TAAFragSrc, "TAA")) { SUN_CORE_WARN("DeferredRenderer: antialiasing temporale non disponibile"); m_TAAShader.reset(); }
+        m_TAAHistory[0].Create(width, height, { TextureFormat::RGBA16F }, false, TextureFilter::Linear);
+        m_TAAHistory[1].Create(width, height, { TextureFormat::RGBA16F }, false, TextureFilter::Linear);
         m_TonemapShader = std::make_unique<Shader>();
         if (!m_TonemapShader->LoadFromSource(k_LightingVertSrc, k_TonemapFragSrc, "Tonemap")) {
             SUN_CORE_ERROR("DeferredRenderer: tonemap shader fallito");
@@ -1553,6 +1695,8 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
     }
 
     // Texture di dettaglio delle superfici: l'ordine e' quello degli strati usati negli shader dei cubi e dei corpi
+    bool DeferredRenderer::LoadSky(const std::string& path) { return m_Env.Load(path); }
+
     bool DeferredRenderer::LoadSurfaceDetail(const std::string& dir) {
         static const char* k_Layers[] = { "soil", "concrete", "metal", "burlap", "wood", "foliage", "gravel", "fabric", "armour" };
         const int count = (int)(sizeof(k_Layers) / sizeof(k_Layers[0]));
@@ -1622,6 +1766,8 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
     }
 
     void DeferredRenderer::Shutdown() {
+        m_Env.Release();
+        m_TAAShader.reset();
         if (m_SurfAlbedoArr != 0) { glDeleteTextures(1, &m_SurfAlbedoArr); m_SurfAlbedoArr = 0; }
         if (m_SurfDataArr != 0) { glDeleteTextures(1, &m_SurfDataArr); m_SurfDataArr = 0; }
         if (m_LightUBO != 0) {
@@ -1666,6 +1812,7 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
         m_HDRTarget.Resize(width, height);
         m_LDRTarget.Resize(width, height);
         m_CloakCopy.Resize(width, height);
+        m_TAAHistory[0].Resize(width, height); m_TAAHistory[1].Resize(width, height); m_TAAValid = false;
         if (m_BloomEnabled) m_Bloom.Resize(width, height);
         if (m_AutoExposureEnabled) m_AutoExposure.Resize(width, height);
         // FIX #8: nessun FBO lasciato bindato (Resize puo' arrivare durante il frame ImGui)
@@ -1905,9 +2052,19 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
     }
 
     Shader* DeferredRenderer::BeginGeometryPass(const Camera& camera) {
-        m_ViewProjection = camera.GetViewProjection();
+        m_VPNoJitter = camera.GetViewProjection();
+        m_ViewProjection = m_VPNoJitter;
         m_View = camera.GetView();
         m_CameraPos = camera.GetPosition();
+        ++m_FrameIndex;
+        m_TAAActive = m_Quality.taa && m_TAAShader;
+        if (m_TAAActive) {
+            // spostamento di sotto-pixel (sequenza di Halton 2,3 su 8 fotogrammi)
+            auto halton = [](int i, int b) { float f = 1.0f, r = 0.0f; while (i > 0) { f /= b; r += f * (i % b); i /= b; } return r; };
+            const int k = (m_FrameIndex % 8) + 1;
+            const glm::vec2 j((halton(k, 2) - 0.5f) * 2.0f / m_Width, (halton(k, 3) - 0.5f) * 2.0f / m_Height);
+            m_ViewProjection = glm::translate(glm::mat4(1.0f), glm::vec3(j, 0.0f)) * m_VPNoJitter;
+        }
         m_CloakCubes.clear();
         m_CloakSkinned.clear();
         m_CloakCapture = false;
@@ -1924,7 +2081,7 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
         // FIX: stessa distanza usata dal chiamante per disegnare le ombre (prima 60 fissi: con un'altra distanza
         // l'illuminazione leggeva le mappe con matrici diverse da quelle usate per riempirle)
         m_ShadowMap.UpdateCascades(camera, m_SunDirection, std::clamp(m_Quality.shadowDistance, 20.0f, 150.0f));
-        ExtractPlanes(m_ViewProjection, m_CamPlanes);
+        ExtractPlanes(m_VPNoJitter, m_CamPlanes);
         GpuTimerBegin(GpuT_Geometry);
 
         // Bind dello shadow UBO (binding point 1)
@@ -1977,6 +2134,8 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
 
         // 1b. Unita' mimetizzate: rifrangono la scena appena illuminata
         RunCloakPass();
+        // 1c. Antialiasing temporale (sull'immagine HDR, prima di bagliore ed esposizione)
+        RunTAAPass();
 
         // 2. Tonemap pass (con correzione colore), poi antialiasing e ingrandimento verso lo schermo
         GpuTimerBegin(GpuT_Post);
@@ -2072,6 +2231,23 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
             m_LightingShader->SetVec3("u_FogColor", a.fogColor);
             m_LightingShader->SetFloat("u_Dust", a.dust);
             m_LightingShader->SetFloat("u_Shafts", glm::clamp(a.shafts, 0.0f, 2.0f));
+            m_LightingShader->SetInt("u_Frame", m_FrameIndex);
+            m_LightingShader->SetFloat("u_ContactShadows", glm::clamp(m_Quality.contactShadows, 0.0f, 1.0f));
+            m_LightingShader->SetMat4("u_ViewProjection", m_ViewProjection);
+            const bool env = a.enabled && a.hdri && m_Env.IsReady();
+            m_LightingShader->SetInt("u_HasEnv", env ? 1 : 0);
+            m_LightingShader->SetInt("u_EnvSky", 9);
+            m_LightingShader->SetInt("u_EnvSpec", 10);
+            glActiveTexture(GL_TEXTURE9);  glBindTexture(GL_TEXTURE_CUBE_MAP, env ? m_Env.SkyCube() : 0);
+            glActiveTexture(GL_TEXTURE10); glBindTexture(GL_TEXTURE_CUBE_MAP, env ? m_Env.SpecCube() : 0);
+            glActiveTexture(GL_TEXTURE0);
+            if (env) {
+                m_LightingShader->SetFloat("u_EnvLevels", static_cast<float>(m_Env.SpecLevels()));
+                glUniform3fv(glGetUniformLocation(m_LightingShader->GetID(), "u_SH"), 9, &m_Env.SH()[0].x);
+                m_LightingShader->SetFloat("u_EnvIntensity", a.hdriIntensity);
+                m_LightingShader->SetVec3("u_EnvTint", a.hdriTint);
+                m_LightingShader->SetFloat("u_EnvYaw", glm::radians(a.hdriYaw));
+            }
             const bool ssao = m_SSAOEnabled && m_SSAOShader && m_SSAOBlurShader;
             m_LightingShader->SetInt("u_UseSSAO", ssao ? 1 : 0);
             if (ssao) {
@@ -2141,9 +2317,38 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
         glDisable(GL_DEPTH_TEST);
     }
 
+    void DeferredRenderer::RunTAAPass() {
+        if (!m_TAAActive) { m_TAAValid = false; return; }
+        const int cur = m_FrameIndex & 1, prev = cur ^ 1;
+        m_TAAHistory[cur].Bind();
+        glViewport(0, 0, m_Width, m_Height);
+        glDisable(GL_DEPTH_TEST); glDisable(GL_CULL_FACE); glDisable(GL_BLEND);
+        m_TAAShader->Bind();
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_HDRTarget.GetColorTexture(0)->GetID());
+        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, m_TAAHistory[prev].GetColorTexture(0)->GetID());
+        glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, m_GBuffer.GetDepth()->GetID());
+        m_TAAShader->SetInt("u_Current", 0); m_TAAShader->SetInt("u_History", 1); m_TAAShader->SetInt("u_Depth", 2);
+        m_TAAShader->SetMat4("u_InvViewProjection", glm::inverse(m_ViewProjection));
+        m_TAAShader->SetMat4("u_PrevViewProjection", m_PrevVP);
+        m_TAAShader->SetVec2("u_Texel", glm::vec2(1.0f / m_Width, 1.0f / m_Height));
+        m_TAAShader->SetInt("u_Valid", m_TAAValid ? 1 : 0);
+        m_TAAShader->SetFloat("u_Feedback", 0.9f);
+        glBindVertexArray(Framebuffer::GetFullscreenQuadVAO());
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+        // il risultato torna nell'immagine HDR (i passaggi dopo restano uguali)
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_TAAHistory[cur].GetID());
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_HDRTarget.GetID());
+        glBlitFramebuffer(0, 0, m_Width, m_Height, 0, 0, m_Width, m_Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glActiveTexture(GL_TEXTURE0);
+        m_PrevVP = m_VPNoJitter;
+        m_TAAValid = true;
+    }
+
     void DeferredRenderer::RunFXAAPass() {
         const bool scaled = m_Width != m_OutWidth || m_Height != m_OutHeight;
-        if (!m_FXAAEnabled || !m_FXAAShader) {
+        if (!m_FXAAEnabled || !m_FXAAShader || m_TAAActive) {
             if (scaled) {
                 // risoluzione ridotta senza antialiasing: si ingrandisce l'immagine finale (filtro lineare)
                 glBindFramebuffer(GL_READ_FRAMEBUFFER, m_LDRTarget.GetID());
@@ -2182,7 +2387,7 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
         }
 
         // con l'antialiasing il tonemap scrive nell'immagine intermedia, poi FXAA la porta sullo schermo
-        const bool fxaa = m_FXAAEnabled && m_FXAAShader;
+        const bool fxaa = m_FXAAEnabled && m_FXAAShader && !m_TAAActive;
         const bool scaled = m_Width != m_OutWidth || m_Height != m_OutHeight;
         glBindFramebuffer(GL_FRAMEBUFFER, (fxaa || scaled) ? m_LDRTarget.GetID() : 0);
         glViewport(0, 0, m_Width, m_Height);
@@ -2204,6 +2409,7 @@ R"(                aoTex *= mix(1.0, sd.a, k * 0.7);
             m_TonemapShader->SetFloat("u_Time", m_Time);
             m_TonemapShader->SetFloat("u_BlackPoint", glm::clamp(a.blackPoint, 0.0f, 0.1f));
             m_TonemapShader->SetFloat("u_Aberration", glm::clamp(a.aberration, 0.0f, 0.05f));
+            m_TonemapShader->SetFloat("u_Sharpen", m_TAAActive ? glm::clamp(m_Quality.sharpen, 0.0f, 1.5f) : 0.0f);
         }
         m_TonemapShader->SetInt("u_HDRTexture", 0);
         m_TonemapShader->SetInt("u_ExposureTex", 1);
