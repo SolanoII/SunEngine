@@ -135,9 +135,17 @@ namespace SunEngine {
                 if (std::abs(t.x - b.c.x) < b.s.x * 0.5f + 0.5f && std::abs(t.z - b.c.z) < b.s.z * 0.5f + 0.5f) { reg.emplace_or_replace<HideProceduralVisualTag>(b.e); break; }
         }
 
+        // Prop scritti nella mappa (crateri, terrapieni, passerelle, reticolati disegnati a mano)
+        int placed = 0;
+        for (const auto& ps : m_CurrentMapData.props) {
+            const BlockModel* bm = model(ps.id.c_str());
+            if (!bm) { SUN_CORE_WARN("Mappa {0}: prop {1} non trovato in Models/Props", mapId, ps.id); continue; }
+            spawn(bm, ps.position, ps.yawDegrees, ps.scale, false);
+            ++placed;
+        }
         // Terreno libero: filo spinato, cavalli di frisia, croci
         int scattered = 0;
-        if (terrainS.x > 10.0f && terrainS.z > 10.0f) {
+        if (m_CurrentMapData.scatterProps && terrainS.x > 10.0f && terrainS.z > 10.0f) {
             const float groundY = terrainC.y + terrainS.y * 0.5f;
             auto freeAt = [&](const glm::vec3& p, float r) {
                 for (const auto& b : blocks) {
@@ -165,6 +173,6 @@ namespace SunEngine {
                 }
             }
         }
-        SUN_CORE_INFO("Mappa {0}: {1} blocchi vestiti con i prop, {2} prop sparsi", mapId, dressed, scattered);
+        SUN_CORE_INFO("Mappa {0}: {1} blocchi vestiti con i prop, {2} prop della mappa, {3} sparsi", mapId, dressed, placed, scattered);
     }
 }

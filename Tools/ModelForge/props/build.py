@@ -166,6 +166,10 @@ def mrange(nt, val, fmin, fmax, tmin=0.0, tmax=1.0):
     return n.outputs['Result']
 
 
+def sub_one(nt, a):
+    n = nt.nodes.new('ShaderNodeMath'); n.operation = 'SUBTRACT'; n.inputs[0].default_value = 1.0; _set(nt, n.inputs[1], a); return n.outputs[0]
+
+
 def mul(nt, a, b):
     n = nt.nodes.new('ShaderNodeMath'); n.operation = 'MULTIPLY'; _set(nt, n.inputs[0], a); _set(nt, n.inputs[1], b); return n.outputs[0]
 
@@ -178,7 +182,7 @@ def add(nt, a, b):
 # proiettate a cubo sulle coordinate oggetto con la loro misura reale; sopra restano sporco, fango e usura procedurali.
 PHOTO_DIR = os.path.join(HERE, '_photo')
 PHOTO = {'Burlap': ('hessian_230', 0.55), 'Wood': ('rough_wood', 0.55), 'Bark': ('bark_brown_02', 0.45),
-         'Iron': ('rusty_metal_04', 0.6), 'Earth': ('brown_mud_02', 0.5)}
+         'Iron': ('rusty_metal_04', 0.6), 'Earth': ('brown_mud_02', 0.5), 'Crater': ('brown_mud_02', 0.5)}
 PHOTO_IDS = ['hessian_230', 'rough_wood', 'bark_brown_02', 'rusty_metal_04', 'brown_mud_02']
 
 
@@ -300,6 +304,20 @@ def procedural(nt, kind):
         c = mixc(nt, mul(nt, mrange(nt, nmid.outputs['Fac'], 0.5, 0.65), 0.7), c, (0.025, 0.02, 0.016))     # pozzanghere scure
         r = mixf(nt, mrange(nt, nmid.outputs['Fac'], 0.5, 0.65), 0.95, 0.35)
         return c, r, 0.0, add(nt, mul(nt, nmid.outputs['Fac'], 0.6), mul(nt, st, 0.4)), 0.5
+    if kind == 'Crater':
+        # terra del cratere: bruciata e nera al centro, bagnata sul fondo, zolle chiare sull'orlo
+        ph = photo(nt, obj, kind)
+        base = ph[0] if ph else (0.08, 0.065, 0.05)
+        sx = node(nt, 'ShaderNodeSeparateXYZ'); L(obj, sx.inputs['Vector'])
+        vl = node(nt, 'ShaderNodeVectorMath', operation='LENGTH'); L(obj, vl.inputs[0])
+        rr = vl.outputs['Value']
+        burnt = mrange(nt, add(nt, rr, mul(nt, nmid.outputs['Fac'], 0.8)), 1.2, 2.3)          # 1 al centro, 0 fuori
+        c = mixc(nt, mul(nt, sub_one(nt, burnt), 0.9), base, (0.02, 0.018, 0.016))
+        wet = mrange(nt, rr, 1.0, 0.4)
+        c = mixc(nt, mul(nt, wet, 0.7), c, (0.015, 0.013, 0.012))
+        c = mixc(nt, mul(nt, mrange(nt, nfine.outputs['Fac'], 0.55, 0.7), mrange(nt, Z, 0.2, 0.5)), c, (0.16, 0.14, 0.11))   # zolle asciutte sull'orlo
+        r = mixf(nt, wet, ph[1] if ph else 0.9, 0.12)
+        return c, r, 0.0, (ph[2] if ph else nmid.outputs['Fac']), 0.6
     if kind == 'Helmet':
         c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7), (0.05, 0.055, 0.04), (0.08, 0.085, 0.06))   # verde oliva spento
         c = mixc(nt, mul(nt, edge, 0.8), c, (0.2, 0.19, 0.18))
@@ -618,8 +636,62 @@ def build_grave_cross():
            {'Wood': 512, 'Earth': 512, 'Helmet': 256, 'Bone': 256, 'Cloth': 256})
 
 
+def build_crater():
+    """cratere di granata: orlo di terra rigettata alto mezzo metro, fondo bruciato e bagnato, zolle e schegge di legno.
+    Raggio dell'orlo 2.6 m (nel gioco si scala). Il fondo resta a terra: la profondita' la dice l'orlo."""
+    rng = random.Random(21)
+    nu, nv, R = 72, 30, 4.6
+    def surf(i, j):
+        a = 2 * math.pi * i / nu
+        t = j / nv
+        r = R * t ** 1.15
+        wob = 1.0 + 0.12 * math.sin(a * 3 + 1.3) + 0.07 * math.sin(a * 7 + 0.4)
+        rim = 0.62 * math.exp(-((r / wob - 2.6) / 0.65) ** 2) + 0.18 * math.exp(-((r / wob - 3.4) / 0.9) ** 2)
+        bowl = 0.06 * (1 - min(r / 1.6, 1.0))   # fondo appena sopra terra (lo copre la terra della mappa)
+        h = max(rim, bowl * 0.4) + 0.05 * noise3((math.cos(a) * r * 1.5, math.sin(a) * r * 1.5, 0.3), 4) + 0.02
+        if r > 3.9: h *= max(0.0, (R - r) / (R - 3.9))
+        return (math.cos(a) * r, math.sin(a) * r, h)
+    ground = grid_surface('Crater', surf, nu, nv, closed_u=True)
+    clods = []
+    for k in range(18):   # zolle rigettate
+        a = rng.uniform(0, 2 * math.pi); r = rng.uniform(2.2, 4.0)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=rng.uniform(0.06, 0.18), location=(math.cos(a) * r, math.sin(a) * r, 0.35))
+        o = bpy.context.active_object; o.scale = (1.0, rng.uniform(0.6, 1.2), rng.uniform(0.4, 0.7)); clods.append(o)
+    wood = []
+    for k in range(5):    # schegge di assi e pali spezzati
+        a = rng.uniform(0, 2 * math.pi); r = rng.uniform(1.5, 3.6)
+        wood.append(box(f'Spl{k}', (math.cos(a) * r, math.sin(a) * r, 0.3), (rng.uniform(0.5, 1.2), 0.07, 0.04), rot=(rng.uniform(-0.4, 0.4), rng.uniform(-0.3, 0.3), rng.uniform(0, 3.1)), bevel=0.01))
+    finish('crater', {'Crater': [ground] + clods, 'Wood': wood}, {'Crater': 2048, 'Wood': 512})
+
+
+def build_earth_bank():
+    """scarpata di terra lunga 10 m, profonda 7, alta 3.8: copre i muri di bordo della mappa (dietro e' verticale)"""
+    nu, nv, L_, D, H = 50, 30, 10.0, 7.0, 3.8
+    def surf(i, j):
+        x = -L_ / 2 + L_ * i / nu; t = j / nv
+        y = -D / 2 + D * t
+        h = H * (t ** 1.35) * (0.85 + 0.15 * math.sin(x * 0.9 + 1.0)) + 0.25 * noise3((x * 0.6, y * 0.6, 0.1), 7) + 0.06 * noise3((x * 3, y * 3, 0.5), 3)
+        return (x, y, max(h, 0.0) - 0.05)
+    top = grid_surface('Bank', surf, nu, nv)
+    back = box('BankBack', (0, D / 2 - 0.1, H / 2), (L_, 0.2, H))
+    finish('earth_bank', {'Earth': [top, back]}, {'Earth': 1024})
+
+
+def build_duckboard():
+    """passerella di trincea: due longheroni e listelli inchiodati, 2.4 m"""
+    rng = random.Random(8)
+    parts = [box('RailL', (0, -0.22, 0.05), (2.4, 0.07, 0.09), bevel=0.008), box('RailR', (0, 0.22, 0.05), (2.4, 0.07, 0.09), bevel=0.008)]
+    x = -1.15
+    while x < 1.16:
+        parts.append(box(f'Slat{x:.2f}', (x, rng.uniform(-0.02, 0.02), 0.11), (0.09, 0.62 - rng.uniform(0, 0.06), 0.03),
+                         rot=(rng.uniform(-0.02, 0.02), 0, rng.uniform(-0.04, 0.04)), bevel=0.005))
+        x += 0.14 + rng.uniform(-0.01, 0.02)
+    finish('duckboard', {'Wood': parts}, {'Wood': 512})
+
+
 PROPS = {'sandbag_wall': build_sandbag_wall, 'trench_berm': build_trench_berm, 'dead_tree': build_dead_tree,
-         'barbed_wire': build_barbed_wire, 'czech_hedgehog': build_czech_hedgehog, 'grave_cross': build_grave_cross}
+         'barbed_wire': build_barbed_wire, 'czech_hedgehog': build_czech_hedgehog, 'grave_cross': build_grave_cross,
+         'crater': build_crater, 'earth_bank': build_earth_bank, 'duckboard': build_duckboard}
 
 PHOTO_DIMS.update(ensure_photos())
 for pid, fn in PROPS.items():

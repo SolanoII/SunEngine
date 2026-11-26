@@ -16,12 +16,22 @@ namespace SunEngine {
         float yawDegrees = 0.0f;
     };
 
+    // Oggetto solo da vedere scritto nel JSON della mappa ("type": "prop"): modello di Models/Props/<id>.glb
+    struct MapPropSpawn {
+        std::string id;
+        glm::vec3 position{ 0.0f };   // base del modello
+        float yawDegrees = 0.0f;
+        glm::vec3 scale{ 1.0f };
+    };
+
     struct MapData {
         std::string id;
         std::string name;
         std::vector<glm::vec3> playerSpawnPoints;
         std::vector<glm::vec3> enemySpawnPoints;
         std::vector<TrainingDummySpawn> trainingDummies;   // opzionale: "training_dummies" nel JSON
+        std::vector<MapPropSpawn> props;                   // opzionale: strutture "type": "prop" (crateri, passerelle...)
+        bool scatterProps = true;                          // "scatter_props": false = niente filo/frisia/croci a caso
         // Ownership esclusiva: quando MapData muore, la mesh viene liberata
         NavMeshPtr navMesh;
     };

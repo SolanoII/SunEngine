@@ -1,5 +1,6 @@
 #include "MapLoader.h"
 #include "../ECS/Components.h"
+#include "../ECS/Tags.h"
 #include "../Core/Logger/Log.h"
 #include "../Navigation/NavMeshBuilder.h"
 #include "../Renderer/SurfaceMaterials.h"
@@ -191,7 +192,9 @@ namespace SunEngine {
         if (j.contains("structures")) {
             for (const auto& s : j["structures"]) {
                 std::string type = s.value("type", "block");
-                glm::vec4 color = { s["color"][0], s["color"][1], s["color"][2], s["color"][3] };
+                glm::vec4 color(0.5f, 0.5f, 0.5f, 1.0f);   // i prop non hanno colore
+                if (s.contains("color") && s["color"].is_array() && s["color"].size() >= 4)
+                    color = { s["color"][0].get<float>(), s["color"][1].get<float>(), s["color"][2].get<float>(), s["color"][3].get<float>() };
                 const int forcedMaterial = SurfaceMaterialFromName(s.value("material", std::string()));   // facoltativo
 
                 if (type == "building") {
@@ -224,6 +227,16 @@ namespace SunEngine {
                         navBuilder.AddBox(mid, glm::vec3(rW, 0.3f, length) * 0.5f, rot);
                     }
                 }
+                else if (type == "prop") {
+                    // solo da vedere (GameLayerProps.cpp): niente collisioni ne' navmesh
+                    MapPropSpawn ps;
+                    ps.id = s.value("model", std::string());
+                    if (s.contains("position") && s["position"].is_array()) ps.position = { s["position"][0], s["position"][1], s["position"][2] };
+                    ps.yawDegrees = s.value("yaw", 0.0f);
+                    if (s.contains("scale") && s["scale"].is_array()) ps.scale = { s["scale"][0], s["scale"][1], s["scale"][2] };
+                    else if (s.contains("scale") && s["scale"].is_number()) ps.scale = glm::vec3(s["scale"].get<float>());
+                    if (!ps.id.empty()) data.props.push_back(ps);
+                }
                 else if (type == "block") {
                     glm::vec3 pos = { s["position"][0], s["position"][1], s["position"][2] };
                     glm::vec3 scale = { s["scale"][0], s["scale"][1], s["scale"][2] };
@@ -239,10 +252,12 @@ namespace SunEngine {
                     if (forcedMaterial >= 0) surf.id = forcedMaterial;
                     decorBlocks.push_back({ center, scale, surf.id });
                     navBuilder.AddBox(center, scale * 0.5f);
+                    if (s.value("hidden", false)) scene.GetRegistry().emplace_or_replace<HideProceduralVisualTag>(blk);   // collisione senza figura (bordi coperti da terrapieni)
                 }
             }
         }
 
+        data.scatterProps = j.value("scatter_props", true);
         if (terrainSize.x > 0.0f && j.value("decor", true)) ScatterDecor(scene, data.id, terrainSize, decorBlocks);   // "decor": false per spegnerli
 
         data.navMesh = navBuilder.Build();
