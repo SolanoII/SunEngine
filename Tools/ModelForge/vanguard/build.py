@@ -1,12 +1,13 @@
-# Modello d'autore della Vanguard Armor: un umano potenziato chiuso in un carapace spesso e aderente.
+# Modello d'autore della Vanguard Armor: un umano potenziato chiuso in un'armatura pesante a piastre.
 #
 #   python Tools/ModelForge/vanguard/build.py                    -> Models/Characters/vanguard/model.glb (armatura generica)
 #   python Tools/ModelForge/vanguard/build.py --variant ordo     -> Models/Characters/vanguard/variants/vanguard_konrad.glb
 #
 # Com'e' fatto (vedi README.md):
 #   - tuta sotto (campo di distanza -> marching cubes): si vede solo ai giunti, pesi di Blender (calore)
-#   - carapace a piastre rigide: gusci a superellissoide con spessore e smussi, ognuno sul suo osso (come un'armatura
-#     vera: le piastre non si stirano, scorrono una sull'altra)
+#   - armatura a piastre rigide: lamiere spesse a sfaccettature (loft di sezioni ottagonali con la chiglia), pieghe
+#     arrotondate e bordi smussati netti, ognuna sul suo osso (le piastre non si stirano, scorrono una sull'altra);
+#     spallacci a cupola con lame, collare alto, zaino-reattore, pistoni idraulici, cintura con tasche
 #   - nucleo di pietra sul petto: ossidiana viola (generica) o nera incastonata nella pietra bianca (Ordo)
 #   - texture cotte con Cycles: colore (usura sugli spigoli, sporco negli incavi), rugosita'/metallo, normali fini
 import sys, os, json, math
@@ -313,84 +314,206 @@ def chain(name, pts, link_r=0.016, weights='near'):
         PARTS[-1] = (PARTS[-1][0], weights, 'Trim')
 
 
+# ------------------------------------------------------------------ piastre sfaccettate (armatura pesante)
+# Le piastre sono lamiere spesse piegate a sfaccettature (sezione ottagonale con la chiglia davanti), con spigoli
+# smussati netti: niente cuscini arrotondati. Ogni pezzo e' un loft di anelli (o di archi aperti) con spessore vero.
+FWD = np.array([0, -1.0, 0]); RIGHT = np.array([1.0, 0, 0]); UP = np.array([0, 0, 1.0])
+FRONT_IDX = [7, 8, 9, 0, 1, 2, 3]     # da un fianco, per il davanti, all'altro fianco
+BACK_IDX = [3, 4, 5, 6, 7]
+
+
+def octo(a, b, c=0.36, keel=0.0):
+    """sezione a rettangolo smussato con la chiglia: 0 = centro davanti (-y), poi in senso +x"""
+    ca, cb = a * c, b * c
+    return np.array([(0, -b - keel), (a - ca, -b), (a, -b + cb), (a, b - cb), (a - ca, b), (0, b),
+                     (-a + ca, b), (-a, b - cb), (-a, -b + cb), (-a + ca, -b)], float)
+
+
+def sect(c, kd, sd, a, b, cc=0.36, keel=0.0):
+    c = np.asarray(c, float)
+    return np.array([c + sd * x - kd * y for x, y in octo(a, b, cc, keel)])
+
+
+def hard(ob, thick, bevel, smooth=0.35, rnd=0.0):
+    """pieghe della lamiera arrotondate (rnd), spessore verso l'interno, smusso netto (due segmenti) sui bordi"""
+    if rnd > 0:
+        m = ob.modifiers.new('r', 'BEVEL'); m.width = rnd; m.segments = 3; m.limit_method = 'ANGLE'; m.angle_limit = math.radians(18)
+        m.profile = 0.5; m.use_clamp_overlap = True
+    if thick > 0:
+        m = ob.modifiers.new('s', 'SOLIDIFY'); m.thickness = thick; m.offset = -1.0; m.use_even_offset = True; m.use_rim = True
+        bevel = min(bevel, thick * 0.3)
+    if bevel > 0:
+        m = ob.modifiers.new('b', 'BEVEL'); m.width = bevel; m.segments = 2; m.limit_method = 'ANGLE'; m.angle_limit = math.radians(25 if rnd <= 0 else 50)
+        m.profile = 0.7; m.miter_outer = 'MITER_ARC'
+    bake_modifiers(ob)
+    for p in ob.data.polygons: p.use_smooth = True
+    activate(ob)
+    try: bpy.ops.object.shade_smooth_by_angle(angle=smooth)
+    except Exception: pass
+
+
+def loft(name, bone, rings, closed=True, thick=0.03, bevel=0.004, mat='Plate', weights=None, center=None, cap_top=False, smooth=0.35, rnd=0.014):
+    rings = [np.asarray(r, float) for r in rings]; n = len(rings[0]); nr = len(rings)
+    V = np.concatenate(rings); F = []
+    for i in range(nr - 1):
+        for j in range(n if closed else n - 1):
+            j2 = (j + 1) % n
+            F.append((i * n + j, i * n + j2, (i + 1) * n + j2, (i + 1) * n + j))
+    if cap_top and closed: F.append(tuple(range((nr - 1) * n, nr * n)))
+    ob = link(name, V, F)
+    orient_out(ob, np.asarray(center, float) if center is not None else V.mean(0))
+    hard(ob, thick, bevel, smooth, rnd)
+    PARTS.append((ob, weights or {bone: 1.0}, mat))
+    return ob
+
+
+def limb(name, bone, P0, P1, kd, specs, idx=None, cc=0.36, thick=0.03, bevel=0.004, mat='Plate', weights=None, rnd=0.012):
+    """piastra lungo un arto: specs = [(t lungo l'arto, mezza larghezza, mezza profondita', chiglia)]"""
+    P0 = np.asarray(P0, float); P1 = np.asarray(P1, float); ax = norm(P1 - P0)
+    kd = np.asarray(kd, float); kd = norm(kd - ax * (kd @ ax)); sd = np.cross(ax, kd)
+    rings = []
+    for t, a, b, k in specs:
+        pts = sect(P0 + (P1 - P0) * t, kd, sd, a, b, cc, k)
+        rings.append(pts if idx is None else pts[idx])
+    return loft(name, bone, rings, closed=idx is None, thick=thick, bevel=bevel, mat=mat, weights=weights, center=mid(P0, P1), rnd=rnd)
+
+
+def tring(z, y, a, b, keel, cc=0.38, idx=None, x=0.0):
+    pts = sect((x, y, z), FWD, RIGHT, a, b, cc, keel)
+    return pts if idx is None else pts[idx]
+
+
+def arc(x, cy, zc, ry, rz, th0=200.0, th1=-25.0, n=8):
+    """arco sfaccettato nel piano y-z (spallacci): da davanti in basso, sopra, a dietro in basso"""
+    out = []
+    for k in range(n):
+        th = math.radians(th0 + (th1 - th0) * k / (n - 1))
+        out.append((x, cy + ry * math.cos(th), zc + rz * math.sin(th)))
+    return np.array(out)
+
+
+def edge_rivets(name, bone, pts, center, weights=None, r=0.0075, out=0.006):
+    pts = np.asarray(pts, float); c = np.asarray(center, float)
+    nrm = [norm(p - c) for p in pts]
+    rivets(name, bone, [p + n_ * out for p, n_ in zip(pts, nrm)], nrm, r=r, weights=weights, mat='Steel')
+
+
 def build_armor_left():
     """piastre del lato sinistro (poi specchiate) e del centro"""
-    j = J; ch = AXES; PI = math.pi
-    FRONT, BACK = (-PI + 0.2, -0.2), (0.2, PI - 0.2)
-    # ---- torso: corazza a prua, pettorale sovrapposto, schiena larga (sagoma a V)
-    shell('Cuirass_F', 'Spine2', (0, -0.02, 1.64), ch, (0.30, 0.20, 0.25), pu=7, pv=5, u=FRONT, v=(-0.95, 1.1), thick=0.04, bevel=0.008, keel=0.05, taper=(0.14, 0.05))
-    shell('Cuirass_B', 'Spine2', (0, 0.01, 1.65), ch, (0.31, 0.21, 0.25), pu=7, pv=5, u=BACK, v=(-0.9, 1.15), thick=0.04, bevel=0.008, taper=(0.14, 0.04))
-    shell('Plastron', 'Spine2', (0, -0.065, 1.745), ch, (0.27, 0.165, 0.115), pu=7, pv=4.5, u=(-PI + 0.3, -0.3), v=(-0.85, 1.0), thick=0.026, bevel=0.006, keel=0.05, taper=(0.1, 0.0))
+    j = J; PI = math.pi
+    # ---- corazza: botte sfaccettata con la chiglia, larga alle spalle, stretta in vita
+    CU = [(1.50, 0.0, 0.24, 0.185, 0.03), (1.60, -0.005, 0.28, 0.205, 0.045), (1.72, -0.01, 0.315, 0.22, 0.06),
+          (1.84, 0.0, 0.315, 0.215, 0.05), (1.935, 0.02, 0.235, 0.175, 0.02)]
+    loft('Cuirass', 'Spine2', [tring(*s) for s in CU], thick=0.036, bevel=0.005, center=(0, 0.0, 1.7))
+    # pettorali sovrapposti, divisi da una fessura sulla chiglia
+    PE = [(1.62, -0.005, 0.30, 0.23, 0.05), (1.73, -0.01, 0.335, 0.245, 0.065), (1.86, 0.0, 0.325, 0.235, 0.05)]
     for s_ in (1, -1):
-        shell('Side' + ('L' if s_ > 0 else 'R'), 'Spine2', (0.25 * s_, 0.0, 1.62), ch, (0.07, 0.15, 0.17), pu=3, pv=4, u=((-0.9, 0.9) if s_ > 0 else (PI - 0.9, PI + 0.9)),
-              v=(-1.0, 1.0), thick=0.025, bevel=0.005, mat='Trim')
-    # nucleo di pietra: incastonatura, anello, gemma
+        rings = []
+        for z, y, a, b, k in PE:
+            p = tring(z, y, a, b, k)
+            q = p[[0, 1, 2, 3]] if s_ > 0 else p[[0, 9, 8, 7]]
+            rings.append(np.array([q[0] + (q[1] - q[0]) * 0.13, q[1], q[2], q[2] + (q[3] - q[2]) * 0.3]))
+        loft('Pec' + ('L' if s_ > 0 else 'R'), 'Spine2', rings, closed=False, thick=0.026, bevel=0.004, center=(0, 0.05, 1.74))
+        edge_rivets('RivPec' + str(s_), 'Spine2', [r_[3] + (r_[2] - r_[3]) * 0.12 for r_ in rings] , (0, 0.05, 1.74))
+    # nucleo: alloggiamento d'acciaio sulla chiglia, anello, pietra, due sbarre di protezione
     gax = (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0]))
-    gc = np.array([0, -0.262, 1.70])
-    block('CoreSocket', 'Spine2', gc + [0, 0.02, 0], (AXES[0], AXES[2], AXES[1]), (0.08, 0.08, 0.03), p=3.2, mat='Plate' if ORDO else 'Trim', bevel=0.003)
-    ring('CoreRing', 'Spine2', gc + [0, -0.012, 0], gax, 0.066, 0.012, mat='Trim')
-    gem('Core', 'Spine2', gc + [0, -0.016, 0], gax, 0.05, mat='Core')
-    rivet_row('RivCuirass', 'Spine2', (0, -0.02, 1.64), ch, (0.30, 0.20, 0.25), -PI + 0.45, -0.45, 12, -0.92, pu=7, pv=5, taper=(0.14, 0.05))
-    rivet_row('RivPlastron', 'Spine2', (0, -0.065, 1.745), ch, (0.27, 0.165, 0.115), -PI + 0.5, -0.5, 9, 0.95, pu=7, pv=4.5, taper=(0.1, 0.0))
+    gc = np.array([0, -0.345, 1.725])
+    block('CoreHousing', 'Spine2', gc + [0, 0.03, 0], AXES, (0.078, 0.035, 0.078), p=10, mat='Plate' if ORDO else 'Steel', bevel=0.003)
+    ring('CoreRing', 'Spine2', gc + [0, -0.008, 0], gax, 0.06, 0.011, mat='Trim')
+    gem('Core', 'Spine2', gc + [0, -0.01, 0], gax, 0.046, mat='Core')
     if not ORDO:
-        tube('Strap', [(0.30, -0.05, 1.86), (0.2, -0.235, 1.80), (0.0, -0.275, 1.62), (-0.18, -0.24, 1.42), (-0.26, -0.12, 1.30)], 0.02, weights={'Spine2': 0.7, 'Spine1': 0.3}, mat='Leather', sides=6)
-        block('StrapBuckle', 'Spine2', (0.11, -0.272, 1.73), ch, (0.03, 0.012, 0.035), p=6, mat='Plate')
-        for side, y, sg in (('F', -0.2, -1), ('B', 0.2, 1)):
+        for x_ in (-0.024, 0.024): block(f'CoreBar{x_}', 'Spine2', gc + [x_, -0.03, 0], AXES, (0.0055, 0.006, 0.07), p=8, mat='Steel')
+    # fianchi sotto le ascelle
+    for s_ in (1, -1):
+        loft('Flank' + str(s_), 'Spine2', [tring(z, 0.02, 0.33, 0.2, 0.0, idx=([2, 3, 4] if s_ > 0 else [8, 7, 6])) for z in (1.56, 1.76)],
+             closed=False, thick=0.02, bevel=0.003, mat='Steel', center=(0, 0.02, 1.66))
+    # addome: tre lame a embrice davanti, una piastra dietro
+    for k, (z0, bn) in enumerate(((1.535, 'Spine1'), (1.47, 'Spine1'), (1.405, 'Spine'))):
+        loft(f'Ab{k}', bn, [tring(z0, 0.0, 0.215 - 0.01 * k, 0.175, 0.03, idx=FRONT_IDX), tring(z0 - 0.078, 0.0, 0.228 - 0.01 * k, 0.185, 0.036, idx=FRONT_IDX)],
+             closed=False, thick=0.02, bevel=0.003, center=(0, 0.03, z0))
+    loft('AbBack', 'Spine1', [tring(1.53, 0.0, 0.22, 0.175, 0.0, idx=BACK_IDX), tring(1.37, 0.0, 0.215, 0.17, 0.0, idx=BACK_IDX)],
+         closed=False, thick=0.022, bevel=0.003, mat='Steel', center=(0, 0.0, 1.45))
+    # cintura pesante, fibbia, tasche
+    loft('Belt', 'Hips', [tring(1.335, -0.01, 0.25, 0.2, 0.02, cc=0.42), tring(1.245, -0.01, 0.255, 0.205, 0.022, cc=0.42)], thick=0.03, bevel=0.004,
+         mat='Steel', center=(0, 0, 1.29))
+    if not ORDO: block('Buckle', 'Hips', (0, -0.238, 1.29), AXES, (0.07, 0.018, 0.042), p=10, mat='Trim', bevel=0.003)
+    for x_, y_ in ((0.205, -0.15), (0.258, 0.02), (0.13, 0.2), (-0.205, -0.15), (-0.258, 0.02), (-0.13, 0.2)):
+        r_ = norm((x_, y_, 0)); t_ = np.cross(UP, r_)
+        c_ = np.array([x_, y_, 1.0]) + r_ * 0.045; c_[2] = 1.27
+        block(f'Pouch{x_}{y_}', 'Hips', c_, (t_, r_, UP), (0.045, 0.03, 0.05), p=10, mat='Leather', bevel=0.003)
+        block(f'PouchLid{x_}{y_}', 'Hips', c_ + r_ * 0.008 + UP * 0.045, (t_, r_, UP), (0.048, 0.032, 0.012), p=10, mat='Leather')
+    loft('Cod', 'Hips', [tring(1.235, -0.01, 0.1, 0.2, 0.04, idx=[9, 0, 1]), tring(1.08, 0.0, 0.065, 0.17, 0.03, idx=[9, 0, 1])],
+         closed=False, thick=0.026, bevel=0.004, center=(0, 0, 1.16))
+    if not ORDO:
+        for side, y, sg in (('F', -0.255, -1), ('B', 0.235, 1)):
             V, F = [], []
             nz, nx = 12, 7
             for i in range(nz + 1):
                 z = 1.23 - i * (0.42 / nz)
                 for k in range(nx + 1):
-                    x = -0.13 + 0.26 * k / nx
+                    x = -0.12 + 0.24 * k / nx
                     tear = 0.04 * math.sin(k * 2.7 + 1.3) if i == nz else 0.0
-                    V.append((x * (1 + 0.15 * i / nz), y + sg * (0.02 + 0.03 * math.cos(math.pi * (k / nx - 0.5)) + 0.03 * i / nz), z + tear))
+                    V.append((x * (1 + 0.15 * i / nz), y + sg * (0.01 + 0.02 * math.cos(math.pi * (k / nx - 0.5)) + 0.03 * i / nz), z + tear))
             for i in range(nz):
                 for k in range(nx): F.append((i * (nx + 1) + k, i * (nx + 1) + k + 1, (i + 1) * (nx + 1) + k + 1, (i + 1) * (nx + 1) + k))
             ob = link('Loin' + side, np.array(V), F); orient_out(ob, (0, 0, 1.0)); finish(ob, 0.006, 0.0)
-            PARTS.append((ob, {'Hips': 1.0}, 'Cloth'))   # rigida sul bacino: dai pesi delle gambe si strapperebbe
-        chain('BeltChain', [(-0.24, -0.16, 1.24), (-0.12, -0.235, 1.19), (0.05, -0.24, 1.2), (0.2, -0.19, 1.24)])
-    # dorso: zaino d'energia, prese d'aria, alette di raffreddamento
-    block('PowerPack', 'Spine2', (0, 0.29, 1.64), ch, (0.22, 0.1, 0.21), p=5, mat='Plate', bevel=0.006, taper=(0.1, 0.0))
-    block('PackCap', 'Spine2', (0, 0.27, 1.86), ch, (0.18, 0.09, 0.045), p=6, mat='Trim', bevel=0.003)
+            PARTS.append((ob, {'Hips': 1.0}, 'Cloth'))
+        chain('BeltChain', [(-0.24, -0.17, 1.24), (-0.12, -0.25, 1.2), (0.05, -0.255, 1.21), (0.2, -0.2, 1.24)])
+    # collare alto: basso davanti, sale ai lati e dietro a proteggere l'elmo; bordo d'ottone
+    bot = tring(1.885, 0.02, 0.215, 0.19, 0.0)
+    top = tring(1.95, 0.02, 0.2, 0.185, 0.0)
+    top[:, 2] = 1.945 + 0.095 * np.clip((top[:, 1] + 0.17) / 0.32, 0, 1)
+    loft('Collar', 'Spine2', [bot, top], thick=0.03, bevel=0.005, center=(0, 0.02, 1.9))
+    tube('CollarRim', list(top) + [top[0]], 0.011, weights={'Spine2': 1.0}, mat='Trim', sides=8)
+    shell('NeckGuard', 'Neck', (0, 0.03, 1.915), AXES, (0.12, 0.12, 0.045), pu=3, pv=4, v=(-1.0, 1.0), thick=0.02, bevel=0.004, mat='Steel')
+    # zaino: alloggiamento, cappa alta dietro l'elmo, alette, scarichi; reattore in gabbia (generica)
+    block('Pack', 'Spine2', (0, 0.33, 1.67), AXES, (0.24, 0.12, 0.23), p=10, mat='Plate', bevel=0.004, taper=(0.08, 0.0))
+    block('PackCowl', 'Spine2', (0, 0.31, 1.925), AXES, (0.2, 0.1, 0.06), p=10, mat='Plate', bevel=0.004)
     for s_ in (1, -1):
-        cax = frame((0.25 * s_, 0.35, 1.0))
-        shell('Vent' + ('L' if s_ > 0 else 'R'), 'Spine2', (0.13 * s_, 0.35, 1.86), cax, (0.05, 0.05, 0.1), pu=2, pv=8, v=(-1.3, 1.4), thick=0.014, bevel=0.002, mat='Trim', nu=24, nv=6)
-        for k in range(5): block(f'Fin{k}' + ('L' if s_ > 0 else 'R'), 'Spine2', (0.225 * s_, 0.37, 1.50 + k * 0.045), ch, (0.03, 0.03, 0.009), p=6, mat='Trim')
-    # vita: tre lame sull'addome, fascia sotto, cintura piatta
-    shell('Waist', 'Spine1', (0, 0.0, 1.44), ch, (0.215, 0.165, 0.12), pu=3, pv=4, v=(-1.2, 1.2), thick=0.02, bevel=0.004, mat='Trim')
-    for k, (z, bn) in enumerate(((1.515, 'Spine1'), (1.445, 'Spine1'), (1.375, 'Spine'))):
-        shell(f'Ab{k}', bn, (0, -0.02, z), ch, (0.205 - 0.008 * k, 0.17, 0.05), pu=4, pv=6, u=(-PI + 0.45, -0.45), v=(-1.25, 1.25), thick=0.022, bevel=0.005, keel=0.03)
-    shell('Belt', 'Hips', (0, -0.01, 1.27), ch, (0.255, 0.195, 0.045), pu=5, pv=8, v=(-1.3, 1.3), thick=0.03, bevel=0.004, mat='Trim')
-    block('Buckle', 'Hips', (0, -0.215, 1.27), ch, (0.075, 0.022, 0.048), p=6, mat='Plate', bevel=0.003)
-    block('Cod', 'Hips', (0, -0.17, 1.16), ch, (0.085, 0.05, 0.075), p=4, mat='Plate', bevel=0.004, taper=(0.25, 0.0))
-    # goletta alta e collare dietro
-    shell('Gorget', 'Spine2', (0, 0.03, 1.85), ch, (0.185, 0.17, 0.07), pu=5, pv=4, v=(-1.0, 1.15), thick=0.032, bevel=0.006, mat='Trim', taper=(-0.22, -0.2))
-    shell('Collar', 'Spine2', (0, 0.08, 1.9), ch, (0.21, 0.13, 0.09), pu=5, pv=4, u=BACK, v=(-1.0, 1.2), thick=0.03, bevel=0.006, taper=(0.1, 0.0))
-    shell('NeckGuard', 'Neck', (0, 0.03, 1.915), ch, (0.12, 0.12, 0.045), pu=3, pv=4, v=(-1.0, 1.0), thick=0.02, bevel=0.004, mat='Plate')
-    build_helmet()
-    # ---- braccio sinistro
-    A, E, W, Hn = j['LeftArm'], j['LeftForeArm'], j['LeftHand'], j['LeftHandMiddle1']
-    ax = limb_axes(A, E, (0, 0, 1))
-    pc = np.array([A[0] + 0.075, A[1] + 0.005, A[2] + 0.055])
-    pax = frame((1.0, 0, 0.6), (0, -1, 0))
+        for k in range(6): block(f'Fin{k}{s_}', 'Spine2', (0.255 * s_, 0.33, 1.52 + 0.05 * k), AXES, (0.03, 0.095, 0.008), p=10, mat='Steel')
+        a0 = np.array([0.15 * s_, 0.39, 1.9]); a1 = np.array([0.185 * s_, 0.47, 2.03])
+        tube('Exhaust' + str(s_), [a0, a1], 0.036, weights={'Spine2': 1.0}, mat='Steel', sides=10, ribs=3)
+        ring('ExhaustLip' + str(s_), 'Spine2', a1, frame(a1 - a0), 0.036, 0.009, mat='Trim', nu=16)
+    if not ORDO:
+        rc = np.array([0, 0.47, 1.67])
+        tube('Reactor', [rc - UP * 0.16, rc + UP * 0.16], 0.075, weights={'Spine2': 1.0}, mat='Steel', sides=12, ribs=0)
+        for z_ in (-0.16, 0.16):
+            block(f'ReactorCap{z_}', 'Spine2', rc + UP * z_, AXES, (0.08, 0.08, 0.02), p=3, mat='Steel')
+            ring(f'ReactorBand{z_}', 'Spine2', rc + UP * z_ * 0.85, AXES, 0.082, 0.012, mat='Trim', nu=24)
+        block('ReactorWindow', 'Spine2', rc + [0, 0.072, 0], AXES, (0.026, 0.008, 0.11), p=8, mat='Glow')
+        for th in (-0.75, -0.25, 0.25, 0.75):
+            block(f'Cage{th}', 'Spine2', rc + [math.sin(th) * 0.092, math.cos(th) * 0.092, 0], AXES, (0.007, 0.007, 0.14), p=8, mat='Steel')
+    # ---- spallaccio sinistro: cupola a sfaccettature, bordo d'ottone, due lame sotto, chiodi
     PW = {'LeftArm': 0.75, 'LeftShoulder': 0.25}
-    shell('Pauldron', None, pc, pax, (0.2, 0.23, 0.17), pu=4, pv=3, v=(-0.3, PI / 2), thick=0.05, bevel=0.008, weights=PW, keel=0.0)
-    shell('PauldronRim', None, pc, pax, (0.21, 0.24, 0.17), pu=4, pv=3, v=(-0.38, -0.05), thick=0.02, bevel=0.004, mat='Trim', weights=PW)
-    for k in range(2):
-        shell(f'PauldronLame{k}', None, pc + pax[2] * (-0.08 - 0.06 * k), pax, (0.21 - 0.012 * k, 0.235 - 0.012 * k, 0.1), pu=4, pv=3.4,
-              v=(-0.45, 0.25), thick=0.022, bevel=0.004, weights={'LeftArm': 0.9, 'LeftShoulder': 0.1})
-    rivet_row('RivPauldron', None, pc, pax, (0.2, 0.23, 0.17), -PI, PI, 14, -0.22, weights=PW, pu=4, pv=3)
-    shell('Rerebrace', 'LeftArm', mid(A, E, 0.58), ax, (0.1, 0.105, 0.125), pu=6, pv=7, v=(-1.25, 1.25), thick=0.03, bevel=0.005, taper=(0.06, 0.06))
-    ring('ElbowRing', 'LeftArm', mid(A, E, 0.95), ax, 0.08, 0.016, mat='Trim')
-    shell('Couter', 'LeftForeArm', E + [0.0, 0.055, 0.0], frame((0, 1.0, 0.0), (0, 0, 1)), (0.08, 0.075, 0.065), pu=3, pv=2.6, v=(0.0, PI / 2), thick=0.022, bevel=0.005, keel=0.0)
-    fax = limb_axes(E, W, (0, 0, 1))
-    shell('Vambrace', 'LeftForeArm', mid(E, W, 0.52), fax, (0.097, 0.1, 0.13), pu=6, pv=7, v=(-1.25, 1.25), thick=0.032, bevel=0.005, taper=(0.12, 0.12))
-    shell('VambraceTop', 'LeftForeArm', mid(E, W, 0.55), fax, (0.105, 0.11, 0.1), pu=4, pv=5, u=(0.45, PI - 0.45), v=(-1.1, 1.1),
-          thick=0.016, bevel=0.003, mat='Trim', taper=(0.12, 0.12))
+    PR = [(0.17, 0.04, 1.80, 0.2, 0.11), (0.25, 0.04, 1.79, 0.28, 0.21), (0.35, 0.045, 1.785, 0.305, 0.235),
+          (0.44, 0.045, 1.78, 0.295, 0.22), (0.49, 0.05, 1.78, 0.285, 0.2)]
+    pr = [arc(*r_) for r_ in PR]
+    pcen = (0.36, 0.045, 1.76)
+    loft('Pauldron', None, pr, closed=False, thick=0.042, bevel=0.006, weights=PW, center=pcen)
+    tube('PauldronRimO', list(pr[-1]), 0.013, weights=PW, mat='Trim', sides=8)
+    tube('PauldronRimF', [r_[0] for r_ in pr], 0.012, weights=PW, mat='Trim', sides=8)
+    tube('PauldronRimB', [r_[-1] for r_ in pr], 0.012, weights=PW, mat='Trim', sides=8)
+    edge_rivets('RivPauldron', None, [p for p in pr[-1][1:-1]] + [r_[0] for r_ in pr[1:-1]] + [r_[-1] for r_ in pr[1:-1]], pcen, weights=PW, out=0.016)
+    for k, (x0, x1, ry, rz) in enumerate(((0.43, 0.52, 0.2, 0.155), (0.49, 0.575, 0.185, 0.14))):
+        loft(f'PauldronLame{k}', None, [arc(x0, 0.05, 1.80, ry, rz, 205, -30), arc(x1, 0.05, 1.80, ry - 0.01, rz - 0.01, 205, -30)], closed=False,
+             thick=0.022, bevel=0.004, weights={'LeftArm': 0.9 + 0.1 * k, 'LeftShoulder': 0.1 - 0.1 * k}, center=(0.5, 0.05, 1.8))
+    # ---- braccio
+    A, E, W, Hn = j['LeftArm'], j['LeftForeArm'], j['LeftHand'], j['LeftHandMiddle1']
+    limb('Rerebrace', 'LeftArm', A, E, UP, [(0.45, 0.1, 0.1, 0.015), (0.95, 0.09, 0.095, 0.01)], thick=0.03, bevel=0.004)
+    ax = limb_axes(A, E, (0, 0, 1))
+    tube('ArmPiston', [mid(A, E, 0.45) + [0, -0.108, -0.02], mid(A, E, 0.86) + [0, -0.108, -0.02]], 0.016, weights={'LeftArm': 1.0}, mat='Steel', sides=10)
+    tube('ArmRod', [mid(A, E, 0.86) + [0, -0.108, -0.02], mid(A, E, 1.0) + [0, -0.105, -0.02]], 0.008, weights={'LeftArm': 1.0}, mat='Trim', sides=8)
+    ring('ElbowRing', 'LeftArm', mid(A, E, 0.95), ax, 0.08, 0.014, mat='Steel')
+    shell('Couter', 'LeftForeArm', E + [0.0, 0.06, 0.0], frame((0, 1.0, 0.0), (0, 0, 1)), (0.085, 0.08, 0.07), pu=8, pv=2.4, v=(0.0, PI / 2), thick=0.024,
+          bevel=0.004, mat='Plate')
+    limb('Vambrace', 'LeftForeArm', E, W, UP, [(0.08, 0.085, 0.09, 0.01), (0.5, 0.105, 0.105, 0.03), (0.96, 0.105, 0.1, 0.02)], thick=0.033, bevel=0.005)
+    limb('VambraceTop', 'LeftForeArm', E, W, UP, [(0.2, 0.116, 0.116, 0.042), (0.85, 0.117, 0.112, 0.036)], idx=[8, 9, 0, 1, 2], thick=0.016, bevel=0.003)
+    wm = mid(E, W, 0.62) + [0, -0.118, 0]
+    block('WristBox', 'LeftForeArm', wm, AXES, (0.055, 0.022, 0.032), p=10, mat='Steel', bevel=0.002)
     hax = limb_axes(W, Hn, (0, 0, 1))
-    shell('Cuff', 'LeftHand', W + (W - E) * 0.05, hax, (0.08, 0.085, 0.04), pu=3.5, pv=6, v=(-1.2, 1.2), thick=0.018, bevel=0.003, mat='Trim')
-    block('HandBack', 'LeftHand', mid(W, Hn, 0.55) + [0, 0, 0.026], hax, (0.06, 0.03, 0.08), p=4, mat='Plate', bevel=0.003)
-    block('Knuckles', 'LeftHand', Hn + [-0.01, 0, 0.022], hax, (0.06, 0.02, 0.022), p=5, mat='Trim', bevel=0.002)
+    shell('Cuff', 'LeftHand', W + (W - E) * 0.05, hax, (0.08, 0.085, 0.04), pu=6, pv=6, v=(-1.2, 1.2), thick=0.018, bevel=0.003, mat='Steel')
+    block('HandBack', 'LeftHand', mid(W, Hn, 0.55) + [0, 0, 0.028], hax, (0.062, 0.03, 0.082), p=10, mat='Plate', bevel=0.003)
+    block('Knuckles', 'LeftHand', Hn + [-0.01, 0, 0.024], hax, (0.064, 0.022, 0.024), p=10, mat='Steel', bevel=0.002)
     block('Palm', 'LeftHand', mid(W, Hn, 0.55) + [0, 0, -0.012], hax, (0.055, 0.022, 0.075), p=3.5, mat='Suit')
     for f in ('Thumb', 'Index', 'Middle', 'Ring', 'Pinky'):
         chn = [j[f'LeftHand{f}{k}'] for k in (1, 2, 3)]
@@ -399,63 +522,75 @@ def build_armor_left():
         for k in range(3):
             a_, b_ = pts[k], pts[k + 1]
             fa = limb_axes(a_, b_, (0, 0, 1)); L_ = np.linalg.norm(b_ - a_)
-            block(f'{f}{k}', f'LeftHand{f}{k + 1}', mid(a_, b_), fa, (0.022, 0.021, L_ * 0.5 + 0.005), p=4, mat='Trim' if k == 0 else 'Plate', bevel=0.0015)
-    # ---- gamba sinistra
+            block(f'{f}{k}', f'LeftHand{f}{k + 1}', mid(a_, b_), fa, (0.022, 0.021, L_ * 0.5 + 0.005), p=8, mat='Steel' if k == 0 else 'Plate', bevel=0.0015)
+    # ---- gamba
     Hp, K, F, T = j['LeftUpLeg'], j['LeftLeg'], j['LeftFoot'], j['LeftToeBase']
-    tax = limb_axes(Hp, K, (0, 1, 0))
-    shell('Cuisse', 'LeftUpLeg', mid(Hp, K, 0.5), tax, (0.14, 0.15, 0.2), pu=6, pv=7, v=(-1.2, 1.2), thick=0.034, bevel=0.006, taper=(-0.12, -0.1), keel=0.02)
-    shell('CuisseOuter', 'LeftUpLeg', mid(Hp, K, 0.45), tax, (0.15, 0.16, 0.16), pu=4, pv=5, u=(-1.0, 1.0) , v=(-1.0, 1.1), thick=0.018, bevel=0.004, mat='Trim', taper=(-0.1, -0.1))
-    shell('Tasset', None, Hp + [0.07, -0.06, -0.04], frame((1.0, -0.55, 0.15), (0, 0, 1)), (0.12, 0.16, 0.12), pu=3.5, pv=3, v=(-0.5, 0.8), thick=0.024, bevel=0.005,
-          weights={'LeftUpLeg': 0.8, 'Hips': 0.2})
-    shell('Poleyn', 'LeftLeg', K + [0, -0.085, 0.01], frame((0, -1.0, 0), (0, 0, 1)), (0.095, 0.1, 0.075), pu=3, pv=2.6, v=(0.0, PI / 2), thick=0.028, bevel=0.006, keel=0.0)
+    TW = {'LeftUpLeg': 0.7, 'Hips': 0.3}
+    for k, (z0, z1, a0, a1) in enumerate(((1.27, 1.15, 0.275, 0.29), (1.18, 1.06, 0.29, 0.305))):
+        loft(f'Tasset{k}', None, [tring(z0, -0.01, a0, 0.215, 0.03, idx=[1, 2, 3]), tring(z1, -0.01, a1, 0.225, 0.035, idx=[1, 2, 3])], closed=False,
+             thick=0.024, bevel=0.004, weights=TW, center=(0.05, 0, 1.17))
+    limb('Cuisse', 'LeftUpLeg', Hp, K, FWD, [(0.08, 0.155, 0.155, 0.02), (0.5, 0.15, 0.15, 0.035), (0.9, 0.12, 0.12, 0.02)], thick=0.035, bevel=0.005)
+    limb('CuisseOuter', 'LeftUpLeg', Hp, K, FWD, [(0.2, 0.172, 0.168, 0.0), (0.72, 0.158, 0.152, 0.0)], idx=[9, 8, 7, 6], thick=0.016, bevel=0.003, mat='Steel')
+    shell('Poleyn', 'LeftLeg', K + [0, -0.098, 0.012], frame((0, -1.0, 0), (0, 0, 1)), (0.105, 0.11, 0.085), pu=8, pv=2.6, v=(0.0, PI / 2), thick=0.03, bevel=0.005)
+    block('KneeRidge', 'LeftLeg', K + [0, -0.19, 0.012], AXES, (0.014, 0.016, 0.07), p=10, mat='Steel')
     gax2 = limb_axes(K, F, (0, 1, 0))
-    ring('KneeRing', 'LeftLeg', K + (F - K) * 0.12, gax2, 0.09, 0.014, mat='Trim')
-    shell('Greave', 'LeftLeg', mid(K, F, 0.5), gax2, (0.115, 0.125, 0.22), pu=6, pv=7, v=(-1.2, 1.2), thick=0.036, bevel=0.006, taper=(-0.12, -0.05), keel=0.035)
-    rivet_row('RivGreave', 'LeftLeg', mid(K, F, 0.5), gax2, (0.115, 0.125, 0.22), -PI + 0.6, -0.6, 4, 1.1, pu=6, pv=7, taper=(-0.12, -0.05))
-    shell('GreaveBack', 'LeftLeg', mid(K, F, 0.38), gax2, (0.12, 0.13, 0.13), pu=4, pv=5, u=BACK, v=(-1.0, 1.0), thick=0.018, bevel=0.004, mat='Trim', taper=(-0.1, -0.05))
-    bax = AXES
-    block('Boot', 'LeftFoot', (F[0], F[1] - 0.045, 0.09), bax, (0.092, 0.17, 0.09), p=4, mat='Plate', bevel=0.005, keel=0.0, taper=(-0.08, 0.0))
-    block('Sole', 'LeftFoot', (F[0], F[1] - 0.05, 0.02), bax, (0.1, 0.185, 0.022), p=6, mat='Trim', bevel=0.002)
-    block('ToeCap', 'LeftToeBase', (T[0], T[1] - 0.06, 0.06), bax, (0.085, 0.08, 0.055), p=3.6, mat='Plate', bevel=0.004)
-    shell('AnkleGuard', 'LeftFoot', F + [0, 0, 0.045], gax2, (0.1, 0.11, 0.055), pu=4, pv=5, v=(-1.1, 1.1), thick=0.02, bevel=0.003, mat='Trim')
+    ring('KneeRing', 'LeftLeg', K + (F - K) * 0.12, gax2, 0.09, 0.013, mat='Steel')
+    limb('Greave', 'LeftLeg', K, F, FWD, [(0.08, 0.115, 0.12, 0.01), (0.45, 0.13, 0.135, 0.05), (0.92, 0.1, 0.105, 0.02)], thick=0.036, bevel=0.005)
+    limb('GreaveRidge', 'LeftLeg', K, F, FWD, [(0.14, 0.14, 0.148, 0.065), (0.85, 0.118, 0.125, 0.036)], idx=[9, 0, 1], thick=0.015, bevel=0.003)
+    tube('CalfPiston', [mid(K, F, 0.15) + [0, 0.145, 0], mid(K, F, 0.72) + [0, 0.128, 0]], 0.018, weights={'LeftLeg': 1.0}, mat='Steel', sides=10)
+    tube('CalfRod', [mid(K, F, 0.72) + [0, 0.128, 0], mid(K, F, 0.9) + [0, 0.12, 0]], 0.009, weights={'LeftLeg': 1.0}, mat='Trim', sides=8)
+    block('Boot', 'LeftFoot', (F[0], F[1] - 0.04, 0.105), AXES, (0.1, 0.17, 0.1), p=10, mat='Plate', bevel=0.004, taper=(-0.06, 0.0))
+    block('Sole', 'LeftFoot', (F[0], F[1] - 0.05, 0.024), AXES, (0.108, 0.2, 0.024), p=12, mat='Steel', bevel=0.002)
+    block('ToeCap', 'LeftToeBase', (T[0], T[1] - 0.07, 0.068), AXES, (0.094, 0.085, 0.062), p=10, mat='Plate', bevel=0.004, taper=(0.0, -0.1))
+    block('ToeLame', 'LeftToeBase', (T[0], T[1] + 0.01, 0.125), AXES, (0.096, 0.04, 0.016), p=10, mat='Steel', bevel=0.002)
+    shell('AnkleGuard', 'LeftFoot', F + [0, 0, 0.05], gax2, (0.105, 0.115, 0.055), pu=8, pv=5, v=(-1.1, 1.1), thick=0.02, bevel=0.003, mat='Steel')
+    build_helmet()
 
 
 def build_helmet():
-    ch = AXES; PI = math.pi
+    PI = math.pi
     hc = np.array([0, 0.0, 2.025])
     if ORDO:
+        ch = AXES
         # grande elmo a secchio: fianchi dritti, cima bombata, feritoia a croce col rinforzo verticale
         shell('Helm', 'Head', hc, ch, (0.145, 0.16, 0.17), pu=3.2, pv=7, v=(-1.35, 1.25), thick=0.032, bevel=0.006, keel=0.03)
         shell('HelmTop', 'Head', hc + [0, 0, 0.125], ch, (0.14, 0.155, 0.07), pu=3.2, pv=2.4, v=(0.0, PI / 2), thick=0.03, bevel=0.006)
         block('Slit', 'Head', hc + [0, -0.17, 0.025], ch, (0.115, 0.012, 0.011), p=6, mat='Glow')
-        block('SlitBand', 'Head', hc + [0, -0.18, 0.05], ch, (0.135, 0.013, 0.014), p=6, mat='Trim', bevel=0.002)
-        block('SlitBandLow', 'Head', hc + [0, -0.18, 0.0], ch, (0.135, 0.013, 0.012), p=6, mat='Trim', bevel=0.002)
-        block('Rib', 'Head', hc + [0, -0.19, -0.075], ch, (0.018, 0.014, 0.075), p=6, mat='Trim', bevel=0.002)
+        block('SlitBand', 'Head', hc + [0, -0.18, 0.05], ch, (0.135, 0.013, 0.014), p=6, mat='Steel', bevel=0.002)
+        block('SlitBandLow', 'Head', hc + [0, -0.18, 0.0], ch, (0.135, 0.013, 0.012), p=6, mat='Steel', bevel=0.002)
+        block('Rib', 'Head', hc + [0, -0.19, -0.075], ch, (0.018, 0.014, 0.075), p=6, mat='Steel', bevel=0.002)
         cross_pattee('CrossHelm', 'Head', hc + [0, -0.03, 0.198], (np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])), 0.1)
         for k in range(3):
             for s_ in (1, -1): block(f'Breath{k}{s_}', 'Head', hc + [0.05 * s_, -0.178, -0.06 - 0.03 * k], ch, (0.008, 0.008, 0.008), p=2, mat='Cross')
         return
-    # elmo chiuso del carapace: calotta bassa, fronte pesante a sbalzo, maschera a cuneo, feritoie a V strette e
-    # incassate, grata della bocca a denti, guance e nuca a lame, tubi verso lo zaino
-    shell('Skull', 'Head', hc + [0, 0.02, 0.02], ch, (0.148, 0.168, 0.15), pu=5, pv=3.4, v=(-0.45, PI / 2), thick=0.032, bevel=0.006, keel=0.025)
-    shell('Brow', 'Head', hc + [0, -0.045, 0.062], ch, (0.158, 0.135, 0.042), pu=7, pv=5, u=(-PI + 0.2, -0.2), v=(-1.0, 1.0), thick=0.03, bevel=0.006, keel=0.03, taper=(0.0, 0.15))
-    shell('Mask', 'Head', hc + [0, -0.02, -0.05], ch, (0.13, 0.145, 0.11), pu=6, pv=4, u=(-PI + 0.35, -0.35), v=(-1.25, 0.45), thick=0.028, bevel=0.005,
-          keel=0.035, taper=(0.3, 0.0))
-    shell('Cheeks', 'Head', hc + [0, 0.01, -0.045], ch, (0.15, 0.162, 0.115), pu=6, pv=5, u=(-0.95, PI + 0.95), v=(-1.2, 0.6), thick=0.028, bevel=0.005, mat='Trim')
-    shell('NapeGuard', 'Head', hc + [0, 0.07, -0.085], ch, (0.155, 0.12, 0.06), pu=6, pv=5, u=BACK_, v=(-1.0, 1.0), thick=0.026, bevel=0.004, mat='Plate', taper=(0.15, 0.0))
+    # elmo da assalto: calotta sfaccettata con cresta, fronte pesante a sbalzo, una sola feritoia orizzontale incassata,
+    # muso a cuneo con le griglie di sfiato sui fianchi, due filtri, orecchie corazzate, antenna, lame sulla nuca
+    def hr(dz, y, a, b, k, idx=None): return tring(hc[2] + dz, y, a, b, k, cc=0.4, idx=idx)
+    loft('Dome', 'Head', [hr(-0.05, 0.01, 0.148, 0.165, 0.02), hr(0.05, 0.01, 0.158, 0.175, 0.035), hr(0.12, 0.015, 0.135, 0.155, 0.03),
+                          hr(0.163, 0.02, 0.085, 0.105, 0.015), hr(0.18, 0.02, 0.035, 0.045, 0.0)], thick=0.03, bevel=0.005, cap_top=True,
+         center=hc + [0, 0.01, 0.0], rnd=0.008)
+    loft('Brow', 'Head', [hr(0.022, 0.0, 0.168, 0.188, 0.056, FRONT_IDX), hr(0.085, 0.0, 0.163, 0.181, 0.042, FRONT_IDX)], closed=False, thick=0.03, bevel=0.005,
+         center=hc, rnd=0.005)
+    block('VisorPit', 'Head', hc + [0, -0.158, 0.004], AXES, (0.105, 0.022, 0.026), p=10, mat='Steel', bevel=0.002)
+    block('Visor', 'Head', hc + [0, -0.181, 0.006], AXES, (0.085, 0.004, 0.0042), p=12, mat='Glow')
+    loft('Muzzle', 'Head', [hr(-0.02, 0.0, 0.148, 0.172, 0.04, FRONT_IDX), hr(-0.085, -0.01, 0.13, 0.178, 0.078, FRONT_IDX),
+                            hr(-0.16, 0.0, 0.088, 0.142, 0.046, FRONT_IDX)], closed=False, thick=0.028, bevel=0.005, center=hc + [0, 0.02, -0.06], rnd=0.005)
     for s_ in (1, -1):
-        ang = math.radians(20) * s_
-        vax = (np.array([math.cos(ang), 0, math.sin(ang)]), np.array([0, 1.0, 0]), np.array([-math.sin(ang), 0, math.cos(ang)]))
-        block('VisorPit' + str(s_), 'Head', hc + [0.05 * s_, -0.185, 0.018], vax, (0.058, 0.024, 0.017), p=7, mat='Trim', bevel=0.002)
-        block('Visor' + str(s_), 'Head', hc + [0.05 * s_, -0.205, 0.018], vax, (0.046, 0.006, 0.006), p=8, mat='Glow')
-        block('Ear' + ('L' if s_ > 0 else 'R'), 'Head', hc + [0.155 * s_, 0.01, -0.015], frame((s_, 0, 0)), (0.055, 0.06, 0.025), p=6, mat='Trim', bevel=0.003)
-        tube('Hose' + ('L' if s_ > 0 else 'R'), [hc + [0.1 * s_, -0.12, -0.11], hc + [0.14 * s_, -0.05, -0.15], (0.17 * s_, 0.02, 1.83), (0.15 * s_, 0.2, 1.80), (0.12 * s_, 0.31, 1.78)],
-             0.016, ribs=3)
-    block('MouthSlot', 'Head', hc + [0, -0.185, -0.1], ch, (0.06, 0.02, 0.03), p=7, mat='Trim')
-    for k in range(7): block(f'Tooth{k}', 'Head', hc + [-0.048 + 0.016 * k, -0.205, -0.1], ch, (0.0055, 0.008, 0.03 - 0.004 * abs(k - 3)), p=4, mat='Plate')
-    block('Chin', 'Head', hc + [0, -0.18, -0.15], ch, (0.04, 0.03, 0.022), p=6, mat='Trim', bevel=0.002)
-    block('CrestRidge', 'Head', hc + [0, -0.01, 0.16], ch, (0.014, 0.14, 0.016), p=6, mat='Trim')
-
+        ex_ = norm((0.58 * s_, 0.81, 0)); ey_ = norm((0.81 * s_, -0.58, 0))
+        for k in range(4):
+            block(f'Slat{k}{s_}', 'Head', hc + [0.108 * s_, -0.15, -0.045 - 0.024 * k], (ex_, ey_, UP), (0.036, 0.006, 0.0065), p=10, mat='Steel')
+        f0 = hc + [0.112 * s_, -0.15, -0.105]; f1 = hc + [0.15 * s_, -0.178, -0.15]
+        tube('Filter' + str(s_), [f0, f1], 0.03, weights={'Head': 1.0}, mat='Steel', sides=14, ribs=0)
+        block('FilterCap' + str(s_), 'Head', f1, frame(f1 - f0), (0.031, 0.031, 0.008), p=3, mat='Steel')
+        ring('FilterLip' + str(s_), 'Head', f1 - norm(f1 - f0) * 0.006, frame(f1 - f0), 0.031, 0.006, mat='Trim', nu=16)
+        block('Ear' + str(s_), 'Head', hc + [0.167 * s_, 0.0, -0.005], AXES, (0.03, 0.08, 0.075), p=10, mat='Plate', bevel=0.003)
+        ring('EarRing' + str(s_), 'Head', hc + [0.199 * s_, 0.0, -0.005], (np.array([0, 1.0, 0]), UP, np.array([s_, 0, 0.0])), 0.042, 0.008, mat='Trim', nu=20)
+        tube('Hose' + str(s_), [hc + [0.10 * s_, 0.15, -0.08], (0.15 * s_, 0.27, 1.99), (0.14 * s_, 0.35, 1.95)], 0.016, ribs=3, mat='Steel')
+    tube('Antenna', [hc + [0.19, 0.04, 0.05], hc + [0.215, 0.13, 0.30]], 0.005, weights={'Head': 1.0}, mat='Steel', sides=6)
+    block('Crest', 'Head', hc + [0, -0.01, 0.168], AXES, (0.012, 0.13, 0.016), p=10, mat='Plate')
+    for k, (z0, z1) in enumerate(((-0.06, -0.14), (-0.12, -0.19))):
+        loft(f'Nape{k}', 'Head', [hr(z0, 0.0, 0.152 - 0.008 * k, 0.172 - 0.008 * k, 0.0, BACK_IDX), hr(z1, 0.0, 0.145 - 0.008 * k, 0.165 - 0.008 * k, 0.0, BACK_IDX)],
+             closed=False, thick=0.024, bevel=0.004, center=hc)
 
 BACK_ = (0.25, math.pi - 0.25)
 
@@ -464,19 +599,17 @@ def ordo_extras():
     """Ordo: croci patenti, ossa, teschio, sopravveste"""
     ch = AXES
     # croci: sul petto sopra il nucleo, sulla schiena, sugli spallacci
-    cross_pattee('CrossChest', 'Spine2', np.array([0, -0.252, 1.815]), (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0])), 0.11)
-    cross_pattee('CrossBack', 'Spine2', np.array([0, 0.362, 1.66]), (np.array([-1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, 1.0, 0])), 0.22)
-    A = J['LeftArm']
-    pc = np.array([A[0] + 0.05, A[1] + 0.005, A[2] + 0.03]) + [0.02, 0, 0.03]
-    n = norm((1.0, 0, 0.55)); ax_ = norm(np.cross((0, 0, 1.0), n)); ay_ = np.cross(n, ax_)
-    cross_pattee('CrossPauldronL', 'LeftArm', pc + n * 0.172, (ax_, ay_, n), 0.13)
+    cross_pattee('CrossChest', 'Spine2', np.array([0, -0.318, 1.84]), (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0])), 0.11)
+    cross_pattee('CrossBack', 'Spine2', np.array([0, 0.452, 1.66]), (np.array([-1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, 1.0, 0])), 0.22)
+    n = norm((0.12, 0, 1.0)); ax_ = norm(np.cross((0, 1.0, 0), n)); ay_ = np.cross(n, ax_)
+    cross_pattee('CrossPauldronL', 'LeftArm', np.array([0.37, 0.045, 1.997]), (ax_, ay_, n), 0.13)
     PARTS[-1] = (PARTS[-1][0], {'LeftArm': 0.75, 'LeftShoulder': 0.25}, 'Cross')
     # ossa: costole d'avorio sulla goletta, teschio sulla fibbia con due femori incrociati
     for k in range(7):
         a = -0.9 + k * 0.3
-        c = np.array([math.sin(a) * 0.205, -math.cos(a) * 0.19 + 0.03, 1.84])
+        c = np.array([math.sin(a) * 0.228, -math.cos(a) * 0.212 + 0.02, 1.905])
         block(f'Rib{k}', 'Spine2', c, frame((math.sin(a), -math.cos(a), 0.0), (0, 0, 1)), (0.016, 0.018, 0.06), p=2.4, mat='Bone')
-    sk = np.array([0, -0.25, 1.265])
+    sk = np.array([0, -0.265, 1.268])
     shell('Skull_', 'Hips', sk + [0, 0, 0.012], ch, (0.046, 0.05, 0.056), pu=2, pv=2.3, closed=True, mat='Bone', nu=24, nv=12)
     block('SkullCheek', 'Hips', sk + [0, -0.012, -0.03], ch, (0.04, 0.036, 0.02), p=2.6, mat='Bone')
     block('SkullJaw', 'Hips', sk + [0, -0.02, -0.058], ch, (0.03, 0.03, 0.014), p=3, mat='Bone')
@@ -489,9 +622,9 @@ def ordo_extras():
         block('Femur' + str(s), 'Hips', c0, (fa[0], fa[1], fa[2]), (0.011, 0.011, 0.1), p=2.4, mat='Bone')
         for e in (1, -1):
             for q in (1, -1): block(f'FemurEnd{s}{e}{q}', 'Hips', c0 + fa[2] * 0.1 * e + fa[0] * 0.008 * q, ch, (0.012, 0.012, 0.012), p=2, mat='Bone')
-    chain('BeltChain', [(-0.24, -0.16, 1.24), (-0.12, -0.235, 1.19), (0.05, -0.24, 1.2), (0.2, -0.19, 1.24)])
+    chain('BeltChain', [(-0.24, -0.17, 1.24), (-0.12, -0.25, 1.2), (0.05, -0.255, 1.21), (0.2, -0.2, 1.24)])
     # sopravveste: davanti e dietro, dalla cintura al ginocchio, con la croce nera (pesi dalla tuta)
-    for side, y, sgn in (('F', -0.215, -1), ('B', 0.215, 1)):
+    for side, y, sgn in (('F', -0.262, -1), ('B', 0.245, 1)):
         V, F = [], []
         nz, nx = 14, 9
         for i in range(nz + 1):
@@ -545,10 +678,13 @@ def build_armature():
 
 # ------------------------------------------------------------------ materiali (nodi per la cottura)
 PAL = {
-    'generic': dict(plate=(0.085, 0.082, 0.08), plate_metal=0.8, plate_rough=0.5, edge=(0.5, 0.49, 0.47), trim=(0.025, 0.024, 0.024),
+    # generica: vernice da campo grigio-oliva scuro (scheggiata fino all'acciaio), finiture d'ottone brunito, meccanica in acciaio scuro
+    'generic': dict(plate=(0.034, 0.039, 0.029), plate_metal=0.1, plate_rough=0.6, edge=(0.36, 0.355, 0.34), trim=(0.26, 0.16, 0.055),
+                    trim_edge=(0.72, 0.52, 0.24), tarnish=(0.03, 0.035, 0.02), steel=(0.03, 0.03, 0.032),
                     core=(0.12, 0.02, 0.22), core_emit=(0.45, 0.06, 0.85), glow=(0.55, 0.12, 0.95), rust=(0.2, 0.075, 0.025)),
-    'ordo': dict(plate=(0.30, 0.28, 0.24), plate_metal=0.0, plate_rough=0.66, edge=(0.46, 0.43, 0.38), trim=(0.02, 0.02, 0.022),
-                 core=(0.006, 0.006, 0.008), core_emit=(0.0, 0.0, 0.0), glow=(0.55, 0.12, 0.95), rust=(0.2, 0.15, 0.09)),
+    'ordo': dict(plate=(0.74, 0.72, 0.68), plate_metal=0.0, plate_rough=0.6, edge=(0.82, 0.8, 0.76), trim=(0.02, 0.02, 0.022),
+                 trim_edge=(0.3, 0.29, 0.28), tarnish=(0.2, 0.15, 0.09), steel=(0.02, 0.02, 0.022),
+                 core=(0.006, 0.006, 0.008), core_emit=(0.0, 0.0, 0.0), glow=(1.0, 0.78, 0.42), rust=(0.2, 0.15, 0.09)),
 }[VAR if VAR in ('ordo',) else 'generic']
 
 
@@ -626,21 +762,28 @@ def procedural(nt, kind):
         if ORDO:
             vein = node(nt, 'ShaderNodeTexWave', wave_type='BANDS'); vein.inputs['Scale'].default_value = 4.0
             vein.inputs['Distortion'].default_value = 14.0; vein.inputs['Detail'].default_value = 6.0; L(obj, vein.inputs['Vector'])
-            c = mixc(nt, mul(nt, mrange(nt, vein.outputs['Fac'], 0.96, 1.0), 0.7), p['plate'], (0.40, 0.39, 0.38))
-            c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7, 0.0, 0.25), c, (0.42, 0.38, 0.31))
+            c = mixc(nt, mul(nt, mrange(nt, vein.outputs['Fac'], 0.96, 1.0), 0.5), p['plate'], (0.5, 0.5, 0.5))
+            c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7, 0.0, 0.15), c, (0.66, 0.63, 0.57))
             mp = node(nt, 'ShaderNodeMapping'); mp.inputs['Scale'].default_value = (22.0, 22.0, 1.6); L(obj, mp.inputs['Vector'])
             drip = node(nt, 'ShaderNodeTexNoise', Scale=1.0, Detail=5.0); L(mp.outputs['Vector'], drip.inputs['Vector'])
-            c = mixc(nt, mul(nt, mrange(nt, drip.outputs['Fac'], 0.5, 0.62), 0.75), c, (0.1, 0.085, 0.06))
+            c = mixc(nt, mul(nt, mrange(nt, drip.outputs['Fac'], 0.5, 0.62), 0.25), c, (0.35, 0.32, 0.27))
             zs = node(nt, 'ShaderNodeSeparateXYZ'); L(obj, zs.inputs['Vector'])
-            c = mixc(nt, mul(nt, mrange(nt, zs.outputs['Z'], 1.3, 0.1), 0.6), c, (0.09, 0.075, 0.055))
+            c = mixc(nt, mul(nt, mrange(nt, zs.outputs['Z'], 0.6, 0.05), 0.3), c, (0.3, 0.27, 0.22))
             chip = node(nt, 'ShaderNodeTexVoronoi'); chip.inputs['Scale'].default_value = 40.0; L(obj, chip.inputs['Vector'])
-            c = mixc(nt, mul(nt, mul(nt, edge, mrange(nt, chip.outputs['Distance'], 0.18, 0.05)), 0.9), c, (0.12, 0.11, 0.1))
+            c = mixc(nt, mul(nt, mul(nt, edge, mrange(nt, chip.outputs['Distance'], 0.18, 0.05)), 0.6), c, (0.45, 0.43, 0.4))
         else:
             c = mixc(nt, 0.35, p['plate'], mrange(nt, nbig.outputs['Fac'], 0, 1, 0.8, 1.2), 'MULTIPLY')
+            # vernice scheggiata: le zone chiare di una foto di lamiera arrugginita decidono dove la vernice e' saltata,
+            # molto di piu' sugli spigoli che sulle facce piane
+            P2 = photo_lib.nodes(nt, obj, 'rusty_metal_04', 2.2) if not FAST else None
+            if P2 is not None:
+                chip = mrange(nt, mul(nt, P2['rel'], add(nt, 0.3, mul(nt, edge, 0.75))), 1.15, 1.3)
+                mx = nt.nodes.new('ShaderNodeMath'); mx.operation = 'MAXIMUM'; _set(nt, mx.inputs[0], wear); _set(nt, mx.inputs[1], chip)
+                wear = mx.outputs[0]
         rustm = mul(nt, add(nt, cav, mrange(nt, nbig.outputs['Fac'], 0.58, 0.78, 0.0, 0.5)), mrange(nt, nmid.outputs['Fac'], 0.35, 0.65))
         c = mixc(nt, wear, c, p['edge'])
-        c = mixc(nt, mul(nt, rustm, 0.75), c, p['rust'])
-        c = mixc(nt, mul(nt, cav, 0.6), c, (0.02, 0.018, 0.015))
+        c = mixc(nt, mul(nt, rustm, 0.2 if ORDO else 0.75), c, p['rust'])
+        c = mixc(nt, mul(nt, cav, 0.35 if ORDO else 0.6), c, (0.02, 0.018, 0.015))
         c = mixc(nt, mul(nt, scratch, 0.18), c, p['edge'])
         r = mixf(nt, wear, mrange(nt, nmid.outputs['Fac'], 0, 1, p['plate_rough'] - 0.08, p['plate_rough'] + 0.1), 0.25 if not ORDO else 0.45)
         r = mixf(nt, mul(nt, rustm, 0.75), r, 0.9)
@@ -652,7 +795,13 @@ def procedural(nt, kind):
         c = mixc(nt, mul(nt, wear, 0.6), c, (0.2, 0.15, 0.1))
         return c, mrange(nt, nfine.outputs['Fac'], 0, 1, 0.55, 0.8), 0.0, nmid.outputs['Fac'], 0.1
     if kind == 'Trim':
-        c = mixc(nt, wear, p['trim'], (0.3, 0.29, 0.28))
+        c = mixc(nt, mrange(nt, nbig.outputs['Fac'], 0.3, 0.7, 0.0, 0.35), p['trim'], p['tarnish'])
+        c = mixc(nt, wear, c, p['trim_edge'])
+        c = mixc(nt, mul(nt, mul(nt, cav, mrange(nt, nfine.outputs['Fac'], 0.3, 0.6)), 0.85), c, p['tarnish'])
+        c = mixc(nt, mul(nt, scratch, 0.4), c, p['trim_edge'])
+        return c, mrange(nt, nfine.outputs['Fac'], 0, 1, 0.3, 0.5), 1.0, add(nt, mul(nt, nmid.outputs['Fac'], 0.5), mul(nt, scratch, 0.25)), 0.06
+    if kind == 'Steel':
+        c = mixc(nt, wear, p['steel'], (0.3, 0.29, 0.28))
         c = mixc(nt, mul(nt, mul(nt, cav, mrange(nt, nfine.outputs['Fac'], 0.3, 0.6)), 0.8), c, p['rust'])
         c = mixc(nt, mul(nt, scratch, 0.4), c, (0.3, 0.3, 0.31))
         return c, mrange(nt, nfine.outputs['Fac'], 0, 1, 0.38, 0.55), 0.9, add(nt, mul(nt, nmid.outputs['Fac'], 0.5), mul(nt, scratch, 0.25)), 0.06
@@ -675,8 +824,9 @@ def procedural(nt, kind):
 
 
 # Foto CC0 sotto i materiali (photo_lib): tipo -> (foto, scala, forza colore, ruvidita', rilievo)
-PHOTO = {'Plate': ('marble_rock_01', 1.5, 0.75, 0.2, 0.5) if ORDO else ('green_metal_rust', 1.3, 0.85, 0.2, 0.45),
-         'Trim': ('rusty_metal_sheet', 2.0, 0.8, 0.25, 0.4),
+PHOTO = {'Plate': ('marble_rock_01', 1.5, 0.45, 0.2, 0.5) if ORDO else ('green_metal_rust', 1.3, 0.85, 0.2, 0.45),
+         'Trim': ('rusty_metal_sheet', 2.0, 0.5, 0.2, 0.3),
+         'Steel': ('rusty_metal_sheet', 2.0, 0.8, 0.25, 0.4),
          'Leather': ('brown_leather', 1.0, 0.75, 0.3, 0.7),
          'Cloth': ('hessian_230', 1.5, 0.7, 0.2, 0.6),
          'Suit': ('rubberized_track', 3.0, 0.6, 0.3, 0.5)}
@@ -773,7 +923,8 @@ def bake_material(ob, kind):
 def quick_material(kind):
     p = PAL
     return {'Plate': flat_material('VG_Plate', p['plate'], p['plate_rough'], p['plate_metal']),
-            'Trim': flat_material('VG_Trim', p['trim'], 0.45, 0.9),
+            'Trim': flat_material('VG_Trim', p['trim'], 0.4, 1.0),
+            'Steel': flat_material('VG_Steel', p['steel'], 0.45, 0.9),
             'Suit': flat_material('VG_Suit', (0.04, 0.04, 0.045), 0.72, 0.15),
             'Cloth': flat_material('VG_Cloth', (0.8, 0.77, 0.7) if ORDO else (0.15, 0.13, 0.1), 0.92, 0.0),
             'Bone': flat_material('VG_Bone', (0.72, 0.66, 0.52), 0.6, 0.0),
@@ -781,7 +932,7 @@ def quick_material(kind):
 
 
 # ------------------------------------------------------------------ costruzione
-if not FAST: photo_lib.ensure(sorted({v[0] for v in PHOTO.values()}))
+if not FAST: photo_lib.ensure(sorted({v[0] for v in PHOTO.values()} | {'rusty_metal_04'}))
 suit = build_suit()
 build_armor_left()
 if ORDO: ordo_extras()
@@ -828,7 +979,7 @@ p = PAL
 for mat, ob in merged.items():
     if mat == 'Cross': ob.data.materials.append(flat_material('VG_Cross', (0.012, 0.012, 0.014), 0.38, 0.55))
     elif mat == 'Core': ob.data.materials.append(flat_material('VG_Core', p['core'], 0.06, 0.0, p['core_emit'], 2.5 if not ORDO else 1.0))
-    elif mat == 'Glow': ob.data.materials.append(flat_material('VG_Glow', (0.1, 0.03, 0.2), 0.2, 0.0, p['glow'], 4.0))
+    elif mat == 'Glow': ob.data.materials.append(flat_material('VG_Glow', tuple(x * 0.2 for x in p['glow']), 0.2, 0.0, p['glow'], 2.5))
     elif FAST: ob.data.materials.append(quick_material(mat))
     else: bake_material(ob, mat)
 

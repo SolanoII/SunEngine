@@ -1,9 +1,15 @@
 # Vanguard Armor (Blender)
 
-Corpi d'autore delle Vanguard Armor: umano potenziato chiuso in un carapace spesso e aderente.
+Corpi d'autore delle Vanguard Armor: umano potenziato chiuso in un'armatura pesante a piastre.
 
-- `python3 build.py` -> `Sandbox/GameData/Models/Characters/vanguard/model.glb` (armatura generica: ferro scuro, nucleo di ossidiana viola)
-- `python3 build.py --variant ordo` -> `.../vanguard/variants/vanguard_konrad.glb` (Ordo Domus Humilitatis: pietra bianca invecchiata, nucleo nero, croci, ossa)
+Forma: lamiere spesse piegate a sfaccettature (loft di sezioni ottagonali con la chiglia davanti, `loft`/`limb`/`tring`
+in `build.py`), pieghe arrotondate e bordi smussati netti, piastre sovrapposte a embrice. Spallacci a cupola con bordo
+d'ottone, chiodi e due lame; collare alto in cui affonda l'elmo; zaino con reattore in gabbia, alette e scarichi;
+pistoni idraulici su braccia e polpacci; cintura con tasche e fiancali. L'elmo e' un disegno originale: calotta
+sfaccettata, fronte a sbalzo, una feritoia incassata, muso a cuneo con sfiati, due filtri, antenna.
+
+- `python3 build.py` -> `Sandbox/GameData/Models/Characters/vanguard/model.glb` (armatura generica: vernice grigio-oliva scheggiata, ottone brunito, nucleo di ossidiana viola)
+- `python3 build.py --variant ordo` -> `.../vanguard/variants/vanguard_konrad.glb` (Ordo Domus Humilitatis: pietra bianca, nucleo nero, croci, ossa, feritoia di luce bianco-dorata)
 - `--fast` (texture piccole, prove veloci), `--tex 2048`, `--out file.glb`
 - `DISPLAY=:99 python3 render.py vanguard_<var>.blend anteprima.png [--cycles]`: cinque viste di controllo
 
@@ -14,4 +20,5 @@ Serve Blender come modulo Python (`bpy`) e `scikit-image` per la tuta sotto le p
 Sotto i materiali cotti ci sono scansioni fotografiche CC0 di Poly Haven (`../photo_lib.py`): piastre in
 `green_metal_rust` (generica) o `marble_rock_01` (Ordo, pietra bianca venata), finiture in `rusty_metal_sheet`, cuoio
 `brown_leather`, stoffa `hessian_230`, tuta `rubberized_track`. La foto da' graffi, venature e grana; la tinta resta
-quella della tavolozza.
+quella della tavolozza. Sulla generica le zone chiare di `rusty_metal_04` decidono dove la vernice e' saltata fino
+all'acciaio, soprattutto sugli spigoli.
