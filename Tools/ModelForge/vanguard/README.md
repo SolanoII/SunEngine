@@ -9,8 +9,8 @@ pistoni idraulici su braccia e polpacci; cintura con tasche e fiancali. L'elmo e
 bassa sfaccettata, fronte a becco che scende sul viso, due feritoie inclinate incassate in ombra, mascella a prua
 con sfiati sui fianchi. Sulla generica c'e' anche lo sporco di battaglia (fango sulle gambe, colature, fuliggine).
 
-Konrad (Ordo) e' un cavaliere teutonico: elmo a secchio con la croce nera sul viso, fori di respirazione e cimiero a
-corna nere; cappa bianca fino ai polpacci con la croce nera sulla schiena (pesi per vertice, segue il busto);
+Konrad (Ordo) e' un cavaliere teutonico: elmo a secchio massiccio che si allarga sul collo, croce nera sul viso, feritoie
+e fori di respirazione tagliati nella lamiera (booleana, la luce sta dentro), cimiero a corna nere; nucleo bianco; cappa bianca fino ai polpacci con la croce nera sulla schiena (pesi per vertice, segue il busto);
 scanalature gotiche su spallacci e pettorali; cotta di maglia sotto le piastre; sopravveste bianca con la croce.
 
 - `python3 build.py` -> `Sandbox/GameData/Models/Characters/vanguard/model.glb` (armatura generica: vernice grigio-oliva scheggiata, ottone brunito, nucleo di ossidiana viola)

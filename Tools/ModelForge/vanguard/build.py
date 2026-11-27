@@ -551,6 +551,19 @@ def build_armor_left():
     build_helmet()
 
 
+def cut(ob, boxes):
+    """fori nella lamiera: differenza booleana con scatole (centro, mezze misure)"""
+    bm = bmesh.new()
+    for c, h in boxes:
+        r_ = bmesh.ops.create_cube(bm, size=1.0)
+        for v in r_['verts']: v.co = Vector((c[0] + v.co.x * 2 * h[0], c[1] + v.co.y * 2 * h[1], c[2] + v.co.z * 2 * h[2]))
+    me = bpy.data.meshes.new('cutter'); bm.to_mesh(me); bm.free()
+    co = bpy.data.objects.new('cutter', me); COL.objects.link(co)
+    m = ob.modifiers.new('cut', 'BOOLEAN'); m.operation = 'DIFFERENCE'; m.object = co; m.solver = 'EXACT'
+    bake_modifiers(ob); bpy.data.objects.remove(co, do_unlink=True)
+    for p in ob.data.polygons: p.use_smooth = True
+
+
 def horn(name, bone, pts, r0, r1, mat='Cross', sides=12):
     """corno: anelli che si stringono lungo una curva"""
     pts = [np.asarray(p, float) for p in pts]; rings = []
@@ -574,23 +587,31 @@ def build_helmet():
         # elmo a secchio teutonico: fianchi quasi dritti, cima piatta, croce nera sul viso (banda della fronte + nasale),
         # due feritoie, fori di respirazione, chiodi sul bordo, cimiero a corna nere
         def hr(dz, y, a, b, k, idx=None): return tring(hc[2] + dz, y, a, b, k, cc=0.28, idx=idx)
-        HR = [(-0.175, 0.0, 0.148, 0.163, 0.02), (-0.06, 0.0, 0.153, 0.168, 0.026), (0.06, 0.0, 0.151, 0.166, 0.026),
+        HR = [(-0.205, -0.025, 0.228, 0.232, 0.045), (-0.15, -0.008, 0.172, 0.187, 0.03), (-0.06, 0.0, 0.153, 0.168, 0.026), (0.06, 0.0, 0.151, 0.166, 0.026),
               (0.15, 0.0, 0.143, 0.158, 0.02), (0.176, 0.0, 0.12, 0.134, 0.012), (0.186, 0.0, 0.055, 0.065, 0.0)]
-        loft('Helm', 'Head', [hr(*h) for h in HR], thick=0.032, bevel=0.005, cap_top=True, center=hc, rnd=0.012)
+        helm = loft('Helm', 'Head', [hr(*h) for h in HR], thick=0.032, bevel=0.005, cap_top=True, center=hc, rnd=0.012)
+        # feritoie e fori di respirazione tagliati davvero nella lamiera: la luce sta dentro, in fondo alla visiera
+        holes = [((0.062 * s_, -0.18, hc[2] + 0.03), (0.042, 0.035, 0.0065)) for s_ in (1, -1)]
+        for s_ in (1, -1):
+            for k in range(3):
+                for q in range(2 if k != 1 else 3):
+                    dx = (0.0 if k != 1 else -0.014) + 0.014 * q
+                    holes.append((((0.075 + dx) * s_, -0.17, hc[2] - 0.06 - 0.022 * k), (0.0045, 0.035, 0.0045)))
+        cut(helm, holes)
+        rim = hr(-0.205, -0.025, 0.228, 0.232, 0.045)
+        tube('HelmRim', list(rim) + [rim[0]], 0.011, weights={'Head': 1.0}, mat='Trim', sides=8)
+        band = hr(-0.15, -0.008, 0.177, 0.192, 0.031)
+        tube('HelmBand', list(band) + [band[0]], 0.009, weights={'Head': 1.0}, mat='Cross', sides=8)
         loft('BrowBand', 'Head', [hr(0.052, 0.0, 0.158, 0.173, 0.03, FRONT_IDX), hr(0.088, 0.0, 0.157, 0.172, 0.03, FRONT_IDX)], closed=False,
              thick=0.01, bevel=0.002, mat='Cross', center=hc, rnd=0.004)
         block('Nasal', 'Head', hc + [0, -0.198, -0.045], AXES, (0.019, 0.008, 0.135), p=8, mat='Cross', bevel=0.002)
         for s_ in (1, -1):
-            block('Slit' + str(s_), 'Head', hc + [0.062 * s_, -0.182, 0.03], AXES, (0.042, 0.012, 0.0065), p=8, mat='Glow')
-            for k in range(3):
-                for q in range(2 if k != 1 else 3):
-                    dx = (0.0 if k != 1 else -0.014) + 0.014 * q
-                    block(f'Breath{k}{q}{s_}', 'Head', hc + [(0.075 + dx) * s_, -0.178, -0.06 - 0.022 * k], AXES, (0.0045, 0.012, 0.0045), p=2, mat='Cross')
+            block('Slit' + str(s_), 'Head', hc + [0.062 * s_, -0.152, 0.03], AXES, (0.044, 0.004, 0.0075), p=8, mat='Glow')
             hp = bezier(hc + [0.115 * s_, 0.0, 0.15], hc + [0.29 * s_, -0.02, 0.15], hc + [0.37 * s_, -0.07, 0.31])
             horn('Horn' + str(s_), 'Head', hp, 0.045, 0.004)
             ring('HornBand' + str(s_), 'Head', hp[1], frame(hp[2] - hp[0]), 0.04, 0.007, mat='Trim', nu=18)
-        rim = hr(-0.165, 0.0, 0.153, 0.168, 0.022)
-        edge_rivets('RivHelm', 'Head', [rim[i] for i in range(len(rim))], hc + [0, 0, -0.165], out=0.004)
+        rim2 = hr(-0.178, -0.017, 0.2, 0.21, 0.038)
+        edge_rivets('RivHelm', 'Head', [rim2[i] for i in range(len(rim2))], hc + [0, 0, -0.1], out=0.006)
         cross_pattee('CrossHelm', 'Head', hc + [0, 0.0, 0.189], (np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])), 0.11)
         return
     # elmo da assalto, cattivo: calotta bassa e sfaccettata, fronte a becco che scende sul viso, due feritoie inclinate
@@ -770,7 +791,7 @@ PAL = {
                     core=(0.12, 0.02, 0.22), core_emit=(0.45, 0.06, 0.85), glow=(0.55, 0.12, 0.95), rust=(0.2, 0.075, 0.025)),
     'ordo': dict(plate=(0.74, 0.72, 0.68), plate_metal=0.0, plate_rough=0.6, edge=(0.82, 0.8, 0.76), trim=(0.02, 0.02, 0.022),
                  trim_edge=(0.3, 0.29, 0.28), tarnish=(0.2, 0.15, 0.09), steel=(0.02, 0.02, 0.022),
-                 core=(0.006, 0.006, 0.008), core_emit=(0.0, 0.0, 0.0), glow=(1.0, 0.78, 0.42), rust=(0.2, 0.15, 0.09)),
+                 core=(0.8, 0.79, 0.76), core_emit=(1.0, 0.95, 0.86), glow=(1.0, 0.78, 0.42), rust=(0.2, 0.15, 0.09)),
 }[VAR if VAR in ('ordo',) else 'generic']
 
 
