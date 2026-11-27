@@ -19,8 +19,8 @@
  },
  "body": {
   "name": "vrepighs_feral_pig",
-  "height": 1.6562,
-  "vertices": 180670
+  "height": 1.6603,
+  "vertices": 218248
  },
  "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
 }

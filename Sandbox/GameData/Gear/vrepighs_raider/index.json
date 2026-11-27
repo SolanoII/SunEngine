@@ -19,8 +19,8 @@
  },
  "body": {
   "name": "vrepighs_raider",
-  "height": 1.6338,
-  "vertices": 171230
+  "height": 1.6379,
+  "vertices": 196628
  },
  "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
 }

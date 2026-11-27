@@ -19,8 +19,8 @@
  },
  "body": {
   "name": "vrepighs_gunner",
-  "height": 1.6338,
-  "vertices": 174848
+  "height": 1.6379,
+  "vertices": 186120
  },
  "note": "Generato da Tools/GearForge/forge.py: non modificare a mano, rilanciare la forgia"
 }
