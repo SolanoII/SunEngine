@@ -419,8 +419,10 @@ def build_armor_left():
         edge_rivets('RivPec' + str(s_), 'Spine2', [r_[3] + (r_[2] - r_[3]) * 0.12 for r_ in rings] , (0, 0.05, 1.74))
     # nucleo: alloggiamento d'acciaio sulla chiglia, anello, pietra, due sbarre di protezione
     gax = (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0]))
-    gc = np.array([0, -0.345, 1.725])
-    block('CoreHousing', 'Spine2', gc + [0, 0.03, 0], AXES, (0.078, 0.035, 0.078), p=10, mat='Plate' if ORDO else 'Steel', bevel=0.003)
+    gc = np.array([0, -0.345, 1.725]) if not ORDO else np.array([0, -0.31, 1.548])     # Ordo: nucleo all'altezza del diaframma
+    block('CoreHousing', 'Spine2', gc + [0, 0.03, 0], AXES, (0.078, 0.035, 0.078 if not ORDO else 0.066), p=10, mat='Plate' if ORDO else 'Steel', bevel=0.003)
+    if ORDO:   # placca in mezzo al petto, a filo dei pettorali: ci si monta la croce
+        block('CrossPlate', 'Spine2', (0, -0.312, 1.75), AXES, (0.072, 0.04, 0.085), p=10, mat='Plate', bevel=0.003)
     ring('CoreRing', 'Spine2', gc + [0, -0.008, 0], gax, 0.06, 0.011, mat='Trim')
     gem('Core', 'Spine2', gc + [0, -0.01, 0], gax, 0.046, mat='Core')
     if not ORDO:
@@ -692,7 +694,7 @@ def ordo_extras():
     """Ordo: croci patenti, ossa, teschio, sopravveste"""
     ch = AXES
     # croci nere: sul petto sopra il nucleo, sul fianco alto degli spallacci; sulla schiena c'e' quella della cappa
-    cross_pattee('CrossChest', 'Spine2', np.array([0, -0.318, 1.84]), (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0])), 0.11)
+    cross_pattee('CrossChest', 'Spine2', np.array([0, -0.351, 1.75]), (np.array([1.0, 0, 0]), np.array([0, 0, 1.0]), np.array([0, -1.0, 0])), 0.11)
     th = math.radians(138); n = np.array([0, math.cos(th), math.sin(th)]); ax_ = np.array([1.0, 0, 0]); ay_ = np.cross(n, ax_)
     cross_pattee('CrossPauldronL', 'LeftArm', np.array([0.37, 0.045 + 0.305 * math.cos(th), 1.783 + 0.235 * math.sin(th)]) + n * 0.006, (ax_, ay_, n), 0.12)
     PARTS[-1] = (PARTS[-1][0], {'LeftArm': 0.75, 'LeftShoulder': 0.25}, 'Cross')
