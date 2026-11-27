@@ -15,7 +15,7 @@ scanalature gotiche su spallacci e pettorali; cotta di maglia sotto le piastre; 
 
 - `python3 build.py` -> `Sandbox/GameData/Models/Characters/vanguard/model.glb` (armatura generica: vernice grigio-oliva scheggiata, ottone brunito, nucleo di ossidiana viola)
 - `python3 build.py --variant ordo` -> `.../vanguard/variants/vanguard_konrad.glb` (Ordo Domus Humilitatis: cavaliere teutonico in pietra bianca, cappa e croci nere, feritoia di luce bianco-dorata)
-- `--fast` (texture piccole, prove veloci), `--tex 2048`, `--out file.glb`
+- `--fast` (texture piccole, prove veloci), `--tex 2048`, `--out file.glb`, `--textures <cartella>` (salva anche le texture cotte come PNG)
 - `DISPLAY=:99 python3 render.py vanguard_<var>.blend anteprima.png [--cycles]`: cinque viste di controllo
 
 Lo scheletro e' quello di `vanguard_master.fbx` (le clip del gioco ci girano sopra). `model.json` con
@@ -27,3 +27,11 @@ Sotto i materiali cotti ci sono scansioni fotografiche CC0 di Poly Haven (`../ph
 `brown_leather`, stoffa `hessian_230`, tuta `rubberized_track`. La foto da' graffi, venature e grana; la tinta resta
 quella della tavolozza. Sulla generica le zone chiare di `rusty_metal_04` decidono dove la vernice e' saltata fino
 all'acciaio, soprattutto sugli spigoli.
+
+Resa "dura" (dai migliori modelli di armature pesanti): lamiere sottili con il bordo arrotolato e rialzato (`loft(..., rims=)`,
+acciaio nudo sulla generica, nero su Konrad) che prende la luce; spallacci a cupola con tre lame a embrice; lame sopra e sotto
+il ginocchio e lamelle sullo stinco; scarpe a guscio con tre lame sul collo del piede e suola alta con i tacchetti; cinghie di
+cuoio con fibbia d'acciaio su avambraccio, coscia e polpaccio; stoffa rosso sangue fino al ginocchio sulla generica.
+
+Texture (PBR, una terna per materiale): `_BaseColor` (sRGB), `_ORM` (G rugosita', B metallo), `_Normal` (spazio tangente, OpenGL).
+Il rilievo cotto porta ammaccature da martello, graffi e grana; l'acciaio nudo e' lucido sugli spigoli e opaco negli incavi.
