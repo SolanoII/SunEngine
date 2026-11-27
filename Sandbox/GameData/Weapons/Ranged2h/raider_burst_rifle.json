@@ -1,5 +1,6 @@
 {
   "id": "raider_burst_rifle",
+  "look_type": "auto_rifle",
   "damage_types": {"pierce": 100},
   "displayName": "Fucile a Raffica Pesante",
   "comment": "Dotazione base del Razziatore: arma enorme da spalla montata sul braccio destro, tante canne e tanti proiettili. 40 colpi, 120 di riserva.",

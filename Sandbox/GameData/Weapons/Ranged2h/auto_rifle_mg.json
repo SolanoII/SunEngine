@@ -1,5 +1,6 @@
 {
   "id": "auto_rifle_mg",
+  "look_type": "machinegun",
   "damage_types": {"energy": 100},
   "displayName": "Fucile Automatico Modello M-G",
   "faction": "Kingship",

@@ -1,5 +1,6 @@
 {
   "id": "candidate_knife",
+  "look_type": "knife",
   "damage_types": {"pierce": 70, "slash": 30},
   "displayName": "Coltello da Combattimento",
   "faction": "Vanguard",

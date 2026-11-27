@@ -1,5 +1,6 @@
 {
   "id": "levy_knife",
+  "look_type": "knife",
   "damage_types": {"pierce": 70, "slash": 30},
   "displayName": "Coltello da Recluta",
   "faction": "Kingship",

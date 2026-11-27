@@ -132,6 +132,9 @@ namespace SunEngine {
         ArmorPiece rightArm;
         ArmorPiece leftLeg;
         ArmorPiece rightLeg;
+        // Pezzi in piu' (bacino, schiena, decorazioni, volto): le statistiche sono gia' sommate alla zona su cui stanno,
+        // qui restano gli id per chi deve sapere cosa e' indossato (morale)
+        std::vector<std::string> extraIds;
 
         ArmorPiece* GetPiece(HitboxLocation location) {
             switch (location) {
@@ -701,6 +704,8 @@ namespace SunEngine {
         std::vector<glm::vec4> blockColors;
         std::vector<SkinPart> parts;
         std::vector<GarmentDef> garments;   // strati (vestiti/armature) sul modello animato
+        // Parti del modello d'autore scelte dai pezzi indossati (gruppo -> parte, ArmorBlueprint::modelParts)
+        std::vector<std::pair<std::string, std::string>> modelParts;
     };
 
     struct SkeletonComponent {
@@ -886,6 +891,13 @@ namespace SunEngine {
         std::vector<GarmentDraw> garments;   // vestiti e armature disegnati sopra il corpo, con le stesse ossa
         const SkinnedPartSet* extraParts = nullptr;   // parti con materiale proprio (denti e occhi dello grugn)
         glm::vec4 skinStyle{ 0.0f };         // pelle della razza: chiazze, verruche, definizione muscolare, vene
+        // Parti accendibili da disegnare (SkinnedMesh::part): quelle di base del modello piu' quelle dei pezzi indossati
+        std::vector<std::string> shownParts;
+        bool ShowsPart(const std::string& part) const {
+            if (part.empty()) return true;
+            for (const auto& p : shownParts) if (p == part) return true;
+            return false;
+        }
         // Modello vuoto di default: non renderizzato finché non setti i puntatori
     };                               // ← aggiungi ; 
 

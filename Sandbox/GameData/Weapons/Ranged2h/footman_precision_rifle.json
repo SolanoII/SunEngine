@@ -1,5 +1,6 @@
 {
   "id": "footman_precision_rifle",
+  "look_type": "precision_rifle",
   "damage_types": {"energy": 100},
   "displayName": "Fucile di Precisione del Presidio",
   "faction": "Kingship",

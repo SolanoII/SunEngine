@@ -1,5 +1,6 @@
 {
   "id": "combat_shotgun_standard",
+  "look_type": "shotgun",
   "damage_types": {"pierce": 70, "blunt": 30},
   "displayName": "Combat Shotgun",
   "faction": "Kingship",

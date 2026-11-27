@@ -1,5 +1,6 @@
 {
   "id": "tusker_nail_grenade",
+  "look_type": "frag",
   "damage_types": {"pierce": 60, "blast": 40},
   "damage_pure": true,
   "displayName": "Granata a Chiodi",

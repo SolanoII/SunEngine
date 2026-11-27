@@ -920,31 +920,7 @@ namespace SunEngine {
             auto& stats = m_Scene.GetRegistry().get<UnitStatsComponent>(m_PlayerEntity);
             auto& set = stats.armorSet;
 
-            auto applyPiece = [](const std::string& pieceId, auto& piece) {
-                const auto* bp = BlueprintManager::Get().GetArmorPiece(pieceId);
-                if (bp) {
-                    piece.id = bp->id;
-                    piece.name = bp->displayName;
-                    piece.armorRating = bp->armorRating;
-                    piece.coverage = bp->coverage;
-                    piece.maxDurability = bp->maxDurability;
-                    piece.currentDurability = bp->maxDurability;
-                    piece.weight = bp->weight;
-                    piece.pointCost = bp->pointCost;
-                    piece.blocksHeadshotBonus = bp->blocks_headshot_bonus;
-                    piece.resist = bp->resist;
-                }
-                else {
-                    piece = {};
-                }
-            };
-
-            applyPiece(unit.armorHeadId, set.head);
-            applyPiece(unit.armorTorsoId, set.torso);
-            applyPiece(unit.armorLeftArmId, set.leftArm);
-            applyPiece(unit.armorRightArmId, set.rightArm);
-            applyPiece(unit.armorLeftLegId, set.leftLeg);
-            applyPiece(unit.armorRightLegId, set.rightLeg);
+            FillArmorSet(unit, set);   // i 6 pezzi delle zone colpibili piu' i posti in piu' sommati alla loro zona
 
             stats.currentWeight = unit.CalculateTotalWeight();
         }
@@ -979,6 +955,8 @@ namespace SunEngine {
                 Ammo::Init(m_Scene.GetRegistry(), m_PlayerEntity, unit.blueprintId);
             }
         }
+        m_PlayerLookUnit = unit;
+        AttachLooks(m_PlayerEntity, unit, kLookMine);   // aspetti (trasmogrificazione), se l'opzione li mostra
         ApplyArmorSkin(m_PlayerEntity, unit);   // vesti / elmetto visibili sul campo
     }
 
@@ -995,7 +973,9 @@ namespace SunEngine {
         };
         SkinComponent skin;
         if (skel) skin.blockColors.assign(skel->data.blocks.size(), glm::vec4(0.0f));
-        const std::string ids[6] = { unit.armorHeadId, unit.armorTorsoId, unit.armorLeftArmId, unit.armorRightArmId, unit.armorLeftLegId, unit.armorRightLegId };
+        // Cosa si vede: l'aspetto scelto (trasmogrificazione) se c'e' ed e' visibile, altrimenti il pezzo vero
+        std::string ids[kArmorSlotCount];
+        for (int s = 0; s < kArmorSlotCount; ++s) ids[s] = LookOf(e, unit.ArmorSlotId(s));
         bool any = false;
         // Se la fonte (veste, armatura, dotazione) ha degli strati per il modello animato, quelli sostituiscono
         // i suoi cubi agganciati alle ossa: i cubi restano solo sullo scheletro a blocchi.
@@ -1024,10 +1004,11 @@ namespace SunEngine {
         }
         // Dotazione visibile sul corpo (es. zaino munizioni)
         for (const auto& eqId : unit.equipmentSlots)
-            if (const auto* eq = BlueprintManager::Get().GetWeapon(eqId)) { addGarments(eq->garments); for (const auto& sp : eq->skinParts) addPart(sp); }
+            if (const auto* eq = BlueprintManager::Get().GetWeapon(LookOf(e, eqId))) { addGarments(eq->garments); for (const auto& sp : eq->skinParts) addPart(sp); }
         for (const auto& id : ids) {
             const auto* abp = BlueprintManager::Get().GetArmorPiece(id);
             if (!abp) continue;
+            for (const auto& mp : abp->modelParts) { skin.modelParts.push_back(mp); any = true; }   // corpi-armatura (Vanguard)
             for (const auto& [blockName, col] : abp->skinBlockColors) {
                 const int b = findBlock(blockName);
                 if (b >= 0) { skin.blockColors[b] = col; any = true; }
@@ -1534,6 +1515,8 @@ namespace SunEngine {
         LoadRosterFromProfile();
         LoadResearchTree();   // dopo il roster: le unita' gia' possedute risultano sbloccate
         if (m_PlayerRoster.empty()) BuildStarterRoster();   // albero di ricerca non leggibile: unita' di riserva
+        CollectLooks();                                     // aspetti sbloccati: dotazioni e oggetti avuti
+        for (auto& u : m_PlayerRoster) SanitizeLooks(u);
         LoadBlockModels();
         if (m_SelectedSquadIndices.empty()) m_SelectedSquadIndices.push_back(0);
         ApplyUnitVisuals(m_PlayerRoster[m_SelectedSquadIndices[0]]);
@@ -1929,6 +1912,13 @@ namespace SunEngine {
                 t.armorRightArmId = u.value("armorRightArmId", t.armorRightArmId);
                 t.armorLeftLegId = u.value("armorLeftLegId", t.armorLeftLegId);
                 t.armorRightLegId = u.value("armorRightLegId", t.armorRightLegId);
+                for (int k = 6; k < kArmorSlotCount; ++k)   // posti in piu' (bacino, schiena, decorazioni, volto)
+                    *t.ArmorSlotRef(k) = u.value(std::string("armor_") + ArmorSlotKey(k), std::string("none"));
+                if (u.contains("looks") && u["looks"].is_object())   // aspetti (trasmogrificazione): indice dello slot -> id
+                    for (auto it = u["looks"].begin(); it != u["looks"].end(); ++it) {
+                        const int k = std::atoi(it.key().c_str());
+                        if (k >= 0 && k < TrainedUnit::kSlotCount && it.value().is_string()) t.looks[k] = it.value().get<std::string>();
+                    }
                 t.exp = std::max(0, u.value("exp", 0));
                 // Unita' salvata prima delle dotazioni base (es. pighcib col fucile laser): riceve la sua
                 const int savedVersion = u.value("loadoutVersion", 0);
@@ -2004,6 +1994,12 @@ namespace SunEngine {
             u["armorRightArmId"] = t.armorRightArmId;
             u["armorLeftLegId"] = t.armorLeftLegId;
             u["armorRightLegId"] = t.armorRightLegId;
+            for (int k = 6; k < kArmorSlotCount; ++k) if (t.ArmorSlotId(k) != "none" && !t.ArmorSlotId(k).empty()) u[std::string("armor_") + ArmorSlotKey(k)] = t.ArmorSlotId(k);
+            {
+                nlohmann::json lk = nlohmann::json::object();
+                for (int k = 0; k < TrainedUnit::kSlotCount; ++k) if (!t.looks[k].empty()) lk[std::to_string(k)] = t.looks[k];
+                if (!lk.empty()) u["looks"] = lk;
+            }
             u["exp"] = t.exp;
             m_Profile.roster.push_back(std::move(u));
         }
@@ -2598,6 +2594,7 @@ namespace SunEngine {
             // Vestiti e armature (stesse ossa del corpo)
             sk.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(e);
+            ResolveShownParts(sk.sourceModel, skin, sk.shownParts);   // parti accendibili del corpo-armatura (elmi, drappi)
             if (skin && sk.sourceModel && !sk.sourceModel->completeArmor) {
                 for (const auto& d : skin->garments) {
                     if (BareSculptedBody(inst.kind) && !d.sculptedFit) continue;   // corpo nudo: solo i pezzi fatti per lui
@@ -4897,6 +4894,7 @@ namespace SunEngine {
                 continue;
             }
             m->completeArmor = base.completeArmor;   // le varianti sono dello stesso tipo del corpo
+            if (m->defaultParts.empty()) m->defaultParts = base.defaultParts;
             std::unordered_map<int, int> idOf;   // osso della variante -> osso del corpo
             int missing = 0;
             for (const auto& [name, bi] : m->boneInfoMap) {
@@ -4921,8 +4919,10 @@ namespace SunEngine {
                 }
                 if (mm.VAO) { glDeleteVertexArrays(1, &mm.VAO); glDeleteBuffers(1, &mm.VBO); glDeleteBuffers(1, &mm.EBO); mm.VAO = mm.VBO = mm.EBO = 0; }
                 const int mat = mm.materialIndex;
+                std::string part = mm.part;
                 rebuilt.emplace_back(std::move(mm.vertices), std::move(mm.indices));
                 rebuilt.back().materialIndex = mat;
+                rebuilt.back().part = std::move(part);
             }
             m->meshes = std::move(rebuilt);
             m->boneInfoMap = base.boneInfoMap;
@@ -5051,6 +5051,16 @@ namespace SunEngine {
         }
     }
 
+    // Parti accendibili di un modello d'autore (SkinnedMesh::part): per ogni gruppo quella di base del modello
+    // ("default_parts"), sostituita da quella dei pezzi indossati o del loro aspetto ("model_parts", "" = nessuna)
+    void GameLayer::ResolveShownParts(const SkinnedModel* model, const SkinComponent* skin, std::vector<std::string>& out) {
+        out.clear();
+        if (!model) return;
+        std::unordered_map<std::string, std::string> groups = model->defaultParts;
+        if (skin) for (const auto& [group, part] : skin->modelParts) groups[group] = part;
+        for (const auto& [group, part] : groups) if (!part.empty()) out.push_back(part);
+    }
+
     // Pezzi della skin (elmetto, vesti) sul modello animato del giocatore: un cubo per pezzo, sull'osso
     // indicato ("bone") + offset negli assi del corpo. Segue la posizione dell'osso e la direzione del corpo
     // (non ruota con la testa o le gambe: va bene finche' le animazioni sono semplici).
@@ -5069,6 +5079,7 @@ namespace SunEngine {
             ApplySkinStyle(inst, static_cast<int>(m_AnimatedBodyInUse));
             inst.garments.clear();
             const auto* skin = reg.try_get<SkinComponent>(m_PlayerEntity);
+            ResolveShownParts(inst.sourceModel, skin, inst.shownParts);   // parti accendibili del corpo-armatura (elmi, drappi)
             if (skin && inst.sourceModel && !inst.sourceModel->completeArmor && (m_GameState == GameState::Gameplay || m_GameState == GameState::MainMenu)) {
                 for (const auto& d : skin->garments) {
                     if (BareSculptedBody(m_AnimatedBodyInUse) && !d.sculptedFit) continue;
@@ -5302,13 +5313,16 @@ namespace SunEngine {
                 leftWeaponId = "";
             }
 
+            // Aspetto (trasmogrificazione): il modello da disegnare puo' essere quello di un altro oggetto dello stesso tipo
+            const std::string rightLook = LookOf(m_PlayerEntity, rightWeaponId);
+            const std::string leftLook = LookOf(m_PlayerEntity, leftWeaponId);
             if (m_Scene.GetRegistry().valid(m_WeaponEntity) && !rightWeaponId.empty()) {
                 auto& wTransR = m_Scene.GetRegistry().get<TransformComponent>(m_WeaponEntity);
                 const auto* wBPR = BlueprintManager::Get().GetWeapon(rightWeaponId);
 
                 if (wBPR) {
                     // Modello animato: arma sull'osso della mano destra (i cubi del corpo restano hitbox)
-                    const BlockModel* rightModel = m_BlockModels.Find(rightWeaponId);
+                    const BlockModel* rightModel = m_BlockModels.Find(rightLook);
                     const bool placedOnHand = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(false, wTransR, rightModel, wBPR, !leftWeaponId.empty());
                     // sfoderare: l'arma nuova parte dal suo posto sul corpo
                     if (!m_PlayerDraw.init || rightWeaponId != m_PlayerDraw.held) {
@@ -5364,8 +5378,8 @@ namespace SunEngine {
                     }
 
                     // Modello a blocchi dell'arma (se esiste): sostituisce il cubo, scala 1 = metri reali
-                    SetWeaponBlockModel(m_WeaponEntity, rightWeaponId);
-                    if (const BlockModel* mm = m_BlockModels.Find(rightWeaponId); mm && mm->hasMuzzle) {
+                    SetWeaponBlockModel(m_WeaponEntity, rightLook, rightWeaponId);
+                    if (const BlockModel* mm = m_BlockModels.Find(rightLook); mm && mm->hasMuzzle) {
                         muzzleComp.right = glm::vec3(wTransR.GetTransform() * glm::vec4(mm->muzzle, 1.0f));
                         muzzleComp.hasRight = true;
                     }
@@ -5384,7 +5398,7 @@ namespace SunEngine {
             if (!leftWeaponId.empty()) {
                 const auto* wBPL = BlueprintManager::Get().GetWeapon(leftWeaponId);
                 if (wBPL) {
-                    const BlockModel* leftModel = m_BlockModels.Find(leftWeaponId);
+                    const BlockModel* leftModel = m_BlockModels.Find(leftLook);
                     const bool placedOnHandL = IsAnimatedPlayerActive() && PlaceWeaponOnAnimatedHand(true, wTransL, leftModel, wBPL, true);
                     if (placedOnHandL && leftModel && leftModel->hasGripRight) { ikGripL = weaponPoint(wTransL, leftModel->gripRight); ikL = true; }
                     if (placedOnHandL) {
@@ -5422,8 +5436,8 @@ namespace SunEngine {
                         }
                     }
 
-                    SetWeaponBlockModel(m_LeftWeaponEntity, leftWeaponId);
-                    if (const BlockModel* mm = m_BlockModels.Find(leftWeaponId); mm && mm->hasMuzzle) {
+                    SetWeaponBlockModel(m_LeftWeaponEntity, leftLook, leftWeaponId);
+                    if (const BlockModel* mm = m_BlockModels.Find(leftLook); mm && mm->hasMuzzle) {
                         muzzleComp.left = glm::vec3(wTransL.GetTransform() * glm::vec4(mm->muzzle, 1.0f));
                         muzzleComp.hasLeft = true;
                     }
@@ -6659,7 +6673,7 @@ namespace SunEngine {
                     if (!m_DeferredRenderer.IsSphereInShadowCascade(c, t.Position + glm::vec3(0.0f, 1.2f, 0.0f), 2.2f)) continue;
                     if (const auto* cloak = m_Scene.GetRegistry().try_get<CloakComponent>(entity); cloak && cloak->amount > 0.5f) continue;
                     if (!m_DeferredRenderer.BeginShadowSkinned(c, t.GetTransform(), *sk.boneMatrices)) break;
-                    for (const auto& m : sk.sourceModel->meshes) m_DeferredRenderer.DrawShadowSkinned(m);
+                    for (const auto& m : sk.sourceModel->meshes) if (sk.ShowsPart(m.part)) m_DeferredRenderer.DrawShadowSkinned(m);
                     for (const auto& g : sk.garments) if (g.mesh) m_DeferredRenderer.DrawShadowSkinned(*g.mesh, true);
                     if (sk.extraParts) for (const auto& g : sk.extraParts->parts) if (g.mesh) m_DeferredRenderer.DrawShadowSkinned(*g.mesh);
                     m_DeferredRenderer.EndShadowSkinned();
@@ -7214,17 +7228,18 @@ namespace SunEngine {
     }
 
     // Associa all'entity dell'arma il modello a blocchi corrispondente (se esiste), altrimenti torna al cubo.
-    void GameLayer::SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId) {
+    void GameLayer::SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId, const std::string& fxWeaponId) {
         auto& reg = m_Scene.GetRegistry();
         if (!reg.valid(weaponEntity)) return;
         const BlockModel* model = m_BlockModels.Find(weaponId);
+        const std::string& fxId = fxWeaponId.empty() ? weaponId : fxWeaponId;   // effetti dell'arma vera (aspetto diverso)
         if (model) {
             if (auto* c = reg.try_get<BlockModelComponent>(weaponEntity)) c->model = model;
             else reg.emplace<BlockModelComponent>(weaponEntity, BlockModelComponent{ model });
             reg.get<TransformComponent>(weaponEntity).Scale = glm::vec3(1.0f);   // il modello e' gia' in metri
             // effetti del tipo di danno sul modello (ParticleSystem): l'id completo, cosi' valgono anche i tratti
             auto& fx = reg.get_or_emplace<WeaponFxComponent>(weaponEntity);
-            if (fx.weaponId != weaponId) { fx.weaponId = weaponId; fx.emitAcc = {}; }
+            if (fx.weaponId != fxId) { fx.weaponId = fxId; fx.emitAcc = {}; }
         }
         else {
             if (reg.all_of<BlockModelComponent>(weaponEntity)) reg.remove<BlockModelComponent>(weaponEntity);
@@ -8411,6 +8426,7 @@ namespace SunEngine {
                 ImGui::TextWrapped("Trascina col tasto sinistro sul personaggio per girarlo, rotellina per avvicinarti.");
             }
             else if (m_CustomizeMainTab == 1) {
+                CollectLooks();   // aspetti sbloccati (anche unita' e oggetti appena comprati)
 
                 if (ImGui::RadioButton("Armi da Fuoco / Corpo a Corpo", m_EquipSubTab == 0)) m_EquipSubTab = 0;
                 ImGui::SameLine();
@@ -8450,6 +8466,7 @@ namespace SunEngine {
                         if (ImGui::IsItemHovered()) {
                             ImGui::SetTooltip("%s", primName.c_str());
                         }
+                        if (DrawLookCombo(activeUnit, 0)) ApplyUnitVisuals(activeUnit);
 
                         const auto* secBP = BlueprintManager::Get().GetWeapon(activeUnit.secondaryWeaponId);
                         std::string secName = secBP ? ItemLabel(activeUnit.secondaryWeaponId, secBP->displayName) : "Nessuna";
@@ -8473,6 +8490,7 @@ namespace SunEngine {
                         if (ImGui::IsItemHovered()) {
                             ImGui::SetTooltip("%s", secName.c_str());
                         }
+                        if (DrawLookCombo(activeUnit, 1)) ApplyUnitVisuals(activeUnit);
 
                         const auto* meleeBP = BlueprintManager::Get().GetWeapon(activeUnit.meleeWeaponId);
                         std::string meleeName = meleeBP ? ItemLabel(activeUnit.meleeWeaponId, meleeBP->displayName) : "[Nessuna / Disarmato]";
@@ -8503,6 +8521,7 @@ namespace SunEngine {
                         if (ImGui::IsItemHovered()) {
                             ImGui::SetTooltip("%s", meleeName.c_str());
                         }
+                        if (!noMelee && DrawLookCombo(activeUnit, 2)) ApplyUnitVisuals(activeUnit);
                     }
                 }
                 else if (m_EquipSubTab == 1) {
@@ -8528,6 +8547,7 @@ namespace SunEngine {
                             }
                             ImGui::EndCombo();
                         }
+                        if (DrawLookCombo(activeUnit, 3 + slot)) ApplyUnitVisuals(activeUnit);
                     }
                     ImGui::Spacing();
                     if (Ui::PlainButton("Ripristina dotazione base", ImVec2(220, 28))) {
@@ -8567,7 +8587,8 @@ namespace SunEngine {
 
                 ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 
-                auto drawArmorSlotCombo = [&](const char* slotLabel, HitboxLocation location, std::string& currentId) {
+                CollectLooks();
+                auto drawArmorSlotCombo = [&](const char* slotLabel, int slotIdx, std::string& currentId) {
                     const auto* currentBp = BlueprintManager::Get().GetArmorPiece(currentId);
 
                     ImGui::PushID(slotLabel);
@@ -8584,7 +8605,7 @@ namespace SunEngine {
 
                         for (const auto& [aId, aBp] : BlueprintManager::Get().GetArmorPieces()) {
 
-                            bool isCorrectLocation = (aBp.location == location);
+                            bool isCorrectLocation = (aBp.slot == slotIdx);
                             bool isAllowedForThisUnit = BlueprintManager::Get().CanEquip(aBp, activeUnit.blueprintId);
 
                             if (isCorrectLocation && isAllowedForThisUnit) {
@@ -8620,25 +8641,38 @@ namespace SunEngine {
                         ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "  Difese: %s", ResistText(currentBp->resist).c_str());
                         ImGui::PopTextWrapPos();
                     }
-                    else {
+                    else if (slotIdx < 6) {
                         ImGui::TextColored(ImVec4(0.90f, 0.30f, 0.17f, 1.0f), "  ! ATTENZIONE: Questo arto subira' danni letali completi !");
                     }
+                    else ImGui::TextDisabled("  Vuoto: le statistiche del pezzo si sommano alla zona su cui sta.");
+                    if (DrawLookCombo(activeUnit, 6 + slotIdx)) ApplyUnitVisuals(activeUnit);
                     ImGui::PopID();
                     ImGui::Spacing();
                 };
 
                 ImGui::Columns(2, "ArmorMixColumns", false);
 
-                drawArmorSlotCombo("TESTA", HitboxLocation::Head, activeUnit.armorHeadId);
-                drawArmorSlotCombo("TORSO", HitboxLocation::Torso, activeUnit.armorTorsoId);
-                drawArmorSlotCombo("BRACCIO SX", HitboxLocation::LeftArm, activeUnit.armorLeftArmId);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotHead), kSlotHead, activeUnit.armorHeadId);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotTorso), kSlotTorso, activeUnit.armorTorsoId);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotArmL), kSlotArmL, activeUnit.armorLeftArmId);
 
                 ImGui::NextColumn();
 
-                drawArmorSlotCombo("BRACCIO DX", HitboxLocation::RightArm, activeUnit.armorRightArmId);
-                drawArmorSlotCombo("GAMBA SX", HitboxLocation::LeftLeg, activeUnit.armorLeftLegId);
-                drawArmorSlotCombo("GAMBA DX", HitboxLocation::RightLeg, activeUnit.armorRightLegId);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotArmR), kSlotArmR, activeUnit.armorRightArmId);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotLegL), kSlotLegL, activeUnit.armorLeftLegId);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotLegR), kSlotLegR, activeUnit.armorRightLegId);
 
+                ImGui::Columns(1);
+                // Pezzi in piu': tre decorazioni che non si sovrappongono (bacino, sopra lo zaino, testa), schiena e volto
+                ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+                ImGui::TextColored(ImVec4(0.95f, 0.77f, 0.36f, 1.0f), "DECORAZIONI, SCHIENA E VOLTO");
+                ImGui::Columns(2, "ArmorExtraColumns", false);
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotWaist), kSlotWaist, *activeUnit.ArmorSlotRef(kSlotWaist));
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotBackDeco), kSlotBackDeco, *activeUnit.ArmorSlotRef(kSlotBackDeco));
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotHeadDeco), kSlotHeadDeco, *activeUnit.ArmorSlotRef(kSlotHeadDeco));
+                ImGui::NextColumn();
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotBack), kSlotBack, *activeUnit.ArmorSlotRef(kSlotBack));
+                drawArmorSlotCombo(ArmorSlotLabel(kSlotFace), kSlotFace, *activeUnit.ArmorSlotRef(kSlotFace));
                 ImGui::Columns(1);
                 if (Ui::PlainButton("Ripristina armatura base", ImVec2(220, 26))) {
                     activeUnit.ApplyDefaultArmor();
@@ -9559,6 +9593,30 @@ namespace SunEngine {
                     ImGui::EndTabItem();
                 }
 
+                if (ImGui::BeginTabItem("ASPETTI")) {
+                    ImGui::Spacing();
+                    ImGui::TextWrapped("Trasmogrificazione: ogni giocatore puo' dare a un oggetto l'aspetto di un altro dello stesso posto o "
+                                       "dello stesso tipo che ha sbloccato. Statistiche, peso e costo restano quelli dell'oggetto vero.");
+                    ImGui::Spacing();
+                    ImGui::Text("Aspetti trasmogrificati da mostrare:");
+                    static const char* kModes[4] = {
+                        "Tutti",
+                        "Tutti tranne quelli degli avversari",
+                        "Solo i miei",
+                        "Nessuno (equipaggiamento com'e' davvero)" };
+                    static const char* kHints[4] = {
+                        "Vedi gli aspetti scelti da tutti: alleati, avversari e i tuoi.",
+                        "Gli avversari si vedono con l'equipaggiamento vero: capisci a colpo d'occhio cosa portano. Alleati e tu con i vostri aspetti.",
+                        "Solo le tue unita' mostrano gli aspetti che hai scelto; tutti gli altri con l'equipaggiamento vero.",
+                        "Nessun aspetto, nemmeno i tuoi: ogni oggetto si vede per quello che e'." };
+                    int mode = m_Profile.lookMode;
+                    for (int k = 0; k < 4; ++k) if (ImGui::RadioButton(kModes[k], mode == k)) mode = k;
+                    ImGui::Spacing();
+                    ImGui::TextDisabled("%s", kHints[std::clamp(mode, 0, 3)]);
+                    if (mode != m_Profile.lookMode) { m_Profile.lookMode = mode; RefreshLooksInField(); }
+                    ImGui::EndTabItem();
+                }
+
                 if (ImGui::BeginTabItem("Personaggio")) {
                     ImGui::Spacing();
                     ImGui::Text("Modello del giocatore:");
@@ -9795,7 +9853,7 @@ namespace SunEngine {
     }
 
     // Crea un'unita' controllata dall'IA: stesse statistiche, scheletro, armatura e armi del giocatore.
-    entt::entity GameLayer::SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex) {
+    entt::entity GameLayer::SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex, int lookOwner) {
         auto& reg = m_Scene.GetRegistry();
         const auto* bp = BlueprintManager::Get().GetUnit(unit.blueprintId);
         if (!bp) return entt::null;
@@ -9820,22 +9878,7 @@ namespace SunEngine {
 
         auto& stats = reg.get<UnitStatsComponent>(e);
         stats.maxStamina = bp->stamina;
-        auto applyPiece = [](const std::string& pieceId, ArmorPiece& piece) {
-            if (const auto* abp = BlueprintManager::Get().GetArmorPiece(pieceId)) {
-                piece.id = abp->id; piece.name = abp->displayName; piece.armorRating = abp->armorRating;
-                piece.coverage = abp->coverage; piece.maxDurability = abp->maxDurability;
-                piece.currentDurability = abp->maxDurability; piece.weight = abp->weight; piece.pointCost = abp->pointCost;
-                piece.blocksHeadshotBonus = abp->blocks_headshot_bonus;
-                piece.resist = abp->resist;
-            }
-            else piece = {};
-        };
-        applyPiece(unit.armorHeadId, stats.armorSet.head);
-        applyPiece(unit.armorTorsoId, stats.armorSet.torso);
-        applyPiece(unit.armorLeftArmId, stats.armorSet.leftArm);
-        applyPiece(unit.armorRightArmId, stats.armorSet.rightArm);
-        applyPiece(unit.armorLeftLegId, stats.armorSet.leftLeg);
-        applyPiece(unit.armorRightLegId, stats.armorSet.rightLeg);
+        FillArmorSet(unit, stats.armorSet);
         stats.currentWeight = unit.CalculateTotalWeight();
 
         auto& inv = reg.emplace<InventoryComponent>(e);
@@ -9850,6 +9893,11 @@ namespace SunEngine {
         auto& ws = reg.emplace<WeaponStateComponent>(e);
         if (const auto* wbp = BlueprintManager::Get().GetWeapon(inv.GetActiveWeaponId())) ws.currentAmmo = wbp->magazine_size;
         Ammo::Init(reg, e, unit.blueprintId);   // munizioni limitate anche per i bot
+        if (lookOwner < 0) {   // di chi sono gli aspetti: alleato o avversario rispetto alla mia squadra
+            const auto* mine = reg.try_get<TeamComponent>(m_PlayerEntity);
+            lookOwner = (mine ? mine->team : 0) == team ? kLookAlly : kLookEnemy;
+        }
+        AttachLooks(e, unit, lookOwner);        // aspetti (trasmogrificazione), se l'opzione li mostra
         ApplyArmorSkin(e, unit);                // vesti / elmetto visibili
         reg.emplace<CameraRecoilComponent>(e);
         reg.emplace<MeleeStateComponent>(e);
@@ -10543,11 +10591,12 @@ namespace SunEngine {
 
             std::string weaponId;
             if (const auto* wid = reg.try_get<WeaponBlueprintId>(e)) weaponId = wid->id;
+            const std::string lookId = LookOf(e, weaponId);   // aspetto (trasmogrificazione), se visibile
             const glm::mat4 weaponRot = glm::eulerAngleYXZ(glm::radians(t.AimYaw), glm::radians(t.AimPitch), 0.0f);
             auto& wt = reg.get<TransformComponent>(brain.weaponEntity);
-            const BlockModel* model = m_BlockModels.Find(weaponId);
+            const BlockModel* model = m_BlockModels.Find(lookId);
             // Corpo animato: l'arma va in mano al modello 3D
-            if (model) SetWeaponBlockModel(brain.weaponEntity, weaponId);
+            if (model) SetWeaponBlockModel(brain.weaponEntity, lookId, weaponId);
             else { if (reg.all_of<BlockModelComponent>(brain.weaponEntity)) reg.remove<BlockModelComponent>(brain.weaponEntity); wt.Scale = glm::vec3(0.08f, 0.10f, 0.70f); }
             // Armi naturali (artigli: "weapon_scale" a zero) non si disegnano
             const WeaponBlueprint* heldBp = weaponId.empty() ? nullptr : BlueprintManager::Get().GetWeapon(weaponId);
@@ -10558,7 +10607,7 @@ namespace SunEngine {
             if (model) {
                 const glm::vec3 grip = model->hasGripRight ? model->gripRight : glm::vec3(0.0f);
                 wt.Position = hand - glm::vec3(weaponRot * glm::vec4(grip, 0.0f));
-                SetWeaponBlockModel(brain.weaponEntity, weaponId);
+                SetWeaponBlockModel(brain.weaponEntity, lookId, weaponId);
             }
             else {
                 if (reg.all_of<BlockModelComponent>(brain.weaponEntity)) reg.remove<BlockModelComponent>(brain.weaponEntity);

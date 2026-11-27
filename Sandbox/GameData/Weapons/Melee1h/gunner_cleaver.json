@@ -1,5 +1,6 @@
 {
   "id": "gunner_cleaver",
+  "look_type": "cleaver",
   "damage_types": {"slash": 80, "blunt": 20},
   "displayName": "Mannaia da Guerra",
   "comment": "Dotazione base del Vrepigh Sparammazza: la mannaia dei Vrepigh.",

@@ -1,5 +1,6 @@
 {
   "id": "footman_fusion_rifle",
+  "look_type": "fusion_rifle",
   "damage_types": {"energy": 70, "fire": 30},
   "displayName": "Fucile a Fusione del Presidio",
   "faction": "Kingship",

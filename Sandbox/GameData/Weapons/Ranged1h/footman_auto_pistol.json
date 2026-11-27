@@ -1,5 +1,6 @@
 {
   "id": "footman_auto_pistol",
+  "look_type": "auto_pistol",
   "damage_types": {"pierce": 100},
   "displayName": "Pistola Automatica del Presidio",
   "faction": "Kingship",

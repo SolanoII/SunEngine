@@ -112,6 +112,23 @@ namespace SunEngine {
         std::string armorRightArmId = "arm_r_footman_recruit";
         std::string armorLeftLegId = "leg_l_footman_recruit";
         std::string armorRightLegId = "leg_r_footman_recruit";
+        // Posti in piu' dell'armatura (ArmorSlot 6..10): bacino, schiena, sopra lo zaino, testa (decorazioni), volto
+        std::string armorExtraIds[kArmorSlotCount - 6] = { "none", "none", "none", "none", "none" };
+        std::string* ArmorSlotRef(int slot) {   // pezzo nel posto dell'armatura (ArmorSlot)
+            switch (slot) {
+            case kSlotHead: return &armorHeadId; case kSlotTorso: return &armorTorsoId;
+            case kSlotArmL: return &armorLeftArmId; case kSlotArmR: return &armorRightArmId;
+            case kSlotLegL: return &armorLeftLegId; case kSlotLegR: return &armorRightLegId;
+            default: return (slot >= 6 && slot < kArmorSlotCount) ? &armorExtraIds[slot - 6] : &armorTorsoId;
+            }
+        }
+        const std::string& ArmorSlotId(int slot) const { return *const_cast<TrainedUnit*>(this)->ArmorSlotRef(slot); }
+
+        // Aspetto (trasmogrificazione): per ogni slot (stesso ordine di Slots()) l'id dell'oggetto di cui mostrare
+        // l'aspetto, "" = il suo. Le statistiche restano quelle dell'oggetto vero. Gli aspetti si sbloccano comprando
+        // l'oggetto (PlayerProfile::looksOwned) e sono gratis.
+        static constexpr int kSlotCount = 6 + kArmorSlotCount;
+        std::string looks[kSlotCount];
 
         int exp = 0;   // esperienza accumulata da questa unita' (1 per ogni vrepigh ucciso)
         // Personaggi speciali (unita' d'elite): caduti in partita restano in ricostruzione fino a quest'ora
@@ -132,11 +149,12 @@ namespace SunEngine {
 
         // Toglie l'equipaggiamento che l'unita' non puo' piu' usare (es. vrepighs: armi generiche o cleaver vecchia),
         // rimettendo al suo posto quello della dotazione base. Ritorna true se ha cambiato qualcosa.
-        // I 12 slot (primaria, secondaria, mischia, 3 equipaggiamenti, 6 armature): un esemplare del magazzino ci sta come
-        // "id#u<numero>..." (vedi ItemRarity.h); default_ = cosa ci va se l'esemplare si rompe o si perde
-        std::array<std::string*, 12> Slots() {
+        // Gli slot (primaria, secondaria, mischia, 3 equipaggiamenti, poi i posti dell'armatura nell'ordine di ArmorSlot): un
+        // esemplare del magazzino ci sta come "id#u<numero>..." (vedi ItemRarity.h); default_ = cosa ci va se si rompe o si perde
+        std::array<std::string*, kSlotCount> Slots() {
             return { &primaryWeaponId, &secondaryWeaponId, &meleeWeaponId, &equipmentSlots[0], &equipmentSlots[1], &equipmentSlots[2],
-                     &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId };
+                     &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId,
+                     &armorExtraIds[0], &armorExtraIds[1], &armorExtraIds[2], &armorExtraIds[3], &armorExtraIds[4] };
         }
         std::string DefaultForSlot(int i) const {
             const auto* bp = BlueprintManager::Get().GetUnit(blueprintId);
@@ -162,12 +180,11 @@ namespace SunEngine {
             fixWeapon(secondaryWeaponId, bp->default_secondary);
             fixWeapon(meleeWeaponId, bp->no_melee ? std::string() : bp->default_melee);
             for (int i = 0; i < 3; ++i) fixWeapon(equipmentSlots[i], bp->default_equipment[i]);
-            std::string* armor[6] = { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId };
-            for (int i = 0; i < 6; ++i) {
-                std::string& slot = *armor[i];
+            for (int i = 0; i < kArmorSlotCount; ++i) {
+                std::string& slot = *ArmorSlotRef(i);
                 if (slot.empty() || slot == "none") continue;
                 const auto* a = bpm.GetArmorPiece(slot);
-                if (a && bpm.CanEquip(*a, blueprintId)) continue;
+                if (a && a->slot == i && bpm.CanEquip(*a, blueprintId)) continue;
                 slot = bp->default_armor[i].empty() ? std::string("none") : bp->default_armor[i];
                 changed = true;
             }
@@ -178,8 +195,7 @@ namespace SunEngine {
         void ApplyDefaultArmor() {
             const auto* bp = BlueprintManager::Get().GetUnit(blueprintId);
             if (!bp || !bp->has_default_armor) return;
-            std::string* slots[6] = { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId };
-            for (int i = 0; i < 6; ++i) *slots[i] = bp->default_armor[i].empty() ? std::string("none") : bp->default_armor[i];
+            for (int i = 0; i < kArmorSlotCount; ++i) *ArmorSlotRef(i) = bp->default_armor[i].empty() ? std::string("none") : bp->default_armor[i];
         }
 
         // Punti battaglia (code Vs Bot e limite della squadra): costo dell'unita' + costo di ogni equipaggiamento
@@ -199,7 +215,8 @@ namespace SunEngine {
                 if (!wBp->allowed_units.empty()) points += wBp->point_cost;
                 else if (wId->find('#') != std::string::npos) if (const auto* b = bpm.GetWeapon(BlueprintManager::BaseId(*wId))) points += std::max(0, wBp->point_cost - b->point_cost);
             }
-            for (const std::string* aId : { &armorHeadId, &armorTorsoId, &armorLeftArmId, &armorRightArmId, &armorLeftLegId, &armorRightLegId }) {
+            for (int s = 0; s < kArmorSlotCount; ++s) {
+                const std::string* aId = &ArmorSlotId(s);
                 const auto* aBp = bpm.GetArmorPiece(*aId);
                 if (!aBp) continue;
                 if (!aBp->allowed_units.empty()) points += aBp->pointCost;
@@ -218,9 +235,8 @@ namespace SunEngine {
                 if (const auto* wBp = BlueprintManager::Get().GetWeapon(*wId)) points += wBp->point_cost;
             }
 
-            std::string ids[6] = { armorHeadId, armorTorsoId, armorLeftArmId, armorRightArmId, armorLeftLegId, armorRightLegId };
-            for (const auto& aId : ids) {
-                const auto* aBp = BlueprintManager::Get().GetArmorPiece(aId);
+            for (int s = 0; s < kArmorSlotCount; ++s) {
+                const auto* aBp = BlueprintManager::Get().GetArmorPiece(ArmorSlotId(s));
                 if (aBp) points += aBp->pointCost;
             }
             return points;
@@ -240,13 +256,50 @@ namespace SunEngine {
             for (const auto& eId : equipmentSlots)
                 if (const auto* eq = BlueprintManager::Get().GetWeapon(eId)) weight += eq->weight_kg;
 
-            std::string ids[6] = { armorHeadId, armorTorsoId, armorLeftArmId, armorRightArmId, armorLeftLegId, armorRightLegId };
-            for (const auto& aId : ids) {
-                const auto* aBp = BlueprintManager::Get().GetArmorPiece(aId);
+            for (int s = 0; s < kArmorSlotCount; ++s) {
+                const auto* aBp = BlueprintManager::Get().GetArmorPiece(ArmorSlotId(s));
                 if (aBp) weight += aBp->weight;
             }
             return weight;
         }
+    };
+
+    // Statistiche dell'armatura indossata: i 6 pezzi delle zone colpibili, poi i posti in piu' (bacino, schiena,
+    // decorazioni, volto) sommati alla zona su cui stanno (ArmorSlotHitbox). Gli aspetti non contano: solo i pezzi veri.
+    inline void FillArmorSet(const TrainedUnit& unit, ArmorSet& set) {
+        const auto& bpm = BlueprintManager::Get();
+        auto applyPiece = [&](const std::string& pieceId, ArmorPiece& piece) {
+            if (const auto* abp = bpm.GetArmorPiece(pieceId)) {
+                piece.id = abp->id; piece.name = abp->displayName; piece.armorRating = abp->armorRating;
+                piece.coverage = abp->coverage; piece.maxDurability = abp->maxDurability;
+                piece.currentDurability = abp->maxDurability; piece.weight = abp->weight; piece.pointCost = abp->pointCost;
+                piece.blocksHeadshotBonus = abp->blocks_headshot_bonus;
+                piece.resist = abp->resist;
+            }
+            else piece = {};
+        };
+        applyPiece(unit.armorHeadId, set.head);
+        applyPiece(unit.armorTorsoId, set.torso);
+        applyPiece(unit.armorLeftArmId, set.leftArm);
+        applyPiece(unit.armorRightArmId, set.rightArm);
+        applyPiece(unit.armorLeftLegId, set.leftLeg);
+        applyPiece(unit.armorRightLegId, set.rightLeg);
+        set.extraIds.clear();
+        for (int s = 6; s < kArmorSlotCount; ++s) {
+            const auto* a = bpm.GetArmorPiece(unit.ArmorSlotId(s));
+            if (!a) continue;
+            set.extraIds.push_back(a->id);
+            ArmorPiece* p = set.GetPiece(a->location);
+            p->armorRating += a->armorRating;
+            p->weight += a->weight;
+            for (int t = 0; t < kDamageTypeCount; ++t) p->resist[t] = std::clamp(p->resist[t] + a->resist[t], -1.0f, 0.9f);
+        }
+    }
+
+    // Aspetti visibili di un'unita' in campo (trasmogrificazione): id dell'oggetto vero (anche esemplare "id#u...") -> id
+    // dell'oggetto di cui mostrare l'aspetto. C'e' solo se l'opzione "aspetti trasmogrificati" li mostra per quell'unita'.
+    struct LookComponent {
+        std::unordered_map<std::string, std::string> map;
     };
 
     struct ActiveSquadMember {
@@ -392,7 +445,8 @@ namespace SunEngine {
         std::string SquadTypeCapProblem() const;          // "" se la squadra rispetta il massimo per tipo
         TrainedUnit MakeBotUnit(const std::string& unitId, int number) const;
         void AddBotExtras(TrainedUnit& u, int& budget) const;   // oggetti ricercabili a caso, entro il budget della coda
-        entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex);
+        // lookOwner: di chi sono gli aspetti (LookOwner); -1 = alleato o avversario secondo la squadra
+        entt::entity SpawnBot(const TrainedUnit& unit, int team, const glm::vec3& spawnPos, float yawDeg, int rosterIndex, int lookOwner = -1);
         void UpdateVsBot(float deltaTime);                 // fine partita (eliminazione o tempo scaduto)
         // Rinforzi del radio: arrivano dopo il ritardo, seguono chi li ha chiamati, cerchio verde sotto i piedi
         void UpdateSummons(float deltaTime);
@@ -463,6 +517,7 @@ namespace SunEngine {
         void RenderMatchRecap();
         void RenderHealZones(bool deferred);       // cerchio di cura dello zaino di cibo
         void ApplyArmorSkin(entt::entity e, const TrainedUnit& unit);   // vesti / elmetto visibili sul campo
+        static void ResolveShownParts(const SkinnedModel* model, const SkinComponent* skin, std::vector<std::string>& out);
         void UpdateAnimatedSkin();                                    // pezzi della skin sul modello animato
         std::vector<entt::entity> m_SkinPartEntities;
         GarmentLibrary m_Garments;   // vestiti/armature sul modello animato (gusci skinnati + texture), in cache
@@ -775,6 +830,17 @@ namespace SunEngine {
         void FlushItemWear();
         uint64_t GrantMissionLoot(const std::string& faction, int minRarity);
         bool DrawSlotChoices(TrainedUnit& unit, std::string& slotRef, const std::string& itemId, const std::string& name, bool isArmor);
+        // Trasmogrificazione (GameLayerLooks.cpp): aspetti sbloccati, scelta per slot, chi li vede in campo
+        enum LookOwner { kLookMine = 0, kLookAlly = 1, kLookEnemy = 2 };
+        void CollectLooks();                                                   // dotazioni e oggetti avuti -> aspetti sbloccati
+        bool LooksVisible(int owner) const;                                     // secondo l'opzione m_Profile.lookMode
+        void AttachLooks(entt::entity e, const TrainedUnit& unit, int owner);   // LookComponent sull'unita' in campo
+        std::string LookOf(entt::entity e, const std::string& itemId) const;   // id da disegnare al posto di itemId
+        std::vector<std::string> LookChoices(const TrainedUnit& unit, int slot) const;
+        bool SanitizeLooks(TrainedUnit& unit) const;                            // toglie gli aspetti non piu' validi
+        bool DrawLookCombo(TrainedUnit& unit, int slot);                        // "Aspetto" sotto lo slot nel garage
+        void RefreshLooksInField();                                             // opzione cambiata: riapplica a chi e' in campo
+        TrainedUnit m_PlayerLookUnit;                                           // ultima unita' applicata al giocatore
         std::string ItemLabel(const std::string& slotId, const std::string& baseName) const;
         void RenderStorehouseUI();
         // Icone (GameData/Icons, disegnate da Tools/Icons/icons.py): "Items/<id>" e "Factions/<fazione>". 0 = manca
@@ -883,7 +949,7 @@ namespace SunEngine {
         bool m_PropsLoaded = false;
         std::unordered_map<std::string, std::unique_ptr<SkinnedModel>> m_PropMeshes;
         std::unordered_map<std::string, std::unique_ptr<BlockModel>> m_PropModels;
-        void SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId);
+        void SetWeaponBlockModel(entt::entity weaponEntity, const std::string& weaponId, const std::string& fxWeaponId = "");   // fxWeaponId: arma vera se weaponId e' un aspetto
         void ClearPlayerDeathState();   // FIX #4: toglie ragdoll + CorpseComponent dal player
 
     private:

@@ -1,5 +1,6 @@
 {
   "id": "recruit_medkit",
+  "look_type": "medkit",
   "displayName": "Medikit",
   "faction": "Kingship",
   "allowed_units": [

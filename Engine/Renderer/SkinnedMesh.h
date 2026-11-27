@@ -11,6 +11,9 @@ namespace SunEngine {
         std::vector<unsigned int> indices;
         unsigned int VAO = 0, VBO = 0, EBO = 0;
         int materialIndex = -1;   // modelli d'autore: indice in SkinnedModel::materials (-1 = nessun materiale)
+        // Parte accendibile del modello d'autore (nome della mesh "VG_Plate@vg_helm_beak" -> "vg_helm_beak"): vuota = sempre
+        // visibile, altrimenti si disegna solo se l'istanza la mostra (SkinnedModelInstanceComponent::shownParts)
+        std::string part;
 
         SkinnedMesh(std::vector<SkinnedVertex> verts, std::vector<unsigned int> inds)
             : vertices(std::move(verts)), indices(std::move(inds)) {

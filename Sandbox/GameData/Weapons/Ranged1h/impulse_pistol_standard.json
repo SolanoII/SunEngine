@@ -1,5 +1,6 @@
 {
 	"id": "impulse_pistol_standard",
+	"look_type": "impulse_pistol",
 	"damage_types": {"energy": 100},
 	"displayName": "Pistola Laser Modello Aurel",
 	"faction": "Kingship",

@@ -1,5 +1,6 @@
 {
   "id": "heavy_round_rifle_ordo",
+  "look_type": "heavy_rifle",
   "damage_types": {"pierce": 60, "blast": 40},
   "displayName": "Fucile a Proiettili Modello Humilitatis",
   "faction": "Vanguard",

@@ -41,6 +41,9 @@ namespace SunEngine {
         bool  gfxFXAA = true;           // antialiasing
         bool  gfxAtmosphere = true;     // cielo, nebbia, polvere, correzione colore
         bool  gfxAutoDone = false;      // qualita' grafica gia' scelta in base alla scheda video (primo avvio)
+        // Aspetti trasmogrificati da mostrare: 0 tutti, 1 tutti tranne quelli degli avversari, 2 solo i miei, 3 nessuno
+        // (si vede l'equipaggiamento com'e' davvero)
+        int   lookMode = 0;
         // Tutte le altre regolazioni grafiche (qualita', ombre, pelle, sporco, materiali, atmosfera): le scrive e le
         // legge il GameLayer, qui restano un oggetto JSON (il profilo non conosce il renderer).
         nlohmann::json graphics = nlohmann::json::object();
@@ -56,6 +59,9 @@ namespace SunEngine {
         std::unordered_map<std::string, int64_t> studyPoints;
         std::set<std::string> researchedNodes;   // id dei nodi dell'albero di ricerca gia' sbloccati
         std::unordered_map<std::string, int64_t> weaponExp;   // id blueprint arma -> exp
+        // Aspetti sbloccati (trasmogrificazione): id base degli oggetti comprati o avuti in dotazione. Restano per sempre,
+        // anche se l'oggetto si rompe, si perde o si vende, e si usano gratis.
+        std::set<std::string> looksOwned;
         nlohmann::json story = nlohmann::json::object();      // PVE-STORY: capitoli finiti e record (li legge il GameLayer)
 
         // --- Selezioni del garage ---
@@ -100,7 +106,7 @@ namespace SunEngine {
                               {"animatedPlayer", animatedPlayer},
                               {"gfxSSAO", gfxSSAO}, {"gfxFXAA", gfxFXAA}, {"gfxAtmosphere", gfxAtmosphere},
                               {"graphics", graphics}, {"gfxAutoDone", gfxAutoDone},
-                              {"cameraShake", cameraShake}, {"hitStop", hitStop},
+                              {"cameraShake", cameraShake}, {"hitStop", hitStop}, {"lookMode", lookMode},
                               {"netId", std::to_string(netId)}, {"netName", netName}, {"netServer", netServer} };
             j["currency"] = { {"energy", energy}, {"blackStone", blackStone} };
             j["shop"] = { {"vip", vip} };
@@ -123,6 +129,7 @@ namespace SunEngine {
             j["inventory"] = inventory;
             j["nextItemUid"] = nextItemUid;
             j["story"] = story;
+            j["looks"] = std::vector<std::string>(looksOwned.begin(), looksOwned.end());
             return j;
         }
 
@@ -147,6 +154,7 @@ namespace SunEngine {
                 p.gfxAutoDone = s.value("gfxAutoDone", false);
                 p.cameraShake = std::clamp(s.value("cameraShake", 1.0f), 0.0f, 1.5f);
                 p.hitStop = s.value("hitStop", true);
+                p.lookMode = std::clamp(s.value("lookMode", 0), 0, 3);
                 {   // l'identificativo e' salvato come testo: un numero a 64 bit non sopravvive in tutti i lettori JSON
                     const std::string id = s.value("netId", std::string());
                     p.netId = id.empty() ? 0 : std::strtoull(id.c_str(), nullptr, 10);
@@ -178,6 +186,8 @@ namespace SunEngine {
             }
             if (j.contains("shop") && j["shop"].is_object()) p.vip = j["shop"].value("vip", false);
             if (j.contains("story") && j["story"].is_object()) p.story = j["story"];
+            if (j.contains("looks") && j["looks"].is_array())
+                for (const auto& v : j["looks"]) if (v.is_string()) p.looksOwned.insert(v.get<std::string>());
             // Profilo salvato prima della scala x1000: energia e punti studio passano alle migliaia
             if (j.value("version", 1) < 2) {
                 p.energy *= 1000;

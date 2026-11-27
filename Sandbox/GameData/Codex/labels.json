@@ -417,6 +417,10 @@
    "Parte del corpo",
    ""
   ],
+  "look_type": [
+   "Tipo (scambio d'aspetto)",
+   ""
+  ],
   "coverage": [
    "Copertura",
    "%"
@@ -621,6 +625,52 @@
   ]
  },
  "values": {
+  "look_type": {
+   "auto_rifle": "fucile automatico",
+   "heavy_rifle": "fucile pesante",
+   "heavy_auto_rifle": "fucile automatico pesante",
+   "machinegun": "mitragliatrice",
+   "shotgun": "fucile a pompa",
+   "precision_rifle": "fucile di precisione",
+   "impulse_rifle": "fucile a impulsi",
+   "discharge_rifle": "fucile a scarica",
+   "fusion_rifle": "fucile a fusione",
+   "beam_rifle": "fucile a raggio",
+   "flamer": "lanciafiamme",
+   "grenade_launcher": "lanciagranate",
+   "rocket_launcher": "lanciarazzi",
+   "heavy_cannon": "cannone pesante",
+   "auto_pistol": "pistola automatica",
+   "heavy_pistol": "pistola pesante",
+   "impulse_pistol": "pistola a impulsi",
+   "crude_pistol": "pistola di rottami",
+   "knife": "coltello",
+   "toothsword": "spada a denti",
+   "cleaver": "mannaia",
+   "claws": "artigli",
+   "longsword": "spada lunga",
+   "shovel": "pala",
+   "wrench": "chiave inglese",
+   "rifle_bash": "calcio del fucile",
+   "toothsword_2h": "spada a denti a due mani",
+   "pike": "picca",
+   "heavy_cleaver": "mannaia pesante",
+   "frag": "granata a frammentazione",
+   "piercing_grenade": "granata perforante",
+   "ammo_box": "munizioni",
+   "banner": "stendardo",
+   "power_pack": "zaino energetico",
+   "camo_cloak": "mantello mimetico",
+   "scanner": "scanner",
+   "field_radio": "radio da campo",
+   "grugn_bomb": "grugn bomba",
+   "grugn": "grugn",
+   "impulse_cannon": "cannone a impulsi",
+   "demolition_bomb": "carica da demolizione",
+   "slit_wall": "muro con feritoia",
+   "medkit": "medikit",
+   "mines": "mine"
+  },
   "ai_role": {
    "ranged": "tiratore",
    "melee": "mischia",
@@ -651,7 +701,12 @@
    "LeftArm": "Braccio sinistro",
    "RightArm": "Braccio destro",
    "LeftLeg": "Gamba sinistra",
-   "RightLeg": "Gamba destra"
+   "RightLeg": "Gamba destra",
+   "Waist": "Bacino (decorazione)",
+   "Back": "Schiena",
+   "BackDeco": "Sopra lo zaino (decorazione)",
+   "HeadDeco": "Testa (decorazione)",
+   "Face": "Volto"
   },
   "default_melee_type": {
    "Light": "veloce",

@@ -111,6 +111,7 @@
   ],
   "comment": "Dotazione base del Difensore Vanguardio: zaino energetico che alimenta armatura e sistemi ausiliari. Click sinistro: +10% di velocita' per 5 secondi, poi 30 secondi di ricarica. Senza limite di usi.",
   "id": "defender_power_pack",
+  "look_type": "power_pack",
   "allowed_units": [
     "vanguard_defender",
     "vanguard_konrad"

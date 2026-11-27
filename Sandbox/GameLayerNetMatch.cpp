@@ -83,6 +83,11 @@ namespace SunEngine {
             for (int i = 0; i < 3; ++i) w.Str(u.equipmentSlots[i]);
             w.Str(u.armorHeadId); w.Str(u.armorTorsoId); w.Str(u.armorLeftArmId); w.Str(u.armorRightArmId); w.Str(u.armorLeftLegId); w.Str(u.armorRightLegId);
             WF(w, u.armorColor.r); WF(w, u.armorColor.g); WF(w, u.armorColor.b); WF(w, u.armorColor.a);
+            for (int k = 6; k < kArmorSlotCount; ++k) w.Str(u.ArmorSlotId(k));   // posti in piu' (bacino, schiena, ...)
+            int n = 0;   // aspetti (trasmogrificazione): chi li riceve decide se mostrarli (opzione lookMode)
+            for (int k = 0; k < TrainedUnit::kSlotCount; ++k) n += u.looks[k].empty() ? 0 : 1;
+            w.U8(static_cast<std::uint8_t>(n));
+            for (int k = 0; k < TrainedUnit::kSlotCount; ++k) if (!u.looks[k].empty()) { w.U8(static_cast<std::uint8_t>(k)); w.Str(u.looks[k]); }
         }
         bool ReadUnit(Reader& r, TrainedUnit& u) {
             u.blueprintId = r.Str(); u.customName = r.Str();
@@ -91,6 +96,13 @@ namespace SunEngine {
             u.armorHeadId = r.Str(); u.armorTorsoId = r.Str(); u.armorLeftArmId = r.Str(); u.armorRightArmId = r.Str(); u.armorLeftLegId = r.Str(); u.armorRightLegId = r.Str();
             const float cr = RF(r), cg = RF(r), cb = RF(r);
             u.armorColor = glm::vec4(cr, cg, cb, RF(r));
+            for (int k = 6; k < kArmorSlotCount; ++k) *u.ArmorSlotRef(k) = r.Str();
+            const int n = r.U8();
+            for (int i = 0; i < n && r.ok; ++i) {
+                const int k = r.U8();
+                std::string id = r.Str();
+                if (k < TrainedUnit::kSlotCount) u.looks[k] = std::move(id);
+            }
             return r.ok && !u.blueprintId.empty();
         }
         std::string UnitKey(const TrainedUnit& u) {

@@ -1,5 +1,6 @@
 {
   "id": "explorer_shotgun",
+  "look_type": "shotgun",
   "damage_types": {"pierce": 70, "blunt": 30},
   "displayName": "Fucile a Pompa Vanguardio",
   "faction": "Vanguard",

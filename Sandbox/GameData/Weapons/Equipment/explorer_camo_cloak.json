@@ -82,6 +82,7 @@
   ],
   "comment": "Sbloccabile dello scout: mantello mimetico. Click sinistro: per 20 secondi il corpo diventa come un liquido trasparente e i nemici non ti vedono oltre 6 metri. Sparare o colpire in mischia lo interrompe. 1 per partita.",
   "id": "explorer_camo_cloak",
+  "look_type": "camo_cloak",
   "allowed_units": [
     "vanguard_explorer"
   ],

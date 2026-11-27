@@ -1,0 +1,24 @@
+{
+  "id": "waist_defender_drape",
+  "resistances": {
+    "slash": 3,
+    "fire": -2
+  },
+  "displayName": "Drappo di Battaglia",
+  "comment": "Decorazione del bacino del Difensore Vanguardio: drappo di stoffa rosso sangue strappato fino al ginocchio, con la catenella sulla cintura. Protegge poco ma tiene alto il morale. Sul corpo Vanguard accende la parte vg_drape del modello.",
+  "location": "Waist",
+  "model_parts": {
+    "waist": "vg_drape"
+  },
+  "faction": "Vanguard",
+  "allowed_units": [
+    "vanguard_defender"
+  ],
+  "armor_rating": 2,
+  "coverage": 0.3,
+  "max_durability": 60.0,
+  "weight": 0.0,
+  "point_cost": 1,
+  "morale_start_bonus": 6.0,
+  "morale_cap_bonus": 4.0
+}

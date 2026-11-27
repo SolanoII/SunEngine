@@ -1,5 +1,6 @@
 {
   "id": "gunner_ammo_backpack",
+  "look_type": "ammo_box",
   "displayName": "Zaino Munizioni",
   "comment": "Sbloccabile del Vrepigh Sparammazza: zaino pieno di caricatori. Passivo (basta averlo in uno slot): +50% di munizioni di riserva per tutte le armi. Si vede sulla schiena.",
   "faction": "Vrepighs",

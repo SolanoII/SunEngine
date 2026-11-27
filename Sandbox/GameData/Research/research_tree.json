@@ -1044,6 +1044,28 @@
           "purchase_cost": 50000
         },
         {
+          "id": "va_defender_item_battle_drape",
+          "item": "waist_defender_drape",
+          "name": "Drappo di Battaglia",
+          "tier": 3,
+          "col": 3,
+          "row": 25,
+          "parent": "va_defender",
+          "research_cost": 12000,
+          "purchase_cost": 18000
+        },
+        {
+          "id": "va_defender_item_assault_helm",
+          "item": "head_defender_assault",
+          "name": "Elmo d'Assalto",
+          "tier": 3,
+          "col": 3,
+          "row": 24,
+          "parent": "va_defender",
+          "research_cost": 25000,
+          "purchase_cost": 35000
+        },
+        {
           "id": "va_defender_item_auto_heavy_round_rifle",
           "item": "defender_auto_heavy_round_rifle",
           "name": "Fucile Automatico a Proiettili Pesanti",

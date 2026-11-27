@@ -22,6 +22,31 @@ namespace SunEngine {
         RightLeg
     };
 
+    // Posti dell'armatura. I primi 6 sono le zone colpibili (stesso ordine di HitboxLocation); gli altri sono pezzi in
+    // piu': tre decorazioni che non si sovrappongono (bacino, sopra lo zaino, testa: cappucci e dettagli), la schiena
+    // (zaini, cappe) e il volto. Le statistiche dei pezzi in piu' si sommano alla zona su cui stanno (ArmorSlotHitbox).
+    constexpr int kArmorSlotCount = 11;
+    enum ArmorSlot { kSlotHead = 0, kSlotTorso, kSlotArmL, kSlotArmR, kSlotLegL, kSlotLegR, kSlotWaist, kSlotBack, kSlotBackDeco, kSlotHeadDeco, kSlotFace };
+    inline const char* ArmorSlotKey(int i) {          // chiave nei JSON ("default_loadout.armor") e nel profilo
+        static const char* k[kArmorSlotCount] = { "head", "torso", "arm_l", "arm_r", "leg_l", "leg_r", "waist", "back", "back_deco", "head_deco", "face" };
+        return (i >= 0 && i < kArmorSlotCount) ? k[i] : "torso";
+    }
+    inline const char* ArmorSlotLabel(int i) {        // nome nell'interfaccia
+        static const char* k[kArmorSlotCount] = { "TESTA", "TORSO", "BRACCIO SX", "BRACCIO DX", "GAMBA SX", "GAMBA DX",
+                                                  "BACINO (decorazione)", "SCHIENA", "SOPRA LO ZAINO (decorazione)", "TESTA (decorazione)", "VOLTO" };
+        return (i >= 0 && i < kArmorSlotCount) ? k[i] : "";
+    }
+    inline int ArmorSlotFromLocation(const std::string& s) {   // "location" nel JSON del pezzo
+        static const char* k[kArmorSlotCount] = { "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "Waist", "Back", "BackDeco", "HeadDeco", "Face" };
+        for (int i = 0; i < kArmorSlotCount; ++i) if (s == k[i]) return i;
+        return kSlotTorso;
+    }
+    inline HitboxLocation ArmorSlotHitbox(int i) {    // zona colpibile su cui contano le statistiche del pezzo
+        static const HitboxLocation k[kArmorSlotCount] = { HitboxLocation::Head, HitboxLocation::Torso, HitboxLocation::LeftArm, HitboxLocation::RightArm,
+            HitboxLocation::LeftLeg, HitboxLocation::RightLeg, HitboxLocation::Torso, HitboxLocation::Torso, HitboxLocation::Torso, HitboxLocation::Head, HitboxLocation::Head };
+        return (i >= 0 && i < kArmorSlotCount) ? k[i] : HitboxLocation::Torso;
+    }
+
     enum class ProjectileType {
         Laser,
         Ballistic,
@@ -153,6 +178,9 @@ namespace SunEngine {
         // Tipo di munizione ("ammo_type"): chi muore lascia a terra il 10% dei colpi massimi delle sue armi, e li
         // raccoglie solo chi ha un'arma dello stesso tipo. Se manca nel JSON viene dal projectile_type (vedi AmmoTypes).
         std::string ammo_type;
+        // Tipo preciso dell'arma ("look_type", es. "auto_rifle", "knife", "frag"): l'aspetto (trasmogrificazione) si
+        // scambia solo fra oggetti dello stesso tipo. Vuoto = nessuno scambio.
+        std::string look_type;
         bool is_beam = true;
         glm::vec4 primary_color = glm::vec4(1.0f, 0.40f, 0.05f, 0.95f);
         glm::vec4 core_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -332,7 +360,7 @@ namespace SunEngine {
         // al caricamento (es. feral_pig = 3: gli feral_pig gia' nel garage passano dal fucile laser al kit da feral_pig)
         int loadout_version = 0;
         bool has_default_armor = false;
-        std::string default_armor[6];      // testa, torso, braccio sx, braccio dx, gamba sx, gamba dx ("" = scoperto)
+        std::string default_armor[kArmorSlotCount];   // un pezzo per posto (ArmorSlot), "" = scoperto
         // Razza ("race", GameData/Races/races.json: umano, vrepigh, vanguard_armor) e difese di razza per tipo di danno:
         // quelle della razza piu' le "resistances" dell'unita'. Valgono su tutto il corpo, oltre all'armatura.
         std::string race;
@@ -347,7 +375,11 @@ namespace SunEngine {
     struct ArmorBlueprint {
         std::string id;
         std::string displayName;
-        HitboxLocation location = HitboxLocation::Torso;
+        HitboxLocation location = HitboxLocation::Torso;   // zona colpibile su cui contano le statistiche
+        int slot = kSlotTorso;                            // posto dell'armatura (ArmorSlot, da "location")
+        // Parti del modello d'autore da mostrare ("model_parts" {"head": "vg_helm_beak"}): sui corpi che sono gia'
+        // un'armatura completa (Vanguard) il pezzo accende la sua parte del gruppo al posto di quella di base.
+        std::vector<std::pair<std::string, std::string>> modelParts;
         int armorRating = 0;
         float coverage = 0.85f;
         float maxDurability = 100.0f;

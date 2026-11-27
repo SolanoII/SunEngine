@@ -1,5 +1,6 @@
 {
   "id": "psionic_cannon",
+  "look_type": "heavy_cannon",
   "damage_types": {"arcane": 100},
   "damage_pure": true,
   "displayName": "Cannone Psionico",

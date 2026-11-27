@@ -525,6 +525,9 @@ namespace SunEngine {
         }
         if (cfg.is_object()) {
             out.completeArmor = cfg.value("complete_armor", false);
+            if (cfg.contains("default_parts") && cfg["default_parts"].is_object())
+                for (auto it = cfg["default_parts"].begin(); it != cfg["default_parts"].end(); ++it)
+                    if (it.value().is_string()) out.defaultParts[it.key()] = it.value().get<std::string>();
             if (cfg.contains("height_m") && cfg["height_m"].is_number() && h > 1e-4f) scale = cfg["height_m"].get<float>() * 100.0f / h;
             if (cfg.contains("scale") && cfg["scale"].is_number()) scale *= cfg["scale"].get<float>();
             if (cfg.contains("rotate_y") && cfg["rotate_y"].is_number())   // gradi in piu' attorno all'asse verticale

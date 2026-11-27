@@ -1,4 +1,5 @@
 #pragma once
+#include <cctype>
 
 #include <vector>
 #include <string>
@@ -54,6 +55,9 @@ namespace SunEngine {
         // Corpo che e' gia' un'armatura completa (model.json "complete_armor", es. Vanguard Armor): le armature e le vesti
         // dell'unita' non si disegnano sopra (resterebbero due gusci uno sull'altro); contano solo per le statistiche.
         bool completeArmor = false;
+        // Parti accendibili di base per gruppo (model.json "default_parts" {"head": "vg_helm_base"}): i pezzi d'armatura
+        // indossati possono sostituirle con le loro ("model_parts"), vedi SkinnedMesh::part
+        std::unordered_map<std::string, std::string> defaultParts;
         std::vector<SkinnedMaterial> materials;
         float unitScale = 1.0f;
 
@@ -166,6 +170,15 @@ namespace SunEngine {
 
             SkinnedMesh out(std::move(vertices), std::move(indices));
             if (m_WithMaterials) out.materialIndex = static_cast<int>(mesh->mMaterialIndex);
+            {   // parte accendibile: quello che segue la '@' nel nome della mesh (lettere, cifre, '_')
+                const std::string nm = mesh->mName.C_Str();
+                const size_t at = nm.find('@');
+                if (at != std::string::npos) {
+                    size_t e = at + 1;
+                    while (e < nm.size() && (std::isalnum(static_cast<unsigned char>(nm[e])) || nm[e] == '_')) ++e;
+                    out.part = nm.substr(at + 1, e - at - 1);
+                }
+            }
             return out;
         }
     };

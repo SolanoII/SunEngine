@@ -1,5 +1,6 @@
 {
 	"id": "flamer_standard",
+	"look_type": "flamer",
 	"damage_types": {"fire": 100},
 	"damage_pure": true,
 	"displayName": "Lanciafiamme Modello Purificatore",

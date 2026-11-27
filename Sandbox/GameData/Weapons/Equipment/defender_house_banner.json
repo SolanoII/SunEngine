@@ -120,6 +120,7 @@
   ],
   "comment": "Sbloccabile del Difensore Vanguardio: nucleo del Kingship sul petto (va in uno slot della dotazione). Passiva: morale +10% a chi la porta e ai compagni entro 12 m.",
   "id": "defender_house_banner",
+  "look_type": "banner",
   "allowed_units": [
     "vanguard_defender",
     "vanguard_konrad"

@@ -1,5 +1,6 @@
 {
   "id": "auto_rifle_standard",
+  "look_type": "auto_rifle",
   "damage_types": {"pierce": 100},
   "displayName": "Fucile Automatico Modello Solemnace",
   "faction": "Kingship",

@@ -1,5 +1,6 @@
 {
   "id": "kragh_pistol",
+  "look_type": "crude_pistol",
   "damage_types": {"pierce": 100},
   "displayName": "Pistola di Kragh",
   "comment": "Solo Kragh: la pistola rozza dei capobranco, piu' pesante e piu' precisa di quella dei Vrepigh.",

@@ -1,5 +1,6 @@
 {
 	"id": "combat_knife_1h",
+	"look_type": "knife",
 	"damage_types": {"pierce": 70, "slash": 30},
 	"displayName": "Coltello da Combattimento 1H",
 	"faction": "Kingship",

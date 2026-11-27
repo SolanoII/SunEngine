@@ -1,5 +1,6 @@
 {
   "id": "defender_piercing_grenade",
+  "look_type": "piercing_grenade",
   "damage_types": {"pierce": 60, "blast": 40},
   "damage_pure": true,
   "displayName": "Granata Perforante",

@@ -1,5 +1,6 @@
 {
   "id": "grugn_bomb",
+  "look_type": "grugn_bomb",
   "damage_types": {"blast": 100},
   "damage_pure": true,
   "displayName": "Grugn Esplosivo",

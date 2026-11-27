@@ -4,6 +4,7 @@
   "displayName": "Elmo della Vanguard Armor",
   "comment": "Dotazione base del Difensore Vanguardio: Vestment generica, grigio non dipinto. Elmo con griglia vocale e visiera con una linea di luce; finche' regge annulla il bonus del colpo in testa. Armatura Vanguard generica media, costruita sul corpo (vanguard_*_medium, Engine/Renderer/TeutonicArmor.h).",
   "location": "Head",
+  "model_parts": {"head": "vg_helm_base"},
   "faction": "Vanguard",
   "allowed_units": [
     "vanguard_defender"

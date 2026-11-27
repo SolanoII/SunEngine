@@ -1,5 +1,6 @@
 {
   "id": "meatshield_pike",
+  "look_type": "pike",
   "damage_types": {"pierce": 100},
   "displayName": "Picca del Condannato",
   "faction": "Kingship",

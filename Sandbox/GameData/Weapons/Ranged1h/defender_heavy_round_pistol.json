@@ -1,5 +1,6 @@
 {
   "id": "defender_heavy_round_pistol",
+  "look_type": "heavy_pistol",
   "damage_types": {"pierce": 60, "blast": 40},
   "displayName": "Pistola a Proiettili Pesanti",
   "faction": "Vanguard",

@@ -1,0 +1,57 @@
+{
+  "id": "head_defender_assault",
+  "resistances": {
+    "pierce": 14,
+    "slash": 14,
+    "blunt": 13,
+    "energy": 10,
+    "fire": 6
+  },
+  "displayName": "Elmo d'Assalto della Vanguard Armor",
+  "comment": "Sbloccabile del Difensore Vanguardio: fronte a becco che scende sul viso, feritoie inclinate incassate, mascella a prua con le griglie di sfiato. Un po' piu' pesante e piu' duro dell'elmo base. Sul corpo Vanguard accende la parte vg_helm_beak del modello (Tools/ModelForge/vanguard).",
+  "location": "Head",
+  "model_parts": {
+    "head": "vg_helm_beak"
+  },
+  "faction": "Vanguard",
+  "allowed_units": [
+    "vanguard_defender"
+  ],
+  "armor_rating": 23,
+  "coverage": 0.85,
+  "max_durability": 205.0,
+  "weight": 0.0,
+  "point_cost": 4,
+  "blocks_headshot_bonus": true,
+  "morale_start_bonus": 3.0,
+  "garments": [
+    {
+      "id": "fb_helm",
+      "procedural": "vanguard_helm_medium",
+      "texture": "Textures/Garments/power_armour.png",
+      "tex_tiles": 4,
+      "color": [
+        0.62,
+        0.62,
+        0.64,
+        1
+      ],
+      "roughness": 0.35,
+      "metallic": 0.55
+    },
+    {
+      "id": "fb_helm_eyes",
+      "procedural": "vanguard_helm_eyes_medium",
+      "color": [
+        0.75,
+        0.4,
+        1.0,
+        1
+      ],
+      "roughness": 0.1,
+      "metallic": 0.0,
+      "detail": 0,
+      "emissive": 3.0
+    }
+  ]
+}

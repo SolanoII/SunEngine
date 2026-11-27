@@ -714,6 +714,8 @@ ITEM_ARCH = {
     'raider_demolition_bomb': 'bomb', 'tusker_mines': 'mine', 'tusker_nail_grenade': 'nail_grenade',
     'defender_piercing_grenade': 'piercing_grenade', 'gunner_scrap_grenade': 'scrap_grenade',
     'grugn_companion': 'grugn', 'grugn_bomb': 'grugn_bomb',
+    # armature sbloccabili (aspetti trasmogrificabili)
+    'head_defender_assault': 'helmet_power', 'waist_defender_drape': 'cloak',
 }
 
 def arch_of(item_id, kind, j):

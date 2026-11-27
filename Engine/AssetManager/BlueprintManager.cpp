@@ -7,16 +7,6 @@
 
 namespace SunEngine {
 
-    static HitboxLocation ParseLocationString(const std::string& locStr) {
-        if (locStr == "Head")     return HitboxLocation::Head;
-        if (locStr == "Torso")    return HitboxLocation::Torso;
-        if (locStr == "LeftArm")  return HitboxLocation::LeftArm;
-        if (locStr == "RightArm") return HitboxLocation::RightArm;
-        if (locStr == "LeftLeg")  return HitboxLocation::LeftLeg;
-        if (locStr == "RightLeg") return HitboxLocation::RightLeg;
-        return HitboxLocation::Torso;
-    }
-
     // Skin sul campo: "skin_blocks" {"Blocco": [r,g,b]} e "skin_parts" [{block, offset, bone, bone_offset, size, color, ...}]
     // Tipo di danno di un'arma senza "damage_types" nel JSON: dedotto da cos'e'
     static DamageSplit DefaultDamageSplit(const WeaponBlueprint& bp) {
@@ -107,7 +97,11 @@ namespace SunEngine {
                 ArmorBlueprint bp;
                 bp.id = j.value("id", entry.path().stem().string());
                 bp.displayName = j.value("displayName", "Pezzo Ignoto");
-                bp.location = ParseLocationString(j.value("location", "Torso"));
+                bp.slot = ArmorSlotFromLocation(j.value("location", std::string("Torso")));
+                bp.location = ArmorSlotHitbox(bp.slot);
+                if (j.contains("model_parts") && j["model_parts"].is_object())
+                    for (auto it = j["model_parts"].begin(); it != j["model_parts"].end(); ++it)
+                        if (it.value().is_string()) bp.modelParts.emplace_back(it.key(), it.value().get<std::string>());
                 bp.armorRating = j.value("armor_rating", 0);
                 bp.coverage = j.value("coverage", 0.85f);
                 bp.maxDurability = j.value("max_durability", 100.0f);
@@ -300,6 +294,7 @@ namespace SunEngine {
                 else bp.projectile_type = ProjectileType::Laser;
                 // Tipo di munizione: dal JSON, altrimenti dalla famiglia del proiettile
                 bp.ammo_type = j.value("ammo_type", std::string());
+                bp.look_type = j.value("look_type", std::string());
                 if (bp.ammo_type.empty()) {
                     if (typeStr == "ballistic") bp.ammo_type = "proiettili";
                     else if (typeStr == "heavy_round") bp.ammo_type = "proiettili_pesanti";
@@ -493,12 +488,12 @@ namespace SunEngine {
                         for (size_t i = 0; i < 3 && i < lj["equipment"].size(); ++i)
                             if (lj["equipment"][i].is_string()) bp.default_equipment[i] = lj["equipment"][i].get<std::string>();
                     }
-                    // Armatura/vesti base: "armor": {"head": "", "torso": "...", "arm_l", "arm_r", "leg_l", "leg_r"}
+                    // Armatura/vesti base: "armor": {"head": "", "torso": "...", "arm_l", "arm_r", "leg_l", "leg_r", e i posti in piu'
+                    // "waist", "back", "back_deco", "head_deco", "face"} (vedi ArmorSlot)
                     if (lj.contains("armor") && lj["armor"].is_object()) {
                         const auto& aj = lj["armor"];
                         bp.has_default_armor = true;
-                        const char* keys[6] = { "head", "torso", "arm_l", "arm_r", "leg_l", "leg_r" };
-                        for (int i = 0; i < 6; ++i) bp.default_armor[i] = aj.value(keys[i], std::string());
+                        for (int i = 0; i < kArmorSlotCount; ++i) bp.default_armor[i] = aj.value(ArmorSlotKey(i), std::string());
                     }
                 }
 

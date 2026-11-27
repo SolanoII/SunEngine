@@ -1,5 +1,6 @@
 {
   "id": "levy_impulse_cannon",
+  "look_type": "impulse_cannon",
   "damage_types": {"energy": 100},
   "displayName": "Cannone a Impulsi Pesante",
   "faction": "Kingship",

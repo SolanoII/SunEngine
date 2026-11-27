@@ -1,5 +1,6 @@
 {
   "id": "gunner_heavy_crude_gun",
+  "look_type": "machinegun",
   "damage_types": {"pierce": 80, "slash": 20},
   "displayName": "Mitragliatore Pesante Rinforzato",
   "comment": "Sbloccabile del Vrepigh Sparammazza: mitragliatrice a due mani, 36 colpi a caricatore e 108 di riserva.",

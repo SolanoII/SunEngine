@@ -1,5 +1,6 @@
 {
   "id": "gravity_cannon",
+  "look_type": "heavy_cannon",
   "damage_types": {"blunt": 100},
   "damage_pure": true,
   "displayName": "Cannone Gravitazionale",

@@ -1,5 +1,6 @@
 {
   "id": "entrenching_shovel_1h",
+  "look_type": "shovel",
   "damage_types": {"blunt": 60, "slash": 40},
   "displayName": "Pala da Trincea 1H",
   "faction": "Kingship",

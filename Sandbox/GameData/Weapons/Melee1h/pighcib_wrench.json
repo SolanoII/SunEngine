@@ -1,5 +1,6 @@
 {
   "id": "pighcib_wrench",
+  "look_type": "wrench",
   "damage_types": {"blunt": 100},
   "displayName": "Chiave da Pighcib",
   "comment": "Arma impropria: combo semplicissime e danni miseri. Con la chiave in mano (tasto 3) il click destro tenuto ripara le entita' Structure/Construct/Mechanical (veicoli, strutture, torrette, semoventi). Si ricerca sotto il Pighcib e si compra per unita'.",

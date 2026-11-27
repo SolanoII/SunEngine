@@ -35,3 +35,22 @@ cuoio con fibbia d'acciaio su avambraccio, coscia e polpaccio; stoffa rosso sang
 
 Texture (PBR, una terna per materiale): `_BaseColor` (sRGB), `_ORM` (G rugosita', B metallo), `_Normal` (spazio tangente, OpenGL).
 Il rilievo cotto porta ammaccature da martello, graffi e grana; l'acciaio nudo e' lucido sugli spigoli e opaco negli incavi.
+
+## Parti accendibili (elmi, drappi) e trasmogrificazione
+
+La Vanguard generica e' un'armatura completa in un solo modello, quindi i pezzi che cambiano l'aspetto sono **parti
+accendibili** dentro lo stesso GLB. Nel costruttore si fanno dentro `with tagged('<parte>'):`; dopo la cottura le loro
+facce diventano mesh a parte di nome `VG_<materiale>@<parte>` (stesse texture del resto). Nel gioco una mesh con la `@` si
+disegna solo se la sua parte e' accesa:
+
+- `model.json` -> `"default_parts": {"head": "vg_helm_base"}`: per ogni gruppo la parte di base;
+- un pezzo d'armatura indossato (o il suo aspetto) la sostituisce con `"model_parts": {"<gruppo>": "<parte>"}`.
+
+| Parte | Gruppo | Pezzo d'armatura |
+|---|---|---|
+| `vg_helm_base` | head | `head_defender` (base): viso piatto, lenti incassate nelle cornici, respiratore a lamelle |
+| `vg_helm_beak` | head | `head_defender_assault` (sbloccabile): fronte a becco, feritoie inclinate, mascella a prua |
+| `vg_drape` | waist | `waist_defender_drape` (bacino, sbloccabile): drappo rosso sangue e catenella |
+
+Gli aspetti si scelgono nel garage ("Aspetto" sotto ogni posto) e si vedono secondo l'opzione ASPETTI
+(`Sandbox/GameLayerLooks.cpp`).

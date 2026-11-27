@@ -74,7 +74,7 @@ namespace SunEngine {
             }
             u.ownedItems.clear();
             auto slots = u.Slots();
-            for (int i = 0; i < 12; ++i) {
+            for (int i = 0; i < TrainedUnit::kSlotCount; ++i) {
                 const uint64_t uid = InstanceUidOf(*slots[i]);
                 if (uid == 0) continue;
                 ItemInstance* it = FindItem(uid);
@@ -109,6 +109,7 @@ namespace SunEngine {
         ItemInstance it;
         it.uid = m_NextItemUid++;
         it.itemId = BlueprintManager::BaseId(itemId);
+        m_Profile.looksOwned.insert(it.itemId);   // comprato o ottenuto: il suo aspetto resta sbloccato per sempre
         SetRarity(it, rarity, ItemRng());
         m_Inventory.push_back(std::move(it));
         return m_Inventory.back();
@@ -119,7 +120,7 @@ namespace SunEngine {
         ItemInstance* it = FindItem(uid);
         for (auto& u : m_PlayerRoster) {
             auto slots = u.Slots();
-            for (int i = 0; i < 12; ++i) {
+            for (int i = 0; i < TrainedUnit::kSlotCount; ++i) {
                 if (InstanceUidOf(*slots[i]) != uid) continue;
                 *slots[i] = (it && !it->Broken()) ? it->Ref() : u.DefaultForSlot(i);
             }

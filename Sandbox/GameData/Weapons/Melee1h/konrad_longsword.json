@@ -1,5 +1,6 @@
 {
   "id": "konrad_longsword",
+  "look_type": "longsword",
   "damage_types": {"slash": 80, "pierce": 20},
   "displayName": "Spada di Konrad von Eber",
   "faction": "Vanguard",

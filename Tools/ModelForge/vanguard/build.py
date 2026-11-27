@@ -41,6 +41,21 @@ COL = SC.collection
 PARTS = []      # (oggetto, pesi {osso: peso} o 'near', materiale)
 
 
+# Parti accendibili del modello (SkinnedMesh::part nel motore): i pezzi costruiti dentro `with tagged('vg_helm_beak'):`
+# finiscono in mesh a parte di nome "VG_<materiale>@vg_helm_beak", che il gioco mostra solo se un pezzo d'armatura indossato
+# (o il suo aspetto) le chiede ("model_parts" nel JSON). Senza etichetta = sempre visibile.
+PART_TAG = {}
+TAGS = ['']
+
+
+class tagged:
+    def __init__(self, tag): self.tag = tag
+    def __enter__(self): self.n = len(PARTS)
+    def __exit__(self, *a):
+        if self.tag not in TAGS: TAGS.append(self.tag)
+        for ob, w, m in PARTS[self.n:]: PART_TAG[ob.name] = self.tag
+
+
 def activate(ob):
     for o in bpy.context.view_layer.objects: o.select_set(False)
     ob.select_set(True); bpy.context.view_layer.objects.active = ob
@@ -469,6 +484,7 @@ def build_armor_left():
     loft('Cod', 'Hips', [tring(1.235, -0.01, 0.1, 0.2, 0.04, idx=[9, 0, 1]), tring(1.08, 0.0, 0.065, 0.17, 0.03, idx=[9, 0, 1])],
          closed=False, thick=0.02, bevel=0.004, center=(0, 0, 1.16), rims='all')
     if not ORDO:
+      with tagged('vg_drape'):   # drappo di battaglia: pezzo sbloccabile del bacino (waist_defender_drape)
         for side, y, sg in (('F', -0.255, -1), ('B', 0.235, 1)):
             V, F = [], []
             nz, nx = 12, 7
@@ -597,10 +613,16 @@ def cut(ob, boxes):
         r_ = bmesh.ops.create_cube(bm, size=1.0)
         for v in r_['verts']: v.co = Vector((c[0] + v.co.x * 2 * h[0], c[1] + v.co.y * 2 * h[1], c[2] + v.co.z * 2 * h[2]))
     me = bpy.data.meshes.new('cutter'); bm.to_mesh(me); bm.free()
+    bt = bmesh.new(); bt.from_mesh(ob.data)   # normali coerenti verso l'esterno: con il solido rovesciato la booleana lo svuota
+    bmesh.ops.recalc_face_normals(bt, faces=bt.faces[:]); bt.to_mesh(ob.data); bt.free()
     co = bpy.data.objects.new('cutter', me); COL.objects.link(co)
     m = ob.modifiers.new('cut', 'BOOLEAN'); m.operation = 'DIFFERENCE'; m.object = co; m.solver = 'EXACT'
+    m.use_self = True; m.use_hole_tolerant = True   # lamiere smussate: gli smussi possono toccarsi
     bake_modifiers(ob); bpy.data.objects.remove(co, do_unlink=True)
     for p in ob.data.polygons: p.use_smooth = True
+    activate(ob)
+    try: bpy.ops.object.shade_smooth_by_angle(angle=0.35)
+    except Exception: pass
 
 
 def horn(name, bone, pts, r0, r1, mat='Cross', sides=12):
@@ -653,25 +675,15 @@ def build_helmet():
         edge_rivets('RivHelm', 'Head', [rim2[i] for i in range(len(rim2))], hc + [0, 0, -0.1], out=0.006)
         cross_pattee('CrossHelm', 'Head', hc + [0, 0.0, 0.189], (np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0])), 0.11)
         return
-    # elmo da assalto, cattivo: calotta bassa e sfaccettata, fronte a becco che scende sul viso, due feritoie inclinate
-    # (piu' basse all'interno) incassate in ombra, mascella a prua, griglie di sfiato sui fianchi, guance, lame sulla nuca
+    # Elmo della Vanguard: calotta, guance, tubi, cresta e lame della nuca in comune; il viso cambia con l'elmo indossato.
+    #  - vg_helm_base (head_defender): viso piatto e squadrato, fronte dritta, due feritoie tagliate nella lamiera con la luce
+    #    in fondo, respiratore a feritoie orizzontali sotto
+    #  - vg_helm_beak (head_defender_assault, sbloccabile): fronte a becco che scende sul viso, feritoie inclinate, mascella a prua
     def hr(dz, y, a, b, k, idx=None): return tring(hc[2] + dz, y, a, b, k, cc=0.4, idx=idx)
     loft('Dome', 'Head', [hr(-0.05, 0.01, 0.15, 0.168, 0.03), hr(0.04, 0.01, 0.158, 0.178, 0.05), hr(0.10, 0.015, 0.14, 0.165, 0.045),
                           hr(0.14, 0.02, 0.095, 0.125, 0.03), hr(0.157, 0.02, 0.04, 0.055, 0.0)], thick=0.03, bevel=0.005, cap_top=True,
          center=hc + [0, 0.01, 0.0], rnd=0.006)
-    b0 = hr(0.03, 0.0, 0.17, 0.19, 0.065, FRONT_IDX); b1 = hr(0.075, 0.0, 0.165, 0.184, 0.05, FRONT_IDX)
-    b0[3, 2] -= 0.042; b0[2, 2] -= 0.017; b0[4, 2] -= 0.017
-    loft('Brow', 'Head', [b0, b1], closed=False, thick=0.032, bevel=0.005, center=hc, rnd=0.004)
-    block('VisorPit', 'Head', hc + [0, -0.15, -0.01], AXES, (0.112, 0.02, 0.032), p=10, mat='Steel', bevel=0.002)
     for s_ in (1, -1):
-        a_ = math.radians(17); ex_ = np.array([math.cos(a_), 0, s_ * math.sin(a_)]); ey_ = np.array([0, 1.0, 0]); ez_ = np.cross(ex_, ey_)
-        block('Eye' + str(s_), 'Head', hc + [0.05 * s_, -0.171, -0.012], (ex_, ey_, ez_), (0.034, 0.004, 0.0042), p=12, mat='Glow')
-    loft('Jaw', 'Head', [hr(-0.025, 0.0, 0.15, 0.172, 0.045, FRONT_IDX), hr(-0.10, -0.01, 0.122, 0.18, 0.1, FRONT_IDX),
-                         hr(-0.178, 0.0, 0.06, 0.125, 0.065, FRONT_IDX)], closed=False, thick=0.028, bevel=0.005, center=hc + [0, 0.02, -0.06], rnd=0.004)
-    for s_ in (1, -1):
-        ex_ = norm((0.5 * s_, 0.86, 0)); ey_ = norm((0.86 * s_, -0.5, 0))
-        for k in range(4):
-            block(f'Slat{k}{s_}', 'Head', hc + [0.112 * s_, -0.158, -0.05 - 0.024 * k], (ex_, ey_, UP), (0.04, 0.006, 0.0065), p=10, mat='Steel')
         block('Cheek' + str(s_), 'Head', hc + [0.166 * s_, 0.005, -0.015], AXES, (0.03, 0.09, 0.085), p=10, mat='Plate', bevel=0.003, keel=0.02)
         block('CheekFin' + str(s_), 'Head', hc + [0.19 * s_, 0.06, 0.03], frame((0, 0.5, 1.0)), (0.01, 0.03, 0.06), p=10, mat='Steel', bevel=0.002)
         tube('Hose' + str(s_), [hc + [0.10 * s_, 0.15, -0.08], (0.15 * s_, 0.27, 1.99), (0.14 * s_, 0.35, 1.95)], 0.016, ribs=3, mat='Steel')
@@ -679,6 +691,40 @@ def build_helmet():
     for k, (z0, z1) in enumerate(((-0.06, -0.14), (-0.12, -0.19))):
         loft(f'Nape{k}', 'Head', [hr(z0, 0.0, 0.152 - 0.008 * k, 0.172 - 0.008 * k, 0.0, BACK_IDX), hr(z1, 0.0, 0.145 - 0.008 * k, 0.165 - 0.008 * k, 0.0, BACK_IDX)],
              closed=False, thick=0.024, bevel=0.004, center=hc)
+    with tagged('vg_helm_base'):
+        loft('BrowFlat', 'Head', [hr(0.03, 0.0, 0.166, 0.186, 0.03, FRONT_IDX), hr(0.072, 0.0, 0.163, 0.181, 0.026, FRONT_IDX)], closed=False,
+             thick=0.028, bevel=0.005, center=hc, rnd=0.004, rims='bottom')
+        loft('FacePlate', 'Head', [hr(0.034, 0.0, 0.153, 0.173, 0.022, FRONT_IDX), hr(-0.08, -0.004, 0.141, 0.176, 0.03, FRONT_IDX),
+                                          hr(-0.178, 0.0, 0.092, 0.142, 0.02, FRONT_IDX)], closed=False, thick=0.026, bevel=0.004,
+                    center=hc + [0, 0.02, -0.06], rnd=0.004, rims='bottom')
+        # occhi: lenti dentro cornici d'acciaio (la lente sta 2 mm indietro rispetto alla cornice: non sporge)
+        for s_ in (1, -1):
+            ec = hc + [0.054 * s_, -0.193, 0.006]
+            for dz in (0.0115, -0.0115): block(f'EyeFrameH{dz}{s_}', 'Head', ec + [0, 0, dz], AXES, (0.037, 0.006, 0.003), p=8, mat='Steel')
+            for dx in (0.034, -0.034): block(f'EyeFrameV{dx}{s_}', 'Head', ec + [dx, 0, 0], AXES, (0.0035, 0.006, 0.0135), p=8, mat='Steel')
+            block('EyeLens' + str(s_), 'Head', hc + [0.054 * s_, -0.194, 0.006], AXES, (0.03, 0.004, 0.0085), p=10, mat='Glow')
+        # respiratore: griglia a lamelle orizzontali al centro, sfiati piccoli sui lati del viso
+        block('Breather', 'Head', hc + [0, -0.202, -0.108], AXES, (0.046, 0.013, 0.042), p=10, mat='Steel', bevel=0.002)
+        for k in range(4):
+            block(f'BreathSlat{k}', 'Head', hc + [0, -0.216, -0.08 - 0.018 * k], AXES, (0.041, 0.0045, 0.0045), p=10, mat='Plate')
+        for s_ in (1, -1):
+            ex_ = norm((0.5 * s_, 0.86, 0)); ey_ = norm((0.86 * s_, -0.5, 0))
+            for k in range(3):
+                block(f'SideVent{k}{s_}', 'Head', hc + [0.104 * s_, -0.16, -0.075 - 0.02 * k], (ex_, ey_, UP), (0.022, 0.005, 0.0045), p=10, mat='Steel')
+    with tagged('vg_helm_beak'):
+        b0 = hr(0.03, 0.0, 0.17, 0.19, 0.065, FRONT_IDX); b1 = hr(0.075, 0.0, 0.165, 0.184, 0.05, FRONT_IDX)
+        b0[3, 2] -= 0.042; b0[2, 2] -= 0.017; b0[4, 2] -= 0.017
+        loft('Brow', 'Head', [b0, b1], closed=False, thick=0.032, bevel=0.005, center=hc, rnd=0.004)
+        block('VisorPit', 'Head', hc + [0, -0.15, -0.01], AXES, (0.112, 0.02, 0.032), p=10, mat='Steel', bevel=0.002)
+        for s_ in (1, -1):
+            a_ = math.radians(17); ex_ = np.array([math.cos(a_), 0, s_ * math.sin(a_)]); ey_ = np.array([0, 1.0, 0]); ez_ = np.cross(ex_, ey_)
+            block('Eye' + str(s_), 'Head', hc + [0.05 * s_, -0.171, -0.012], (ex_, ey_, ez_), (0.034, 0.004, 0.0042), p=12, mat='Glow')
+        loft('Jaw', 'Head', [hr(-0.025, 0.0, 0.15, 0.172, 0.045, FRONT_IDX), hr(-0.10, -0.01, 0.122, 0.18, 0.1, FRONT_IDX),
+                             hr(-0.178, 0.0, 0.06, 0.125, 0.065, FRONT_IDX)], closed=False, thick=0.028, bevel=0.005, center=hc + [0, 0.02, -0.06], rnd=0.004)
+        for s_ in (1, -1):
+            ex_ = norm((0.5 * s_, 0.86, 0)); ey_ = norm((0.86 * s_, -0.5, 0))
+            for k in range(4):
+                block(f'Slat{k}{s_}', 'Head', hc + [0.112 * s_, -0.158, -0.05 - 0.024 * k], (ex_, ey_, UP), (0.04, 0.006, 0.0065), p=10, mat='Steel')
 
 
 def cape_y(x, z):
@@ -801,6 +847,7 @@ def mirror_left():
         for v in me.vertices: v.co.x = -v.co.x
         bm = bmesh.new(); bm.from_mesh(me); bmesh.ops.reverse_faces(bm, faces=bm.faces[:]); bm.to_mesh(me); bm.free()
         o2 = bpy.data.objects.new(ob.name + '_R', me); COL.objects.link(o2)
+        if ob.name in PART_TAG: PART_TAG[o2.name] = PART_TAG[ob.name]
         w2 = {b.replace('Left', 'Right'): x for b, x in w.items()}
         out.append((o2, w2, mat))
     PARTS.extend(out)
@@ -1150,6 +1197,10 @@ for ob, w, mat in PARTS: groups.setdefault(mat, []).append(ob)
 groups.setdefault('Suit', []).append(suit)
 merged = {}
 for mat, obs in groups.items():
+    for o in obs:   # etichetta della parte accendibile su ogni faccia (si separa dopo la cottura: stesse texture)
+        at = o.data.attributes.new('ptag', 'INT', 'FACE')
+        t = TAGS.index(PART_TAG.get(o.name, '')) if PART_TAG.get(o.name, '') in TAGS else 0
+        for d in at.data: d.value = t
     for o in bpy.context.view_layer.objects: o.select_set(False)
     for o in obs: o.select_set(True)
     bpy.context.view_layer.objects.active = obs[0]
@@ -1168,6 +1219,24 @@ for mat, ob in merged.items():
     elif mat == 'Glow': ob.data.materials.append(flat_material('VG_Glow', tuple(x * 0.2 for x in p['glow']), 0.2, 0.0, p['glow'], 2.5))
     elif FAST: ob.data.materials.append(quick_material(mat))
     else: bake_material(ob, mat)
+
+# parti accendibili: le facce etichettate diventano mesh a parte "VG_<materiale>@<parte>" (stesso materiale e stesse UV)
+for mat, ob in list(merged.items()):
+    at = ob.data.attributes.get('ptag')
+    vals = sorted({d.value for d in at.data}) if at else []
+    for t in vals:
+        if t == 0: continue
+        activate(ob)
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_mode(type='FACE'); bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        at = ob.data.attributes.get('ptag')
+        for p_, d in zip(ob.data.polygons, at.data): p_.select = d.value == t
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.separate(type='SELECTED'); bpy.ops.object.mode_set(mode='OBJECT')
+        for o in bpy.context.selected_objects:
+            if o is not ob:
+                o.name = ob.name + '@' + TAGS[t]; o.data.name = o.name
+                print('parte', o.name, len(o.data.polygons), 'facce')
+    ob.data.name = ob.name
 
 for o in bpy.context.view_layer.objects: o.select_set(o.type in ('MESH', 'ARMATURE'))
 blend = os.path.join(HERE, f'vanguard_{VAR}.blend')

@@ -1,5 +1,6 @@
 {
   "id": "gunner_rocket_launcher",
+  "look_type": "rocket_launcher",
   "damage_types": {"blast": 80, "fire": 20},
   "damage_pure": true,
   "displayName": "Lanciarazzi",

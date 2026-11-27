@@ -84,6 +84,7 @@ namespace SunEngine {
                         bodyEx.skinStyle = skinnedInst->skinStyle;
                         const SunEngine::SkinnedModel& srcModel = *skinnedInst->sourceModel;
                         for (const auto& submesh : srcModel.meshes) {
+                            if (!skinnedInst->ShowsPart(submesh.part)) continue;   // parte accendibile spenta (es. elmo diverso)
                             // Modello d'autore: ogni sotto-mesh col suo materiale (texture dell'artista)
                             if (srcModel.authored) {
                                 DeferredRenderer::SkinnedDrawExtra authEx;

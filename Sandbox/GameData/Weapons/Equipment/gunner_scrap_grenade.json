@@ -1,5 +1,6 @@
 {
   "id": "gunner_scrap_grenade",
+  "look_type": "frag",
   "damage_types": {"blast": 50, "slash": 50},
   "damage_pure": true,
   "displayName": "Granata di Rottami",

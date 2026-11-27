@@ -1,5 +1,6 @@
 {
   "id": "pighcib_blunderbuss",
+  "look_type": "shotgun",
   "damage_types": {"pierce": 50, "blunt": 30, "slash": 20},
   "displayName": "Archibugio a Canna Larga",
   "comment": "Fucile rudimentale a 2 mani che spara chiodi, bulloni e rottami. Monocolpo: 1 in canna + 2 di scorta, 10 s per ricaricare. Rosa molto larga: a 3 metri uccide un umano senza armatura, da lontano quasi inutile. Si ricerca sotto il Pighcib e si compra per unita'.",

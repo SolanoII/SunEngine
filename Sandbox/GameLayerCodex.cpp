@@ -666,8 +666,9 @@ namespace SunEngine {
                     if (!u->default_secondary.empty()) Row("Secondaria", wname(u->default_secondary));
                     if (!u->default_melee.empty()) Row("Mischia", wname(u->default_melee));
                     for (const auto& eq : u->default_equipment) if (!eq.empty()) Row("Equipaggiamento", wname(eq));
-                    static const char* kParts[6] = { "Testa", "Torso", "Braccio sinistro", "Braccio destro", "Gamba sinistra", "Gamba destra" };
-                    for (int i = 0; i < 6; ++i) if (!u->default_armor[i].empty()) Row(kParts[i], aname(u->default_armor[i]));
+                    static const char* kParts[kArmorSlotCount] = { "Testa", "Torso", "Braccio sinistro", "Braccio destro", "Gamba sinistra", "Gamba destra",
+                                                                   "Bacino", "Schiena", "Sopra lo zaino", "Testa (decorazione)", "Volto" };
+                    for (int i = 0; i < kArmorSlotCount; ++i) if (!u->default_armor[i].empty()) Row(kParts[i], aname(u->default_armor[i]));
                     ImGui::EndTable();
                 }
                 std::vector<std::string> fire, melee, equip, armor;

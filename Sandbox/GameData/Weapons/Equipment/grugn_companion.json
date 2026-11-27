@@ -1,5 +1,6 @@
 {
   "id": "grugn_companion",
+  "look_type": "grugn",
   "damage_types": {"pierce": 70, "slash": 30},
   "displayName": "Grugn da Compagnia",
   "comment": "Compagno del Pighcib: basta averlo in uno slot equipaggiamento, ti segue da solo. Quando spari (anche mancando) attacca il nemico piu' vicino alla tua linea di tiro e lo morde. Colpibile: 35 di salute, schiva il 30% dei colpi; se viene ucciso e' perso fino a fine partita.",

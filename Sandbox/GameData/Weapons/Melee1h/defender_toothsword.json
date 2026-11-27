@@ -1,5 +1,6 @@
 {
   "id": "defender_toothsword",
+  "look_type": "toothsword",
   "damage_types": {"slash": 100},
   "displayName": "Spada a Denti Meccanici",
   "faction": "Vanguard",

@@ -1,5 +1,6 @@
 {
   "id": "levy_impulse_rifle",
+  "look_type": "impulse_rifle",
   "damage_types": {"energy": 100},
   "displayName": "Fucile a Impulsi da Scudo",
   "faction": "Kingship",

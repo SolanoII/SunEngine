@@ -1,4 +1,7 @@
 {
-  "comment": "Vanguard Armor: modello d'autore (Tools/ModelForge/vanguard). E' gia' un'armatura completa: le armature dell'unita' non si disegnano sopra.",
-  "complete_armor": true
+  "comment": "Vanguard Armor: modello d'autore (Tools/ModelForge/vanguard). E' gia' un'armatura completa: le armature dell'unita' non si disegnano sopra. Parti accendibili: elmo base (vg_helm_base), elmo a becco (vg_helm_beak, head_defender_assault), drappo (vg_drape, waist_defender_drape).",
+  "complete_armor": true,
+  "default_parts": {
+    "head": "vg_helm_base"
+  }
 }

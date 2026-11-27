@@ -1,5 +1,6 @@
 {
   "id": "footman_grenade_launcher",
+  "look_type": "grenade_launcher",
   "damage_types": {"blast": 80, "pierce": 20},
   "damage_pure": true,
   "displayName": "Lanciagranate del Presidio",

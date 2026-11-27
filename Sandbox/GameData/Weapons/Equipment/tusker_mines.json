@@ -1,5 +1,6 @@
 {
   "id": "tusker_mines",
+  "look_type": "mines",
   "damage_types": {"blast": 70, "pierce": 30},
   "damage_pure": true,
   "displayName": "Mine da Terra",

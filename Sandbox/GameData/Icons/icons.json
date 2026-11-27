@@ -91,6 +91,7 @@
   "gunner_scrap_grenade": "scrap_grenade",
   "head_cadet_carapace": "helmet_carapace",
   "head_defender": "helmet_power",
+  "head_defender_assault": "helmet_power",
   "head_explorer_visor": "helmet_visor",
   "head_feral_pig_scrap": "helmet_scrap",
   "head_footman_helmet": "helmet_visor",
@@ -190,6 +191,7 @@
   "tusker_mines": "mine",
   "tusker_nail_grenade": "nail_grenade",
   "vrepigh_cleaver_1h": "cleaver",
+  "waist_defender_drape": "cloak",
   "zhelvar_cleaver": "cleaver",
   "zhelvar_rifle": "rifle"
  }

@@ -1,5 +1,6 @@
 {
   "id": "raider_demolition_bomb",
+  "look_type": "demolition_bomb",
   "damage_types": {"blast": 100},
   "damage_pure": true,
   "displayName": "Bomba Anti-Struttura",

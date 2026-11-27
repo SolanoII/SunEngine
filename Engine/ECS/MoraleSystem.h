@@ -287,6 +287,8 @@ namespace SunEngine {
                 if (p->id.empty() || p->id == "none") continue;
                 if (const auto* a = bm.GetArmorPiece(p->id)) { capBonus += a->morale_cap_bonus; startBonus += a->morale_start_bonus; }
             }
+            for (const auto& id : as.extraIds)   // bacino, schiena, decorazioni, volto
+                if (const auto* a = bm.GetArmorPiece(id)) { capBonus += a->morale_cap_bonus; startBonus += a->morale_start_bonus; }
             if (const auto* inv = reg.try_get<InventoryComponent>(e)) {
                 for (int s = 0; s <= 6; ++s) {
                     const std::string id = inv->GetSlotItemId(s);

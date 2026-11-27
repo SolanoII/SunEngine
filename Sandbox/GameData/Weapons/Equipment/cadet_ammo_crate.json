@@ -1,5 +1,6 @@
 {
   "id": "cadet_ammo_crate",
+  "look_type": "ammo_box",
   "displayName": "Cassa di Munizioni",
   "comment": "Sbloccabile del Collegio: cassa posata a terra. Chiunque della squadra, vicino e premendo E, recupera un caricatore dell'arma che ha in mano; 3 caricatori in tutto, poi la cassa sparisce. 1 per partita.",
   "faction": "Kingship",

@@ -26,6 +26,7 @@
   ],
   "comment": "Dotazione base dello scout: scanner. Tenuto in mano mostra un sonar coi nemici entro 30 metri (pallini rossi). Passivo, senza usi.",
   "id": "explorer_scanner",
+  "look_type": "scanner",
   "allowed_units": [
     "vanguard_explorer"
   ],
